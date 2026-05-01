@@ -129,59 +129,65 @@ Deferred to future. Tracked but not in current roadmap.
 
 ## Traceability
 
-(Заполняется gsd-roadmapper после создания ROADMAP.md.)
-
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| AUTH-01 | TBD | Pending |
-| AUTH-02 | TBD | Pending |
-| ONB-01 | TBD | Pending |
-| ONB-02 | TBD | Pending |
-| ONB-03 | TBD | Pending |
-| CAT-01 | TBD | Pending |
-| CAT-02 | TBD | Pending |
-| CAT-03 | TBD | Pending |
-| PER-01 | TBD | Pending |
-| PER-02 | TBD | Pending |
-| PER-03 | TBD | Pending |
-| PER-04 | TBD | Pending |
-| PER-05 | TBD | Pending |
-| TPL-01 | TBD | Pending |
-| TPL-02 | TBD | Pending |
-| TPL-03 | TBD | Pending |
-| TPL-04 | TBD | Pending |
-| PLN-01 | TBD | Pending |
-| PLN-02 | TBD | Pending |
-| PLN-03 | TBD | Pending |
-| ACT-01 | TBD | Pending |
-| ACT-02 | TBD | Pending |
-| ACT-03 | TBD | Pending |
-| ACT-04 | TBD | Pending |
-| ACT-05 | TBD | Pending |
-| DSH-01 | TBD | Pending |
-| DSH-02 | TBD | Pending |
-| DSH-03 | TBD | Pending |
-| DSH-04 | TBD | Pending |
-| DSH-05 | TBD | Pending |
-| DSH-06 | TBD | Pending |
-| SUB-01 | TBD | Pending |
-| SUB-02 | TBD | Pending |
-| SUB-03 | TBD | Pending |
-| SUB-04 | TBD | Pending |
-| SUB-05 | TBD | Pending |
-| SET-01 | TBD | Pending |
-| SET-02 | TBD | Pending |
-| INF-01 | TBD | Pending |
-| INF-02 | TBD | Pending |
-| INF-03 | TBD | Pending |
-| INF-04 | TBD | Pending |
-| INF-05 | TBD | Pending |
+| AUTH-01 | Phase 1 | Pending |
+| AUTH-02 | Phase 1 | Pending |
+| ONB-01 | Phase 2 | Pending |
+| ONB-02 | Phase 2 | Pending |
+| ONB-03 | Phase 2 | Pending |
+| CAT-01 | Phase 2 | Pending |
+| CAT-02 | Phase 2 | Pending |
+| CAT-03 | Phase 2 | Pending |
+| PER-01 | Phase 2 | Pending |
+| PER-02 | Phase 2 | Pending |
+| PER-03 | Phase 2 | Pending |
+| PER-04 | Phase 5 | Pending |
+| PER-05 | Phase 2 | Pending |
+| TPL-01 | Phase 3 | Pending |
+| TPL-02 | Phase 3 | Pending |
+| TPL-03 | Phase 3 | Pending |
+| TPL-04 | Phase 3 | Pending |
+| PLN-01 | Phase 3 | Pending |
+| PLN-02 | Phase 3 | Pending |
+| PLN-03 | Phase 3 | Pending |
+| ACT-01 | Phase 4 | Pending |
+| ACT-02 | Phase 4 | Pending |
+| ACT-03 | Phase 4 | Pending |
+| ACT-04 | Phase 4 | Pending |
+| ACT-05 | Phase 4 | Pending |
+| DSH-01 | Phase 5 | Pending |
+| DSH-02 | Phase 5 | Pending |
+| DSH-03 | Phase 5 | Pending |
+| DSH-04 | Phase 5 | Pending |
+| DSH-05 | Phase 5 | Pending |
+| DSH-06 | Phase 5 | Pending |
+| SUB-01 | Phase 6 | Pending |
+| SUB-02 | Phase 6 | Pending |
+| SUB-03 | Phase 6 | Pending |
+| SUB-04 | Phase 6 | Pending |
+| SUB-05 | Phase 6 | Pending |
+| SET-01 | Phase 2 | Pending |
+| SET-02 | Phase 6 | Pending |
+| INF-01 | Phase 1 | Pending |
+| INF-02 | Phase 1 | Pending |
+| INF-03 | Phase 1 | Pending |
+| INF-04 | Phase 1 | Pending |
+| INF-05 | Phase 1 | Pending |
 
 **Coverage:**
 - v1 requirements: 43 total
-- Mapped to phases: 0 (TBD — заполнит roadmapper)
-- Unmapped: 43 ⚠️ (до создания roadmap)
+- Mapped to phases: 43 ✓
+- Unmapped: 0
+
+**Per-phase distribution:**
+- Phase 1 (Infrastructure & Auth): 7 — AUTH-01, AUTH-02, INF-01..05
+- Phase 2 (Domain Foundation & Onboarding): 11 — CAT-01..03, PER-01..03, PER-05, ONB-01..03, SET-01
+- Phase 3 (Plan Template & Planned Transactions): 7 — TPL-01..04, PLN-01..03
+- Phase 4 (Actual Transactions & Bot Commands): 5 — ACT-01..05
+- Phase 5 (Dashboard & Period Lifecycle): 7 — DSH-01..06, PER-04
+- Phase 6 (Subscriptions & Worker Jobs): 6 — SUB-01..05, SET-02
 
 ---
 *Requirements defined: 2026-05-01*
-*Last updated: 2026-05-01 after initial synthesis from BRD/HLD/sketches*
+*Last updated: 2026-05-01 after roadmap creation (traceability filled by gsd-roadmapper)*
