@@ -1,0 +1,462 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Sketch 006 — Onboarding</title>
+  <link rel="stylesheet" href="../themes/default.css">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      background: #05070b; color: var(--color-text);
+      font-family: var(--font-sans); padding-top: 56px; min-height: 100vh;
+    }
+
+    #variant-nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 9998;
+      background: #0a0d13; border-bottom: 1px solid #1a1f2c;
+      padding: 8px; display: flex; gap: 6px; overflow-x: auto; font-size: 12px;
+    }
+    .variant-tab {
+      background: transparent; color: #94a0b8; border: 1px solid #232a3a;
+      padding: 8px 14px; border-radius: 999px; cursor: pointer;
+      white-space: nowrap; transition: all 0.15s; font-family: inherit;
+    }
+    .variant-tab:hover { color: #fff; border-color: var(--color-primary); }
+    .variant-tab.active { background: var(--color-primary); color: #fff; font-weight: 600; }
+
+    .frame {
+      max-width: var(--tg-viewport);
+      margin: 24px auto;
+      background: var(--color-bg);
+      border-radius: 28px;
+      overflow: hidden;
+      box-shadow: var(--shadow-lg);
+      position: relative;
+      min-height: 780px;
+      padding-bottom: calc(var(--main-button-height) + var(--safe-bottom) + 16px);
+    }
+    .variant { display: none; }
+    .variant.active { display: block; }
+
+    .tg-statusbar {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 10px 20px 0; font-size: 13px; color: var(--color-text-muted);
+    }
+    .tg-header {
+      padding: 8px 16px 12px;
+      display: flex; align-items: center; gap: 12px;
+      min-height: 30px;
+    }
+    .tg-back { color: var(--color-primary); cursor: pointer; font-size: 15px; }
+    .tg-title { flex: 1; text-align: center; font-weight: 600; font-size: 16px; }
+
+    .progress {
+      display: flex; gap: 6px; padding: 0 16px 16px;
+    }
+    .progress .step {
+      flex: 1; height: 4px; background: var(--color-surface);
+      border-radius: 999px; transition: background 0.3s;
+    }
+    .progress .step.done { background: var(--color-primary); }
+    .progress .step.active {
+      background: linear-gradient(90deg, var(--color-primary) 50%, var(--color-surface) 50%);
+    }
+
+    .step-content {
+      padding: 12px 24px 24px;
+    }
+    .step-icon {
+      width: 80px; height: 80px; margin: 8px auto 20px;
+      border-radius: 24px;
+      background: var(--color-primary-soft);
+      color: var(--color-primary);
+      display: grid; place-items: center;
+      font-size: 40px;
+    }
+    .step-icon.success {
+      background: var(--color-success-soft);
+      color: var(--color-success);
+    }
+    .step-title {
+      text-align: center; font-size: 22px; font-weight: 700;
+      letter-spacing: -0.02em; margin-bottom: 8px;
+    }
+    .step-hint {
+      text-align: center; font-size: 14px;
+      color: var(--color-text-muted); line-height: 1.5;
+      margin-bottom: 24px;
+    }
+
+    /* Form fields */
+    .field {
+      margin: 0 0 12px; padding: 14px 16px;
+      background: var(--color-surface); border-radius: var(--radius-md);
+      cursor: pointer; transition: background 0.15s;
+    }
+    .field:hover { background: var(--color-surface-2); }
+    .field-label {
+      font-size: 11px; color: var(--color-text-muted);
+      text-transform: uppercase; letter-spacing: 0.06em;
+      font-weight: 600; margin-bottom: 6px;
+    }
+    .field-value {
+      font-size: 18px; color: var(--color-text); font-weight: 600;
+      font-variant-numeric: tabular-nums;
+    }
+    .field-value.placeholder { color: var(--color-text-dim); font-weight: 400; }
+    .field-hint {
+      font-size: 11px; color: var(--color-text-dim); margin-top: 4px;
+    }
+
+    .field input {
+      width: 100%; border: 0; background: transparent;
+      color: var(--color-text); font-size: 18px; font-weight: 600;
+      font-family: inherit; outline: none;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Stepper for cycle day */
+    .stepper {
+      display: flex; align-items: center; gap: 14px;
+    }
+    .stepper button {
+      width: 32px; height: 32px; border-radius: 999px;
+      background: var(--color-bg-elevated); border: 0;
+      color: var(--color-text); font-size: 18px;
+      cursor: pointer; font-family: inherit;
+      transition: background 0.15s;
+    }
+    .stepper button:hover { background: var(--color-primary-soft); color: var(--color-primary); }
+    .stepper .val {
+      flex: 1; text-align: center; font-size: 22px;
+      font-weight: 700; font-variant-numeric: tabular-nums;
+      color: var(--color-text);
+    }
+
+    /* Category pills (seed) */
+    .seed-grid {
+      display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px;
+    }
+    .seed-tile {
+      padding: 12px 14px; background: var(--color-surface);
+      border-radius: var(--radius-md);
+      border: 2px solid var(--color-primary);
+      cursor: pointer; transition: all 0.15s;
+      display: flex; align-items: center; gap: 10px;
+      background: var(--color-primary-soft);
+    }
+    .seed-tile.off {
+      border-color: transparent;
+      background: var(--color-surface);
+    }
+    .seed-tile:hover { transform: translateY(-1px); }
+    .seed-tile .check {
+      width: 20px; height: 20px; border-radius: 6px;
+      background: var(--color-primary); color: #fff;
+      display: grid; place-items: center;
+      font-size: 12px; font-weight: 700; flex-shrink: 0;
+    }
+    .seed-tile.off .check {
+      background: transparent; border: 1.5px solid var(--color-border); color: transparent;
+    }
+    .seed-tile .nm { font-size: 13px; font-weight: 500; }
+
+    /* Bot bind specific */
+    .bot-illustration {
+      margin: 24px auto; padding: 20px;
+      background: var(--color-surface); border-radius: var(--radius-lg);
+      display: flex; align-items: center; gap: 14px;
+      max-width: 280px;
+    }
+    .bot-illustration .bot-avatar {
+      width: 48px; height: 48px; border-radius: 999px;
+      background: var(--color-primary); color: #fff;
+      display: grid; place-items: center;
+      font-size: 22px; flex-shrink: 0;
+    }
+    .bot-illustration .msg {
+      flex: 1; padding: 10px 14px; background: var(--color-bg-elevated);
+      border-radius: 14px 14px 14px 4px;
+      font-size: 13px; color: var(--color-text);
+      line-height: 1.4;
+    }
+
+    /* Welcome features */
+    .features {
+      list-style: none; padding: 0; margin: 24px 0 0;
+    }
+    .features li {
+      padding: 10px 0;
+      display: flex; align-items: center; gap: 14px;
+      font-size: 14px; color: var(--color-text);
+    }
+    .features li .ico {
+      width: 36px; height: 36px; border-radius: 10px;
+      background: var(--color-primary-soft); color: var(--color-primary);
+      display: grid; place-items: center; font-size: 18px;
+      flex-shrink: 0;
+    }
+
+    /* Variant B: scrollable page */
+    .vb-section {
+      margin: 0 16px 16px; padding: 16px 18px;
+      background: var(--color-surface); border-radius: var(--radius-md);
+      transition: opacity 0.3s;
+    }
+    .vb-section.locked { opacity: 0.4; pointer-events: none; }
+    .vb-section .head {
+      display: flex; align-items: center; gap: 10px; margin-bottom: 12px;
+    }
+    .vb-section .num {
+      width: 24px; height: 24px; border-radius: 999px;
+      background: var(--color-primary); color: #fff;
+      display: grid; place-items: center;
+      font-size: 12px; font-weight: 700;
+      flex-shrink: 0;
+    }
+    .vb-section .num.done {
+      background: var(--color-success);
+    }
+    .vb-section.locked .num { background: var(--color-text-dim); }
+    .vb-section h4 {
+      margin: 0; font-size: 15px; font-weight: 600;
+      flex: 1;
+    }
+    .vb-section .check-mark {
+      color: var(--color-success); font-size: 16px;
+    }
+
+    /* MainButton */
+    .main-button {
+      position: absolute; left: 16px; right: 16px; bottom: var(--safe-bottom);
+      height: var(--main-button-height);
+      background: var(--color-primary); border: 0; border-radius: var(--radius-md);
+      color: #fff; font-size: 16px; font-weight: 600; cursor: pointer;
+      font-family: inherit; transition: all 0.15s;
+      box-shadow: 0 6px 18px rgba(78,164,255,0.35);
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .main-button:hover { background: var(--color-primary-hover); }
+    .main-button.ghost {
+      background: transparent; box-shadow: none;
+      color: var(--color-primary); border: 1px solid var(--color-primary);
+    }
+
+    .skip-btn {
+      position: absolute; bottom: calc(var(--safe-bottom) + var(--main-button-height) + 16px);
+      left: 0; right: 0; text-align: center;
+      color: var(--color-text-muted); font-size: 13px;
+      cursor: pointer;
+      padding: 8px;
+    }
+
+    .toast {
+      position: fixed; left: 50%; bottom: 100px; transform: translateX(-50%) translateY(20px);
+      background: rgba(0,0,0,0.9); color: #fff; padding: 10px 18px;
+      border-radius: 999px; font-size: 13px; opacity: 0; pointer-events: none;
+      transition: all 0.25s; z-index: 9997;
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    #sketch-tools {
+      position: fixed; bottom: 12px; right: 12px; z-index: 9999;
+      font-family: system-ui; font-size: 12px;
+      background: rgba(0,0,0,0.75); color: #fff;
+      padding: 8px 12px; border-radius: 8px;
+      opacity: 0.4; transition: opacity 0.2s;
+      display: flex; gap: 8px; align-items: center;
+    }
+    #sketch-tools:hover { opacity: 1; }
+    #sketch-tools select {
+      background: rgba(255,255,255,0.1); color: #fff;
+      border: 1px solid rgba(255,255,255,0.2);
+      padding: 2px 6px; border-radius: 4px; font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+
+<div id="variant-nav">
+  <button class="variant-tab" data-variant="a">A: Linear wizard (4 шага)</button>
+  <button class="variant-tab active" data-variant="b">B: Scrollable single page ★ Selected</button>
+  <button class="variant-tab" data-variant="c">C: Welcome + 2-step wizard</button>
+</div>
+
+<!-- ============================================== -->
+<!-- VARIANT A: Linear wizard 4 steps              -->
+<!-- ============================================== -->
+<div class="variant" id="variant-a">
+  <div class="frame">
+    <div class="tg-statusbar"><span>9:41</span><span>●●● 5G ▮</span></div>
+    <div class="tg-header"><span class="tg-title">Настройка</span></div>
+    <div class="progress">
+      <div class="step done"></div>
+      <div class="step active"></div>
+      <div class="step"></div>
+      <div class="step"></div>
+    </div>
+    <div class="step-content">
+      <div class="step-icon">🤖</div>
+      <div class="step-title">Включите бота</div>
+      <div class="step-hint">
+        Чтобы получать напоминания о подписках и подтверждения трат, нажмите кнопку ниже и отправьте боту <strong>/start</strong>.
+      </div>
+
+      <div class="bot-illustration">
+        <div class="bot-avatar">B</div>
+        <div class="msg">Привет! Я ваш бот для бюджета. Нажмите /start чтобы привязать чат.</div>
+      </div>
+
+    </div>
+    <button class="main-button" onclick="toast('Открыть @bot в Telegram')">Открыть бота в Telegram</button>
+  </div>
+</div>
+
+<!-- ============================================== -->
+<!-- VARIANT B: Scrollable single page             -->
+<!-- ============================================== -->
+<div class="variant active" id="variant-b">
+  <div class="frame">
+    <div class="tg-statusbar"><span>9:41</span><span>●●● 5G ▮</span></div>
+    <div class="tg-header"><span class="tg-title">Добро пожаловать</span></div>
+
+    <div class="step-content" style="padding: 8px 24px 16px">
+      <div class="step-icon" style="margin: 0 auto 12px; width: 56px; height: 56px; font-size: 28px;">💸</div>
+      <div class="step-title" style="font-size: 18px; margin-bottom: 4px;">Несколько шагов</div>
+      <div class="step-hint" style="font-size: 13px; margin-bottom: 0;">Заполните по порядку — займёт минуту</div>
+    </div>
+
+    <!-- Section 1: bot bind -->
+    <div class="vb-section">
+      <div class="head">
+        <span class="num done">✓</span>
+        <h4>Бот подключён</h4>
+        <span class="check-mark">✓</span>
+      </div>
+      <div style="font-size: 13px; color: var(--color-text-muted);">@my_budget_bot · готов отправлять уведомления</div>
+    </div>
+
+    <!-- Section 2: starting balance (active) -->
+    <div class="vb-section">
+      <div class="head">
+        <span class="num">2</span>
+        <h4>Сколько у вас сейчас на счёте?</h4>
+      </div>
+      <div class="field" style="margin: 0;">
+        <div class="field-label">Стартовый баланс</div>
+        <input type="text" value="12 450" />
+        <div class="field-hint">Будет начальной точкой для текущего периода</div>
+      </div>
+    </div>
+
+    <!-- Section 3: cycle day (active) -->
+    <div class="vb-section">
+      <div class="head">
+        <span class="num">3</span>
+        <h4>День начала периода</h4>
+      </div>
+      <div class="field" style="margin: 0;">
+        <div class="field-label">Период идёт с N-го по (N−1)-е</div>
+        <div class="stepper">
+          <button onclick="stepDay(-1, 'vb-day')">−</button>
+          <span class="val" id="vb-day">5</span>
+          <button onclick="stepDay(1, 'vb-day')">+</button>
+        </div>
+        <div class="field-hint">Например, 5 = с 5 фев по 4 мар. Можно поменять позже.</div>
+      </div>
+    </div>
+
+    <!-- Section 4: seed (locked until 2-3 done — visual only) -->
+    <div class="vb-section">
+      <div class="head">
+        <span class="num">4</span>
+        <h4>Стартовые категории</h4>
+      </div>
+      <div style="font-size: 12px; color: var(--color-text-muted); margin-bottom: 10px;">Можно выключить ненужные.</div>
+      <div class="seed-grid">
+        <div class="seed-tile"><div class="check">✓</div><div class="nm">Продукты</div></div>
+        <div class="seed-tile"><div class="check">✓</div><div class="nm">Дом</div></div>
+        <div class="seed-tile"><div class="check">✓</div><div class="nm">Машина</div></div>
+        <div class="seed-tile off"><div class="check">✓</div><div class="nm">Подарки</div></div>
+        <div class="seed-tile"><div class="check">✓</div><div class="nm">Кафе</div></div>
+        <div class="seed-tile off"><div class="check">✓</div><div class="nm">Долг</div></div>
+      </div>
+    </div>
+
+    <button class="main-button">Готово</button>
+  </div>
+</div>
+
+<!-- ============================================== -->
+<!-- VARIANT C: Welcome + 2-step wizard            -->
+<!-- ============================================== -->
+<div class="variant" id="variant-c">
+  <div class="frame">
+    <div class="tg-statusbar"><span>9:41</span><span>●●● 5G ▮</span></div>
+    <div class="tg-header"><span class="tg-title">Добро пожаловать</span></div>
+
+    <div class="step-content">
+      <div class="step-icon" style="background: linear-gradient(135deg, var(--color-primary), #6d28d9); color: #fff;">💰</div>
+      <div class="step-title">Бюджет в TG</div>
+      <div class="step-hint">
+        План на месяц, факт-расходы за один тап, напоминания о подписках. Ваши данные — только у вас.
+      </div>
+      <ul class="features">
+        <li><span class="ico">📊</span><span>Видите план/факт/дельту по категориям</span></li>
+        <li><span class="ico">🔁</span><span>Шаблон плана раскатывается на каждый месяц</span></li>
+        <li><span class="ico">🔔</span><span>Бот напомнит о списании за 2 дня</span></li>
+      </ul>
+    </div>
+
+    <button class="main-button" onclick="toast('Дальше: бот')">Начать</button>
+    <div class="skip-btn" onclick="toast('Пропустить онбординг')">Пропустить</div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<div id="sketch-tools">
+  <span>Theme:</span>
+  <select id="theme-toggle">
+    <option value="dark" selected>dark</option>
+    <option value="light">light</option>
+  </select>
+</div>
+
+<script>
+  document.querySelectorAll('#variant-nav .variant-tab').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const v = btn.dataset.variant;
+      document.querySelectorAll('.variant').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('#variant-nav .variant-tab').forEach(t => t.classList.remove('active'));
+      document.getElementById('variant-' + v).classList.add('active');
+      btn.classList.add('active');
+      window.scrollTo({ top: 0, behavior: 'instant' });
+    });
+  });
+  document.getElementById('theme-toggle').addEventListener('change', (e) => {
+    document.documentElement.dataset.theme = e.target.value;
+  });
+  function toast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(window.__toastT);
+    window.__toastT = setTimeout(() => t.classList.remove('show'), 1400);
+  }
+  function stepDay(delta, id) {
+    const el = document.getElementById(id);
+    let v = parseInt(el.textContent, 10) + delta;
+    if (v < 1) v = 28; if (v > 28) v = 1;
+    el.textContent = v;
+  }
+
+  // Seed tiles toggle
+  document.querySelectorAll('.seed-tile').forEach(t => {
+    t.addEventListener('click', () => t.classList.toggle('off'));
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,661 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Sketch 003 — Dashboard States</title>
+  <link rel="stylesheet" href="../themes/default.css">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      background: #05070b;
+      color: var(--color-text);
+      font-family: var(--font-sans);
+      padding-top: 56px;
+      min-height: 100vh;
+    }
+
+    #variant-nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 9998;
+      background: #0a0d13; border-bottom: 1px solid #1a1f2c;
+      padding: 8px; display: flex; gap: 6px; overflow-x: auto;
+      font-size: 12px;
+    }
+    .variant-tab {
+      background: transparent; color: #94a0b8; border: 1px solid #232a3a;
+      padding: 8px 14px; border-radius: 999px; cursor: pointer;
+      white-space: nowrap; transition: all 0.15s;
+      font-family: inherit;
+    }
+    .variant-tab:hover { color: #fff; border-color: var(--color-primary); }
+    .variant-tab.active {
+      background: var(--color-primary); color: #fff; font-weight: 600;
+    }
+
+    .frame {
+      max-width: var(--tg-viewport);
+      margin: 24px auto;
+      background: var(--color-bg);
+      border-radius: 28px;
+      overflow: hidden;
+      box-shadow: var(--shadow-lg);
+      position: relative;
+      min-height: 760px;
+      padding-bottom: calc(var(--main-button-height) + var(--safe-bottom) + 16px);
+    }
+    .variant { display: none; }
+    .variant.active { display: block; }
+
+    .tg-statusbar {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 10px 20px 0; font-size: 13px; color: var(--color-text-muted);
+    }
+    .tg-header {
+      padding: 8px 16px 12px;
+      display: flex; align-items: center; gap: 12px;
+    }
+    .tg-back { color: var(--color-primary); cursor: pointer; font-size: 15px; }
+    .tg-title { flex: 1; text-align: center; font-weight: 600; font-size: 16px; }
+    .tg-action { color: var(--color-primary); font-size: 15px; cursor: pointer; }
+
+    .period-switcher {
+      display: flex; align-items: center; justify-content: center;
+      gap: 10px; padding: 4px 16px 4px;
+      color: var(--color-text-muted); font-size: 13px;
+    }
+    .period-switcher .label {
+      color: var(--color-text); font-weight: 600; font-size: 14px;
+      padding: 6px 14px; border-radius: 999px;
+      background: var(--color-surface);
+      border: 1px solid var(--color-border-subtle);
+      display: inline-flex; align-items: center; gap: 8px;
+    }
+    .period-switcher .label .closed-badge {
+      font-size: 10px; padding: 2px 8px; border-radius: 999px;
+      background: var(--color-text-dim); color: #fff;
+      text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600;
+    }
+    .period-switcher .arrow {
+      width: 28px; height: 28px; border-radius: 999px;
+      background: var(--color-surface); border: 1px solid var(--color-border-subtle);
+      display: grid; place-items: center; cursor: pointer;
+      color: var(--color-text-muted);
+    }
+
+    .hero {
+      margin: 12px 16px 16px;
+      padding: 22px 22px 24px;
+      background: var(--gradient-hero);
+      border-radius: var(--radius-xl);
+      position: relative; overflow: hidden;
+    }
+    .hero::before {
+      content: ''; position: absolute; inset: 0;
+      background: var(--gradient-hero-glow); pointer-events: none;
+    }
+    .hero > * { position: relative; }
+    .hero-label {
+      font-size: var(--text-xs); text-transform: uppercase;
+      letter-spacing: 0.08em; color: rgba(255,255,255,0.7); font-weight: 600;
+    }
+    .hero-balance {
+      font-size: var(--text-3xl); font-weight: 700;
+      font-variant-numeric: tabular-nums; letter-spacing: -0.02em;
+      margin: 6px 0 4px; color: #fff;
+    }
+    .hero-balance.neg { color: #ff8a8a; }
+    .hero-balance.pos { color: #6fffa1; }
+    .hero-sub {
+      display: flex; gap: 16px; margin-top: 14px;
+      color: rgba(255,255,255,0.85); font-size: 13px;
+    }
+    .hero-sub .item .k { color: rgba(255,255,255,0.55); display: block; font-size: 11px; }
+    .hero-sub .item .v { font-weight: 600; font-variant-numeric: tabular-nums; font-size: 14px; }
+    .hero-sub .item .v.neg { color: #ff8a8a; }
+    .hero-sub .item .v.pos { color: #6fffa1; }
+
+    /* Hero alert (overspend) */
+    .hero-alert {
+      margin-top: 14px; padding: 10px 14px;
+      background: rgba(255, 93, 93, 0.18);
+      border: 1px solid rgba(255, 93, 93, 0.4);
+      border-radius: 12px;
+      display: flex; gap: 10px; align-items: center;
+      color: #ffd2d2; font-size: 13px;
+    }
+    .hero-alert .ic {
+      width: 22px; height: 22px; border-radius: 999px;
+      background: var(--color-danger); color: #fff;
+      display: grid; place-items: center; font-size: 14px; flex-shrink: 0;
+    }
+
+    .vb-tabs {
+      margin: 6px 16px 14px;
+      background: var(--color-surface);
+      border-radius: var(--radius-md);
+      padding: 4px;
+      display: flex; gap: 4px;
+    }
+    .vb-tab {
+      flex: 1; padding: 10px 0; border: 0; border-radius: 10px;
+      background: transparent; color: var(--color-text-muted);
+      font-size: 14px; font-weight: 600; font-family: inherit;
+      cursor: pointer; transition: all 0.15s;
+    }
+    .vb-tab.active {
+      background: var(--color-bg-elevated); color: var(--color-text);
+      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    }
+    .vb-tab .count {
+      display: inline-block; margin-left: 6px;
+      font-size: 11px; color: var(--color-text-dim);
+      font-variant-numeric: tabular-nums;
+    }
+    .vb-tab.active .count { color: var(--color-primary); }
+
+    .vb-aggr {
+      margin: 0 16px 12px; padding: 14px 16px;
+      background: var(--color-surface-2); border-radius: var(--radius-md);
+      display: flex; justify-content: space-around; text-align: center;
+    }
+    .vb-aggr .col { font-size: 11px; color: var(--color-text-muted); }
+    .vb-aggr .col strong {
+      display: block; font-size: 17px; color: var(--color-text);
+      font-variant-numeric: tabular-nums; margin-top: 2px; font-weight: 700;
+    }
+    .vb-aggr .col strong.pos { color: var(--color-success); }
+    .vb-aggr .col strong.neg { color: var(--color-danger); }
+
+    .cat-list { padding: 0 16px 8px; }
+    .cat {
+      background: var(--color-surface);
+      border-radius: var(--radius-md);
+      padding: 14px 14px 12px;
+      margin-bottom: 8px;
+      cursor: pointer; transition: background 0.15s;
+    }
+    .cat:hover { background: var(--color-surface-2); }
+    .cat.over { border: 1px solid var(--color-danger); }
+    .cat.warn { border: 1px solid var(--color-warn); }
+    .cat-top {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 10px; font-size: 13px;
+    }
+    .cat-name { font-weight: 600; color: var(--color-text); }
+    .cat-name .badge {
+      display: inline-block; margin-left: 6px;
+      font-size: 10px; padding: 2px 6px; border-radius: 4px;
+      background: var(--color-danger-soft); color: var(--color-danger);
+      font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
+    }
+    .cat-name .badge.warn {
+      background: rgba(255, 181, 71, 0.18); color: var(--color-warn);
+    }
+    .cat-amounts {
+      font-variant-numeric: tabular-nums; color: var(--color-text-muted);
+      font-size: 12px;
+    }
+    .cat-amounts strong { color: var(--color-text); font-weight: 600; }
+    .cat-amounts strong.over { color: var(--color-danger); }
+
+    .bar {
+      height: 6px; background: var(--color-border-subtle);
+      border-radius: 999px; overflow: hidden; position: relative;
+    }
+    .bar > .fill {
+      height: 100%; background: var(--color-primary);
+      border-radius: 999px; transition: width 0.4s ease;
+    }
+    .bar > .fill.success { background: var(--color-success); }
+    .bar > .fill.warn { background: var(--color-warn); }
+    .bar > .fill.danger { background: var(--color-danger); }
+    .bar > .fill.muted { background: var(--color-text-dim); }
+
+    .cat-bottom {
+      display: flex; justify-content: space-between;
+      margin-top: 6px; font-size: 11px; color: var(--color-text-dim);
+      font-variant-numeric: tabular-nums;
+    }
+    .cat-bottom .delta-pos { color: var(--color-success); font-weight: 600; }
+    .cat-bottom .delta-neg { color: var(--color-danger); font-weight: 600; }
+
+    /* Empty state (no plan template applied) */
+    .empty {
+      margin: 32px 24px; padding: 32px 20px;
+      text-align: center; background: var(--color-surface);
+      border-radius: var(--radius-lg);
+      border: 1px dashed var(--color-border);
+    }
+    .empty .ico {
+      width: 64px; height: 64px; margin: 0 auto 14px;
+      background: var(--color-primary-soft); color: var(--color-primary);
+      border-radius: 999px; display: grid; place-items: center; font-size: 28px;
+    }
+    .empty h3 { margin: 0 0 6px; font-size: 17px; font-weight: 600; }
+    .empty p { margin: 0 0 18px; color: var(--color-text-muted); font-size: 13px; line-height: 1.5; }
+    .empty .actions { display: flex; flex-direction: column; gap: 8px; }
+    .empty .btn {
+      padding: 12px 16px; border-radius: var(--radius-md);
+      border: 0; font-size: 14px; font-weight: 600; cursor: pointer;
+      font-family: inherit; transition: all 0.15s;
+    }
+    .empty .btn.primary {
+      background: var(--color-primary); color: #fff;
+      box-shadow: 0 4px 12px rgba(78,164,255,0.3);
+    }
+    .empty .btn.ghost {
+      background: transparent; color: var(--color-primary);
+      border: 1px solid var(--color-primary);
+    }
+
+    /* Closed period banner */
+    .closed-banner {
+      margin: 0 16px 12px; padding: 12px 16px;
+      background: var(--color-surface-2);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      display: flex; align-items: center; gap: 10px;
+      font-size: 13px; color: var(--color-text-muted);
+    }
+    .closed-banner .ic {
+      width: 22px; height: 22px; border-radius: 999px;
+      background: var(--color-text-dim); color: #fff;
+      display: grid; place-items: center; font-size: 12px;
+    }
+
+    .main-button {
+      position: absolute; left: 16px; right: 16px; bottom: var(--safe-bottom);
+      height: var(--main-button-height);
+      background: var(--color-primary); border: 0; border-radius: var(--radius-md);
+      color: #fff; font-size: 16px; font-weight: 600; cursor: pointer;
+      font-family: inherit; transition: all 0.15s;
+      box-shadow: 0 6px 18px rgba(78,164,255,0.35);
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .main-button .plus {
+      width: 18px; height: 18px; border-radius: 999px;
+      background: rgba(255,255,255,0.2);
+      display: grid; place-items: center; font-size: 14px;
+    }
+    .main-button.disabled {
+      opacity: 0.45; pointer-events: none; box-shadow: none;
+    }
+
+    .toast {
+      position: fixed; left: 50%; bottom: 100px; transform: translateX(-50%) translateY(20px);
+      background: rgba(0,0,0,0.9); color: #fff; padding: 10px 18px;
+      border-radius: 999px; font-size: 13px; opacity: 0; pointer-events: none;
+      transition: all 0.25s; z-index: 9997;
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    #sketch-tools {
+      position: fixed; bottom: 12px; right: 12px; z-index: 9999;
+      font-family: system-ui; font-size: 12px;
+      background: rgba(0,0,0,0.75); color: #fff;
+      padding: 8px 12px; border-radius: 8px;
+      opacity: 0.4; transition: opacity 0.2s;
+      display: flex; gap: 8px; align-items: center;
+    }
+    #sketch-tools:hover { opacity: 1; }
+    #sketch-tools select {
+      background: rgba(255,255,255,0.1); color: #fff;
+      border: 1px solid rgba(255,255,255,0.2);
+      padding: 2px 6px; border-radius: 4px; font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+
+<div id="variant-nav">
+  <button class="variant-tab active" data-variant="empty">Empty (новый период)</button>
+  <button class="variant-tab" data-variant="progress">In progress (15-е число)</button>
+  <button class="variant-tab" data-variant="overspend">Overspend (перерасход)</button>
+  <button class="variant-tab" data-variant="closed">Closed (read-only)</button>
+</div>
+
+<!-- ============================================== -->
+<!-- STATE: EMPTY                                  -->
+<!-- ============================================== -->
+<div class="variant active" id="variant-empty">
+  <div class="frame">
+    <div class="tg-statusbar"><span>9:41</span><span>●●● 5G ▮</span></div>
+    <div class="tg-header"><span class="tg-back">‹</span><span class="tg-title">Бюджет</span><span class="tg-action">⚙</span></div>
+    <div class="period-switcher">
+      <span class="arrow">‹</span>
+      <span class="label">Май 2026</span>
+      <span class="arrow">›</span>
+    </div>
+    <div class="hero">
+      <div class="hero-label">Текущий баланс</div>
+      <div class="hero-balance">12 450 ₽</div>
+      <div class="hero-sub">
+        <div class="item">
+          <span class="k">Прогноз на конец</span>
+          <span class="v">— ₽</span>
+        </div>
+        <div class="item">
+          <span class="k">Старт периода</span>
+          <span class="v">12 450 ₽</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="empty">
+      <div class="ico">📋</div>
+      <h3>План на этот период не задан</h3>
+      <p>Примените шаблон или добавьте плановые строки вручную, чтобы увидеть план/факт/дельту.</p>
+      <div class="actions">
+        <button class="btn primary" onclick="toast('Шаблон применён, 18 строк')">Применить шаблон</button>
+        <button class="btn ghost" onclick="toast('Открыт редактор плана')">Добавить вручную</button>
+      </div>
+    </div>
+
+    <button class="main-button" onclick="toast('Форма добавления')"><span class="plus">+</span> Добавить трату</button>
+  </div>
+</div>
+
+<!-- ============================================== -->
+<!-- STATE: IN PROGRESS                            -->
+<!-- ============================================== -->
+<div class="variant" id="variant-progress">
+  <div class="frame">
+    <div class="tg-statusbar"><span>9:41</span><span>●●● 5G ▮</span></div>
+    <div class="tg-header"><span class="tg-back">‹</span><span class="tg-title">Бюджет</span><span class="tg-action">⚙</span></div>
+    <div class="period-switcher">
+      <span class="arrow">‹</span>
+      <span class="label">Февраль 2026</span>
+      <span class="arrow">›</span>
+    </div>
+
+    <div class="hero">
+      <div class="hero-label">Текущий баланс</div>
+      <div class="hero-balance">142 380 ₽</div>
+      <div class="hero-sub">
+        <div class="item">
+          <span class="k">Прогноз на конец</span>
+          <span class="v pos">−30 850 ₽</span>
+        </div>
+        <div class="item">
+          <span class="k">Прошло периода</span>
+          <span class="v">11 / 28</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="vb-tabs">
+      <button class="vb-tab active">Расходы<span class="count">11</span></button>
+      <button class="vb-tab">Доходы<span class="count">3</span></button>
+    </div>
+
+    <div class="vb-aggr">
+      <div class="col">План<strong>406 632 ₽</strong></div>
+      <div class="col">Факт<strong>112 850 ₽</strong></div>
+      <div class="col">Дельта<strong class="pos">+293 782</strong></div>
+    </div>
+
+    <div class="cat-list">
+      <div class="cat">
+        <div class="cat-top">
+          <span class="cat-name">Дом</span>
+          <span class="cat-amounts"><strong>87 232</strong> / 194 232 ₽</span>
+        </div>
+        <div class="bar"><div class="fill success" style="width:45%"></div></div>
+        <div class="cat-bottom"><span>Использовано 45%</span><span class="delta-pos">+107 000 ₽</span></div>
+      </div>
+      <div class="cat">
+        <div class="cat-top">
+          <span class="cat-name">Продукты</span>
+          <span class="cat-amounts"><strong>18 400</strong> / 50 000 ₽</span>
+        </div>
+        <div class="bar"><div class="fill success" style="width:37%"></div></div>
+        <div class="cat-bottom"><span>Использовано 37%</span><span class="delta-pos">+31 600 ₽</span></div>
+      </div>
+      <div class="cat warn">
+        <div class="cat-top">
+          <span class="cat-name">Кафе и рестораны <span class="badge warn">87%</span></span>
+          <span class="cat-amounts"><strong>5 200</strong> / 6 000 ₽</span>
+        </div>
+        <div class="bar"><div class="fill warn" style="width:87%"></div></div>
+        <div class="cat-bottom"><span>До лимита 800 ₽</span><span class="delta-pos">+800 ₽</span></div>
+      </div>
+      <div class="cat">
+        <div class="cat-top">
+          <span class="cat-name">Машина</span>
+          <span class="cat-amounts"><strong>1 800</strong> / 29 000 ₽</span>
+        </div>
+        <div class="bar"><div class="fill success" style="width:6%"></div></div>
+        <div class="cat-bottom"><span>Использовано 6%</span><span class="delta-pos">+27 200 ₽</span></div>
+      </div>
+      <div class="cat">
+        <div class="cat-top">
+          <span class="cat-name">Спорт</span>
+          <span class="cat-amounts"><strong>0</strong> / 33 000 ₽</span>
+        </div>
+        <div class="bar"><div class="fill muted" style="width:0%"></div></div>
+        <div class="cat-bottom"><span>Не начато</span><span class="delta-pos">+33 000 ₽</span></div>
+      </div>
+    </div>
+
+    <button class="main-button" onclick="toast('Форма')"><span class="plus">+</span> Добавить трату</button>
+  </div>
+</div>
+
+<!-- ============================================== -->
+<!-- STATE: OVERSPEND                              -->
+<!-- ============================================== -->
+<div class="variant" id="variant-overspend">
+  <div class="frame">
+    <div class="tg-statusbar"><span>9:41</span><span>●●● 5G ▮</span></div>
+    <div class="tg-header"><span class="tg-back">‹</span><span class="tg-title">Бюджет</span><span class="tg-action">⚙</span></div>
+    <div class="period-switcher">
+      <span class="arrow">‹</span>
+      <span class="label">Февраль 2026</span>
+      <span class="arrow">›</span>
+    </div>
+
+    <div class="hero" style="background: linear-gradient(135deg, #4a1a26 0%, #401d2d 100%);">
+      <div class="hero-label">Текущий баланс</div>
+      <div class="hero-balance neg">−14 280 ₽</div>
+      <div class="hero-sub">
+        <div class="item">
+          <span class="k">Прогноз на конец</span>
+          <span class="v neg">−72 400 ₽</span>
+        </div>
+        <div class="item">
+          <span class="k">Прошло периода</span>
+          <span class="v">22 / 28</span>
+        </div>
+      </div>
+      <div class="hero-alert">
+        <div class="ic">!</div>
+        <div>3 категории превысили бюджет, 2 — на грани.</div>
+      </div>
+    </div>
+
+    <div class="vb-tabs">
+      <button class="vb-tab active">Расходы<span class="count">11</span></button>
+      <button class="vb-tab">Доходы<span class="count">3</span></button>
+    </div>
+
+    <div class="vb-aggr">
+      <div class="col">План<strong>406 632 ₽</strong></div>
+      <div class="col">Факт<strong>478 232 ₽</strong></div>
+      <div class="col">Дельта<strong class="neg">−71 600</strong></div>
+    </div>
+
+    <div class="cat-list">
+      <div class="cat over">
+        <div class="cat-top">
+          <span class="cat-name">Кафе и рестораны <span class="badge">+212%</span></span>
+          <span class="cat-amounts"><strong class="over">12 700</strong> / 6 000 ₽</span>
+        </div>
+        <div class="bar"><div class="fill danger" style="width:100%"></div></div>
+        <div class="cat-bottom"><span>Превышение на 6 700 ₽</span><span class="delta-neg">−6 700 ₽</span></div>
+      </div>
+      <div class="cat over">
+        <div class="cat-top">
+          <span class="cat-name">Машина <span class="badge">+34%</span></span>
+          <span class="cat-amounts"><strong class="over">38 800</strong> / 29 000 ₽</span>
+        </div>
+        <div class="bar"><div class="fill danger" style="width:100%"></div></div>
+        <div class="cat-bottom"><span>Превышение на 9 800 ₽</span><span class="delta-neg">−9 800 ₽</span></div>
+      </div>
+      <div class="cat over">
+        <div class="cat-top">
+          <span class="cat-name">Продукты <span class="badge">+8%</span></span>
+          <span class="cat-amounts"><strong class="over">54 100</strong> / 50 000 ₽</span>
+        </div>
+        <div class="bar"><div class="fill danger" style="width:100%"></div></div>
+        <div class="cat-bottom"><span>Превышение на 4 100 ₽</span><span class="delta-neg">−4 100 ₽</span></div>
+      </div>
+      <div class="cat warn">
+        <div class="cat-top">
+          <span class="cat-name">Подарки <span class="badge warn">93%</span></span>
+          <span class="cat-amounts"><strong>14 000</strong> / 15 000 ₽</span>
+        </div>
+        <div class="bar"><div class="fill warn" style="width:93%"></div></div>
+        <div class="cat-bottom"><span>До лимита 1 000 ₽</span><span class="delta-pos">+1 000 ₽</span></div>
+      </div>
+      <div class="cat">
+        <div class="cat-top">
+          <span class="cat-name">Дом</span>
+          <span class="cat-amounts"><strong>182 000</strong> / 194 232 ₽</span>
+        </div>
+        <div class="bar"><div class="fill success" style="width:94%"></div></div>
+        <div class="cat-bottom"><span>Использовано 94%</span><span class="delta-pos">+12 232 ₽</span></div>
+      </div>
+    </div>
+
+    <button class="main-button" onclick="toast('Форма')"><span class="plus">+</span> Добавить трату</button>
+  </div>
+</div>
+
+<!-- ============================================== -->
+<!-- STATE: CLOSED                                 -->
+<!-- ============================================== -->
+<div class="variant" id="variant-closed">
+  <div class="frame">
+    <div class="tg-statusbar"><span>9:41</span><span>●●● 5G ▮</span></div>
+    <div class="tg-header"><span class="tg-back">‹</span><span class="tg-title">Бюджет</span><span class="tg-action" style="visibility:hidden">_</span></div>
+    <div class="period-switcher">
+      <span class="arrow">‹</span>
+      <span class="label">Январь 2026 <span class="closed-badge">Закрыт</span></span>
+      <span class="arrow">›</span>
+    </div>
+
+    <div class="closed-banner">
+      <div class="ic">✓</div>
+      <div>Период закрыт 5 февраля. Изменить транзакции нельзя.</div>
+    </div>
+
+    <div class="hero" style="background: linear-gradient(135deg, #1a2740 0%, #1a3340 100%); opacity: 0.92;">
+      <div class="hero-label">Итоговый баланс</div>
+      <div class="hero-balance pos">12 450 ₽</div>
+      <div class="hero-sub">
+        <div class="item">
+          <span class="k">Старт периода</span>
+          <span class="v">8 200 ₽</span>
+        </div>
+        <div class="item">
+          <span class="k">Накоплено</span>
+          <span class="v pos">+4 250 ₽</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="vb-tabs">
+      <button class="vb-tab active">Расходы<span class="count">11</span></button>
+      <button class="vb-tab">Доходы<span class="count">3</span></button>
+    </div>
+
+    <div class="vb-aggr">
+      <div class="col">План<strong>398 200 ₽</strong></div>
+      <div class="col">Факт<strong>391 750 ₽</strong></div>
+      <div class="col">Дельта<strong class="pos">+6 450</strong></div>
+    </div>
+
+    <div class="cat-list">
+      <div class="cat">
+        <div class="cat-top">
+          <span class="cat-name">Дом</span>
+          <span class="cat-amounts"><strong>189 232</strong> / 189 232 ₽</span>
+        </div>
+        <div class="bar"><div class="fill success" style="width:100%"></div></div>
+        <div class="cat-bottom"><span>Использовано 100%</span><span class="delta-pos">0 ₽</span></div>
+      </div>
+      <div class="cat">
+        <div class="cat-top">
+          <span class="cat-name">Продукты</span>
+          <span class="cat-amounts"><strong>47 200</strong> / 50 000 ₽</span>
+        </div>
+        <div class="bar"><div class="fill success" style="width:94%"></div></div>
+        <div class="cat-bottom"><span>Использовано 94%</span><span class="delta-pos">+2 800 ₽</span></div>
+      </div>
+      <div class="cat">
+        <div class="cat-top">
+          <span class="cat-name">Спорт</span>
+          <span class="cat-amounts"><strong>33 000</strong> / 33 000 ₽</span>
+        </div>
+        <div class="bar"><div class="fill success" style="width:100%"></div></div>
+        <div class="cat-bottom"><span>Использовано 100%</span><span class="delta-pos">0 ₽</span></div>
+      </div>
+      <div class="cat">
+        <div class="cat-top">
+          <span class="cat-name">Машина</span>
+          <span class="cat-amounts"><strong>27 600</strong> / 29 000 ₽</span>
+        </div>
+        <div class="bar"><div class="fill success" style="width:95%"></div></div>
+        <div class="cat-bottom"><span>Использовано 95%</span><span class="delta-pos">+1 400 ₽</span></div>
+      </div>
+    </div>
+
+    <button class="main-button disabled">Период закрыт</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<div id="sketch-tools">
+  <span>State:</span>
+  <select id="state-jump">
+    <option value="empty">empty</option>
+    <option value="progress">in-progress</option>
+    <option value="overspend">overspend</option>
+    <option value="closed">closed</option>
+  </select>
+  <span>·</span>
+  <span>Theme:</span>
+  <select id="theme-toggle">
+    <option value="dark" selected>dark</option>
+    <option value="light">light</option>
+  </select>
+</div>
+
+<script>
+  document.querySelectorAll('#variant-nav .variant-tab').forEach(btn => {
+    btn.addEventListener('click', () => switchVariant(btn.dataset.variant));
+  });
+  function switchVariant(v) {
+    document.querySelectorAll('.variant').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('#variant-nav .variant-tab').forEach(t => t.classList.remove('active'));
+    document.getElementById('variant-' + v).classList.add('active');
+    document.querySelector('[data-variant="' + v + '"]').classList.add('active');
+    document.getElementById('state-jump').value = v;
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  }
+  document.getElementById('state-jump').addEventListener('change', (e) => switchVariant(e.target.value));
+  document.getElementById('theme-toggle').addEventListener('change', (e) => {
+    document.documentElement.dataset.theme = e.target.value;
+  });
+  function toast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(window.__toastT);
+    window.__toastT = setTimeout(() => t.classList.remove('show'), 1400);
+  }
+</script>
+</body>
+</html>

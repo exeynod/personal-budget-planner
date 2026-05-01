@@ -1,0 +1,702 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Sketch 002 — Add Transaction</title>
+  <link rel="stylesheet" href="../themes/default.css">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      background: #05070b;
+      color: var(--color-text);
+      font-family: var(--font-sans);
+      font-size: var(--text-base);
+      padding-top: 56px;
+      min-height: 100vh;
+    }
+
+    #variant-nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 9998;
+      background: #0a0d13; border-bottom: 1px solid #1a1f2c;
+      padding: 8px; display: flex; gap: 6px; overflow-x: auto;
+      font-size: 12px;
+    }
+    .variant-tab {
+      background: transparent; color: #94a0b8; border: 1px solid #232a3a;
+      padding: 8px 14px; border-radius: 999px; cursor: pointer;
+      white-space: nowrap; transition: all 0.15s;
+      font-family: inherit;
+    }
+    .variant-tab:hover { color: #fff; border-color: var(--color-primary); }
+    .variant-tab.active {
+      background: var(--color-primary); color: #fff;
+      border-color: var(--color-primary); font-weight: 600;
+    }
+
+    .frame {
+      max-width: var(--tg-viewport);
+      margin: 24px auto;
+      background: var(--color-bg);
+      border-radius: 28px;
+      overflow: hidden;
+      box-shadow: var(--shadow-lg);
+      position: relative;
+      min-height: 780px;
+    }
+    .variant { display: none; }
+    .variant.active { display: block; }
+
+    /* Common header */
+    .tg-statusbar {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 10px 20px 0; font-size: 13px; color: var(--color-text-muted);
+    }
+    .tg-header {
+      padding: 8px 16px 12px;
+      display: flex; align-items: center; gap: 12px;
+    }
+    .tg-back { color: var(--color-primary); cursor: pointer; font-size: 15px; }
+    .tg-title { flex: 1; text-align: center; font-weight: 600; font-size: 16px; }
+    .tg-action { color: var(--color-primary); font-size: 15px; cursor: pointer; }
+
+    /* Toggle expense/income */
+    .kind-toggle {
+      margin: 0 16px 16px;
+      background: var(--color-surface);
+      border-radius: var(--radius-md);
+      padding: 4px;
+      display: flex; gap: 4px;
+    }
+    .kind-toggle button {
+      flex: 1; padding: 10px 0; border: 0; border-radius: 10px;
+      background: transparent; color: var(--color-text-muted);
+      font-size: 14px; font-weight: 600; cursor: pointer;
+      font-family: inherit; transition: all 0.15s;
+    }
+    .kind-toggle button.active {
+      background: var(--color-bg-elevated); color: var(--color-text);
+      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    }
+    .kind-toggle button.active.exp { color: var(--color-danger); }
+    .kind-toggle button.active.inc { color: var(--color-success); }
+
+    /* Field group */
+    .field {
+      margin: 0 16px 12px;
+      background: var(--color-surface);
+      border-radius: var(--radius-md);
+      padding: 14px 16px;
+      cursor: pointer; transition: background 0.15s;
+    }
+    .field:hover { background: var(--color-surface-2); }
+    .field-label {
+      font-size: 11px; color: var(--color-text-muted);
+      text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600;
+      margin-bottom: 6px;
+    }
+    .field-value {
+      font-size: 16px; color: var(--color-text); font-weight: 500;
+    }
+    .field-value.placeholder { color: var(--color-text-dim); }
+    .field-value .chev { float: right; color: var(--color-text-dim); }
+
+    /* MainButton */
+    .main-button {
+      position: absolute; left: 16px; right: 16px; bottom: var(--safe-bottom);
+      height: var(--main-button-height);
+      background: var(--color-primary); border: 0; border-radius: var(--radius-md);
+      color: #fff; font-size: 16px; font-weight: 600;
+      cursor: pointer; transition: all 0.15s;
+      font-family: inherit;
+      box-shadow: 0 6px 18px rgba(78,164,255,0.35);
+    }
+    .main-button:hover { background: var(--color-primary-hover); transform: translateY(-1px); }
+    .main-button:disabled { opacity: 0.4; cursor: not-allowed; transform: none; box-shadow: none; }
+
+    /* Toast */
+    .toast {
+      position: fixed; left: 50%; bottom: 100px; transform: translateX(-50%) translateY(20px);
+      background: rgba(0,0,0,0.9); color: #fff; padding: 10px 18px;
+      border-radius: 999px; font-size: 13px; opacity: 0; pointer-events: none;
+      transition: all 0.25s; z-index: 9997;
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    /* ===== Variant A: Fullscreen + keypad ===== */
+    .va-amount {
+      text-align: center; padding: 20px 16px 8px;
+    }
+    .va-amount .lbl {
+      font-size: 11px; color: var(--color-text-muted); text-transform: uppercase;
+      letter-spacing: 0.08em; font-weight: 600;
+    }
+    .va-amount .num {
+      font-size: 56px; font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: -0.03em; margin: 6px 0 4px;
+      color: var(--color-text);
+    }
+    .va-amount .num .currency { color: var(--color-text-dim); font-size: 32px; margin-left: 6px; font-weight: 500; }
+    .va-amount .cat-pill {
+      display: inline-block; padding: 6px 14px;
+      background: var(--color-primary-soft); color: var(--color-primary);
+      border-radius: 999px; font-size: 13px; font-weight: 600;
+      margin-top: 6px;
+    }
+    .va-amount .cat-pill.empty { background: var(--color-surface); color: var(--color-text-muted); }
+
+    .va-keypad {
+      padding: 16px; margin-top: 8px;
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+    }
+    .va-keypad button {
+      height: 54px; border: 0; border-radius: var(--radius-md);
+      background: var(--color-surface); color: var(--color-text);
+      font-size: 22px; font-weight: 500; cursor: pointer;
+      font-family: inherit; transition: all 0.1s;
+      font-variant-numeric: tabular-nums;
+    }
+    .va-keypad button:hover { background: var(--color-surface-2); }
+    .va-keypad button:active { transform: scale(0.96); }
+    .va-keypad button.del { color: var(--color-danger); }
+
+    .va-meta {
+      display: flex; gap: 8px; padding: 0 16px 8px;
+    }
+    .va-meta .field {
+      flex: 1; margin: 0;
+    }
+
+    /* ===== Variant B: Bottom sheet ===== */
+    .vb-bg {
+      filter: blur(2px) brightness(0.5);
+      pointer-events: none; opacity: 0.6;
+    }
+    .vb-backdrop {
+      position: absolute; inset: 0;
+      background: rgba(0,0,0,0.55);
+      pointer-events: none;
+    }
+    .vb-sheet {
+      position: absolute; left: 0; right: 0; bottom: 0;
+      background: var(--color-bg-elevated);
+      border-radius: 24px 24px 0 0;
+      padding: 12px 0 calc(var(--safe-bottom) + 16px);
+      box-shadow: 0 -16px 40px rgba(0,0,0,0.5);
+      max-height: 78%;
+      animation: sheetUp 0.3s ease;
+    }
+    @keyframes sheetUp {
+      from { transform: translateY(100%); }
+      to { transform: translateY(0); }
+    }
+    .vb-grip {
+      width: 36px; height: 4px; background: var(--color-text-dim);
+      border-radius: 999px; margin: 0 auto 12px; opacity: 0.5;
+    }
+    .vb-sheet-title {
+      text-align: center; font-weight: 600; font-size: 16px;
+      padding: 0 16px 12px; color: var(--color-text);
+    }
+    .vb-amount-input {
+      margin: 0 16px 14px; padding: 16px 18px;
+      background: var(--color-surface);
+      border-radius: var(--radius-md);
+      display: flex; align-items: baseline;
+      cursor: text;
+    }
+    .vb-amount-input .num {
+      flex: 1; font-size: 36px; font-weight: 700;
+      color: var(--color-text); font-variant-numeric: tabular-nums;
+      letter-spacing: -0.02em;
+    }
+    .vb-amount-input .num.placeholder { color: var(--color-text-dim); }
+    .vb-amount-input .cur {
+      font-size: 22px; color: var(--color-text-dim); font-weight: 500;
+    }
+    .vb-action-bar {
+      display: flex; gap: 8px; margin: 4px 16px 0;
+    }
+    .vb-action-bar button {
+      flex: 1; height: 44px; border: 0; border-radius: var(--radius-md);
+      background: var(--color-surface); color: var(--color-text);
+      font-size: 14px; font-weight: 600; cursor: pointer;
+      font-family: inherit; transition: background 0.15s;
+    }
+    .vb-action-bar button:hover { background: var(--color-surface-2); }
+    .vb-action-bar button.primary {
+      background: var(--color-primary); color: #fff;
+      box-shadow: 0 4px 12px rgba(78,164,255,0.3);
+    }
+    .vb-action-bar button.primary:hover { background: var(--color-primary-hover); }
+
+    /* Vb dashboard preview behind sheet */
+    .vb-bg .preview-hero {
+      margin: 12px 16px 16px; padding: 22px;
+      background: var(--gradient-hero); border-radius: var(--radius-xl);
+    }
+    .vb-bg .preview-hero .lbl { font-size: 11px; color: rgba(255,255,255,0.7); text-transform: uppercase; }
+    .vb-bg .preview-hero .num { font-size: 32px; color: #fff; font-weight: 700; margin-top: 6px; }
+    .vb-bg .preview-row {
+      margin: 0 16px 8px; padding: 14px 16px;
+      background: var(--color-surface); border-radius: var(--radius-md);
+      display: flex; justify-content: space-between;
+    }
+
+    /* ===== Variant C: Wizard ===== */
+    .vc-progress {
+      display: flex; gap: 6px; padding: 0 16px 12px;
+    }
+    .vc-progress .step {
+      flex: 1; height: 4px; background: var(--color-surface);
+      border-radius: 999px;
+    }
+    .vc-progress .step.done { background: var(--color-primary); }
+    .vc-progress .step.active {
+      background: linear-gradient(90deg, var(--color-primary) 50%, var(--color-surface) 50%);
+    }
+
+    .vc-step-title {
+      padding: 12px 24px 4px;
+      font-size: var(--text-md); font-weight: 600;
+      color: var(--color-text);
+    }
+    .vc-step-hint {
+      padding: 0 24px 16px;
+      font-size: 13px; color: var(--color-text-muted);
+    }
+
+    /* Step 1: amount */
+    .vc-amount-display {
+      text-align: center; padding: 32px 24px 24px;
+    }
+    .vc-amount-display .num {
+      font-size: 56px; font-weight: 700;
+      color: var(--color-text); font-variant-numeric: tabular-nums;
+      letter-spacing: -0.03em;
+    }
+    .vc-amount-display .num .cur {
+      color: var(--color-text-dim); font-size: 32px; margin-left: 6px; font-weight: 500;
+    }
+    .vc-quickamt {
+      display: flex; gap: 8px; padding: 0 16px 16px;
+      flex-wrap: wrap; justify-content: center;
+    }
+    .vc-quickamt button {
+      padding: 8px 16px; border: 1px solid var(--color-border);
+      border-radius: 999px; background: transparent;
+      color: var(--color-text-muted); cursor: pointer;
+      font-size: 13px; font-family: inherit;
+      transition: all 0.15s;
+    }
+    .vc-quickamt button:hover {
+      color: var(--color-text); border-color: var(--color-primary);
+    }
+    .vc-keypad-mini {
+      padding: 0 16px 16px;
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px;
+    }
+    .vc-keypad-mini button {
+      height: 48px; border: 0; border-radius: 12px;
+      background: var(--color-surface); color: var(--color-text);
+      font-size: 20px; cursor: pointer;
+      font-family: inherit; font-variant-numeric: tabular-nums;
+    }
+
+    /* Step 2: category grid */
+    .vc-cat-grid {
+      padding: 0 16px 16px;
+      display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px;
+    }
+    .vc-cat-tile {
+      padding: 16px 14px; background: var(--color-surface);
+      border-radius: var(--radius-md);
+      border: 2px solid transparent;
+      cursor: pointer; transition: all 0.15s;
+    }
+    .vc-cat-tile:hover { border-color: var(--color-border); }
+    .vc-cat-tile.selected {
+      border-color: var(--color-primary);
+      background: var(--color-primary-soft);
+    }
+    .vc-cat-tile .name { font-size: 14px; font-weight: 600; color: var(--color-text); }
+    .vc-cat-tile .stat {
+      font-size: 11px; color: var(--color-text-muted); margin-top: 4px;
+      font-variant-numeric: tabular-nums;
+    }
+    .vc-cat-tile .bar {
+      height: 4px; background: var(--color-border-subtle);
+      border-radius: 999px; margin-top: 6px;
+    }
+    .vc-cat-tile .bar > .fill {
+      height: 100%; background: var(--color-primary);
+      border-radius: 999px;
+    }
+
+    /* Step 3: details */
+    .vc-input {
+      margin: 0 16px 12px;
+      background: var(--color-surface);
+      border-radius: var(--radius-md);
+      padding: 14px 16px;
+    }
+    .vc-input label {
+      display: block; font-size: 11px;
+      color: var(--color-text-muted);
+      text-transform: uppercase; letter-spacing: 0.06em;
+      font-weight: 600; margin-bottom: 6px;
+    }
+    .vc-input input, .vc-input textarea {
+      width: 100%; border: 0; background: transparent;
+      color: var(--color-text); font-size: 15px;
+      font-family: inherit; outline: none; resize: none;
+    }
+    .vc-summary {
+      margin: 16px; padding: 16px;
+      background: var(--color-primary-soft);
+      border: 1px solid var(--color-primary);
+      border-radius: var(--radius-md);
+    }
+    .vc-summary .row {
+      display: flex; justify-content: space-between;
+      margin-bottom: 6px; font-size: 14px;
+    }
+    .vc-summary .row .k { color: var(--color-text-muted); }
+    .vc-summary .row .v { color: var(--color-text); font-weight: 600; font-variant-numeric: tabular-nums; }
+    .vc-summary .row.big { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--color-border-subtle); }
+    .vc-summary .row.big .v { font-size: 18px; }
+
+    /* Sketch toolbar */
+    #sketch-tools {
+      position: fixed; bottom: 12px; right: 12px; z-index: 9999;
+      font-family: system-ui; font-size: 12px;
+      background: rgba(0,0,0,0.75); color: #fff;
+      padding: 8px 12px; border-radius: 8px;
+      opacity: 0.4; transition: opacity 0.2s;
+      display: flex; gap: 8px; align-items: center;
+    }
+    #sketch-tools:hover { opacity: 1; }
+    #sketch-tools select {
+      background: rgba(255,255,255,0.1); color: #fff;
+      border: 1px solid rgba(255,255,255,0.2);
+      padding: 2px 6px; border-radius: 4px; font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+
+<div id="variant-nav">
+  <button class="variant-tab" data-variant="a">A: Fullscreen + keypad</button>
+  <button class="variant-tab active" data-variant="b">B: Bottom sheet ★ Selected</button>
+  <button class="variant-tab" data-variant="c">C: Wizard 3 шага</button>
+</div>
+
+<!-- ============================================== -->
+<!-- VARIANT A: Fullscreen + numeric keypad        -->
+<!-- ============================================== -->
+<div class="variant" id="variant-a">
+  <div class="frame" style="padding-bottom: calc(var(--main-button-height) + var(--safe-bottom) + 16px);">
+    <div class="tg-statusbar"><span>9:41</span><span>●●● 5G ▮</span></div>
+    <div class="tg-header">
+      <span class="tg-back">‹ Отмена</span>
+      <span class="tg-title">Новая трата</span>
+      <span class="tg-action" style="visibility:hidden">_</span>
+    </div>
+
+    <div class="kind-toggle">
+      <button class="active exp" id="va-kind-exp">Расход</button>
+      <button class="inc" id="va-kind-inc">Доход</button>
+    </div>
+
+    <div class="va-amount">
+      <div class="lbl">Сумма</div>
+      <div class="num"><span id="va-amount">1 500</span><span class="currency">₽</span></div>
+      <span class="cat-pill" id="va-cat" onclick="toast('Выбор категории')">Продукты ›</span>
+    </div>
+
+    <div class="va-meta">
+      <div class="field" onclick="toast('Календарь')">
+        <div class="field-label">Дата</div>
+        <div class="field-value">Сегодня</div>
+      </div>
+      <div class="field" onclick="toast('Описание')">
+        <div class="field-label">Описание</div>
+        <div class="field-value placeholder">Пятёрочка</div>
+      </div>
+    </div>
+
+    <div class="va-keypad">
+      <button onclick="vaKey('1')">1</button>
+      <button onclick="vaKey('2')">2</button>
+      <button onclick="vaKey('3')">3</button>
+      <button onclick="vaKey('4')">4</button>
+      <button onclick="vaKey('5')">5</button>
+      <button onclick="vaKey('6')">6</button>
+      <button onclick="vaKey('7')">7</button>
+      <button onclick="vaKey('8')">8</button>
+      <button onclick="vaKey('9')">9</button>
+      <button onclick="vaKey('.')">,</button>
+      <button onclick="vaKey('0')">0</button>
+      <button class="del" onclick="vaKey('del')">⌫</button>
+    </div>
+
+    <button class="main-button" onclick="toast('Сохранено: 1 500 ₽ Продукты')">Сохранить</button>
+  </div>
+</div>
+
+<!-- ============================================== -->
+<!-- VARIANT B: Bottom sheet over dashboard        -->
+<!-- ============================================== -->
+<div class="variant active" id="variant-b">
+  <div class="frame">
+    <!-- Faded dashboard preview -->
+    <div class="vb-bg">
+      <div class="tg-statusbar"><span>9:41</span><span>●●● 5G ▮</span></div>
+      <div class="tg-header">
+        <span class="tg-back">‹</span>
+        <span class="tg-title">Бюджет</span>
+        <span class="tg-action">⚙</span>
+      </div>
+      <div class="preview-hero">
+        <div class="lbl">Текущий баланс</div>
+        <div class="num">0 ₽</div>
+      </div>
+      <div class="preview-row"><span>Дом</span><span>0 / 194 232</span></div>
+      <div class="preview-row"><span>Продукты</span><span>0 / 50 000</span></div>
+      <div class="preview-row"><span>Спорт</span><span>0 / 33 000</span></div>
+    </div>
+    <div class="vb-backdrop"></div>
+
+    <!-- Sheet -->
+    <div class="vb-sheet">
+      <div class="vb-grip"></div>
+      <div class="vb-sheet-title">Добавить трату</div>
+
+      <div class="kind-toggle">
+        <button class="active exp">Расход</button>
+        <button class="inc">Доход</button>
+      </div>
+
+      <div class="vb-amount-input" onclick="toast('Фокус: открывается клавиатура')">
+        <span class="num" id="vb-amount">1 500</span>
+        <span class="cur">₽</span>
+      </div>
+
+      <div class="field" onclick="toast('Выбор категории')">
+        <div class="field-label">Категория</div>
+        <div class="field-value">Продукты <span class="chev">›</span></div>
+      </div>
+      <div class="field" onclick="toast('Описание')">
+        <div class="field-label">Описание (необязательно)</div>
+        <div class="field-value placeholder">Пятёрочка</div>
+      </div>
+      <div class="field" onclick="toast('Календарь')">
+        <div class="field-label">Дата</div>
+        <div class="field-value">Сегодня <span class="chev">›</span></div>
+      </div>
+
+      <div class="vb-action-bar">
+        <button onclick="toast('Закрыто')">Отмена</button>
+        <button class="primary" onclick="toast('Сохранено: 1 500 ₽ Продукты')">Сохранить</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================== -->
+<!-- VARIANT C: Wizard 3 шага                      -->
+<!-- ============================================== -->
+<div class="variant" id="variant-c">
+  <div class="frame" style="padding-bottom: calc(var(--main-button-height) + var(--safe-bottom) + 16px);">
+    <div class="tg-statusbar"><span>9:41</span><span>●●● 5G ▮</span></div>
+    <div class="tg-header">
+      <span class="tg-back" id="vc-back">‹ Назад</span>
+      <span class="tg-title">Новая трата</span>
+      <span class="tg-action" style="visibility:hidden">_</span>
+    </div>
+
+    <div class="vc-progress">
+      <div class="step done" id="vc-pg-1"></div>
+      <div class="step active" id="vc-pg-2"></div>
+      <div class="step" id="vc-pg-3"></div>
+    </div>
+
+    <!-- STEP 1: AMOUNT (показано на тапе) -->
+    <div id="vc-step-1" style="display:none">
+      <div class="vc-step-title">Сколько?</div>
+      <div class="vc-step-hint">Введите сумму расхода</div>
+      <div class="vc-amount-display">
+        <div class="num"><span id="vc-amount">1 500</span><span class="cur">₽</span></div>
+      </div>
+      <div class="vc-quickamt">
+        <button onclick="setVcAmount(100)">100</button>
+        <button onclick="setVcAmount(500)">500</button>
+        <button onclick="setVcAmount(1000)">1 000</button>
+        <button onclick="setVcAmount(5000)">5 000</button>
+      </div>
+      <div class="vc-keypad-mini">
+        <button onclick="vcKey('1')">1</button><button onclick="vcKey('2')">2</button><button onclick="vcKey('3')">3</button>
+        <button onclick="vcKey('4')">4</button><button onclick="vcKey('5')">5</button><button onclick="vcKey('6')">6</button>
+        <button onclick="vcKey('7')">7</button><button onclick="vcKey('8')">8</button><button onclick="vcKey('9')">9</button>
+        <button onclick="vcKey('00')">00</button><button onclick="vcKey('0')">0</button><button onclick="vcKey('del')">⌫</button>
+      </div>
+    </div>
+
+    <!-- STEP 2: CATEGORY (default visible) -->
+    <div id="vc-step-2">
+      <div class="vc-step-title">Куда уходит?</div>
+      <div class="vc-step-hint">1 500 ₽ — выберите категорию</div>
+      <div class="vc-cat-grid">
+        <div class="vc-cat-tile selected" onclick="selectCat(this)">
+          <div class="name">Продукты</div>
+          <div class="stat">12 500 / 50 000 ₽</div>
+          <div class="bar"><div class="fill" style="width:25%"></div></div>
+        </div>
+        <div class="vc-cat-tile" onclick="selectCat(this)">
+          <div class="name">Дом</div>
+          <div class="stat">0 / 194 232 ₽</div>
+          <div class="bar"><div class="fill" style="width:0%"></div></div>
+        </div>
+        <div class="vc-cat-tile" onclick="selectCat(this)">
+          <div class="name">Машина</div>
+          <div class="stat">0 / 29 000 ₽</div>
+          <div class="bar"><div class="fill" style="width:0%"></div></div>
+        </div>
+        <div class="vc-cat-tile" onclick="selectCat(this)">
+          <div class="name">Спорт</div>
+          <div class="stat">0 / 33 000 ₽</div>
+          <div class="bar"><div class="fill" style="width:0%"></div></div>
+        </div>
+        <div class="vc-cat-tile" onclick="selectCat(this)">
+          <div class="name">Кафе</div>
+          <div class="stat">0 / 6 000 ₽</div>
+          <div class="bar"><div class="fill" style="width:0%"></div></div>
+        </div>
+        <div class="vc-cat-tile" onclick="selectCat(this)">
+          <div class="name">Бытовое</div>
+          <div class="stat">0 / 16 000 ₽</div>
+          <div class="bar"><div class="fill" style="width:0%"></div></div>
+        </div>
+      </div>
+      <div style="text-align:center; padding-bottom:16px">
+        <button onclick="toast('Все 11 категорий')" style="background:transparent; border:0; color: var(--color-primary); font-size:14px; cursor:pointer; font-family:inherit;">Показать все 11 ›</button>
+      </div>
+    </div>
+
+    <!-- STEP 3: DETAILS (показано на тапе) -->
+    <div id="vc-step-3" style="display:none">
+      <div class="vc-step-title">Детали</div>
+      <div class="vc-step-hint">Опционально — пропустите если нечего добавить</div>
+
+      <div class="vc-input">
+        <label>Описание</label>
+        <input type="text" placeholder="Пятёрочка" />
+      </div>
+      <div class="vc-input">
+        <label>Дата</label>
+        <input type="text" value="Сегодня, 15 февраля" readonly style="cursor:pointer" />
+      </div>
+
+      <div class="vc-summary">
+        <div class="row"><span class="k">Категория</span><span class="v">Продукты</span></div>
+        <div class="row"><span class="k">Дата</span><span class="v">Сегодня</span></div>
+        <div class="row big"><span class="k">Расход</span><span class="v">1 500 ₽</span></div>
+      </div>
+    </div>
+
+    <button class="main-button" id="vc-next" onclick="vcNext()">Далее</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<div id="sketch-tools">
+  <span>Theme:</span>
+  <select id="theme-toggle">
+    <option value="dark" selected>dark</option>
+    <option value="light">light</option>
+  </select>
+</div>
+
+<script>
+  // Variant tabs
+  document.querySelectorAll('#variant-nav .variant-tab').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const v = btn.dataset.variant;
+      document.querySelectorAll('.variant').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('#variant-nav .variant-tab').forEach(t => t.classList.remove('active'));
+      document.getElementById('variant-' + v).classList.add('active');
+      btn.classList.add('active');
+      window.scrollTo({ top: 0, behavior: 'instant' });
+    });
+  });
+
+  // Theme
+  document.getElementById('theme-toggle').addEventListener('change', (e) => {
+    document.documentElement.dataset.theme = e.target.value;
+  });
+
+  // Toast
+  function toast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(window.__toastT);
+    window.__toastT = setTimeout(() => t.classList.remove('show'), 1400);
+  }
+
+  // Kind toggle (variant A)
+  document.querySelectorAll('.kind-toggle button').forEach(b => {
+    b.addEventListener('click', (e) => {
+      e.target.parentElement.querySelectorAll('button').forEach(x => x.classList.remove('active'));
+      e.target.classList.add('active');
+    });
+  });
+
+  // Variant A keypad
+  let vaAmount = '1500';
+  function fmt(n) {
+    return Number(n).toLocaleString('ru-RU').replace(/,/g, ' ');
+  }
+  function vaKey(k) {
+    if (k === 'del') vaAmount = vaAmount.slice(0, -1) || '0';
+    else if (k === '.') return; // simplify
+    else vaAmount = (vaAmount === '0' ? '' : vaAmount) + k;
+    document.getElementById('va-amount').textContent = fmt(vaAmount || '0');
+  }
+
+  // Variant C wizard
+  let vcStep = 2; // start on step 2 (category) per default
+  let vcAmount = '1500';
+  function vcShow(step) {
+    vcStep = step;
+    [1,2,3].forEach(i => {
+      document.getElementById('vc-step-' + i).style.display = (i === step ? 'block' : 'none');
+      document.getElementById('vc-pg-' + i).className = 'step' + (i < step ? ' done' : i === step ? ' active' : '');
+    });
+    document.getElementById('vc-next').textContent = step === 3 ? 'Сохранить' : 'Далее';
+  }
+  function vcNext() {
+    if (vcStep < 3) vcShow(vcStep + 1);
+    else toast('Сохранено: 1 500 ₽ Продукты');
+  }
+  document.getElementById('vc-back').addEventListener('click', () => {
+    if (vcStep > 1) vcShow(vcStep - 1);
+    else toast('Закрыто');
+  });
+  function setVcAmount(n) { vcAmount = String(n); document.getElementById('vc-amount').textContent = fmt(vcAmount); }
+  function vcKey(k) {
+    if (k === 'del') vcAmount = vcAmount.slice(0, -1) || '0';
+    else vcAmount = (vcAmount === '0' ? '' : vcAmount) + k;
+    document.getElementById('vc-amount').textContent = fmt(vcAmount || '0');
+  }
+  function selectCat(el) {
+    el.parentElement.querySelectorAll('.vc-cat-tile').forEach(t => t.classList.remove('selected'));
+    el.classList.add('selected');
+  }
+</script>
+
+</body>
+</html>

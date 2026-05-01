@@ -1,0 +1,685 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Sketch 004 — Subscriptions</title>
+  <link rel="stylesheet" href="../themes/default.css">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      background: #05070b; color: var(--color-text);
+      font-family: var(--font-sans); padding-top: 56px; min-height: 100vh;
+    }
+
+    #variant-nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 9998;
+      background: #0a0d13; border-bottom: 1px solid #1a1f2c;
+      padding: 8px; display: flex; gap: 6px; overflow-x: auto; font-size: 12px;
+    }
+    .variant-tab {
+      background: transparent; color: #94a0b8; border: 1px solid #232a3a;
+      padding: 8px 14px; border-radius: 999px; cursor: pointer;
+      white-space: nowrap; transition: all 0.15s; font-family: inherit;
+    }
+    .variant-tab:hover { color: #fff; border-color: var(--color-primary); }
+    .variant-tab.active {
+      background: var(--color-primary); color: #fff; font-weight: 600;
+    }
+
+    .frame {
+      max-width: var(--tg-viewport);
+      margin: 24px auto;
+      background: var(--color-bg);
+      border-radius: 28px;
+      overflow: hidden;
+      box-shadow: var(--shadow-lg);
+      position: relative;
+      min-height: 780px;
+      padding-bottom: calc(var(--main-button-height) + var(--safe-bottom) + 16px);
+    }
+    .variant { display: none; }
+    .variant.active { display: block; }
+
+    .tg-statusbar {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 10px 20px 0; font-size: 13px; color: var(--color-text-muted);
+    }
+    .tg-header {
+      padding: 8px 16px 12px;
+      display: flex; align-items: center; gap: 12px;
+    }
+    .tg-back { color: var(--color-primary); cursor: pointer; font-size: 15px; }
+    .tg-title { flex: 1; text-align: center; font-weight: 600; font-size: 16px; }
+    .tg-action { color: var(--color-primary); font-size: 15px; cursor: pointer; }
+
+    /* Hero summary */
+    .hero {
+      margin: 12px 16px 16px;
+      padding: 18px 22px 20px;
+      background: var(--gradient-hero);
+      border-radius: var(--radius-xl);
+      position: relative; overflow: hidden;
+    }
+    .hero::before {
+      content: ''; position: absolute; inset: 0;
+      background: var(--gradient-hero-glow); pointer-events: none;
+    }
+    .hero > * { position: relative; }
+    .hero-row {
+      display: flex; justify-content: space-between; align-items: end; gap: 12px;
+    }
+    .hero .lbl {
+      font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em;
+      color: rgba(255,255,255,0.7); font-weight: 600;
+    }
+    .hero .num {
+      color: #fff; font-weight: 700; font-variant-numeric: tabular-nums;
+      font-size: 28px; letter-spacing: -0.02em; margin-top: 4px;
+    }
+    .hero .num.sm { font-size: 18px; }
+    .hero .next {
+      text-align: right;
+      color: rgba(255,255,255,0.85); font-size: 13px;
+    }
+    .hero .next .nm { color: #fff; font-weight: 600; }
+    .hero .next .when { font-size: 11px; opacity: 0.7; }
+
+    /* Subscription card */
+    .sub-list { padding: 0 16px 8px; }
+    .sub {
+      background: var(--color-surface);
+      border-radius: var(--radius-md);
+      padding: 14px 14px;
+      margin-bottom: 8px;
+      cursor: pointer; transition: background 0.15s;
+      display: flex; align-items: center; gap: 12px;
+    }
+    .sub:hover { background: var(--color-surface-2); }
+    .sub.urgent { border-left: 3px solid var(--color-warn); }
+    .sub.today { border-left: 3px solid var(--color-danger); }
+    .sub .ico {
+      width: 40px; height: 40px; border-radius: 12px;
+      background: var(--color-primary-soft); color: var(--color-primary);
+      display: grid; place-items: center;
+      font-weight: 700; font-size: 14px; flex-shrink: 0;
+    }
+    .sub .body { flex: 1; min-width: 0; }
+    .sub .name {
+      font-size: 14px; font-weight: 600;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .sub .name .cycle {
+      font-size: 10px; padding: 2px 6px; border-radius: 4px;
+      background: var(--color-surface-2); color: var(--color-text-muted);
+      font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;
+    }
+    .sub .meta {
+      font-size: 11px; color: var(--color-text-muted); margin-top: 2px;
+      font-variant-numeric: tabular-nums;
+    }
+    .sub .meta .when-pill {
+      display: inline-block; padding: 1px 7px; border-radius: 999px;
+      background: var(--color-warn); color: #1a1303;
+      font-weight: 700; margin-right: 4px;
+    }
+    .sub .meta .when-pill.today {
+      background: var(--color-danger); color: #fff;
+    }
+    .sub .meta .when-pill.normal {
+      background: transparent; color: var(--color-text-muted);
+      border: 1px solid var(--color-border-subtle);
+      font-weight: 500;
+    }
+    .sub .right {
+      text-align: right; font-variant-numeric: tabular-nums;
+      flex-shrink: 0;
+    }
+    .sub .right .amt { font-size: 14px; font-weight: 600; }
+    .sub .right .cur { color: var(--color-text-dim); margin-left: 2px; }
+
+    /* === Variant A: timeline === */
+    .va-timeline {
+      margin: 0 16px 16px;
+      padding: 16px 14px;
+      background: var(--color-surface);
+      border-radius: var(--radius-md);
+    }
+    .va-timeline .tl-head {
+      display: flex; justify-content: space-between; align-items: baseline;
+      margin-bottom: 12px;
+    }
+    .va-timeline .tl-head .ttl { font-size: 13px; font-weight: 600; }
+    .va-timeline .tl-head .sub-num {
+      font-size: 11px; color: var(--color-text-muted); font-variant-numeric: tabular-nums;
+    }
+    .va-timeline .tl-track {
+      position: relative; height: 56px;
+      background: var(--color-bg-elevated);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    .va-timeline .tl-track .axis {
+      position: absolute; left: 0; right: 0; bottom: 8px;
+      height: 1px; background: var(--color-border);
+    }
+    .va-timeline .tl-track .label {
+      position: absolute; bottom: -14px; font-size: 9px;
+      color: var(--color-text-dim); transform: translateX(-50%);
+    }
+    .va-timeline .tl-track .day-label {
+      position: absolute; top: 8px; font-size: 9px;
+      color: var(--color-text-dim); transform: translateX(-50%);
+    }
+    .va-timeline .tl-track .dot {
+      position: absolute; bottom: 4px; transform: translateX(-50%);
+      width: 12px; height: 12px; border-radius: 999px;
+      background: var(--color-primary);
+      cursor: pointer; transition: transform 0.15s;
+    }
+    .va-timeline .tl-track .dot:hover { transform: translateX(-50%) scale(1.4); }
+    .va-timeline .tl-track .dot.urgent { background: var(--color-warn); }
+    .va-timeline .tl-track .dot.today { background: var(--color-danger); box-shadow: 0 0 0 4px rgba(255,93,93,0.25); }
+    .va-timeline .tl-track .today-line {
+      position: absolute; top: 6px; bottom: 6px; width: 2px;
+      background: var(--color-danger); opacity: 0.7;
+    }
+    .va-timeline .tl-foot {
+      display: flex; justify-content: space-between; margin-top: 22px;
+      font-size: 10px; color: var(--color-text-dim);
+    }
+
+    /* === Variant B: calendar === */
+    .vb-cal {
+      margin: 0 16px 16px;
+      background: var(--color-surface);
+      border-radius: var(--radius-md);
+      padding: 14px;
+    }
+    .vb-cal .head {
+      display: flex; justify-content: space-between; align-items: baseline;
+      margin-bottom: 12px;
+    }
+    .vb-cal .head .ttl { font-size: 13px; font-weight: 600; }
+    .vb-cal .head .nav {
+      display: flex; gap: 8px; color: var(--color-text-muted); font-size: 12px;
+    }
+    .vb-cal .head .nav span { cursor: pointer; }
+    .vb-cal .grid {
+      display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px;
+    }
+    .vb-cal .grid .wk {
+      font-size: 10px; color: var(--color-text-dim);
+      text-align: center; padding: 4px 0;
+    }
+    .vb-cal .grid .day {
+      aspect-ratio: 1;
+      display: grid; place-items: center;
+      font-size: 12px; color: var(--color-text);
+      border-radius: 6px; position: relative;
+      cursor: pointer; transition: background 0.15s;
+      font-variant-numeric: tabular-nums;
+    }
+    .vb-cal .grid .day:hover { background: var(--color-surface-2); }
+    .vb-cal .grid .day.muted { color: var(--color-text-dim); opacity: 0.4; }
+    .vb-cal .grid .day.today {
+      background: var(--color-primary-soft);
+      color: var(--color-primary);
+      font-weight: 700;
+    }
+    .vb-cal .grid .day.charge::after {
+      content: ''; position: absolute; bottom: 4px;
+      width: 4px; height: 4px; border-radius: 999px;
+      background: var(--color-warn);
+    }
+    .vb-cal .grid .day.charge-today::after {
+      background: var(--color-danger);
+      width: 5px; height: 5px;
+      box-shadow: 0 0 0 2px rgba(255,93,93,0.25);
+    }
+    .vb-cal .legend {
+      display: flex; gap: 14px; margin-top: 12px;
+      font-size: 10px; color: var(--color-text-muted);
+    }
+    .vb-cal .legend .dot {
+      display: inline-block; width: 6px; height: 6px;
+      border-radius: 999px; margin-right: 4px; vertical-align: middle;
+    }
+
+    /* === Variant C: sectioned by urgency === */
+    .vc-section {
+      padding: 6px 0;
+    }
+    .vc-section .head {
+      display: flex; justify-content: space-between; align-items: baseline;
+      padding: 8px 20px 8px;
+    }
+    .vc-section .head h4 {
+      margin: 0; font-size: 12px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.08em;
+      color: var(--color-text-muted);
+    }
+    .vc-section .head h4.urgent { color: var(--color-danger); }
+    .vc-section .head h4.warn { color: var(--color-warn); }
+    .vc-section .head .total {
+      font-size: 11px; color: var(--color-text-dim);
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Common */
+    .main-button {
+      position: absolute; left: 16px; right: 16px; bottom: var(--safe-bottom);
+      height: var(--main-button-height);
+      background: var(--color-primary); border: 0; border-radius: var(--radius-md);
+      color: #fff; font-size: 16px; font-weight: 600; cursor: pointer;
+      font-family: inherit; transition: all 0.15s;
+      box-shadow: 0 6px 18px rgba(78,164,255,0.35);
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .main-button .plus {
+      width: 18px; height: 18px; border-radius: 999px;
+      background: rgba(255,255,255,0.2); display: grid; place-items: center; font-size: 14px;
+    }
+
+    .toast {
+      position: fixed; left: 50%; bottom: 100px; transform: translateX(-50%) translateY(20px);
+      background: rgba(0,0,0,0.9); color: #fff; padding: 10px 18px;
+      border-radius: 999px; font-size: 13px; opacity: 0; pointer-events: none;
+      transition: all 0.25s; z-index: 9997;
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    #sketch-tools {
+      position: fixed; bottom: 12px; right: 12px; z-index: 9999;
+      font-family: system-ui; font-size: 12px;
+      background: rgba(0,0,0,0.75); color: #fff;
+      padding: 8px 12px; border-radius: 8px;
+      opacity: 0.4; transition: opacity 0.2s;
+      display: flex; gap: 8px; align-items: center;
+    }
+    #sketch-tools:hover { opacity: 1; }
+    #sketch-tools select {
+      background: rgba(255,255,255,0.1); color: #fff;
+      border: 1px solid rgba(255,255,255,0.2);
+      padding: 2px 6px; border-radius: 4px; font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+
+<div id="variant-nav">
+  <button class="variant-tab active" data-variant="a">A: List + timeline ★ Selected</button>
+  <button class="variant-tab" data-variant="b">B: Calendar grid</button>
+  <button class="variant-tab" data-variant="c">C: Sectioned by urgency</button>
+</div>
+
+<!-- ============================================== -->
+<!-- VARIANT A: List + timeline                    -->
+<!-- ============================================== -->
+<div class="variant active" id="variant-a">
+  <div class="frame">
+    <div class="tg-statusbar"><span>9:41</span><span>●●● 5G ▮</span></div>
+    <div class="tg-header"><span class="tg-back">‹</span><span class="tg-title">Подписки</span><span class="tg-action">⋯</span></div>
+
+    <div class="hero">
+      <div class="hero-row">
+        <div>
+          <div class="lbl">В этом периоде</div>
+          <div class="num">6 949 ₽</div>
+        </div>
+        <div class="next">
+          <div class="lbl">Ближайшее</div>
+          <div class="nm">iCloud · 900 ₽</div>
+          <div class="when">завтра, 6 февраля</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Timeline -->
+    <div class="va-timeline">
+      <div class="tl-head">
+        <span class="ttl">Февраль 2026</span>
+        <span class="sub-num">7 списаний</span>
+      </div>
+      <div class="tl-track" id="tl-track">
+        <div class="axis"></div>
+        <div class="day-label" style="left:3.5%">5</div>
+        <div class="day-label" style="left:32%">10</div>
+        <div class="day-label" style="left:53%">15</div>
+        <div class="day-label" style="left:78%">22</div>
+        <div class="day-label" style="left:96%">28</div>
+
+        <div class="today-line" style="left:3.5%"></div>
+
+        <div class="dot urgent" style="left:6.5%" title="iCloud · 6 фев · 900 ₽"></div>
+        <div class="dot urgent" style="left:10.5%" title="Plaud · 7 фев · 20 000 ₽"></div>
+        <div class="dot" style="left:31%" title="Youtube · 16 фев · 250 ₽"></div>
+        <div class="dot" style="left:50%" title="Билайн · 20 фев · 810 ₽"></div>
+        <div class="dot" style="left:71%" title="Яндекс плюс · 25 фев · 4 490 ₽"></div>
+        <div class="dot" style="left:71%" title="Ростелеком · 25 фев · 800 ₽" style="left:72.5%"></div>
+        <div class="dot" style="left:78%" title="Whoop · 27 фев · 20 000 ₽"></div>
+
+        <div class="label" style="left:3.5%">сегодня</div>
+      </div>
+      <div class="tl-foot">
+        <span>5 фев</span>
+        <span>4 мар</span>
+      </div>
+    </div>
+
+    <div class="sub-list">
+      <div class="sub urgent" onclick="toast('iCloud')">
+        <div class="ico">iC</div>
+        <div class="body">
+          <div class="name">iCloud <span class="cycle">мес</span></div>
+          <div class="meta"><span class="when-pill">завтра</span> 6 фев · Бытовое</div>
+        </div>
+        <div class="right"><div class="amt">900<span class="cur">₽</span></div></div>
+      </div>
+      <div class="sub urgent">
+        <div class="ico">Pl</div>
+        <div class="body">
+          <div class="name">Plaud <span class="cycle">год</span></div>
+          <div class="meta"><span class="when-pill">через 2 дня</span> 7 фев · Бытовое</div>
+        </div>
+        <div class="right"><div class="amt">20 000<span class="cur">₽</span></div></div>
+      </div>
+      <div class="sub">
+        <div class="ico">Yt</div>
+        <div class="body">
+          <div class="name">Youtube <span class="cycle">мес</span></div>
+          <div class="meta"><span class="when-pill normal">через 11 дн</span> 16 фев · Бытовое</div>
+        </div>
+        <div class="right"><div class="amt">250<span class="cur">₽</span></div></div>
+      </div>
+      <div class="sub">
+        <div class="ico">Б</div>
+        <div class="body">
+          <div class="name">Билайн <span class="cycle">мес</span></div>
+          <div class="meta"><span class="when-pill normal">через 15 дн</span> 20 фев · Бытовое</div>
+        </div>
+        <div class="right"><div class="amt">810<span class="cur">₽</span></div></div>
+      </div>
+      <div class="sub">
+        <div class="ico">Я+</div>
+        <div class="body">
+          <div class="name">Яндекс плюс <span class="cycle">год</span></div>
+          <div class="meta"><span class="when-pill normal">через 20 дн</span> 25 фев · Бытовое</div>
+        </div>
+        <div class="right"><div class="amt">4 490<span class="cur">₽</span></div></div>
+      </div>
+      <div class="sub">
+        <div class="ico">Р</div>
+        <div class="body">
+          <div class="name">Ростелеком <span class="cycle">мес</span></div>
+          <div class="meta"><span class="when-pill normal">через 20 дн</span> 25 фев · Бытовое</div>
+        </div>
+        <div class="right"><div class="amt">800<span class="cur">₽</span></div></div>
+      </div>
+      <div class="sub">
+        <div class="ico">W</div>
+        <div class="body">
+          <div class="name">Whoop <span class="cycle">год</span></div>
+          <div class="meta"><span class="when-pill normal">через 22 дн</span> 27 фев · Бытовое</div>
+        </div>
+        <div class="right"><div class="amt">20 000<span class="cur">₽</span></div></div>
+      </div>
+    </div>
+
+    <button class="main-button"><span class="plus">+</span> Добавить подписку</button>
+  </div>
+</div>
+
+<!-- ============================================== -->
+<!-- VARIANT B: Calendar grid                      -->
+<!-- ============================================== -->
+<div class="variant" id="variant-b">
+  <div class="frame">
+    <div class="tg-statusbar"><span>9:41</span><span>●●● 5G ▮</span></div>
+    <div class="tg-header"><span class="tg-back">‹</span><span class="tg-title">Подписки</span><span class="tg-action">⋯</span></div>
+
+    <div class="hero">
+      <div class="hero-row">
+        <div>
+          <div class="lbl">В этом периоде</div>
+          <div class="num">6 949 ₽</div>
+        </div>
+        <div class="next">
+          <div class="lbl">Активных</div>
+          <div class="num sm">12</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="vb-cal">
+      <div class="head">
+        <span class="ttl">Февраль 2026</span>
+        <span class="nav"><span>‹</span><span>›</span></span>
+      </div>
+      <div class="grid">
+        <div class="wk">пн</div><div class="wk">вт</div><div class="wk">ср</div><div class="wk">чт</div><div class="wk">пт</div><div class="wk">сб</div><div class="wk">вс</div>
+        <div class="day muted">26</div><div class="day muted">27</div><div class="day muted">28</div><div class="day muted">29</div><div class="day muted">30</div><div class="day muted">31</div><div class="day muted">1</div>
+        <div class="day muted">2</div><div class="day muted">3</div><div class="day muted">4</div><div class="day today">5</div><div class="day charge-today">6</div><div class="day charge">7</div><div class="day">8</div>
+        <div class="day">9</div><div class="day">10</div><div class="day">11</div><div class="day">12</div><div class="day">13</div><div class="day">14</div><div class="day">15</div>
+        <div class="day charge">16</div><div class="day">17</div><div class="day">18</div><div class="day">19</div><div class="day charge">20</div><div class="day">21</div><div class="day">22</div>
+        <div class="day">23</div><div class="day">24</div><div class="day charge">25</div><div class="day">26</div><div class="day charge">27</div><div class="day">28</div><div class="day muted">1</div>
+        <div class="day muted">2</div><div class="day muted">3</div><div class="day muted">4</div><div class="day muted">5</div><div class="day muted">6</div><div class="day muted">7</div><div class="day muted">8</div>
+      </div>
+      <div class="legend">
+        <span><span class="dot" style="background:var(--color-primary)"></span>сегодня</span>
+        <span><span class="dot" style="background:var(--color-warn)"></span>списание</span>
+        <span><span class="dot" style="background:var(--color-danger)"></span>в течение 2 дн</span>
+      </div>
+    </div>
+
+    <div class="sub-list">
+      <div class="sub urgent">
+        <div class="ico">iC</div>
+        <div class="body">
+          <div class="name">iCloud <span class="cycle">мес</span></div>
+          <div class="meta">6 фев · через 1 день</div>
+        </div>
+        <div class="right"><div class="amt">900<span class="cur">₽</span></div></div>
+      </div>
+      <div class="sub urgent">
+        <div class="ico">Pl</div>
+        <div class="body">
+          <div class="name">Plaud <span class="cycle">год</span></div>
+          <div class="meta">7 фев · через 2 дня</div>
+        </div>
+        <div class="right"><div class="amt">20 000<span class="cur">₽</span></div></div>
+      </div>
+      <div class="sub">
+        <div class="ico">Yt</div>
+        <div class="body">
+          <div class="name">Youtube <span class="cycle">мес</span></div>
+          <div class="meta">16 фев</div>
+        </div>
+        <div class="right"><div class="amt">250<span class="cur">₽</span></div></div>
+      </div>
+      <div class="sub">
+        <div class="ico">Б</div>
+        <div class="body">
+          <div class="name">Билайн</div>
+          <div class="meta">20 фев</div>
+        </div>
+        <div class="right"><div class="amt">810<span class="cur">₽</span></div></div>
+      </div>
+      <div class="sub">
+        <div class="ico">Я+</div>
+        <div class="body">
+          <div class="name">Яндекс плюс <span class="cycle">год</span></div>
+          <div class="meta">25 фев</div>
+        </div>
+        <div class="right"><div class="amt">4 490<span class="cur">₽</span></div></div>
+      </div>
+    </div>
+
+    <button class="main-button"><span class="plus">+</span> Добавить подписку</button>
+  </div>
+</div>
+
+<!-- ============================================== -->
+<!-- VARIANT C: Sectioned by urgency               -->
+<!-- ============================================== -->
+<div class="variant" id="variant-c">
+  <div class="frame">
+    <div class="tg-statusbar"><span>9:41</span><span>●●● 5G ▮</span></div>
+    <div class="tg-header"><span class="tg-back">‹</span><span class="tg-title">Подписки</span><span class="tg-action">⋯</span></div>
+
+    <div class="hero">
+      <div class="hero-row">
+        <div>
+          <div class="lbl">В месяц всего</div>
+          <div class="num">6 949 ₽</div>
+        </div>
+        <div class="next">
+          <div class="lbl">Ближайшее списание</div>
+          <div class="nm">через 1 день</div>
+          <div class="when">iCloud · 900 ₽</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="vc-section">
+      <div class="head">
+        <h4 class="urgent">⚠ Ближайшие 3 дня</h4>
+        <span class="total">2 · 20 900 ₽</span>
+      </div>
+      <div class="sub-list">
+        <div class="sub today">
+          <div class="ico">iC</div>
+          <div class="body">
+            <div class="name">iCloud <span class="cycle">мес</span></div>
+            <div class="meta"><span class="when-pill today">завтра</span> 6 февраля</div>
+          </div>
+          <div class="right"><div class="amt">900<span class="cur">₽</span></div></div>
+        </div>
+        <div class="sub urgent">
+          <div class="ico">Pl</div>
+          <div class="body">
+            <div class="name">Plaud <span class="cycle">год</span></div>
+            <div class="meta"><span class="when-pill">через 2 дня</span> 7 февраля</div>
+          </div>
+          <div class="right"><div class="amt">20 000<span class="cur">₽</span></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="vc-section">
+      <div class="head">
+        <h4>На этой неделе</h4>
+        <span class="total">0</span>
+      </div>
+      <div class="sub-list">
+        <div style="text-align:center; padding: 12px; font-size:12px; color: var(--color-text-dim);">— ничего —</div>
+      </div>
+    </div>
+
+    <div class="vc-section">
+      <div class="head">
+        <h4>До конца месяца</h4>
+        <span class="total">5 · 26 350 ₽</span>
+      </div>
+      <div class="sub-list">
+        <div class="sub">
+          <div class="ico">Yt</div>
+          <div class="body">
+            <div class="name">Youtube</div>
+            <div class="meta">16 февраля · через 11 дней</div>
+          </div>
+          <div class="right"><div class="amt">250<span class="cur">₽</span></div></div>
+        </div>
+        <div class="sub">
+          <div class="ico">Б</div>
+          <div class="body">
+            <div class="name">Билайн</div>
+            <div class="meta">20 февраля · через 15 дней</div>
+          </div>
+          <div class="right"><div class="amt">810<span class="cur">₽</span></div></div>
+        </div>
+        <div class="sub">
+          <div class="ico">Я+</div>
+          <div class="body">
+            <div class="name">Яндекс плюс <span class="cycle">год</span></div>
+            <div class="meta">25 февраля · через 20 дней</div>
+          </div>
+          <div class="right"><div class="amt">4 490<span class="cur">₽</span></div></div>
+        </div>
+        <div class="sub">
+          <div class="ico">Р</div>
+          <div class="body">
+            <div class="name">Ростелеком</div>
+            <div class="meta">25 февраля</div>
+          </div>
+          <div class="right"><div class="amt">800<span class="cur">₽</span></div></div>
+        </div>
+        <div class="sub">
+          <div class="ico">W</div>
+          <div class="body">
+            <div class="name">Whoop <span class="cycle">год</span></div>
+            <div class="meta">27 февраля</div>
+          </div>
+          <div class="right"><div class="amt">20 000<span class="cur">₽</span></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="vc-section">
+      <div class="head">
+        <h4>Позже</h4>
+        <span class="total">5</span>
+      </div>
+      <div class="sub-list">
+        <div class="sub" style="opacity:0.7">
+          <div class="ico">VPN</div>
+          <div class="body"><div class="name">VPN</div><div class="meta">след. месяц</div></div>
+          <div class="right"><div class="amt">300<span class="cur">₽</span></div></div>
+        </div>
+        <div class="sub" style="opacity:0.7">
+          <div class="ico">GPT</div>
+          <div class="body"><div class="name">ChatGPT</div><div class="meta">след. месяц</div></div>
+          <div class="right"><div class="amt">1 100<span class="cur">₽</span></div></div>
+        </div>
+      </div>
+    </div>
+
+    <button class="main-button"><span class="plus">+</span> Добавить подписку</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<div id="sketch-tools">
+  <span>Theme:</span>
+  <select id="theme-toggle">
+    <option value="dark" selected>dark</option>
+    <option value="light">light</option>
+  </select>
+</div>
+
+<script>
+  document.querySelectorAll('#variant-nav .variant-tab').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const v = btn.dataset.variant;
+      document.querySelectorAll('.variant').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('#variant-nav .variant-tab').forEach(t => t.classList.remove('active'));
+      document.getElementById('variant-' + v).classList.add('active');
+      btn.classList.add('active');
+      window.scrollTo({ top: 0, behavior: 'instant' });
+    });
+  });
+  document.getElementById('theme-toggle').addEventListener('change', (e) => {
+    document.documentElement.dataset.theme = e.target.value;
+  });
+  function toast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(window.__toastT);
+    window.__toastT = setTimeout(() => t.classList.remove('show'), 1400);
+  }
+</script>
+</body>
+</html>

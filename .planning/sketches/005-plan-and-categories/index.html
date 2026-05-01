@@ -1,0 +1,670 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Sketch 005 — Plan / Template / Categories</title>
+  <link rel="stylesheet" href="../themes/default.css">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      background: #05070b; color: var(--color-text);
+      font-family: var(--font-sans); padding-top: 56px; min-height: 100vh;
+    }
+
+    #variant-nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 9998;
+      background: #0a0d13; border-bottom: 1px solid #1a1f2c;
+      padding: 8px; display: flex; gap: 6px; overflow-x: auto; font-size: 12px;
+    }
+    .variant-tab {
+      background: transparent; color: #94a0b8; border: 1px solid #232a3a;
+      padding: 8px 14px; border-radius: 999px; cursor: pointer;
+      white-space: nowrap; transition: all 0.15s; font-family: inherit;
+    }
+    .variant-tab:hover { color: #fff; border-color: var(--color-primary); }
+    .variant-tab.active { background: var(--color-primary); color: #fff; font-weight: 600; }
+
+    .frame {
+      max-width: var(--tg-viewport);
+      margin: 24px auto;
+      background: var(--color-bg);
+      border-radius: 28px;
+      overflow: hidden;
+      box-shadow: var(--shadow-lg);
+      position: relative;
+      min-height: 780px;
+      padding-bottom: calc(var(--main-button-height) + var(--safe-bottom) + 16px);
+    }
+    .variant { display: none; }
+    .variant.active { display: block; }
+
+    .tg-statusbar {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 10px 20px 0; font-size: 13px; color: var(--color-text-muted);
+    }
+    .tg-header {
+      padding: 8px 16px 12px;
+      display: flex; align-items: center; gap: 12px;
+    }
+    .tg-back { color: var(--color-primary); cursor: pointer; font-size: 15px; }
+    .tg-title { flex: 1; text-align: center; font-weight: 600; font-size: 16px; }
+    .tg-action { color: var(--color-primary); font-size: 15px; cursor: pointer; }
+
+    /* Banner of plan summary */
+    .plan-summary {
+      margin: 12px 16px 14px;
+      padding: 14px 18px;
+      background: var(--gradient-hero);
+      border-radius: var(--radius-md);
+      position: relative; overflow: hidden;
+    }
+    .plan-summary::before {
+      content: ''; position: absolute; inset: 0;
+      background: var(--gradient-hero-glow); pointer-events: none;
+    }
+    .plan-summary > * { position: relative; }
+    .plan-summary .row {
+      display: flex; justify-content: space-between; align-items: baseline;
+      color: rgba(255,255,255,0.85); font-size: 12px;
+    }
+    .plan-summary .row + .row { margin-top: 2px; }
+    .plan-summary .row strong {
+      color: #fff; font-weight: 700; font-variant-numeric: tabular-nums;
+      font-size: 18px;
+    }
+    .plan-summary .row.sub { font-size: 11px; opacity: 0.7; }
+
+    .main-button {
+      position: absolute; left: 16px; right: 16px; bottom: var(--safe-bottom);
+      height: var(--main-button-height);
+      background: var(--color-primary); border: 0; border-radius: var(--radius-md);
+      color: #fff; font-size: 16px; font-weight: 600; cursor: pointer;
+      font-family: inherit; transition: all 0.15s;
+      box-shadow: 0 6px 18px rgba(78,164,255,0.35);
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .main-button .plus {
+      width: 18px; height: 18px; border-radius: 999px;
+      background: rgba(255,255,255,0.2); display: grid; place-items: center; font-size: 14px;
+    }
+
+    /* === Variant A: list + swipe + bottom-sheet === */
+    .va-toolbar {
+      display: flex; gap: 8px; padding: 0 16px 12px;
+    }
+    .va-toolbar button {
+      flex: 1; height: 36px; border: 0; border-radius: 10px;
+      background: var(--color-surface); color: var(--color-text-muted);
+      font-size: 12px; font-weight: 600; cursor: pointer;
+      font-family: inherit; transition: background 0.15s;
+    }
+    .va-toolbar button:hover { background: var(--color-surface-2); color: var(--color-text); }
+    .va-toolbar button.primary {
+      background: var(--color-primary-soft); color: var(--color-primary);
+    }
+
+    .row-list { padding: 0 16px 8px; }
+    .row {
+      background: var(--color-surface);
+      border-radius: var(--radius-md);
+      padding: 12px 14px;
+      margin-bottom: 8px;
+      display: flex; align-items: center; gap: 12px;
+      cursor: pointer; transition: background 0.15s;
+      position: relative; overflow: hidden;
+    }
+    .row:hover { background: var(--color-surface-2); }
+    .row .chip {
+      width: 36px; height: 36px; border-radius: 10px;
+      background: var(--color-primary-soft); color: var(--color-primary);
+      display: grid; place-items: center; font-weight: 700; font-size: 13px; flex-shrink: 0;
+    }
+    .row .chip.exp { background: var(--color-danger-soft); color: var(--color-danger); }
+    .row .chip.inc { background: var(--color-success-soft); color: var(--color-success); }
+    .row .body { flex: 1; min-width: 0; }
+    .row .body .nm {
+      font-size: 14px; font-weight: 600;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .row .body .meta {
+      font-size: 11px; color: var(--color-text-muted); margin-top: 2px;
+    }
+    .row .body .meta .cat-pill {
+      display: inline-block; padding: 1px 7px; border-radius: 999px;
+      background: var(--color-surface-2); color: var(--color-text-muted);
+      margin-right: 4px;
+    }
+    .row .right { text-align: right; font-variant-numeric: tabular-nums; flex-shrink: 0; }
+    .row .right .amt { font-size: 14px; font-weight: 600; }
+
+    .row.swiped { transform: translateX(-100px); transition: transform 0.2s; }
+    .row .swipe-actions {
+      position: absolute; right: -100px; top: 0; bottom: 0; width: 100px;
+      display: flex;
+    }
+    .row .swipe-actions button {
+      flex: 1; border: 0; color: #fff;
+      font-size: 18px; font-family: inherit; cursor: pointer;
+    }
+    .row .swipe-actions .edit { background: var(--color-primary); }
+    .row .swipe-actions .del { background: var(--color-danger); }
+
+    /* Bottom sheet (reuse from 002) */
+    .va-bs-backdrop {
+      position: absolute; inset: 0; background: rgba(0,0,0,0.55);
+      pointer-events: none;
+    }
+    .va-bs {
+      position: absolute; left: 0; right: 0; bottom: 0;
+      background: var(--color-bg-elevated);
+      border-radius: 24px 24px 0 0;
+      padding: 12px 0 calc(var(--safe-bottom) + 16px);
+      box-shadow: 0 -16px 40px rgba(0,0,0,0.5);
+      max-height: 78%;
+      animation: sheetUp 0.3s ease;
+    }
+    @keyframes sheetUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+    .va-grip {
+      width: 36px; height: 4px; background: var(--color-text-dim);
+      border-radius: 999px; margin: 0 auto 12px; opacity: 0.5;
+    }
+    .va-bs-title {
+      text-align: center; font-weight: 600; font-size: 16px;
+      padding: 0 16px 12px;
+    }
+    .field {
+      margin: 0 16px 12px;
+      background: var(--color-surface);
+      border-radius: var(--radius-md);
+      padding: 14px 16px;
+    }
+    .field-label {
+      font-size: 11px; color: var(--color-text-muted);
+      text-transform: uppercase; letter-spacing: 0.06em;
+      font-weight: 600; margin-bottom: 6px;
+    }
+    .field-value { font-size: 16px; color: var(--color-text); font-weight: 500; }
+    .field-value.placeholder { color: var(--color-text-dim); }
+    .field-value .chev { float: right; color: var(--color-text-dim); }
+    .va-bs-actions { display: flex; gap: 8px; margin: 4px 16px 0; }
+    .va-bs-actions button {
+      flex: 1; height: 44px; border: 0; border-radius: var(--radius-md);
+      font-size: 14px; font-weight: 600; cursor: pointer;
+      font-family: inherit; transition: background 0.15s;
+    }
+    .va-bs-actions .cancel { background: var(--color-surface); color: var(--color-text); }
+    .va-bs-actions .primary { background: var(--color-primary); color: #fff; box-shadow: 0 4px 12px rgba(78,164,255,0.3); }
+
+    /* === Variant B: grouped by category + inline === */
+    .vb-group {
+      margin: 0 16px 12px;
+      background: var(--color-surface);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+    }
+    .vb-group .head {
+      padding: 12px 14px;
+      display: flex; align-items: center; gap: 10px;
+      cursor: pointer; user-select: none;
+    }
+    .vb-group .head:hover { background: var(--color-surface-2); }
+    .vb-group .head .chev {
+      color: var(--color-text-dim); font-size: 11px;
+      transition: transform 0.2s;
+    }
+    .vb-group.collapsed .body { display: none; }
+    .vb-group.collapsed .head .chev { transform: rotate(-90deg); }
+    .vb-group .head .nm { flex: 1; font-weight: 600; font-size: 14px; }
+    .vb-group .head .cnt {
+      font-size: 11px; padding: 2px 8px; border-radius: 999px;
+      background: var(--color-bg-elevated); color: var(--color-text-muted);
+      font-variant-numeric: tabular-nums;
+    }
+    .vb-group .head .total {
+      font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums;
+      color: var(--color-text); margin-left: 8px;
+    }
+    .vb-group .body { border-top: 1px solid var(--color-border-subtle); }
+    .vb-row {
+      display: flex; align-items: center; gap: 8px;
+      padding: 10px 14px;
+      border-top: 1px solid var(--color-border-subtle);
+    }
+    .vb-row:first-child { border-top: 0; }
+    .vb-row .desc {
+      flex: 1; font-size: 13px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .vb-row .desc .day { color: var(--color-text-dim); font-size: 11px; margin-left: 6px; }
+    .vb-row .amt-input {
+      width: 100px; text-align: right;
+      background: var(--color-bg-elevated); border: 1px solid transparent;
+      border-radius: 8px; padding: 6px 10px;
+      font-family: inherit; font-size: 13px; font-weight: 600;
+      color: var(--color-text); font-variant-numeric: tabular-nums;
+      transition: border 0.15s;
+    }
+    .vb-row .amt-input:focus { outline: none; border-color: var(--color-primary); }
+    .vb-row .del-btn {
+      width: 28px; height: 28px; border-radius: 999px;
+      background: transparent; border: 0; color: var(--color-text-dim);
+      cursor: pointer; transition: all 0.15s; font-size: 14px;
+    }
+    .vb-row .del-btn:hover { background: var(--color-danger-soft); color: var(--color-danger); }
+    .vb-add-row {
+      padding: 10px 14px; text-align: center;
+      color: var(--color-primary); font-size: 13px; font-weight: 500;
+      cursor: pointer; transition: background 0.15s;
+      border-top: 1px solid var(--color-border-subtle);
+    }
+    .vb-add-row:hover { background: var(--color-surface-2); }
+
+    /* === Variant C: segmented manager === */
+    .vc-seg {
+      margin: 0 16px 14px;
+      background: var(--color-surface);
+      border-radius: var(--radius-md);
+      padding: 4px; display: flex; gap: 4px;
+    }
+    .vc-seg button {
+      flex: 1; padding: 10px 0; border: 0; border-radius: 10px;
+      background: transparent; color: var(--color-text-muted);
+      font-size: 13px; font-weight: 600; cursor: pointer;
+      font-family: inherit; transition: all 0.15s;
+    }
+    .vc-seg button.active {
+      background: var(--color-bg-elevated); color: var(--color-text);
+      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    }
+    .vc-pane { display: none; }
+    .vc-pane.active { display: block; }
+
+    .vc-cat-row {
+      display: flex; align-items: center; gap: 12px;
+      padding: 10px 14px;
+      background: var(--color-surface);
+      border-radius: var(--radius-md);
+      margin: 0 16px 6px;
+    }
+    .vc-cat-row .grip {
+      color: var(--color-text-dim); font-size: 14px; cursor: grab;
+    }
+    .vc-cat-row .nm {
+      flex: 1; font-size: 14px; font-weight: 500;
+    }
+    .vc-cat-row.archived .nm {
+      color: var(--color-text-dim); text-decoration: line-through;
+    }
+    .vc-cat-row .kind-pill {
+      font-size: 10px; padding: 2px 7px; border-radius: 999px;
+      font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;
+    }
+    .vc-cat-row .kind-pill.exp { background: var(--color-danger-soft); color: var(--color-danger); }
+    .vc-cat-row .kind-pill.inc { background: var(--color-success-soft); color: var(--color-success); }
+    .vc-cat-row .toggle {
+      width: 36px; height: 20px; background: var(--color-border);
+      border-radius: 999px; position: relative; cursor: pointer;
+      transition: background 0.2s;
+    }
+    .vc-cat-row .toggle::after {
+      content: ''; position: absolute; left: 2px; top: 2px;
+      width: 16px; height: 16px; background: #fff;
+      border-radius: 999px; transition: left 0.2s;
+    }
+    .vc-cat-row .toggle.on { background: var(--color-primary); }
+    .vc-cat-row .toggle.on::after { left: 18px; }
+
+    /* Toast */
+    .toast {
+      position: fixed; left: 50%; bottom: 100px; transform: translateX(-50%) translateY(20px);
+      background: rgba(0,0,0,0.9); color: #fff; padding: 10px 18px;
+      border-radius: 999px; font-size: 13px; opacity: 0; pointer-events: none;
+      transition: all 0.25s; z-index: 9997;
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    #sketch-tools {
+      position: fixed; bottom: 12px; right: 12px; z-index: 9999;
+      font-family: system-ui; font-size: 12px;
+      background: rgba(0,0,0,0.75); color: #fff;
+      padding: 8px 12px; border-radius: 8px;
+      opacity: 0.4; transition: opacity 0.2s;
+      display: flex; gap: 8px; align-items: center;
+    }
+    #sketch-tools:hover { opacity: 1; }
+    #sketch-tools select {
+      background: rgba(255,255,255,0.1); color: #fff;
+      border: 1px solid rgba(255,255,255,0.2);
+      padding: 2px 6px; border-radius: 4px; font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+
+<div id="variant-nav">
+  <button class="variant-tab" data-variant="a">A: Flat list + swipe + sheet</button>
+  <button class="variant-tab active" data-variant="b">B: Grouped + inline edit ★ Selected</button>
+  <button class="variant-tab" data-variant="c">C: Segmented manager</button>
+</div>
+
+<!-- ============================================== -->
+<!-- VARIANT A: flat list + swipe-actions + sheet  -->
+<!-- ============================================== -->
+<div class="variant" id="variant-a">
+  <div class="frame">
+    <div class="tg-statusbar"><span>9:41</span><span>●●● 5G ▮</span></div>
+    <div class="tg-header"><span class="tg-back">‹</span><span class="tg-title">План · Февраль 2026</span><span class="tg-action">⋯</span></div>
+
+    <div class="plan-summary">
+      <div class="row">Расходы план<strong>406 632 ₽</strong></div>
+      <div class="row sub"><span>18 строк · применён шаблон 3 фев</span></div>
+    </div>
+
+    <div class="va-toolbar">
+      <button class="primary" onclick="toast('Применить шаблон заново')">↻ Шаблон</button>
+      <button onclick="toast('Сохранить как шаблон')">⤓ В шаблон</button>
+      <button onclick="toast('Фильтр')">⚙ Фильтр</button>
+    </div>
+
+    <div class="row-list">
+      <div class="row" onclick="toast('Открыть редактор')">
+        <div class="chip exp">Д</div>
+        <div class="body">
+          <div class="nm">Аренда</div>
+          <div class="meta"><span class="cat-pill">Дом</span> 5 числа · ежемесячно</div>
+        </div>
+        <div class="right"><div class="amt">182 000 ₽</div></div>
+      </div>
+      <div class="row swiped" onclick="">
+        <div class="chip exp">Д</div>
+        <div class="body">
+          <div class="nm">Коммуналка</div>
+          <div class="meta"><span class="cat-pill">Дом</span> 10 числа</div>
+        </div>
+        <div class="right"><div class="amt">5 000 ₽</div></div>
+        <div class="swipe-actions">
+          <button class="edit" onclick="toast('Редактировать')">✎</button>
+          <button class="del" onclick="toast('Удалить')">🗑</button>
+        </div>
+      </div>
+      <div class="row">
+        <div class="chip exp">Д</div>
+        <div class="body"><div class="nm">Кладовка</div><div class="meta"><span class="cat-pill">Дом</span> 5 числа</div></div>
+        <div class="right"><div class="amt">7 232 ₽</div></div>
+      </div>
+      <div class="row">
+        <div class="chip exp">П</div>
+        <div class="body"><div class="nm">Базовые продукты</div><div class="meta"><span class="cat-pill">Продукты</span> весь месяц</div></div>
+        <div class="right"><div class="amt">50 000 ₽</div></div>
+      </div>
+      <div class="row">
+        <div class="chip exp">М</div>
+        <div class="body"><div class="nm">Бензин</div><div class="meta"><span class="cat-pill">Машина</span></div></div>
+        <div class="right"><div class="amt">15 000 ₽</div></div>
+      </div>
+      <div class="row">
+        <div class="chip exp">М</div>
+        <div class="body"><div class="nm">Паркинг</div><div class="meta"><span class="cat-pill">Машина</span></div></div>
+        <div class="right"><div class="amt">14 000 ₽</div></div>
+      </div>
+      <div class="row">
+        <div class="chip exp">М</div>
+        <div class="body"><div class="nm">Хоккей</div><div class="meta"><span class="cat-pill">Спорт</span></div></div>
+        <div class="right"><div class="amt">20 000 ₽</div></div>
+      </div>
+      <div class="row">
+        <div class="chip exp">М</div>
+        <div class="body"><div class="nm">Волейбол</div><div class="meta"><span class="cat-pill">Спорт</span></div></div>
+        <div class="right"><div class="amt">13 000 ₽</div></div>
+      </div>
+      <div class="row">
+        <div class="chip exp">М</div>
+        <div class="body"><div class="nm">Трихолог</div><div class="meta"><span class="cat-pill">Моё здоровье</span></div></div>
+        <div class="right"><div class="amt">21 000 ₽</div></div>
+      </div>
+      <div class="row">
+        <div class="chip exp">З</div>
+        <div class="body"><div class="nm">Наташе на Ксению</div><div class="meta"><span class="cat-pill">Здоровье Наташи</span></div></div>
+        <div class="right"><div class="amt">21 000 ₽</div></div>
+      </div>
+    </div>
+
+    <button class="main-button"><span class="plus">+</span> Добавить строку плана</button>
+  </div>
+</div>
+
+<!-- ============================================== -->
+<!-- VARIANT B: grouped by category + inline edit  -->
+<!-- ============================================== -->
+<div class="variant active" id="variant-b">
+  <div class="frame">
+    <div class="tg-statusbar"><span>9:41</span><span>●●● 5G ▮</span></div>
+    <div class="tg-header"><span class="tg-back">‹</span><span class="tg-title">План · Февраль 2026</span><span class="tg-action">⋯</span></div>
+
+    <div class="plan-summary">
+      <div class="row">Расходы план<strong>406 632 ₽</strong></div>
+      <div class="row sub"><span>11 категорий · 18 строк</span></div>
+    </div>
+
+    <div class="vb-group">
+      <div class="head" onclick="toggleGroup(this.parentElement)">
+        <span class="chev">▾</span>
+        <span class="nm">Дом</span>
+        <span class="cnt">3</span>
+        <span class="total">194 232 ₽</span>
+      </div>
+      <div class="body">
+        <div class="vb-row">
+          <span class="desc">Аренда <span class="day">· 5</span></span>
+          <input class="amt-input" value="182 000" />
+          <button class="del-btn" onclick="toast('×')">✕</button>
+        </div>
+        <div class="vb-row">
+          <span class="desc">Коммуналка <span class="day">· 10</span></span>
+          <input class="amt-input" value="5 000" />
+          <button class="del-btn">✕</button>
+        </div>
+        <div class="vb-row">
+          <span class="desc">Кладовка</span>
+          <input class="amt-input" value="7 232" />
+          <button class="del-btn">✕</button>
+        </div>
+        <div class="vb-add-row" onclick="toast('+ Строка')">+ Добавить в Дом</div>
+      </div>
+    </div>
+
+    <div class="vb-group">
+      <div class="head" onclick="toggleGroup(this.parentElement)">
+        <span class="chev">▾</span>
+        <span class="nm">Продукты</span>
+        <span class="cnt">1</span>
+        <span class="total">50 000 ₽</span>
+      </div>
+      <div class="body">
+        <div class="vb-row">
+          <span class="desc">Базовые продукты</span>
+          <input class="amt-input" value="50 000" />
+          <button class="del-btn">✕</button>
+        </div>
+        <div class="vb-add-row">+ Добавить в Продукты</div>
+      </div>
+    </div>
+
+    <div class="vb-group">
+      <div class="head" onclick="toggleGroup(this.parentElement)">
+        <span class="chev">▾</span>
+        <span class="nm">Машина</span>
+        <span class="cnt">2</span>
+        <span class="total">29 000 ₽</span>
+      </div>
+      <div class="body">
+        <div class="vb-row">
+          <span class="desc">Бензин</span>
+          <input class="amt-input" value="15 000" />
+          <button class="del-btn">✕</button>
+        </div>
+        <div class="vb-row">
+          <span class="desc">Паркинг</span>
+          <input class="amt-input" value="14 000" />
+          <button class="del-btn">✕</button>
+        </div>
+        <div class="vb-add-row">+ Добавить в Машина</div>
+      </div>
+    </div>
+
+    <div class="vb-group collapsed">
+      <div class="head" onclick="toggleGroup(this.parentElement)">
+        <span class="chev">▾</span>
+        <span class="nm">Спорт</span>
+        <span class="cnt">2</span>
+        <span class="total">33 000 ₽</span>
+      </div>
+      <div class="body">
+        <div class="vb-row"><span class="desc">Хоккей</span><input class="amt-input" value="20 000" /><button class="del-btn">✕</button></div>
+        <div class="vb-row"><span class="desc">Волейбол</span><input class="amt-input" value="13 000" /><button class="del-btn">✕</button></div>
+        <div class="vb-add-row">+ Добавить в Спорт</div>
+      </div>
+    </div>
+
+    <div class="vb-group collapsed">
+      <div class="head" onclick="toggleGroup(this.parentElement)">
+        <span class="chev">▾</span>
+        <span class="nm">Здоровье Наташи</span>
+        <span class="cnt">1</span>
+        <span class="total">21 000 ₽</span>
+      </div>
+      <div class="body">
+        <div class="vb-row"><span class="desc">Наташе на Ксению</span><input class="amt-input" value="21 000" /><button class="del-btn">✕</button></div>
+        <div class="vb-add-row">+ Добавить</div>
+      </div>
+    </div>
+
+    <button class="main-button" onclick="toast('Сохранено')">Сохранить</button>
+  </div>
+</div>
+
+<!-- ============================================== -->
+<!-- VARIANT C: Segmented manager                  -->
+<!-- ============================================== -->
+<div class="variant" id="variant-c">
+  <div class="frame">
+    <div class="tg-statusbar"><span>9:41</span><span>●●● 5G ▮</span></div>
+    <div class="tg-header"><span class="tg-back">‹</span><span class="tg-title">Планирование</span><span class="tg-action">⋯</span></div>
+
+    <div class="vc-seg">
+      <button class="active" data-pane="plan">План мес.</button>
+      <button data-pane="tpl">Шаблон</button>
+      <button data-pane="cat">Категории</button>
+    </div>
+
+    <!-- PANE: PLAN -->
+    <div class="vc-pane active" id="pane-plan">
+      <div class="plan-summary">
+        <div class="row">Февраль 2026<strong>406 632 ₽</strong></div>
+        <div class="row sub"><span>18 строк · применён шаблон 3 фев</span></div>
+      </div>
+      <div class="row-list">
+        <div class="row"><div class="chip exp">Д</div><div class="body"><div class="nm">Аренда</div><div class="meta"><span class="cat-pill">Дом</span> 5 числа</div></div><div class="right"><div class="amt">182 000 ₽</div></div></div>
+        <div class="row"><div class="chip exp">П</div><div class="body"><div class="nm">Базовые продукты</div><div class="meta"><span class="cat-pill">Продукты</span></div></div><div class="right"><div class="amt">50 000 ₽</div></div></div>
+        <div class="row"><div class="chip exp">М</div><div class="body"><div class="nm">Бензин</div><div class="meta"><span class="cat-pill">Машина</span></div></div><div class="right"><div class="amt">15 000 ₽</div></div></div>
+        <div class="row"><div class="chip exp">М</div><div class="body"><div class="nm">Паркинг</div><div class="meta"><span class="cat-pill">Машина</span></div></div><div class="right"><div class="amt">14 000 ₽</div></div></div>
+        <div class="row"><div class="chip exp">М</div><div class="body"><div class="nm">Хоккей</div><div class="meta"><span class="cat-pill">Спорт</span></div></div><div class="right"><div class="amt">20 000 ₽</div></div></div>
+      </div>
+    </div>
+
+    <!-- PANE: TEMPLATE -->
+    <div class="vc-pane" id="pane-tpl">
+      <div class="plan-summary">
+        <div class="row">Шаблон плана<strong>375 232 ₽</strong></div>
+        <div class="row sub"><span>15 строк · применяется к новым месяцам</span></div>
+      </div>
+      <div class="va-toolbar">
+        <button class="primary" onclick="toast('Перенести из текущего месяца')">⤴ Из тек. месяца</button>
+        <button onclick="toast('Применить ко всем')">→ Применить</button>
+      </div>
+      <div class="row-list">
+        <div class="row"><div class="chip exp">Д</div><div class="body"><div class="nm">Аренда</div><div class="meta"><span class="cat-pill">Дом</span> 5 числа</div></div><div class="right"><div class="amt">182 000 ₽</div></div></div>
+        <div class="row"><div class="chip exp">П</div><div class="body"><div class="nm">Базовые продукты</div><div class="meta"><span class="cat-pill">Продукты</span></div></div><div class="right"><div class="amt">50 000 ₽</div></div></div>
+        <div class="row"><div class="chip exp">М</div><div class="body"><div class="nm">Бензин</div><div class="meta"><span class="cat-pill">Машина</span></div></div><div class="right"><div class="amt">15 000 ₽</div></div></div>
+        <div class="row"><div class="chip inc">А</div><div class="body"><div class="nm">Аванс</div><div class="meta"><span class="cat-pill">Аванс</span> 25 числа</div></div><div class="right"><div class="amt">178 730 ₽</div></div></div>
+      </div>
+    </div>
+
+    <!-- PANE: CATEGORIES -->
+    <div class="vc-pane" id="pane-cat">
+      <div class="plan-summary">
+        <div class="row">Категорий<strong>14</strong></div>
+        <div class="row sub"><span>11 расходов · 3 дохода</span></div>
+      </div>
+      <div style="padding: 0 16px 8px; font-size: 11px; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600;">Расходы</div>
+      <div class="vc-cat-row"><span class="grip">≡</span><span class="nm">Дом</span><span class="kind-pill exp">расх</span><span class="toggle on"></span></div>
+      <div class="vc-cat-row"><span class="grip">≡</span><span class="nm">Продукты</span><span class="kind-pill exp">расх</span><span class="toggle on"></span></div>
+      <div class="vc-cat-row"><span class="grip">≡</span><span class="nm">Машина</span><span class="kind-pill exp">расх</span><span class="toggle on"></span></div>
+      <div class="vc-cat-row"><span class="grip">≡</span><span class="nm">Спорт</span><span class="kind-pill exp">расх</span><span class="toggle on"></span></div>
+      <div class="vc-cat-row archived"><span class="grip">≡</span><span class="nm">Май</span><span class="kind-pill exp">расх</span><span class="toggle"></span></div>
+      <div style="padding: 12px 16px 8px; font-size: 11px; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600;">Доходы</div>
+      <div class="vc-cat-row"><span class="grip">≡</span><span class="nm">Аванс</span><span class="kind-pill inc">дох</span><span class="toggle on"></span></div>
+      <div class="vc-cat-row"><span class="grip">≡</span><span class="nm">Накопления</span><span class="kind-pill inc">дох</span><span class="toggle on"></span></div>
+    </div>
+
+    <button class="main-button" id="vc-mb"><span class="plus">+</span> Добавить</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<div id="sketch-tools">
+  <span>Theme:</span>
+  <select id="theme-toggle">
+    <option value="dark" selected>dark</option>
+    <option value="light">light</option>
+  </select>
+</div>
+
+<script>
+  document.querySelectorAll('#variant-nav .variant-tab').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const v = btn.dataset.variant;
+      document.querySelectorAll('.variant').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('#variant-nav .variant-tab').forEach(t => t.classList.remove('active'));
+      document.getElementById('variant-' + v).classList.add('active');
+      btn.classList.add('active');
+      window.scrollTo({ top: 0, behavior: 'instant' });
+    });
+  });
+  document.getElementById('theme-toggle').addEventListener('change', (e) => {
+    document.documentElement.dataset.theme = e.target.value;
+  });
+
+  function toggleGroup(el) { el.classList.toggle('collapsed'); }
+
+  document.querySelectorAll('.vc-seg button').forEach(b => {
+    b.addEventListener('click', () => {
+      b.parentElement.querySelectorAll('button').forEach(x => x.classList.remove('active'));
+      b.classList.add('active');
+      const frame = b.closest('.frame');
+      frame.querySelectorAll('.vc-pane').forEach(p => p.classList.remove('active'));
+      frame.querySelector('#pane-' + b.dataset.pane).classList.add('active');
+    });
+  });
+
+  // Vc cat row toggle
+  document.querySelectorAll('.vc-cat-row .toggle').forEach(t => {
+    t.addEventListener('click', () => {
+      t.classList.toggle('on');
+      t.closest('.vc-cat-row').classList.toggle('archived');
+    });
+  });
+
+  function toast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(window.__toastT);
+    window.__toastT = setTimeout(() => t.classList.remove('show'), 1400);
+  }
+</script>
+</body>
+</html>

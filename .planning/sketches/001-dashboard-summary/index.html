@@ -1,0 +1,824 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Sketch 001 — Dashboard Summary (TG Mini App)</title>
+  <link rel="stylesheet" href="../themes/default.css">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      background: #05070b;
+      color: var(--color-text);
+      font-family: var(--font-sans);
+      font-size: var(--text-base);
+      line-height: 1.4;
+      padding-top: 56px; /* variant tabs */
+      min-height: 100vh;
+    }
+
+    /* ========== Variant tabs (toolbar) ========== */
+    #variant-nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 9998;
+      background: #0a0d13; border-bottom: 1px solid #1a1f2c;
+      padding: 8px; display: flex; gap: 6px; overflow-x: auto;
+      font-family: var(--font-sans); font-size: 12px;
+    }
+    .variant-tab {
+      background: transparent; color: #94a0b8; border: 1px solid #232a3a;
+      padding: 8px 14px; border-radius: 999px; cursor: pointer;
+      white-space: nowrap; transition: all 0.15s ease;
+    }
+    .variant-tab:hover { color: #fff; border-color: #4ea4ff; }
+    .variant-tab.active {
+      background: #4ea4ff; color: #fff; border-color: #4ea4ff;
+      font-weight: 600;
+    }
+
+    /* ========== Phone frame (375px) ========== */
+    .frame {
+      max-width: var(--tg-viewport);
+      margin: 24px auto;
+      background: var(--color-bg);
+      border-radius: 28px;
+      overflow: hidden;
+      box-shadow: var(--shadow-lg);
+      position: relative;
+      min-height: 780px;
+      padding-bottom: calc(var(--main-button-height) + var(--safe-bottom) + 16px);
+    }
+    .variant { display: none; }
+    .variant.active { display: block; }
+
+    /* ========== Common: TG status bar / header ========== */
+    .tg-statusbar {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 10px 20px 0; font-size: 13px; color: var(--color-text-muted);
+    }
+    .tg-statusbar .right { display: flex; gap: 4px; }
+    .tg-header {
+      padding: 8px 16px 12px;
+      display: flex; align-items: center; gap: 12px;
+    }
+    .tg-back { color: var(--color-primary); font-size: 15px; cursor: pointer; }
+    .tg-title { flex: 1; text-align: center; font-weight: 600; font-size: 16px; }
+    .tg-action { color: var(--color-primary); font-size: 15px; cursor: pointer; }
+
+    /* ========== Common: period switcher ========== */
+    .period-switcher {
+      display: flex; align-items: center; justify-content: center;
+      gap: 10px; padding: 8px 16px 4px;
+      color: var(--color-text-muted); font-size: 13px;
+    }
+    .period-switcher .label {
+      color: var(--color-text); font-weight: 600; font-size: 14px;
+      padding: 6px 14px; border-radius: 999px;
+      background: var(--color-surface);
+      border: 1px solid var(--color-border-subtle);
+    }
+    .period-switcher .arrow {
+      width: 28px; height: 28px; border-radius: 999px;
+      background: var(--color-surface); border: 1px solid var(--color-border-subtle);
+      display: grid; place-items: center; cursor: pointer;
+      color: var(--color-text-muted); transition: all 0.15s;
+    }
+    .period-switcher .arrow:hover { color: var(--color-primary); border-color: var(--color-primary); }
+
+    /* ========== Common: hero ========== */
+    .hero {
+      margin: 12px 16px 16px;
+      padding: 22px 22px 24px;
+      background: var(--gradient-hero);
+      border-radius: var(--radius-xl);
+      position: relative;
+      overflow: hidden;
+    }
+    .hero::before {
+      content: ''; position: absolute; inset: 0;
+      background: var(--gradient-hero-glow);
+      pointer-events: none;
+    }
+    .hero > * { position: relative; }
+    .hero-label {
+      font-size: var(--text-xs); text-transform: uppercase;
+      letter-spacing: 0.08em; color: rgba(255,255,255,0.7);
+      font-weight: 600;
+    }
+    .hero-balance {
+      font-size: var(--text-3xl); font-weight: 700;
+      font-variant-numeric: tabular-nums; letter-spacing: -0.02em;
+      margin: 6px 0 4px; color: #fff;
+    }
+    .hero-balance.neg { color: #ff8a8a; }
+    .hero-sub {
+      display: flex; gap: 16px; margin-top: 14px;
+      color: rgba(255,255,255,0.85); font-size: var(--text-sm);
+    }
+    .hero-sub .item .k { color: rgba(255,255,255,0.55); display: block; font-size: 11px; }
+    .hero-sub .item .v { font-weight: 600; font-variant-numeric: tabular-nums; font-size: 14px; }
+    .hero-sub .item .v.neg { color: #ff8a8a; }
+    .hero-sub .item .v.pos { color: #6fffa1; }
+
+    /* ========== Common: section header ========== */
+    .section-header {
+      display: flex; justify-content: space-between; align-items: baseline;
+      padding: 8px 20px 6px;
+    }
+    .section-header h3 {
+      font-size: var(--text-md); font-weight: 600; margin: 0;
+      letter-spacing: -0.01em;
+    }
+    .section-header .totals {
+      font-size: 12px; color: var(--color-text-muted);
+      font-variant-numeric: tabular-nums;
+    }
+    .section-header .totals strong {
+      color: var(--color-text); font-weight: 600;
+    }
+    .section-header .totals .delta-pos { color: var(--color-success); }
+    .section-header .totals .delta-neg { color: var(--color-danger); }
+
+    /* ========== Category row (shared base) ========== */
+    .cat-list { padding: 0 16px 8px; }
+    .cat {
+      background: var(--color-surface);
+      border-radius: var(--radius-md);
+      padding: 14px 14px 12px;
+      margin-bottom: 8px;
+      cursor: pointer; transition: background 0.15s ease;
+    }
+    .cat:hover { background: var(--color-surface-2); }
+    .cat-top {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 10px; font-size: var(--text-sm);
+    }
+    .cat-name { font-weight: 600; color: var(--color-text); }
+    .cat-amounts {
+      font-variant-numeric: tabular-nums; color: var(--color-text-muted);
+      font-size: 12px;
+    }
+    .cat-amounts strong { color: var(--color-text); font-weight: 600; }
+
+    .bar {
+      height: 6px; background: var(--color-border-subtle);
+      border-radius: 999px; overflow: hidden; position: relative;
+    }
+    .bar > .fill {
+      height: 100%; background: var(--color-primary);
+      border-radius: 999px; transition: width 0.4s ease;
+    }
+    .bar > .fill.success { background: var(--color-success); }
+    .bar > .fill.danger { background: var(--color-danger); }
+    .bar > .fill.muted { background: var(--color-text-dim); }
+
+    .cat-bottom {
+      display: flex; justify-content: space-between;
+      margin-top: 6px; font-size: 11px; color: var(--color-text-dim);
+      font-variant-numeric: tabular-nums;
+    }
+    .cat-bottom .delta-pos { color: var(--color-success); font-weight: 600; }
+    .cat-bottom .delta-neg { color: var(--color-danger); font-weight: 600; }
+
+    /* ========== Variant A: Stacked + collapsible ========== */
+    .va-section {
+      margin: 0 0 8px;
+    }
+    .va-section .section-header {
+      cursor: pointer; user-select: none;
+    }
+    .va-section .chev {
+      color: var(--color-text-muted); font-size: 12px;
+      transition: transform 0.2s; margin-left: 8px;
+    }
+    .va-section.collapsed .cat-list { display: none; }
+    .va-section.collapsed .chev { transform: rotate(-90deg); }
+
+    /* ========== Variant B: tabs ========== */
+    .vb-tabs {
+      margin: 6px 16px 14px;
+      background: var(--color-surface);
+      border-radius: var(--radius-md);
+      padding: 4px;
+      display: flex; gap: 4px;
+    }
+    .vb-tab {
+      flex: 1; padding: 10px 0; border: 0; border-radius: 10px;
+      background: transparent; color: var(--color-text-muted);
+      font-size: 14px; font-weight: 600; font-family: inherit;
+      cursor: pointer; transition: all 0.15s ease;
+    }
+    .vb-tab:hover { color: var(--color-text); }
+    .vb-tab.active {
+      background: var(--color-bg-elevated);
+      color: var(--color-text);
+      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    }
+    .vb-tab .count {
+      display: inline-block; margin-left: 6px;
+      font-size: 11px; color: var(--color-text-dim);
+      font-variant-numeric: tabular-nums;
+    }
+    .vb-tab.active .count { color: var(--color-primary); }
+    .vb-pane { display: none; }
+    .vb-pane.active { display: block; }
+
+    .vb-aggr {
+      margin: 0 16px 12px;
+      padding: 14px 16px; background: var(--color-surface-2);
+      border-radius: var(--radius-md);
+      display: flex; justify-content: space-around; text-align: center;
+    }
+    .vb-aggr .col { font-size: 11px; color: var(--color-text-muted); }
+    .vb-aggr .col strong {
+      display: block; font-size: var(--text-md); color: var(--color-text);
+      font-variant-numeric: tabular-nums; margin-top: 2px; font-weight: 700;
+    }
+    .vb-aggr .col strong.pos { color: var(--color-success); }
+    .vb-aggr .col strong.neg { color: var(--color-danger); }
+
+    /* ========== Variant C: hero summary + unified list ========== */
+    .vc-summary {
+      margin: 12px 16px 16px;
+      padding: 0;
+      display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+    }
+    .vc-summary .card {
+      background: var(--color-surface);
+      border-radius: var(--radius-md);
+      padding: 14px;
+    }
+    .vc-summary .card .lbl {
+      font-size: 11px; color: var(--color-text-muted); text-transform: uppercase;
+      letter-spacing: 0.06em; font-weight: 600;
+    }
+    .vc-summary .card .num {
+      font-size: var(--text-lg); font-weight: 700;
+      font-variant-numeric: tabular-nums; margin: 4px 0 8px;
+      color: var(--color-text);
+    }
+    .vc-summary .card .stacked {
+      display: flex; height: 6px; border-radius: 999px; overflow: hidden;
+      background: var(--color-border-subtle); margin-bottom: 8px;
+    }
+    .vc-summary .card .stacked > div { height: 100%; }
+    .vc-summary .card .meta {
+      display: flex; justify-content: space-between;
+      font-size: 11px; font-variant-numeric: tabular-nums;
+      color: var(--color-text-muted);
+    }
+    .vc-summary .card .meta .delta-pos { color: var(--color-success); font-weight: 600; }
+    .vc-summary .card .meta .delta-neg { color: var(--color-danger); font-weight: 600; }
+
+    .vc-list { padding: 0 16px 8px; }
+    .vc-row {
+      display: flex; align-items: center; gap: 12px;
+      padding: 10px 12px; border-radius: 12px;
+      cursor: pointer; transition: background 0.15s;
+    }
+    .vc-row:hover { background: var(--color-surface); }
+    .vc-row .chip {
+      width: 28px; height: 28px; border-radius: 8px;
+      display: grid; place-items: center;
+      font-size: 12px; font-weight: 700;
+      flex-shrink: 0;
+    }
+    .vc-row .chip.exp { background: var(--color-danger-soft); color: var(--color-danger); }
+    .vc-row .chip.inc { background: var(--color-success-soft); color: var(--color-success); }
+    .vc-row .body { flex: 1; min-width: 0; }
+    .vc-row .body .nm { font-size: 14px; font-weight: 500; }
+    .vc-row .body .pf {
+      font-size: 11px; color: var(--color-text-muted);
+      font-variant-numeric: tabular-nums; margin-top: 2px;
+    }
+    .vc-row .right { text-align: right; font-variant-numeric: tabular-nums; }
+    .vc-row .right .amt { font-size: 14px; font-weight: 600; }
+    .vc-row .right .dl { font-size: 11px; }
+    .vc-row .right .dl.pos { color: var(--color-success); }
+    .vc-row .right .dl.neg { color: var(--color-danger); }
+
+    .vc-divider {
+      display: flex; align-items: center; gap: 10px;
+      padding: 12px 12px 6px;
+      font-size: 11px; color: var(--color-text-dim);
+      text-transform: uppercase; letter-spacing: 0.08em;
+    }
+    .vc-divider::after { content: ''; flex: 1; height: 1px; background: var(--color-border-subtle); }
+
+    /* ========== MainButton emulator (TG bottom bar) ========== */
+    .main-button {
+      position: absolute; left: 16px; right: 16px; bottom: var(--safe-bottom);
+      height: var(--main-button-height);
+      background: var(--color-primary);
+      border: 0; border-radius: var(--radius-md);
+      color: #fff; font-size: 16px; font-weight: 600;
+      font-family: inherit;
+      cursor: pointer; transition: all 0.15s ease;
+      box-shadow: 0 6px 18px rgba(78,164,255,0.35);
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .main-button:hover { background: var(--color-primary-hover); transform: translateY(-1px); }
+    .main-button:active { transform: scale(0.98); }
+    .main-button .plus {
+      width: 18px; height: 18px; border-radius: 999px;
+      background: rgba(255,255,255,0.2);
+      display: grid; place-items: center; font-size: 14px;
+    }
+
+    /* Sketch toolbar */
+    #sketch-tools {
+      position: fixed; bottom: 12px; right: 12px; z-index: 9999;
+      font-family: system-ui; font-size: 12px;
+      background: rgba(0,0,0,0.75); color: #fff;
+      padding: 8px 12px; border-radius: 8px;
+      opacity: 0.4; transition: opacity 0.2s;
+      display: flex; gap: 8px; align-items: center;
+    }
+    #sketch-tools:hover { opacity: 1; }
+    #sketch-tools select {
+      background: rgba(255,255,255,0.1); color: #fff;
+      border: 1px solid rgba(255,255,255,0.2);
+      padding: 2px 6px; border-radius: 4px; font-size: 12px;
+    }
+
+    /* Toast */
+    .toast {
+      position: fixed; left: 50%; bottom: 100px; transform: translateX(-50%) translateY(20px);
+      background: rgba(0,0,0,0.9); color: #fff; padding: 10px 18px;
+      border-radius: 999px; font-size: 13px; opacity: 0; pointer-events: none;
+      transition: all 0.25s ease; z-index: 9997;
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  </style>
+</head>
+<body>
+
+<!-- ========== Variant tabs ========== -->
+<div id="variant-nav">
+  <button class="variant-tab" data-variant="a">A: Stacked / collapsible</button>
+  <button class="variant-tab active" data-variant="b">B: Tabs Расходы / Доходы ★ Selected</button>
+  <button class="variant-tab" data-variant="c">C: Summary + единый список</button>
+</div>
+
+<!-- ============================================== -->
+<!-- VARIANT A: Stacked + collapsible              -->
+<!-- ============================================== -->
+<div class="variant" id="variant-a">
+  <div class="frame">
+    <div class="tg-statusbar">
+      <span>9:41</span>
+      <span class="right">●●● 5G ▮</span>
+    </div>
+    <div class="tg-header">
+      <span class="tg-back">‹ Назад</span>
+      <span class="tg-title">Бюджет</span>
+      <span class="tg-action">⚙</span>
+    </div>
+
+    <div class="period-switcher">
+      <span class="arrow" onclick="toast('Период ←')">‹</span>
+      <span class="label">Февраль 2026</span>
+      <span class="arrow" onclick="toast('Период →')">›</span>
+    </div>
+
+    <!-- HERO -->
+    <div class="hero">
+      <div class="hero-label">Текущий баланс</div>
+      <div class="hero-balance">0 ₽</div>
+      <div class="hero-sub">
+        <div class="item">
+          <span class="k">Прогноз на конец</span>
+          <span class="v neg">−30 850 ₽</span>
+        </div>
+        <div class="item">
+          <span class="k">Старт периода</span>
+          <span class="v">0 ₽</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- РАСХОДЫ -->
+    <section class="va-section" id="va-exp">
+      <div class="section-header" onclick="toggleSection('va-exp')">
+        <h3>Расходы <span class="chev">▾</span></h3>
+        <span class="totals">
+          План <strong>406 632 ₽</strong> · Факт <strong>0 ₽</strong> ·
+          <span class="delta-pos">+406 632</span>
+        </span>
+      </div>
+      <div class="cat-list">
+        <div class="cat" onclick="toast('Дом')">
+          <div class="cat-top">
+            <span class="cat-name">Дом</span>
+            <span class="cat-amounts"><strong>0</strong> / 194 232 ₽</span>
+          </div>
+          <div class="bar"><div class="fill muted" style="width:0%"></div></div>
+          <div class="cat-bottom">
+            <span>Использовано 0%</span>
+            <span class="delta-pos">+194 232 ₽</span>
+          </div>
+        </div>
+        <div class="cat" onclick="toast('Продукты')">
+          <div class="cat-top">
+            <span class="cat-name">Продукты</span>
+            <span class="cat-amounts"><strong>0</strong> / 50 000 ₽</span>
+          </div>
+          <div class="bar"><div class="fill muted" style="width:0%"></div></div>
+          <div class="cat-bottom">
+            <span>Использовано 0%</span>
+            <span class="delta-pos">+50 000 ₽</span>
+          </div>
+        </div>
+        <div class="cat">
+          <div class="cat-top">
+            <span class="cat-name">Спорт</span>
+            <span class="cat-amounts"><strong>0</strong> / 33 000 ₽</span>
+          </div>
+          <div class="bar"><div class="fill muted" style="width:0%"></div></div>
+          <div class="cat-bottom"><span>Использовано 0%</span><span class="delta-pos">+33 000 ₽</span></div>
+        </div>
+        <div class="cat">
+          <div class="cat-top">
+            <span class="cat-name">Машина</span>
+            <span class="cat-amounts"><strong>0</strong> / 29 000 ₽</span>
+          </div>
+          <div class="bar"><div class="fill muted" style="width:0%"></div></div>
+          <div class="cat-bottom"><span>Использовано 0%</span><span class="delta-pos">+29 000 ₽</span></div>
+        </div>
+        <div class="cat">
+          <div class="cat-top">
+            <span class="cat-name">Здоровье Наташи</span>
+            <span class="cat-amounts"><strong>0</strong> / 21 000 ₽</span>
+          </div>
+          <div class="bar"><div class="fill muted" style="width:0%"></div></div>
+          <div class="cat-bottom"><span>Использовано 0%</span><span class="delta-pos">+21 000 ₽</span></div>
+        </div>
+        <div class="cat">
+          <div class="cat-top">
+            <span class="cat-name">Моё здоровье</span>
+            <span class="cat-amounts"><strong>0</strong> / 21 000 ₽</span>
+          </div>
+          <div class="bar"><div class="fill muted" style="width:0%"></div></div>
+          <div class="cat-bottom"><span>Использовано 0%</span><span class="delta-pos">+21 000 ₽</span></div>
+        </div>
+        <div class="cat">
+          <div class="cat-top">
+            <span class="cat-name">Май</span>
+            <span class="cat-amounts"><strong>0</strong> / 20 000 ₽</span>
+          </div>
+          <div class="bar"><div class="fill muted" style="width:0%"></div></div>
+          <div class="cat-bottom"><span>Использовано 0%</span><span class="delta-pos">+20 000 ₽</span></div>
+        </div>
+        <div class="cat">
+          <div class="cat-top">
+            <span class="cat-name">Бытовые траты</span>
+            <span class="cat-amounts"><strong>0</strong> / 16 000 ₽</span>
+          </div>
+          <div class="bar"><div class="fill muted" style="width:0%"></div></div>
+          <div class="cat-bottom"><span>Использовано 0%</span><span class="delta-pos">+16 000 ₽</span></div>
+        </div>
+        <div class="cat">
+          <div class="cat-top">
+            <span class="cat-name">Подарки</span>
+            <span class="cat-amounts"><strong>0</strong> / 15 000 ₽</span>
+          </div>
+          <div class="bar"><div class="fill muted" style="width:0%"></div></div>
+          <div class="cat-bottom"><span>Использовано 0%</span><span class="delta-pos">+15 000 ₽</span></div>
+        </div>
+        <div class="cat">
+          <div class="cat-top">
+            <span class="cat-name">Кафе и рестораны</span>
+            <span class="cat-amounts"><strong>0</strong> / 6 000 ₽</span>
+          </div>
+          <div class="bar"><div class="fill muted" style="width:0%"></div></div>
+          <div class="cat-bottom"><span>Использовано 0%</span><span class="delta-pos">+6 000 ₽</span></div>
+        </div>
+        <div class="cat">
+          <div class="cat-top">
+            <span class="cat-name">Долг</span>
+            <span class="cat-amounts"><strong>0</strong> / 1 400 ₽</span>
+          </div>
+          <div class="bar"><div class="fill muted" style="width:0%"></div></div>
+          <div class="cat-bottom"><span>Использовано 0%</span><span class="delta-pos">+1 400 ₽</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ДОХОДЫ -->
+    <section class="va-section collapsed" id="va-inc">
+      <div class="section-header" onclick="toggleSection('va-inc')">
+        <h3>Доходы <span class="chev">▾</span></h3>
+        <span class="totals">
+          План <strong>375 782 ₽</strong> · Факт <strong>0 ₽</strong> ·
+          <span class="delta-neg">−375 782</span>
+        </span>
+      </div>
+      <div class="cat-list">
+        <div class="cat">
+          <div class="cat-top">
+            <span class="cat-name">Аванс</span>
+            <span class="cat-amounts"><strong>0</strong> / 178 730 ₽</span>
+          </div>
+          <div class="bar"><div class="fill muted" style="width:0%"></div></div>
+          <div class="cat-bottom"><span>Получено 0%</span><span class="delta-neg">−178 730 ₽</span></div>
+        </div>
+        <div class="cat">
+          <div class="cat-top">
+            <span class="cat-name">Накопления</span>
+            <span class="cat-amounts"><strong>0</strong> / 128 689 ₽</span>
+          </div>
+          <div class="bar"><div class="fill muted" style="width:0%"></div></div>
+          <div class="cat-bottom"><span>Получено 0%</span><span class="delta-neg">−128 689 ₽</span></div>
+        </div>
+        <div class="cat">
+          <div class="cat-top">
+            <span class="cat-name">Выходы в вых. дни</span>
+            <span class="cat-amounts"><strong>0</strong> / 68 363 ₽</span>
+          </div>
+          <div class="bar"><div class="fill muted" style="width:0%"></div></div>
+          <div class="cat-bottom"><span>Получено 0%</span><span class="delta-neg">−68 363 ₽</span></div>
+        </div>
+      </div>
+    </section>
+
+    <button class="main-button" onclick="toast('Открыть форму добавления')">
+      <span class="plus">+</span> Добавить трату
+    </button>
+  </div>
+</div>
+
+<!-- ============================================== -->
+<!-- VARIANT B: Tabs Расходы / Доходы              -->
+<!-- ============================================== -->
+<div class="variant active" id="variant-b">
+  <div class="frame">
+    <div class="tg-statusbar">
+      <span>9:41</span>
+      <span class="right">●●● 5G ▮</span>
+    </div>
+    <div class="tg-header">
+      <span class="tg-back">‹ Назад</span>
+      <span class="tg-title">Бюджет</span>
+      <span class="tg-action">⚙</span>
+    </div>
+
+    <div class="period-switcher">
+      <span class="arrow">‹</span>
+      <span class="label">Февраль 2026</span>
+      <span class="arrow">›</span>
+    </div>
+
+    <div class="hero">
+      <div class="hero-label">Текущий баланс</div>
+      <div class="hero-balance">0 ₽</div>
+      <div class="hero-sub">
+        <div class="item">
+          <span class="k">Прогноз на конец</span>
+          <span class="v neg">−30 850 ₽</span>
+        </div>
+        <div class="item">
+          <span class="k">Старт периода</span>
+          <span class="v">0 ₽</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="vb-tabs">
+      <button class="vb-tab active" data-tab="exp">Расходы<span class="count">11</span></button>
+      <button class="vb-tab" data-tab="inc">Доходы<span class="count">3</span></button>
+    </div>
+
+    <!-- EXP pane -->
+    <div class="vb-pane active" id="vb-exp">
+      <div class="vb-aggr">
+        <div class="col">План<strong>406 632 ₽</strong></div>
+        <div class="col">Факт<strong>0 ₽</strong></div>
+        <div class="col">Дельта<strong class="pos">+406 632</strong></div>
+      </div>
+      <div class="cat-list">
+        <div class="cat"><div class="cat-top"><span class="cat-name">Дом</span><span class="cat-amounts"><strong>0</strong> / 194 232 ₽</span></div><div class="bar"><div class="fill muted" style="width:0%"></div></div></div>
+        <div class="cat"><div class="cat-top"><span class="cat-name">Продукты</span><span class="cat-amounts"><strong>0</strong> / 50 000 ₽</span></div><div class="bar"><div class="fill muted" style="width:0%"></div></div></div>
+        <div class="cat"><div class="cat-top"><span class="cat-name">Спорт</span><span class="cat-amounts"><strong>0</strong> / 33 000 ₽</span></div><div class="bar"><div class="fill muted" style="width:0%"></div></div></div>
+        <div class="cat"><div class="cat-top"><span class="cat-name">Машина</span><span class="cat-amounts"><strong>0</strong> / 29 000 ₽</span></div><div class="bar"><div class="fill muted" style="width:0%"></div></div></div>
+        <div class="cat"><div class="cat-top"><span class="cat-name">Здоровье Наташи</span><span class="cat-amounts"><strong>0</strong> / 21 000 ₽</span></div><div class="bar"><div class="fill muted" style="width:0%"></div></div></div>
+        <div class="cat"><div class="cat-top"><span class="cat-name">Моё здоровье</span><span class="cat-amounts"><strong>0</strong> / 21 000 ₽</span></div><div class="bar"><div class="fill muted" style="width:0%"></div></div></div>
+        <div class="cat"><div class="cat-top"><span class="cat-name">Май</span><span class="cat-amounts"><strong>0</strong> / 20 000 ₽</span></div><div class="bar"><div class="fill muted" style="width:0%"></div></div></div>
+        <div class="cat"><div class="cat-top"><span class="cat-name">Бытовые траты</span><span class="cat-amounts"><strong>0</strong> / 16 000 ₽</span></div><div class="bar"><div class="fill muted" style="width:0%"></div></div></div>
+        <div class="cat"><div class="cat-top"><span class="cat-name">Подарки</span><span class="cat-amounts"><strong>0</strong> / 15 000 ₽</span></div><div class="bar"><div class="fill muted" style="width:0%"></div></div></div>
+        <div class="cat"><div class="cat-top"><span class="cat-name">Кафе и рестораны</span><span class="cat-amounts"><strong>0</strong> / 6 000 ₽</span></div><div class="bar"><div class="fill muted" style="width:0%"></div></div></div>
+        <div class="cat"><div class="cat-top"><span class="cat-name">Долг</span><span class="cat-amounts"><strong>0</strong> / 1 400 ₽</span></div><div class="bar"><div class="fill muted" style="width:0%"></div></div></div>
+      </div>
+    </div>
+
+    <!-- INC pane -->
+    <div class="vb-pane" id="vb-inc">
+      <div class="vb-aggr">
+        <div class="col">План<strong>375 782 ₽</strong></div>
+        <div class="col">Факт<strong>0 ₽</strong></div>
+        <div class="col">Дельта<strong class="neg">−375 782</strong></div>
+      </div>
+      <div class="cat-list">
+        <div class="cat"><div class="cat-top"><span class="cat-name">Аванс</span><span class="cat-amounts"><strong>0</strong> / 178 730 ₽</span></div><div class="bar"><div class="fill muted" style="width:0%"></div></div></div>
+        <div class="cat"><div class="cat-top"><span class="cat-name">Накопления</span><span class="cat-amounts"><strong>0</strong> / 128 689 ₽</span></div><div class="bar"><div class="fill muted" style="width:0%"></div></div></div>
+        <div class="cat"><div class="cat-top"><span class="cat-name">Выходы в вых. дни</span><span class="cat-amounts"><strong>0</strong> / 68 363 ₽</span></div><div class="bar"><div class="fill muted" style="width:0%"></div></div></div>
+      </div>
+    </div>
+
+    <button class="main-button" onclick="toast('Открыть форму добавления')">
+      <span class="plus">+</span> Добавить
+    </button>
+  </div>
+</div>
+
+<!-- ============================================== -->
+<!-- VARIANT C: Hero summary cards + unified list  -->
+<!-- ============================================== -->
+<div class="variant" id="variant-c">
+  <div class="frame">
+    <div class="tg-statusbar">
+      <span>9:41</span>
+      <span class="right">●●● 5G ▮</span>
+    </div>
+    <div class="tg-header">
+      <span class="tg-back">‹ Назад</span>
+      <span class="tg-title">Бюджет</span>
+      <span class="tg-action">⚙</span>
+    </div>
+
+    <div class="period-switcher">
+      <span class="arrow">‹</span>
+      <span class="label">Февраль 2026</span>
+      <span class="arrow">›</span>
+    </div>
+
+    <div class="hero">
+      <div class="hero-label">Текущий баланс</div>
+      <div class="hero-balance">0 ₽</div>
+      <div class="hero-sub">
+        <div class="item">
+          <span class="k">Прогноз на конец</span>
+          <span class="v neg">−30 850 ₽</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="vc-summary">
+      <div class="card">
+        <div class="lbl">Расходы</div>
+        <div class="num">0 / 406 632</div>
+        <div class="stacked">
+          <div style="width:0%; background: var(--color-danger)"></div>
+        </div>
+        <div class="meta"><span>0%</span><span class="delta-pos">+406 632</span></div>
+      </div>
+      <div class="card">
+        <div class="lbl">Доходы</div>
+        <div class="num">0 / 375 782</div>
+        <div class="stacked">
+          <div style="width:0%; background: var(--color-success)"></div>
+        </div>
+        <div class="meta"><span>0%</span><span class="delta-neg">−375 782</span></div>
+      </div>
+    </div>
+
+    <div class="vc-list">
+      <div class="vc-divider">Расходы</div>
+      <div class="vc-row">
+        <div class="chip exp">Д</div>
+        <div class="body"><div class="nm">Дом</div><div class="pf">План 194 232 · Факт 0</div></div>
+        <div class="right"><div class="amt">0 ₽</div><div class="dl pos">+194 232</div></div>
+      </div>
+      <div class="vc-row">
+        <div class="chip exp">П</div>
+        <div class="body"><div class="nm">Продукты</div><div class="pf">План 50 000 · Факт 0</div></div>
+        <div class="right"><div class="amt">0 ₽</div><div class="dl pos">+50 000</div></div>
+      </div>
+      <div class="vc-row">
+        <div class="chip exp">С</div>
+        <div class="body"><div class="nm">Спорт</div><div class="pf">План 33 000 · Факт 0</div></div>
+        <div class="right"><div class="amt">0 ₽</div><div class="dl pos">+33 000</div></div>
+      </div>
+      <div class="vc-row">
+        <div class="chip exp">М</div>
+        <div class="body"><div class="nm">Машина</div><div class="pf">План 29 000 · Факт 0</div></div>
+        <div class="right"><div class="amt">0 ₽</div><div class="dl pos">+29 000</div></div>
+      </div>
+      <div class="vc-row">
+        <div class="chip exp">З</div>
+        <div class="body"><div class="nm">Здоровье Наташи</div><div class="pf">План 21 000 · Факт 0</div></div>
+        <div class="right"><div class="amt">0 ₽</div><div class="dl pos">+21 000</div></div>
+      </div>
+      <div class="vc-row">
+        <div class="chip exp">З</div>
+        <div class="body"><div class="nm">Моё здоровье</div><div class="pf">План 21 000 · Факт 0</div></div>
+        <div class="right"><div class="amt">0 ₽</div><div class="dl pos">+21 000</div></div>
+      </div>
+      <div class="vc-row">
+        <div class="chip exp">М</div>
+        <div class="body"><div class="nm">Май</div><div class="pf">План 20 000 · Факт 0</div></div>
+        <div class="right"><div class="amt">0 ₽</div><div class="dl pos">+20 000</div></div>
+      </div>
+      <div class="vc-row">
+        <div class="chip exp">Б</div>
+        <div class="body"><div class="nm">Бытовые траты</div><div class="pf">План 16 000 · Факт 0</div></div>
+        <div class="right"><div class="amt">0 ₽</div><div class="dl pos">+16 000</div></div>
+      </div>
+      <div class="vc-row">
+        <div class="chip exp">П</div>
+        <div class="body"><div class="nm">Подарки</div><div class="pf">План 15 000 · Факт 0</div></div>
+        <div class="right"><div class="amt">0 ₽</div><div class="dl pos">+15 000</div></div>
+      </div>
+      <div class="vc-row">
+        <div class="chip exp">К</div>
+        <div class="body"><div class="nm">Кафе и рестораны</div><div class="pf">План 6 000 · Факт 0</div></div>
+        <div class="right"><div class="amt">0 ₽</div><div class="dl pos">+6 000</div></div>
+      </div>
+      <div class="vc-row">
+        <div class="chip exp">Д</div>
+        <div class="body"><div class="nm">Долг</div><div class="pf">План 1 400 · Факт 0</div></div>
+        <div class="right"><div class="amt">0 ₽</div><div class="dl pos">+1 400</div></div>
+      </div>
+
+      <div class="vc-divider">Доходы</div>
+      <div class="vc-row">
+        <div class="chip inc">А</div>
+        <div class="body"><div class="nm">Аванс</div><div class="pf">План 178 730 · Факт 0</div></div>
+        <div class="right"><div class="amt">0 ₽</div><div class="dl neg">−178 730</div></div>
+      </div>
+      <div class="vc-row">
+        <div class="chip inc">Н</div>
+        <div class="body"><div class="nm">Накопления</div><div class="pf">План 128 689 · Факт 0</div></div>
+        <div class="right"><div class="amt">0 ₽</div><div class="dl neg">−128 689</div></div>
+      </div>
+      <div class="vc-row">
+        <div class="chip inc">В</div>
+        <div class="body"><div class="nm">Выходы в вых. дни</div><div class="pf">План 68 363 · Факт 0</div></div>
+        <div class="right"><div class="amt">0 ₽</div><div class="dl neg">−68 363</div></div>
+      </div>
+    </div>
+
+    <button class="main-button" onclick="toast('Открыть форму добавления')">
+      <span class="plus">+</span> Добавить
+    </button>
+  </div>
+</div>
+
+<!-- ========== Toast ========== -->
+<div class="toast" id="toast"></div>
+
+<!-- ========== Sketch toolbar ========== -->
+<div id="sketch-tools">
+  <span>Theme:</span>
+  <select id="theme-toggle">
+    <option value="dark" selected>dark</option>
+    <option value="light">light</option>
+  </select>
+</div>
+
+<script>
+  // Variant tabs
+  document.querySelectorAll('#variant-nav .variant-tab').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const v = btn.dataset.variant;
+      document.querySelectorAll('.variant').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('#variant-nav .variant-tab').forEach(t => t.classList.remove('active'));
+      document.getElementById('variant-' + v).classList.add('active');
+      btn.classList.add('active');
+      window.scrollTo({ top: 0, behavior: 'instant' });
+    });
+  });
+
+  // Variant A: collapsible sections
+  function toggleSection(id) {
+    document.getElementById(id).classList.toggle('collapsed');
+  }
+
+  // Variant B: tab switch
+  document.querySelectorAll('.vb-tab').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const tab = btn.dataset.tab;
+      btn.parentElement.querySelectorAll('.vb-tab').forEach(t => t.classList.remove('active'));
+      btn.classList.add('active');
+      const frame = btn.closest('.frame');
+      frame.querySelectorAll('.vb-pane').forEach(p => p.classList.remove('active'));
+      frame.querySelector('#vb-' + tab).classList.add('active');
+    });
+  });
+
+  // Theme toggle
+  document.getElementById('theme-toggle').addEventListener('change', (e) => {
+    document.documentElement.dataset.theme = e.target.value;
+  });
+
+  // Toast
+  function toast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(window.__toastT);
+    window.__toastT = setTimeout(() => t.classList.remove('show'), 1400);
+  }
+</script>
+
+</body>
+</html>
