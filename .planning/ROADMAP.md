@@ -31,7 +31,15 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. Запрос к `/api/v1/me` без валидной `X-Telegram-Init-Data` возвращает 403; с валидной для не-OWNER_TG_ID — тоже 403
   4. Запрос на `/api/v1/internal/*` снаружи Caddy недоступен; внутри docker network с правильным `X-Internal-Token` — отвечает 200
   5. Caddy выдаёт валидный TLS-сертификат через Let's Encrypt на `PUBLIC_DOMAIN`
-**Plans**: TBD
+**Plans**: 6 планов
+
+Plans:
+- [ ] 01-01-PLAN.md — Wave 0: test stubs (pytest infrastructure, RED тесты AUTH-01/AUTH-02/INF-04/INF-05/INF-02)
+- [ ] 01-02-PLAN.md — Python skeleton: pyproject.toml, app/ пакет, settings, logging, ORM-модели 6+1 таблиц
+- [ ] 01-03-PLAN.md — Frontend scaffold: Vite+React+TypeScript stub, Dockerfile.frontend
+- [ ] 01-04-PLAN.md — Auth layer: validate_init_data HMAC-SHA256, dependencies, Alembic async env + начальная миграция
+- [ ] 01-05-PLAN.md — Entrypoints: main_api.py (lifespan+routers), main_bot.py (polling+healthz), main_worker.py (APScheduler), entrypoint.sh
+- [ ] 01-06-PLAN.md — Docker infra: Dockerfile SERVICE, docker-compose.yml 5 сервисов, Caddyfile TLS, .env.example, .gitignore
 
 ### Phase 2: Domain Foundation & Onboarding
 **Goal**: Пользователь может пройти первый запуск и получить базовую конфигурацию: bot bind, стартовый баланс, cycle_start_day, seed категорий — после этого активный период существует и категории доступны
@@ -105,7 +113,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Infrastructure & Auth | 0/TBD | Not started | - |
+| 1. Infrastructure & Auth | 0/6 | Planned | - |
 | 2. Domain Foundation & Onboarding | 0/TBD | Not started | - |
 | 3. Plan Template & Planned Transactions | 0/TBD | Not started | - |
 | 4. Actual Transactions & Bot Commands | 0/TBD | Not started | - |
@@ -115,3 +123,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 ---
 *Roadmap created: 2026-05-01*
 *Synthesized from docs/BRD.md v0.2, docs/HLD.md v0.1, .planning/sketches/ winners*
+*Phase 1 plans created: 2026-05-01*
