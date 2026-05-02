@@ -1,0 +1,21 @@
+# Stage 1: build
+FROM node:22-alpine AS builder
+
+WORKDIR /app
+
+# Copy dependency files first for layer caching
+COPY frontend/package.json frontend/package-lock.json* ./
+
+# Install dependencies (uses package-lock.json if present, else package.json)
+RUN npm ci --prefer-offline 2>/dev/null || npm install
+
+# Copy source
+COPY frontend/ ./
+
+# Build static assets
+RUN npm run build
+
+# Stage 2: serve via Caddy (dist/ files are copied to Caddy volume via docker-compose)
+# This stage exists only to extract dist/ — Caddy serves the files directly
+FROM scratch AS dist
+COPY --from=builder /app/dist /dist
