@@ -1,0 +1,33 @@
+# TG Budget Planner — production Caddyfile (INF-03).
+#
+# Caddy auto-HTTPS via Let's Encrypt: requires the configured public domain
+# to resolve to this VPS's public IP and ports 80/443 open (Pitfall 4).
+#
+# Source: 01-RESEARCH.md Pattern 10.
+
+{env.PUBLIC_DOMAIN} {
+
+	# T-internal mitigation: Caddy responds 403 to /api/v1/internal/* BEFORE
+	# the reverse-proxy directive runs, so internal endpoints are never
+	# proxied to api:8000 from the public Internet. The bot reaches them
+	# directly over the budget_net docker network at http://api:8000/...
+	# and presents X-Internal-Token (verified by FastAPI dependency).
+	#
+	# Caddyfile directive order matters here: both rules can match a path
+	# under /api/v1/internal/..., and a terminating handler like `respond`
+	# wins when it appears earlier in the site block.
+	respond /api/v1/internal/* "Forbidden" 403
+
+	# Proxy the rest of /api/* to FastAPI on the docker network.
+	# api container does NOT publish :8000 on the host — only Caddy can
+	# reach it (T-internal + T-db-exposure threat model).
+	reverse_proxy /api/* api:8000
+
+	# SPA fallback: serve the React app from the frontend_dist named volume
+	# mounted at /srv/dist (read-only). The directive below preserves deep
+	# links by falling back to /index.html for any non-file request — React
+	# Router (or future router) then handles client-side routing.
+	root * /srv/dist
+	try_files {path} /index.html
+	file_server
+}

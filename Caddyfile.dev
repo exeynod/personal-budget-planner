@@ -1,0 +1,23 @@
+# TG Budget Planner — dev Caddyfile (HTTP only, no TLS).
+#
+# Used by docker-compose.override.yml for local development where there is
+# no public DNS and Let's Encrypt cannot issue a cert. Listens on :80 over
+# plain HTTP — never deploy this to a public VPS.
+#
+# Source: 01-RESEARCH.md Open Question 2 recommendation.
+
+:80 {
+
+	# T-internal mitigation must apply in dev too: the override file should
+	# not accidentally re-expose internal endpoints when developers test
+	# locally via curl through Caddy.
+	respond /api/v1/internal/* "Forbidden" 403
+
+	# Reverse-proxy /api/* to the api container.
+	reverse_proxy /api/* api:8000
+
+	# SPA fallback (same as production).
+	root * /srv/dist
+	try_files {path} /index.html
+	file_server
+}
