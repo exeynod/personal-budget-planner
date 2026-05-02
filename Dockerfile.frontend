@@ -15,7 +15,19 @@ COPY frontend/ ./
 # Build static assets
 RUN npm run build
 
-# Stage 2: serve via Caddy (dist/ files are copied to Caddy volume via docker-compose)
-# This stage exists only to extract dist/ — Caddy serves the files directly
-FROM scratch AS dist
-COPY --from=builder /app/dist /dist
+# Stage 2: dist exporter (D-08).
+# This stage runs once at `docker-compose up`: it copies the freshly built
+# /app/dist tree into the named volume `frontend_dist` mounted at /export,
+# then exits (restart: "no" in docker-compose.yml). Caddy mounts the same
+# named volume at /srv/dist and serves the SPA static files.
+#
+# Why alpine and not `FROM scratch`: a scratch image has no shell or binary,
+# so the container cannot run any command — Docker would fail with "no
+# command specified" and the named volume would never be populated. Alpine
+# adds ~5MB and gives us `cp` for the copy step.
+FROM alpine:3.20 AS exporter
+COPY --from=builder /app/dist /app/dist
+# On startup, copy dist/ into the mounted volume target and exit 0.
+# `cp -R /app/dist/. /export/` copies contents (not the dist directory itself),
+# so /export ends up containing index.html, assets/, etc. directly.
+CMD ["sh", "-c", "cp -R /app/dist/. /export/ && echo 'frontend dist exported'"]

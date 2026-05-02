@@ -1,0 +1,204 @@
+# TG Budget Planner — production docker-compose (INF-01).
+#
+# 5 long-lived services + 1 init-container:
+#   db       — PostgreSQL 16 (single source of truth)
+#   api      — FastAPI (REST + initData HMAC-SHA256 auth)
+#   bot      — aiogram 3.x long-poll (D-04)
+#   worker   — APScheduler AsyncIOScheduler (D-12 heartbeat in Phase 1)
+#   caddy    — TLS terminator + SPA static server (auto-HTTPS via Let's Encrypt)
+#   frontend — init-container that populates the frontend_dist named volume
+#              with the built SPA, then exits (D-08)
+#
+# Trust boundaries (see 01-06-PLAN.md threat_model):
+#   - Only caddy publishes ports on the host (:80, :443).
+#   - api/bot/worker/db do NOT publish ports — they communicate over the
+#     internal `budget_net` bridge network.
+#   - /api/v1/internal/* is blocked at the Caddy layer (Caddyfile respond 403)
+#     so external clients can never reach those endpoints; bot calls them
+#     directly via http://api:8000 inside budget_net.
+#
+# Dev overrides (DEV_MODE=true, port 8000 published, console logs) live in
+# docker-compose.override.yml and are merged automatically by `docker compose up`.
+
+version: "3.9"
+
+networks:
+  # All services share a single bridge network so that hostnames resolve to
+  # service names (db, api, bot, worker, caddy, frontend).
+  budget_net:
+    driver: bridge
+
+volumes:
+  # Persistent volumes — survive `docker compose down` (only `down -v` wipes).
+  postgres_data: {}      # PG data dir
+  caddy_data: {}         # Let's Encrypt certs + Caddy auto-HTTPS state (Pitfall 4)
+  caddy_config: {}       # Caddy runtime config snapshot
+  frontend_dist: {}      # SPA dist (populated by `frontend` init-container)
+
+services:
+
+  # ----------------------------------------------------------------------
+  # PostgreSQL 16
+  # ----------------------------------------------------------------------
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: budget_db
+      POSTGRES_USER: budget
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - budget_net
+    # Healthcheck — required so api can `depends_on:
+    # condition: service_healthy` and avoid the "connection refused" race
+    # at first boot (Pitfall 3 in 01-RESEARCH.md).
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U budget -d budget_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    # IMPORTANT: no `ports:` — db is not exposed on the host. Only api/bot/
+    # worker (inside budget_net) can reach 5432.
+
+  # ----------------------------------------------------------------------
+  # Frontend dist init-container (D-08)
+  # ----------------------------------------------------------------------
+  # Builds the React SPA via Dockerfile.frontend's `exporter` stage, then on
+  # startup copies /app/dist/. into the mounted frontend_dist volume and
+  # exits. Caddy mounts the same volume read-only at /srv/dist.
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+      target: exporter
+    volumes:
+      - frontend_dist:/export
+    restart: "no"
+    networks:
+      - budget_net
+
+  # ----------------------------------------------------------------------
+  # Caddy — TLS + reverse proxy + SPA static (INF-03)
+  # ----------------------------------------------------------------------
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data            # cert store — must persist (Pitfall 4)
+      - caddy_config:/config        # Caddy runtime config
+      - frontend_dist:/srv/dist:ro  # SPA dist served as static files
+    networks:
+      - budget_net
+    environment:
+      # Caddyfile reads {env.PUBLIC_DOMAIN} for the auto-HTTPS site block.
+      PUBLIC_DOMAIN: ${PUBLIC_DOMAIN}
+    depends_on:
+      api:
+        condition: service_healthy
+      frontend:
+        condition: service_completed_successfully
+
+  # ----------------------------------------------------------------------
+  # FastAPI — REST API
+  # ----------------------------------------------------------------------
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        SERVICE: api
+    restart: unless-stopped
+    environment:
+      SERVICE: api
+      DATABASE_URL: postgresql+asyncpg://budget:${DB_PASSWORD}@db:5432/budget_db
+      DATABASE_URL_SYNC: postgresql://budget:${DB_PASSWORD}@db:5432/budget_db
+      BOT_TOKEN: ${BOT_TOKEN}
+      OWNER_TG_ID: ${OWNER_TG_ID}
+      INTERNAL_TOKEN: ${INTERNAL_TOKEN}
+      PUBLIC_DOMAIN: ${PUBLIC_DOMAIN}
+      API_BASE_URL: http://api:8000
+      DEV_MODE: "false"           # T-devmode mitigation: prod default is OFF
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      LOG_FORMAT: "json"
+      APP_TZ: "Europe/Moscow"
+    networks:
+      - budget_net
+    # IMPORTANT: no `ports:` in production — api is reachable only via Caddy
+    # (T-internal mitigation). Dev override publishes :8000 on the host.
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      # /healthz is implemented by main_api.py (INF-05). Use wget (BusyBox)
+      # so we don't need to add curl to the python:3.12-slim image.
+      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/healthz', timeout=2).status==200 else 1)\""]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # ----------------------------------------------------------------------
+  # aiogram bot (long-poll, D-04)
+  # ----------------------------------------------------------------------
+  bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        SERVICE: bot
+    restart: unless-stopped
+    environment:
+      SERVICE: bot
+      DATABASE_URL: postgresql+asyncpg://budget:${DB_PASSWORD}@db:5432/budget_db
+      DATABASE_URL_SYNC: postgresql://budget:${DB_PASSWORD}@db:5432/budget_db
+      BOT_TOKEN: ${BOT_TOKEN}
+      OWNER_TG_ID: ${OWNER_TG_ID}
+      INTERNAL_TOKEN: ${INTERNAL_TOKEN}
+      API_BASE_URL: http://api:8000
+      DEV_MODE: "false"
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      LOG_FORMAT: "json"
+      APP_TZ: "Europe/Moscow"
+    networks:
+      - budget_net
+    # bot exposes /healthz on :8001 (D-12) but we do not publish that port —
+    # only used internally for `docker inspect` health monitoring.
+    depends_on:
+      api:
+        condition: service_healthy
+
+  # ----------------------------------------------------------------------
+  # APScheduler worker (Phase 1 = heartbeat only, real cron in Phase 5/6)
+  # ----------------------------------------------------------------------
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        SERVICE: worker
+    restart: unless-stopped
+    environment:
+      SERVICE: worker
+      DATABASE_URL: postgresql+asyncpg://budget:${DB_PASSWORD}@db:5432/budget_db
+      DATABASE_URL_SYNC: postgresql://budget:${DB_PASSWORD}@db:5432/budget_db
+      INTERNAL_TOKEN: ${INTERNAL_TOKEN}
+      API_BASE_URL: http://api:8000
+      DEV_MODE: "false"
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      LOG_FORMAT: "json"
+      APP_TZ: "Europe/Moscow"
+    networks:
+      - budget_net
+    # Worker depends on api being healthy because api runs `alembic upgrade
+    # head` at startup — the app_health table must exist before the first
+    # heartbeat insert (Pitfall 5 in 01-RESEARCH.md).
+    depends_on:
+      api:
+        condition: service_healthy

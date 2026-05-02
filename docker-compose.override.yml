@@ -1,0 +1,43 @@
+# Dev overrides — automatically merged with docker-compose.yml on
+# `docker compose up`. To run a strict-prod-like config locally, use:
+#   docker compose -f docker-compose.yml up
+# (the explicit -f bypasses override loading).
+#
+# This file is committed to git so every developer starts with the same
+# defaults. Real secrets still live in `.env` (which IS gitignored) — this
+# file references them via ${VAR} just like the production compose.
+#
+# Sources: 01-CONTEXT.md D-05 (DEV_MODE bypass) + 01-RESEARCH.md
+# Anti-Pattern "DEV_MODE in prod".
+
+version: "3.9"
+
+services:
+  api:
+    environment:
+      DEV_MODE: "true"        # bypass HMAC-SHA256, inject mock owner
+      LOG_FORMAT: "console"   # human-readable in dev (D-13)
+      LOG_LEVEL: "DEBUG"
+    ports:
+      # Publish api on host :8000 so developers can curl directly without
+      # routing through Caddy. Production compose has NO ports for api.
+      - "8000:8000"
+
+  bot:
+    environment:
+      LOG_FORMAT: "console"
+      LOG_LEVEL: "DEBUG"
+
+  worker:
+    environment:
+      LOG_FORMAT: "console"
+      LOG_LEVEL: "DEBUG"
+
+  caddy:
+    # Local dev cannot get a real Let's Encrypt cert (no public DNS), so we
+    # swap in Caddyfile.dev which serves HTTP on :80 only — no TLS attempt.
+    volumes:
+      - ./Caddyfile.dev:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+      - frontend_dist:/srv/dist:ro
