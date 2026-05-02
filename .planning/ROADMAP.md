@@ -51,7 +51,16 @@ Plans:
   3. После завершения onboarding создан первый `budget_period` с введённым `starting_balance`, в БД 14 seed-категорий, активный период покрывает текущую дату согласно `cycle_start_day`
   4. В разделе «Категории» можно создать/переименовать/архивировать категорию; архивированная не появляется в списках выбора, но видна в фильтре «include_archived»
   5. В Settings можно изменить `cycle_start_day` (1..28); изменение применяется только к будущим периодам (текущий не пересчитывается)
-**Plans**: TBD
+**Plans**: 7 планов
+
+Plans:
+- [ ] 02-01-PLAN.md — Wave 0: RED test stubs (period engine, categories, periods, onboarding, settings, telegram chat-bind)
+- [ ] 02-02-PLAN.md — Wave 1: deps (python-dateutil, httpx prod), period_for utility, Pydantic schemas, MINI_APP_URL setting
+- [ ] 02-03-PLAN.md — Wave 2: services layer (categories, periods, settings, telegram, onboarding) — atomic complete_onboarding
+- [ ] 02-04-PLAN.md — Wave 3: API routes — categories CRUD, periods/current, onboarding/complete, settings, internal/telegram/chat-bind
+- [ ] 02-05-PLAN.md — Wave 4 (parallel): bot /start handler — chat-bind via internal API + WebApp button
+- [ ] 02-06-PLAN.md — Wave 4 (parallel): frontend SPA scaffold — API client, OnboardingScreen (sketch 006-B), HomeScreen
+- [ ] 02-07-PLAN.md — Wave 5: frontend CategoriesScreen + SettingsScreen + final UI checkpoint
 **UI hint**: yes
 
 ### Phase 3: Plan Template & Planned Transactions
@@ -114,7 +123,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Infrastructure & Auth | 6/6 | ✓ Complete (code-level) | 2026-05-02 |
-| 2. Domain Foundation & Onboarding | 0/TBD | Not started | - |
+| 2. Domain Foundation & Onboarding | 0/7 | Not started | - |
 | 3. Plan Template & Planned Transactions | 0/TBD | Not started | - |
 | 4. Actual Transactions & Bot Commands | 0/TBD | Not started | - |
 | 5. Dashboard & Period Lifecycle | 0/TBD | Not started | - |

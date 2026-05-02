@@ -131,8 +131,8 @@ Deferred to future. Tracked but not in current roadmap.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| AUTH-01 | Phase 1 | Pending |
-| AUTH-02 | Phase 1 | Pending |
+| AUTH-01 | Phase 1 | ✓ Complete |
+| AUTH-02 | Phase 1 | ✓ Complete |
 | ONB-01 | Phase 2 | Pending |
 | ONB-02 | Phase 2 | Pending |
 | ONB-03 | Phase 2 | Pending |
@@ -169,11 +169,11 @@ Deferred to future. Tracked but not in current roadmap.
 | SUB-05 | Phase 6 | Pending |
 | SET-01 | Phase 2 | Pending |
 | SET-02 | Phase 6 | Pending |
-| INF-01 | Phase 1 | Pending |
-| INF-02 | Phase 1 | Pending |
-| INF-03 | Phase 1 | Pending |
-| INF-04 | Phase 1 | Pending |
-| INF-05 | Phase 1 | Pending |
+| INF-01 | Phase 1 | ✓ Complete |
+| INF-02 | Phase 1 | ✓ Complete |
+| INF-03 | Phase 1 | ✓ Complete |
+| INF-04 | Phase 1 | ✓ Complete |
+| INF-05 | Phase 1 | ✓ Complete |
 
 **Coverage:**
 - v1 requirements: 43 total
