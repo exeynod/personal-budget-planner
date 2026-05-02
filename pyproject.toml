@@ -11,6 +11,8 @@ dependencies = [
     "alembic==1.16.5",
     "pydantic==2.13.3",
     "pydantic-settings==2.11.0",
+    "python-dateutil==2.9.0.post0",
+    "httpx==0.28.1",
     "aiogram==3.22.0",
     "apscheduler<4",
     "structlog==25.5.0",

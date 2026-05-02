@@ -20,9 +20,9 @@ CASES = [
     (
         date(2026, 1, 15),
         31,
-        date(2026, 1, 31),
-        date(2026, 2, 27),
-        "Jan has 31, Feb 2026 (non-leap) has 28 — clamp",
+        date(2025, 12, 31),
+        date(2026, 1, 30),
+        "csd=31, d=Jan 15 < Jan 31 → previous-month anchor Dec 31; period must contain d (HLD §3)",
     ),
     (
         date(2024, 2, 29),

@@ -15,6 +15,7 @@ class Settings(BaseSettings):
 
     # Telegram
     BOT_TOKEN: str = "changeme"
+    BOT_USERNAME: str = "tg_budget_planner_bot"
     OWNER_TG_ID: int = 0
 
     # Internal API protection (bot ↔ api shared secret)
@@ -23,6 +24,7 @@ class Settings(BaseSettings):
 
     # Public hosting / Caddy
     PUBLIC_DOMAIN: str = "localhost"
+    MINI_APP_URL: str = "https://localhost"
 
     # Dev / observability
     DEV_MODE: bool = False
