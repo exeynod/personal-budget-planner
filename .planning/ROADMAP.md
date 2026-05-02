@@ -37,9 +37,9 @@ Plans:
 - [x] 01-01-PLAN.md — Wave 0: test stubs (pytest infrastructure, RED тесты AUTH-01/AUTH-02/INF-04/INF-05/INF-02)
 - [x] 01-02-PLAN.md — Python skeleton: pyproject.toml, app/ пакет, settings, logging, ORM-модели 6+1 таблиц
 - [x] 01-03-PLAN.md — Frontend scaffold: Vite+React+TypeScript stub, Dockerfile.frontend
-- [ ] 01-04-PLAN.md — Auth layer: validate_init_data HMAC-SHA256, dependencies, Alembic async env + начальная миграция
-- [ ] 01-05-PLAN.md — Entrypoints: main_api.py (lifespan+routers), main_bot.py (polling+healthz), main_worker.py (APScheduler), entrypoint.sh
-- [ ] 01-06-PLAN.md — Docker infra: Dockerfile SERVICE, docker-compose.yml 5 сервисов, Caddyfile TLS, .env.example, .gitignore
+- [x] 01-04-PLAN.md — Auth layer: validate_init_data HMAC-SHA256, dependencies, Alembic async env + начальная миграция
+- [x] 01-05-PLAN.md — Entrypoints: main_api.py (lifespan+routers), main_bot.py (polling+healthz), main_worker.py (APScheduler), entrypoint.sh
+- [x] 01-06-PLAN.md — Docker infra: Dockerfile SERVICE, docker-compose.yml 5 сервисов, Caddyfile TLS, .env.example, .gitignore
 
 ### Phase 2: Domain Foundation & Onboarding
 **Goal**: Пользователь может пройти первый запуск и получить базовую конфигурацию: bot bind, стартовый баланс, cycle_start_day, seed категорий — после этого активный период существует и категории доступны
@@ -113,7 +113,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Infrastructure & Auth | 3/6 | In progress | - |
+| 1. Infrastructure & Auth | 6/6 | Verifying | - |
 | 2. Domain Foundation & Onboarding | 0/TBD | Not started | - |
 | 3. Plan Template & Planned Transactions | 0/TBD | Not started | - |
 | 4. Actual Transactions & Bot Commands | 0/TBD | Not started | - |
