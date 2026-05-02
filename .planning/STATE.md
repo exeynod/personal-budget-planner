@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-05-01)
 
 **Core value:** В один тап записать факт-трату и видеть актуальную дельту план/факт по категориям бюджета — быстрее, чем открывать Google-таблицу.
-**Current focus:** Phase 1 — Infrastructure & Auth
+**Current focus:** Phase 2 — Domain Foundation & Onboarding
 
 ## Current Position
 
-Phase: 1 of 6 (Infrastructure & Auth)
-Plan: 6 of 6 in current phase
-Status: Plans complete — verifying phase goal
-Last activity: 2026-05-02 — All 6 plans of Phase 1 merged; running verifier
+Phase: 2 of 6 (Domain Foundation & Onboarding)
+Plan: 0 of TBD in current phase
+Status: Phase 1 ✓ verified (code-level 7/7); Phase 2 ready to plan
+Last activity: 2026-05-02 — Phase 1 verified; manual smoke-tests deferred to user (docker compose up + TLS)
 
-Progress: [██████████] 100% (6/6 plans)
+Progress: [█░░░░░░] 1/6 phases (Phase 1 complete)
 
 ## Performance Metrics
 
