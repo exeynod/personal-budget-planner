@@ -1,0 +1,128 @@
+"""Integration tests for Settings (SET-01, PER-01).
+
+Covers D-17 (PATCH does not recompute existing periods),
+T-cycle-validation (Pydantic 1..28).
+
+Wave 0 RED state: routes /api/v1/settings (GET/PATCH) will be created
+in Plan 02-03..02-04. DB fixture self-skips when DATABASE_URL is unset.
+"""
+import os
+
+import pytest
+import pytest_asyncio
+
+
+def _require_db():
+    if not os.environ.get("DATABASE_URL"):
+        pytest.skip("DATABASE_URL not set — skipping DB-backed test")
+
+
+@pytest.fixture
+def auth_headers(bot_token, owner_tg_id):
+    from tests.conftest import make_init_data
+
+    return {"X-Telegram-Init-Data": make_init_data(owner_tg_id, bot_token)}
+
+
+@pytest_asyncio.fixture
+async def db_client(async_client):
+    _require_db()
+    from sqlalchemy import text
+    from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+
+    from app.api.dependencies import get_db
+    from app.main_api import app
+
+    engine = create_async_engine(os.environ["DATABASE_URL"], echo=False)
+    SessionLocal = async_sessionmaker(engine, expire_on_commit=False)
+
+    async with engine.begin() as conn:
+        await conn.execute(
+            text(
+                "TRUNCATE TABLE category, planned_transaction, actual_transaction, "
+                "plan_template_item, subscription, budget_period, app_user "
+                "RESTART IDENTITY CASCADE"
+            )
+        )
+
+    async def real_get_db():
+        async with SessionLocal() as session:
+            try:
+                yield session
+                await session.commit()
+            except Exception:
+                await session.rollback()
+                raise
+
+    app.dependency_overrides[get_db] = real_get_db
+    yield async_client
+    await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_get_settings_default(db_client, auth_headers):
+    """До изменений: cycle_start_day=5 (default из app_user)."""
+    # Trigger /me to create app_user
+    await db_client.get("/api/v1/me", headers=auth_headers)
+    response = await db_client.get("/api/v1/settings", headers=auth_headers)
+    assert response.status_code == 200
+    assert response.json()["cycle_start_day"] == 5
+
+
+@pytest.mark.asyncio
+async def test_patch_updates_cycle_day(db_client, auth_headers):
+    """PATCH /settings → читается обратно через GET."""
+    await db_client.get("/api/v1/me", headers=auth_headers)
+    patch = await db_client.patch(
+        "/api/v1/settings",
+        json={"cycle_start_day": 10},
+        headers=auth_headers,
+    )
+    assert patch.status_code == 200
+    get = await db_client.get("/api/v1/settings", headers=auth_headers)
+    assert get.json()["cycle_start_day"] == 10
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("invalid_day", [0, 29, -1, 100])
+async def test_invalid_cycle_day_422(db_client, auth_headers, invalid_day):
+    """T-cycle-validation: Field(ge=1, le=28) → 422 для out-of-range."""
+    await db_client.get("/api/v1/me", headers=auth_headers)
+    response = await db_client.patch(
+        "/api/v1/settings",
+        json={"cycle_start_day": invalid_day},
+        headers=auth_headers,
+    )
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_patch_does_not_recompute_existing_period(db_client, auth_headers):
+    """SET-01 / D-17: изменение cycle_start_day не пересчитывает текущий период."""
+    # 1. Onboarding с cycle_start_day=5 — создаёт период
+    await db_client.post(
+        "/api/v1/onboarding/complete",
+        json={
+            "starting_balance_cents": 0,
+            "cycle_start_day": 5,
+            "seed_default_categories": False,
+        },
+        headers=auth_headers,
+    )
+    period_before = (
+        await db_client.get("/api/v1/periods/current", headers=auth_headers)
+    ).json()
+
+    # 2. Сменить cycle_start_day на 10
+    await db_client.patch(
+        "/api/v1/settings",
+        json={"cycle_start_day": 10},
+        headers=auth_headers,
+    )
+
+    # 3. Текущий период остался с теми же датами
+    period_after = (
+        await db_client.get("/api/v1/periods/current", headers=auth_headers)
+    ).json()
+    assert period_before["period_start"] == period_after["period_start"]
+    assert period_before["period_end"] == period_after["period_end"]
