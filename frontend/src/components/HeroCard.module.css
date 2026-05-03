@@ -1,0 +1,70 @@
+.card {
+  position: relative;
+  min-height: 120px;
+  padding: var(--space-5) var(--space-6);
+  border-radius: var(--radius-lg);
+  background: var(--gradient-hero);
+  box-shadow: var(--shadow-md);
+  color: var(--color-text);
+  overflow: hidden;
+}
+
+.glow {
+  position: absolute;
+  inset: 0;
+  background: var(--gradient-hero-glow);
+  pointer-events: none;
+}
+
+.periodRange {
+  position: relative;
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  margin-bottom: var(--space-3);
+}
+
+.amountWrap {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-bottom: var(--space-3);
+}
+
+.amountLabel {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  font-weight: var(--weight-regular);
+}
+
+.amount {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xl);
+  font-weight: var(--weight-semibold);
+  line-height: 1.1;
+  color: var(--color-text);
+}
+
+.deltaWrap {
+  position: relative;
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+.deltaLabel {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+
+.deltaPositive,
+.deltaNegative,
+.deltaZero {
+  font-family: var(--font-mono);
+  font-size: var(--text-base);
+  font-weight: var(--weight-semibold);
+}
+
+.deltaPositive { color: var(--color-success); }
+.deltaNegative { color: var(--color-danger); }
+.deltaZero     { color: var(--color-text-muted); }
