@@ -5,6 +5,7 @@ status: draft
 shadcn_initialized: false
 preset: none
 created: 2026-05-03
+revised: 2026-05-03
 ---
 
 # Phase 6 — UI Design Contract
@@ -29,24 +30,24 @@ Source: `frontend/src/styles/tokens.css` — design system is fully established;
 
 ## Spacing Scale
 
-Declared values — all from existing `tokens.css`; no new tokens needed:
+Declared values — canonical 8-point scale only:
 
 | Token | Value | Usage |
 |-------|-------|-------|
 | `--space-1` | 4px | Icon gaps, dot/pill internal padding |
-| `--space-2` | 8px | Inline element spacing, badge padding |
-| `--space-3` | 12px | Compact card internal gaps |
-| `--space-4` | 16px | Default screen horizontal padding, card padding |
-| `--space-5` | 20px | Row vertical rhythm |
+| `--space-2` | 8px | Inline element spacing, badge padding, compact card internal gaps |
+| `--space-4` | 16px | Default screen horizontal padding, card padding, row vertical rhythm |
 | `--space-6` | 24px | Section-level gap between hero/timeline/list |
 | `--space-8` | 32px | Empty-state vertical padding |
 | `--space-12` | 48px | Bottom padding (accounts for MainButton + safe area) |
 
-Exceptions:
-- Timeline track height: 4px (CSS-drawn, not a spacing token — structural value)
-- Timeline dot diameter: 12px (structural value for hit target)
+Structural exceptions (not spacing scale entries — CSS-drawn geometry values):
+- Timeline track height: 4px (structural)
+- Timeline dot diameter: 12px (structural, hit-target geometry)
 - Today-line height: full track container height (100% relative)
 - Touch targets (toggle, active/inactive buttons): minimum 44px height — matches existing `tabBar` height convention from `HomeScreen.module.css`
+
+Note: `--space-3` (12px) and `--space-5` (20px) exist in `tokens.css` as structural values. They are NOT part of the declared spacing scale for this phase. Usages previously at 12px (compact card internal gaps) use `--space-2` (8px); usages previously at 20px (row vertical rhythm) use `--space-4` (16px).
 
 Source: `frontend/src/styles/tokens.css` (spacing), `HomeScreen.module.css` (44px tab convention).
 
@@ -54,23 +55,25 @@ Source: `frontend/src/styles/tokens.css` (spacing), `HomeScreen.module.css` (44p
 
 ## Typography
 
-All sizes and weights drawn directly from existing `tokens.css`.
+All sizes and weights drawn directly from existing `tokens.css`. Maximum 4 sizes, 2 weights.
 
 | Role | Size | Weight | Line Height | Token |
 |------|------|--------|-------------|-------|
 | Body | 15px | 400 (regular) | 1.5 | `--text-base`, `--weight-regular` |
-| Label / pill | 13px | 500 (medium) | 1.4 | `--text-sm`, `--weight-medium` |
+| Label / pill / cycle badge | 13px | 400 (regular) | 1.4 | `--text-sm`, `--weight-regular` |
 | Heading (hero values) | 20px | 600 (semibold) | 1.2 | `--text-lg`, `--weight-semibold` |
-| Display (hero amount) | 32px | 700 (bold) | 1.1 | `--text-2xl`, `--weight-bold` |
+| Display (hero amount) | 32px | 600 (semibold) | 1.1 | `--text-2xl`, `--weight-semibold` |
 
 Usage rules:
-- Hero block "monthly load" amount: `--text-2xl` + `--weight-bold`
-- Hero block label ("Нагрузка в месяц"): `--text-sm` + `--weight-medium` + `--color-text-muted`
-- Subscription card name: `--text-base` + `--weight-medium`
-- "через N дн." pill: `--text-sm` + `--weight-medium`
-- cycle badge "[мес]" / "[год]": `--text-xs` (11px) + `--weight-medium` + `--color-text-dim`
+- Hero block "monthly load" amount: `--text-2xl` + `--weight-semibold`
+- Hero block label ("Нагрузка в месяц"): `--text-sm` + `--weight-regular` + `--color-text-muted`
+- Subscription card name: `--text-base` + `--weight-semibold`
+- "через N дн." pill: `--text-sm` + `--weight-regular`
+- Cycle badge "[мес]" / "[год]": `--text-sm` + `--weight-regular` + `--color-text-dim`
 - Section headers (if any): `--text-sm` + `--weight-semibold` + `--color-text-muted` (uppercase tracking — matches existing section header pattern)
 - Editor field labels: `--text-sm` + `--weight-regular` + `--color-text-muted`
+
+Note: `--weight-medium` (500) and `--weight-bold` (700) exist in `tokens.css` but are not used in Phase 6. Medium usages collapse to `--weight-regular` (400); bold usages collapse to `--weight-semibold` (600).
 
 Source: `frontend/src/styles/tokens.css` (all typographic vars).
 
@@ -167,7 +170,7 @@ Add one new field row after `cycle_start_day`:
 | Empty state body | «Добавьте первую подписку, чтобы видеть напоминания о списаниях» |
 | Editor — create mode title | «Новая подписка» |
 | Editor — edit mode title | «Редактировать подписку» |
-| Editor — save button | «Сохранить» |
+| Editor — save button | «Сохранить подписку» |
 | Editor — delete button | «Удалить подписку» |
 | Delete confirmation | Нет отдельного confirm-диалога. Удаление выполняется сразу (hard delete per codebase convention). Кнопка «Удалить» — визуально деструктивная (--color-danger), но без дополнительного confirm-шага (consistent with Phase 4 ActualEditor pattern). |
 | charge-now success toast | «Списание создано, следующая дата: {dd MMM yyyy}» |
