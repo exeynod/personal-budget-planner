@@ -49,3 +49,5 @@
 .navBtn:hover {
   background: var(--color-surface-2);
 }
+
+.toast { position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%); background: var(--color-surface-2, #333); color: var(--color-text); padding: 10px 16px; border-radius: var(--radius-md, 8px); box-shadow: 0 4px 16px rgba(0,0,0,.4); z-index: 110; }
