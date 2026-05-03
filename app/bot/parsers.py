@@ -11,6 +11,7 @@ the amount is always the category query; remaining tokens form the description.
 from __future__ import annotations
 
 import re
+from decimal import ROUND_HALF_UP, Decimal
 
 # After stripping suffixes and spaces: only digits + optional 1-2 decimal places.
 _AMOUNT_RE = re.compile(r"^\d+([.,]\d{1,2})?$")
@@ -46,12 +47,12 @@ def parse_amount(s: str) -> int | None:
     if not _AMOUNT_RE.match(s):
         return None
     try:
-        f = float(s)
-    except ValueError:
+        d = Decimal(s)
+    except Exception:
         return None
-    if f <= 0:
+    if d <= 0:
         return None
-    cents = round(f * 100)
+    cents = int((d * 100).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
     if cents > 10**12:
         return None
     return cents
