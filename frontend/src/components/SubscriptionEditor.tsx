@@ -64,10 +64,15 @@ export function SubscriptionEditor({
       setErr('Заполните обязательные поля');
       return;
     }
+    const parsedAmount = parseFloat(amountRub.replace(',', '.'));
+    if (isNaN(parsedAmount) || parsedAmount <= 0) {
+      setErr('Введите корректную сумму');
+      return;
+    }
     setBusy(true);
     setErr(null);
     try {
-      const cents = Math.round(parseFloat(amountRub.replace(',', '.')) * 100);
+      const cents = Math.round(parsedAmount * 100);
       const payload: SubscriptionCreatePayload = {
         name: name.trim(),
         amount_cents: cents,
