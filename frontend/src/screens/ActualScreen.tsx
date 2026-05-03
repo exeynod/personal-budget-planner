@@ -86,10 +86,15 @@ export function ActualScreen({ onBack }: ActualScreenProps): JSX.Element {
 
   const handleDelete = async () => {
     if (!sheet.item) return;
-    await deleteActual(sheet.item.id);
-    setSheet(CLOSED_SHEET);
-    showToast('Транзакция удалена');
-    await refetch();
+    setMutationError(null);
+    try {
+      await deleteActual(sheet.item.id);
+      setSheet(CLOSED_SHEET);
+      showToast('Транзакция удалена');
+      await refetch();
+    } catch (e) {
+      setMutationError(e instanceof Error ? e.message : String(e));
+    }
   };
 
   if (perLoading) {
