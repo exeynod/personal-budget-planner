@@ -4,7 +4,7 @@ Five endpoints under router-level Depends(get_current_user):
   GET    /subscriptions              → list[SubscriptionRead]
   POST   /subscriptions              → SubscriptionRead (200/201)
   PATCH  /subscriptions/{id}         → SubscriptionRead, 404 if not found
-  DELETE /subscriptions/{id}         → 204
+  DELETE /subscriptions/{id}         → 204, 404 if not found
   POST   /subscriptions/{id}/charge-now → ChargeNowResponse, 409 on duplicate
 
 Threat mitigations (threat_model 06-03):
@@ -110,9 +110,19 @@ async def delete_sub(
     """DELETE /api/v1/subscriptions/{id} — hard delete (204).
 
     CLAUDE.md convention: subscriptions are hard-deleted (no soft delete).
+
+    Status codes:
+        204: deleted
+        404: subscription not found
     """
-    await sub_service.delete_subscription(db, sub_id)
-    await db.commit()
+    try:
+        await sub_service.delete_subscription(db, sub_id)
+        await db.commit()
+    except LookupError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="subscription not found",
+        ) from exc
 
 
 @router.post("/{sub_id}/charge-now", response_model=ChargeNowResponse)

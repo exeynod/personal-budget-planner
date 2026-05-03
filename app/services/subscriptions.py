@@ -140,8 +140,13 @@ async def update_subscription(
 
 
 async def delete_subscription(db: AsyncSession, sub_id: int) -> None:
-    """Hard-delete a subscription by id (CLAUDE.md convention: subscriptions hard delete)."""
-    await db.execute(delete(Subscription).where(Subscription.id == sub_id))
+    """Hard-delete a subscription by id (CLAUDE.md convention: subscriptions hard delete).
+
+    Raises LookupError if sub_id not found (rowcount == 0).
+    """
+    result = await db.execute(delete(Subscription).where(Subscription.id == sub_id))
+    if result.rowcount == 0:
+        raise LookupError(f"Subscription {sub_id} not found")
 
 
 async def charge_subscription(
