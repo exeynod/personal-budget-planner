@@ -191,3 +191,11 @@ export interface BalanceResponse {
   delta_total_cents: number;
   by_category: BalanceCategoryRow[];
 }
+
+// ---------- Phase 5: Dashboard & Period Lifecycle ----------
+
+/**
+ * GET /api/v1/periods response — list of all periods sorted by period_start desc.
+ * Type alias for documentation; consumers can use PeriodRead[] directly.
+ */
+export type PeriodListResponse = PeriodRead[];
