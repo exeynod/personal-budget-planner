@@ -1,0 +1,100 @@
+:root {
+  /* Banking-premium dark theme — основной для TG Mini App */
+  --color-bg: #0e1116;
+  --color-bg-elevated: #161a22;
+  --color-surface: #1c2230;
+  --color-surface-2: #232a3a;
+  --color-border: #2a3142;
+  --color-border-subtle: #1f2532;
+
+  --color-text: #f3f5f9;
+  --color-text-muted: #8e98ad;
+  --color-text-dim: #5d6577;
+
+  --color-primary: #4ea4ff;
+  --color-primary-hover: #2e90ff;
+  --color-primary-soft: rgba(78, 164, 255, 0.12);
+
+  --color-accent: #ffd166;
+
+  --color-success: #2ecc71;
+  --color-success-soft: rgba(46, 204, 113, 0.14);
+  --color-danger: #ff5d5d;
+  --color-danger-soft: rgba(255, 93, 93, 0.14);
+  --color-warn: #ffb547;
+
+  /* Hero gradients — premium feel */
+  --gradient-hero: linear-gradient(135deg, #1d2740 0%, #2d1d40 100%);
+  --gradient-hero-glow: radial-gradient(circle at 20% 0%, rgba(78,164,255,0.25), transparent 60%);
+
+  /* Typography */
+  --font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', 'Segoe UI', system-ui, sans-serif;
+  --font-mono: 'SF Mono', 'JetBrains Mono', 'Menlo', monospace;
+
+  --text-xs: 11px;
+  --text-sm: 13px;
+  --text-base: 15px;
+  --text-md: 17px;
+  --text-lg: 20px;
+  --text-xl: 24px;
+  --text-2xl: 32px;
+  --text-3xl: 40px;
+
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+
+  /* Spacing */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+
+  /* Shapes */
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-xl: 28px;
+  --radius-full: 9999px;
+
+  /* Shadows / elevation */
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
+  --shadow-md: 0 8px 16px rgba(0,0,0,0.35);
+  --shadow-lg: 0 16px 40px rgba(0,0,0,0.45);
+  --shadow-glow: 0 0 30px rgba(78,164,255,0.25);
+
+  /* Layout */
+  --tg-viewport: 375px;
+  --safe-bottom: 28px;
+  --main-button-height: 54px;
+}
+
+/* Light theme override (опционально, переключатель в toolbar) */
+[data-theme="light"] {
+  --color-bg: #f3f5f9;
+  --color-bg-elevated: #ffffff;
+  --color-surface: #ffffff;
+  --color-surface-2: #f8fafc;
+  --color-border: #e2e8f0;
+  --color-border-subtle: #eef2f7;
+
+  --color-text: #0e1116;
+  --color-text-muted: #5d6577;
+  --color-text-dim: #8e98ad;
+
+  --color-primary-soft: rgba(78, 164, 255, 0.10);
+  --color-success-soft: rgba(46, 204, 113, 0.10);
+  --color-danger-soft: rgba(255, 93, 93, 0.10);
+
+  --gradient-hero: linear-gradient(135deg, #2563eb 0%, #6d28d9 100%);
+  --gradient-hero-glow: radial-gradient(circle at 20% 0%, rgba(255,255,255,0.18), transparent 60%);
+
+  --shadow-md: 0 8px 24px rgba(15, 23, 42, 0.10);
+  --shadow-lg: 0 20px 50px rgba(15, 23, 42, 0.12);
+}
