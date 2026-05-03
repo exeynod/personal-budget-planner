@@ -8,6 +8,30 @@
   background: var(--color-bg);
 }
 
+/* ── Header ── */
+.header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) 0;
+}
+
+.backBtn {
+  background: none;
+  border: none;
+  color: var(--color-primary);
+  font-size: var(--text-lg);
+  cursor: pointer;
+  padding: var(--space-1) var(--space-2);
+  line-height: 1;
+}
+
+.headerTitle {
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text);
+}
+
 /* ── Hero block ── */
 .hero {
   background: var(--gradient-hero);

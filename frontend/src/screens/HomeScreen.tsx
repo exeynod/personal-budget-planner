@@ -18,7 +18,7 @@ import styles from './HomeScreen.module.css';
 
 export interface HomeScreenProps {
   onNavigate: (
-    screen: 'categories' | 'template' | 'planned' | 'actual' | 'settings',
+    screen: 'categories' | 'template' | 'planned' | 'actual' | 'settings' | 'subscriptions',
   ) => void;
 }
 
@@ -164,6 +164,24 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
           <HeroCard balance={balance} period={selectedPeriod} isClosed={isClosed} />
         </div>
       )}
+
+      {/* Quick nav bar — Subscriptions + Settings */}
+      <div className={styles.quickNav}>
+        <button
+          type="button"
+          className={styles.quickNavBtn}
+          onClick={() => onNavigate('subscriptions')}
+        >
+          Подписки
+        </button>
+        <button
+          type="button"
+          className={styles.quickNavBtn}
+          onClick={() => onNavigate('settings')}
+        >
+          Настройки
+        </button>
+      </div>
 
       {periods.length > 0 && selectedPeriodId !== null && (
         <PeriodSwitcher

@@ -7,6 +7,7 @@ import { TemplateScreen } from './screens/TemplateScreen';
 import { PlannedScreen } from './screens/PlannedScreen';
 import { ActualScreen } from './screens/ActualScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
+import { SubscriptionsScreen } from './screens/SubscriptionsScreen';
 import styles from './App.module.css';
 
 type Screen =
@@ -16,7 +17,8 @@ type Screen =
   | 'template'
   | 'planned'
   | 'actual'
-  | 'settings';
+  | 'settings'
+  | 'subscriptions';
 
 export default function App() {
   const { user, loading, error, refetch } = useUser();
@@ -69,6 +71,9 @@ export default function App() {
   }
   if (screen === 'actual') {
     return <ActualScreen onBack={() => setOverrideScreen('home')} />;
+  }
+  if (screen === 'subscriptions') {
+    return <SubscriptionsScreen onBack={() => setOverrideScreen('home')} />;
   }
   return <SettingsScreen onBack={() => setOverrideScreen('home')} />;
 }

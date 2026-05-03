@@ -27,7 +27,11 @@ interface EditorState {
   sub?: SubscriptionRead;
 }
 
-export function SubscriptionsScreen() {
+export interface SubscriptionsScreenProps {
+  onBack: () => void;
+}
+
+export function SubscriptionsScreen({ onBack }: SubscriptionsScreenProps) {
   const { subscriptions, loading, mutate } = useSubscriptions();
   const { settings } = useSettings();
   const [editor, setEditor] = useState<EditorState | null>(null);
@@ -66,9 +70,17 @@ export function SubscriptionsScreen() {
 
   return (
     <div className={styles.screen}>
+      {/* Header with back button */}
+      <header className={styles.header}>
+        <button type="button" onClick={onBack} className={styles.backBtn} aria-label="Назад">
+          ←
+        </button>
+        <div className={styles.headerTitle}>Подписки</div>
+      </header>
+
       {/* Hero block */}
       <div className={styles.hero}>
-        <div className={styles.heroTitle}>Подписки</div>
+        <div className={styles.heroTitle}>Сводка</div>
         <div className={styles.heroStats}>
           <div>
             <span className={styles.stat}>{activeCount}</span>
