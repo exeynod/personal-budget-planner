@@ -9,6 +9,8 @@ Security design (HLD §7):
 - ``DEV_MODE=true``: bypasses initData HMAC check, injects mock owner user
   (decision D-05).
 """
+from __future__ import annotations
+
 from typing import AsyncGenerator
 
 from fastapi import Header, HTTPException, status

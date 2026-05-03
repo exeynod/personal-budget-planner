@@ -1,0 +1,160 @@
+"""Subscriptions REST routes — SUB-01, SUB-04, SUB-05 (D-71).
+
+Five endpoints under router-level Depends(get_current_user):
+  GET    /subscriptions              → list[SubscriptionRead]
+  POST   /subscriptions              → SubscriptionRead (200/201)
+  PATCH  /subscriptions/{id}         → SubscriptionRead, 404 if not found
+  DELETE /subscriptions/{id}         → 204
+  POST   /subscriptions/{id}/charge-now → ChargeNowResponse, 409 on duplicate
+
+Threat mitigations (threat_model 06-03):
+  T-06-04: router-level Depends(get_current_user) — only OWNER_TG_ID passes
+  T-06-05: unique constraint + IntegrityError → AlreadyChargedError → HTTP 409
+"""
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.api.dependencies import get_current_user, get_db
+from app.api.schemas.subscriptions import (
+    ChargeNowResponse,
+    SubscriptionCreate,
+    SubscriptionRead,
+    SubscriptionUpdate,
+)
+from app.services import subscriptions as sub_service
+from app.services.settings import UserNotFoundError, get_cycle_start_day
+
+router = APIRouter(
+    prefix="/subscriptions",
+    tags=["subscriptions"],
+    dependencies=[Depends(get_current_user)],
+)
+
+
+@router.get("", response_model=list[SubscriptionRead])
+async def list_subs(
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> list[SubscriptionRead]:
+    """GET /api/v1/subscriptions — list all subscriptions sorted by next_charge_date ASC."""
+    subs = await sub_service.list_subscriptions(db)
+    return [SubscriptionRead.model_validate(s) for s in subs]
+
+
+@router.post("", response_model=SubscriptionRead)
+async def create_sub(
+    payload: SubscriptionCreate,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[dict, Depends(get_current_user)],
+) -> SubscriptionRead:
+    """POST /api/v1/subscriptions — create a new subscription.
+
+    Status codes:
+        200: created
+        400: category_id refers to archived or missing category
+        422: Pydantic validation error
+    """
+    try:
+        sub = await sub_service.create_subscription(
+            db,
+            tg_user_id=current_user["id"],
+            name=payload.name,
+            amount_cents=payload.amount_cents,
+            cycle=payload.cycle,
+            next_charge_date=payload.next_charge_date,
+            category_id=payload.category_id,
+            notify_days_before=payload.notify_days_before,
+            is_active=payload.is_active,
+        )
+        await db.commit()
+        return SubscriptionRead.model_validate(sub)
+    except sub_service.CategoryNotFoundOrArchived as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="category not found or archived",
+        ) from exc
+
+
+@router.patch("/{sub_id}", response_model=SubscriptionRead)
+async def patch_sub(
+    sub_id: int,
+    payload: SubscriptionUpdate,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> SubscriptionRead:
+    """PATCH /api/v1/subscriptions/{id} — partial update.
+
+    Status codes:
+        200: updated
+        404: subscription not found
+        422: Pydantic validation error
+    """
+    try:
+        sub = await sub_service.update_subscription(
+            db, sub_id, payload.model_dump(exclude_unset=True)
+        )
+        await db.commit()
+        return SubscriptionRead.model_validate(sub)
+    except LookupError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="subscription not found",
+        ) from exc
+
+
+@router.delete("/{sub_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_sub(
+    sub_id: int,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> None:
+    """DELETE /api/v1/subscriptions/{id} — hard delete (204).
+
+    CLAUDE.md convention: subscriptions are hard-deleted (no soft delete).
+    """
+    await sub_service.delete_subscription(db, sub_id)
+    await db.commit()
+
+
+@router.post("/{sub_id}/charge-now", response_model=ChargeNowResponse)
+async def charge_now(
+    sub_id: int,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[dict, Depends(get_current_user)],
+) -> ChargeNowResponse:
+    """POST /api/v1/subscriptions/{id}/charge-now — manual charge (SUB-04).
+
+    Creates a PlannedTransaction(source=subscription_auto) for next_charge_date
+    and advances next_charge_date by +1 month (monthly) or +1 year (yearly).
+
+    Idempotency (T-06-05, SUB-05): repeated call for the same charge date
+    returns HTTP 409 (unique constraint uq_planned_sub_charge_date fires).
+
+    Status codes:
+        200: charged, returns planned_id + new next_charge_date
+        404: subscription not found
+        409: already charged for this next_charge_date
+    """
+    try:
+        cycle_start = await get_cycle_start_day(db, current_user["id"])
+    except UserNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        ) from exc
+
+    try:
+        planned, new_date = await sub_service.charge_subscription(
+            db, sub_id, cycle_start_day=cycle_start
+        )
+        await db.commit()
+        return ChargeNowResponse(planned_id=planned.id, next_charge_date=new_date)
+    except sub_service.AlreadyChargedError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="already charged for this date",
+        ) from exc
+    except LookupError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="subscription not found",
+        ) from exc
