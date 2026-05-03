@@ -5,10 +5,12 @@ that upserts ``app_health(service='worker', last_heartbeat_at=now)`` every
 5 minutes (D-12). This lets external monitoring (Caddy / docker compose
 healthcheck / manual ``SELECT * FROM app_health``) detect a stuck worker.
 
-Real cron jobs land in later phases (HLD §6):
-- ``notify_subscriptions`` daily at 09:00 Europe/Moscow — Phase 5
-- ``charge_subscriptions`` daily at 00:05 Europe/Moscow — Phase 5
-- ``close_period`` daily at 00:01 Europe/Moscow — Phase 6
+Phase 5 adds:
+- ``close_period`` daily at 00:01 Europe/Moscow — PER-04 (this file).
+
+Remaining cron jobs (HLD §6):
+- ``notify_subscriptions`` daily at 09:00 Europe/Moscow — Phase 6
+- ``charge_subscriptions`` daily at 00:05 Europe/Moscow — Phase 6
 
 Phase 1 uses MemoryJobStore (no PostgreSQL jobstore yet) per 01-RESEARCH
 Pattern 7 + Open Question Q1 — persistence is only required when real
@@ -26,6 +28,7 @@ from app.core.logging import configure_logging
 from app.core.settings import settings
 from app.db.models import AppHealth
 from app.db.session import AsyncSessionLocal
+from app.worker.jobs.close_period import close_period_job
 
 configure_logging(settings.LOG_LEVEL, settings.LOG_FORMAT)
 logger = structlog.get_logger(__name__)
@@ -73,13 +76,22 @@ async def main() -> None:
         next_run_time=datetime.now(MOSCOW_TZ),  # run once immediately on boot
     )
 
-    # Placeholder cron jobs (will be wired in Phase 5/6 against MOSCOW_TZ):
+    # Phase 5: close_period — daily at 00:01 Europe/Moscow (PER-04).
+    scheduler.add_job(
+        close_period_job,
+        "cron",
+        hour=0,
+        minute=1,
+        id="close_period",
+        replace_existing=True,
+        timezone=MOSCOW_TZ,
+    )
+
+    # Placeholder cron jobs — Phase 6 (notify/charge subscriptions):
     # scheduler.add_job(notify_subscriptions, "cron", hour=9, minute=0,
-    #                   id="notify_subscriptions")
+    #                   id="notify_subscriptions", timezone=MOSCOW_TZ)
     # scheduler.add_job(charge_subscriptions, "cron", hour=0, minute=5,
-    #                   id="charge_subscriptions")
-    # scheduler.add_job(close_period, "cron", hour=0, minute=1,
-    #                   id="close_period")
+    #                   id="charge_subscriptions", timezone=MOSCOW_TZ)
 
     scheduler.start()
     logger.info("worker.scheduler.started", timezone=str(MOSCOW_TZ))
