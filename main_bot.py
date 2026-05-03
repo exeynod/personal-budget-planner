@@ -9,8 +9,11 @@ Phase 2 scope (ONB-03):
 - ``GET /healthz`` on port 8001 (INF-05, D-12) via aiohttp running
   concurrently with ``dp.start_polling`` in the same event loop.
 
-Real command handlers (``/add``, ``/income``, ``/balance``, ``/today``,
-``/app``) land in Phase 4. Mode: long-poll (D-04).
+Phase 4 scope (ACT-03/04/05):
+- ``/add``, ``/income``, ``/balance``, ``/today``, ``/app`` + disambiguation callback.
+  Implementation in :mod:`app.bot.commands`.
+
+Mode: long-poll (D-04).
 """
 import asyncio
 
@@ -20,7 +23,8 @@ from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiohttp import web
 
-from app.bot.handlers import router  # Phase 2 handler — replaces stub
+from app.bot.commands import router as commands_router  # Phase 4 handlers
+from app.bot.handlers import router as start_router  # Phase 2 handler — replaces stub
 from app.core.logging import configure_logging
 from app.core.settings import settings
 
@@ -43,7 +47,8 @@ async def main() -> None:
         default=DefaultBotProperties(parse_mode=ParseMode.HTML),
     )
     dp = Dispatcher()
-    dp.include_router(router)
+    dp.include_router(start_router)
+    dp.include_router(commands_router)
 
     # Start aiohttp healthz server on port 8001 (D-12, INF-05).
     health_app = web.Application()

@@ -72,4 +72,6 @@ def test_main_bot_module_loads() -> None:
 
 def test_dp_include_router_present() -> None:
     text = _read_main_bot()
-    assert "dp.include_router(router)" in text
+    # Phase 4: two routers registered — start_router (Phase 2) + commands_router (Phase 4)
+    assert "dp.include_router(start_router)" in text
+    assert "dp.include_router(commands_router)" in text
