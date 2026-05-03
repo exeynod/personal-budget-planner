@@ -16,7 +16,7 @@ Thread-safety: asyncio single event loop — no concurrent access, no locks need
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 from uuid import uuid4
 
@@ -34,12 +34,12 @@ class PendingActual:
     description: Optional[str]
     tx_date: Optional[str]  # ISO date string or None — server defaults to today
     candidates: list[dict]  # list of {id, name, kind} dicts from ambiguous response
-    created_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
     @property
     def is_expired(self) -> bool:
         """True if more than TTL has passed since creation."""
-        return datetime.utcnow() - self.created_at > TTL
+        return datetime.now(timezone.utc) - self.created_at > TTL
 
 
 # Module-level state — acceptable for single-tenant pet project (D-47).
