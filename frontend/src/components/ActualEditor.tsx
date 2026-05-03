@@ -86,6 +86,7 @@ export function ActualEditor({
   const [txDate, setTxDate] = useState<string>(initial?.tx_date ?? todayISO());
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   // If kind changes and current category belongs to the other kind, reset selection.
   useEffect(() => {
@@ -128,9 +129,14 @@ export function ActualEditor({
     }
   };
 
-  const handleDelete = async () => {
+  const handleDeleteRequest = () => {
     if (!onDelete || submitting) return;
-    if (!window.confirm('Удалить транзакцию?')) return;
+    setConfirmDelete(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!onDelete) return;
+    setConfirmDelete(false);
     setSubmitting(true);
     setError(null);
     try {
@@ -222,11 +228,19 @@ export function ActualEditor({
 
       {error && <div className={styles.error}>Ошибка: {error}</div>}
 
+      {confirmDelete && (
+        <div className={styles.confirmRow}>
+          <span>Удалить транзакцию?</span>
+          <button type="button" onClick={handleDeleteConfirm} className={styles.deleteBtn}>Да</button>
+          <button type="button" onClick={() => setConfirmDelete(false)} className={styles.cancelBtn}>Нет</button>
+        </div>
+      )}
+
       <div className={styles.actions}>
-        {isEdit && (
+        {isEdit && !confirmDelete && (
           <button
             type="button"
-            onClick={handleDelete}
+            onClick={handleDeleteRequest}
             disabled={submitting}
             className={styles.deleteBtn}
           >
