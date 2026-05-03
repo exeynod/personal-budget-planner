@@ -90,8 +90,16 @@ Plans:
   3. Все 4 состояния дашборда работают (sketch 003): empty (кнопки «Применить шаблон» / «Добавить вручную»), in-progress, warn (≥80% жёлтая обводка), overspend (>100% красная обводка + бейдж процента); closed-период доступен только для чтения с дизейбленным MainButton и бейджем «Закрыт»
   4. Переключатель периодов (← / →) перемещает по архивным периодам; в архивных недоступны мутации
   5. В день `cycle_start_day` 00:01 МСК worker-job автоматически закрывает истёкший период (фиксирует `ending_balance`) и создаёт следующий с `starting_balance = ending_balance` предыдущего; повторный запуск джобы — no-op
-**Plans**: TBD
+**Plans**: 6 планов
 **UI hint**: yes
+
+Plans:
+- [ ] 05-01-PLAN.md — Backend: GET /api/v1/periods + GET /api/v1/periods/{id}/balance endpoints (DSH-06)
+- [ ] 05-02-PLAN.md — Worker: close_period_job (PER-04 + PER-03 inheritance) с pg_try_advisory_lock + cron 00:01 МСК
+- [ ] 05-03-PLAN.md — Frontend data-layer: utils/format (formatKopecks*), api/periods.ts, hooks usePeriods + useDashboard
+- [ ] 05-04-PLAN.md — Frontend components: HeroCard, PeriodSwitcher, AggrStrip, DashboardCategoryRow (+ CSS modules)
+- [ ] 05-05-PLAN.md — Frontend integration: HomeScreen full replacement + edge states (empty/warn/overspend/closed) + FAB/MainButton wiring
+- [ ] 05-06-PLAN.md — Verification: pytest + tsc + vite build regression + UAT visual checklist + PER-04 manual trigger + 05-VERIFICATION.md
 
 ### Phase 6: Subscriptions & Worker Jobs
 **Goal**: Пользователь ведёт список подписок с timeline-визуализацией, получает push за N дней до списания, плановые строки от подписок создаются автоматически без дублей
@@ -117,10 +125,11 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | 2. Domain Foundation & Onboarding | 6/6 | Complete | 2026-05-02 |
 | 3. Plan Template & Planned Transactions | 6/6 | Complete | 2026-05-03 |
 | 4. Actual Transactions & Bot Commands | 6/7 | In progress | - |
-| 5. Dashboard & Period Lifecycle | 0/TBD | Not started | - |
+| 5. Dashboard & Period Lifecycle | 0/6 | Ready to execute | - |
 | 6. Subscriptions & Worker Jobs | 0/TBD | Not started | - |
 
 ---
 *Roadmap created: 2026-05-01*
 *Synthesized from docs/BRD.md v0.2, docs/HLD.md v0.1, .planning/sketches/ winners*
 *Phase 1 plans created: 2026-05-01*
+*Phase 5 plans created: 2026-05-03*
