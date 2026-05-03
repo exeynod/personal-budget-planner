@@ -31,6 +31,8 @@ Phase 4 routes (added via include_router):
 D-11: ``app_user`` row is upserted on the first valid ``GET /me`` request
 (``INSERT ... ON CONFLICT DO NOTHING`` on ``tg_user_id``) — no migration seed.
 """
+from __future__ import annotations
+
 from typing import Annotated
 
 from fastapi import APIRouter, Depends
@@ -48,6 +50,7 @@ from app.api.routes.onboarding import onboarding_router
 from app.api.routes.periods import periods_router
 from app.api.routes.planned import planned_router
 from app.api.routes.settings import settings_router
+from app.api.routes.subscriptions import router as subscriptions_router
 from app.api.routes.templates import templates_router
 from app.db.models import AppUser
 
@@ -109,6 +112,9 @@ public_router.include_router(planned_router)
 
 # Phase 4 sub-router — Mini App actual transactions + balance.
 public_router.include_router(actual_router)
+
+# Phase 6 sub-router — Subscriptions CRUD + charge-now (D-71).
+public_router.include_router(subscriptions_router)
 
 
 # ---- Internal router (requires X-Internal-Token) ----
