@@ -136,3 +136,58 @@ export interface ApplyTemplateResponse {
   created: number;
   planned: PlannedRead[];
 }
+
+// ---------- Phase 4: Actual Transactions & Balance ----------
+
+export type ActualSource = 'mini_app' | 'bot';
+
+export interface ActualRead {
+  id: number;
+  period_id: number;
+  kind: CategoryKind;
+  amount_cents: number;
+  description: string | null;
+  category_id: number;
+  tx_date: string;       // ISO date
+  source: ActualSource;
+  created_at: string;    // ISO datetime
+}
+
+export interface ActualCreatePayload {
+  kind: CategoryKind;
+  amount_cents: number;
+  description?: string | null;
+  category_id: number;
+  tx_date: string;
+}
+
+export interface ActualUpdatePayload {
+  kind?: CategoryKind;
+  amount_cents?: number;
+  description?: string | null;
+  category_id?: number;
+  tx_date?: string;
+}
+
+export interface BalanceCategoryRow {
+  category_id: number;
+  name: string;
+  kind: CategoryKind;
+  planned_cents: number;
+  actual_cents: number;
+  delta_cents: number;
+}
+
+export interface BalanceResponse {
+  period_id: number;
+  period_start: string;
+  period_end: string;
+  starting_balance_cents: number;
+  planned_total_expense_cents: number;
+  actual_total_expense_cents: number;
+  planned_total_income_cents: number;
+  actual_total_income_cents: number;
+  balance_now_cents: number;
+  delta_total_cents: number;
+  by_category: BalanceCategoryRow[];
+}
