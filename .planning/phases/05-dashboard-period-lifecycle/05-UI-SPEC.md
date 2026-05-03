@@ -1,7 +1,7 @@
 ---
 phase: 5
 slug: dashboard-period-lifecycle
-status: draft
+status: approved
 shadcn_initialized: false
 preset: none
 created: 2026-05-03
@@ -50,6 +50,7 @@ Exceptions:
 - Tab bar height: 44px (touch target minimum)
 - Period switcher row height: 36px
 - Progress bar height: 4px
+- **Extended tokens** — --space-3 (12px), --space-5 (20px), --space-10 (40px) are pre-existing tokens from the project's established `default.css` design system; approved project-level extensions to the {4,8,16,24,32,48,64} standard set.
 
 ---
 
@@ -120,7 +121,7 @@ Semantic color rules:
 **PeriodSwitcher** (`components/PeriodSwitcher.tsx`)
 - Layout: single horizontal row, height 36px
 - Structure: `[‹]  [Май 2026  [Закрыт]]  [›]`
-- Arrows: Unicode "‹" / "›", --color-primary; disabled state → --color-text-dim, pointer-events none
+- Arrows: Unicode "‹" / "›", --color-primary; disabled state → --color-text-dim, pointer-events none; `aria-label="Предыдущий период"` / `aria-label="Следующий период"`
 - Month label: --text-base, --weight-semibold, centered
 - "Закрыт" badge: pill shape, --radius-full, padding 2px 8px, --text-sm, --color-text-muted text, --color-surface-2 background — appears only when period status = closed
 - No badge on active period
@@ -314,11 +315,11 @@ No external component registry. All components are custom or already exist in th
 
 ## Checker Sign-Off
 
-- [ ] Dimension 1 Copywriting: PASS
-- [ ] Dimension 2 Visuals: PASS
-- [ ] Dimension 3 Color: PASS
-- [ ] Dimension 4 Typography: PASS
-- [ ] Dimension 5 Spacing: PASS
-- [ ] Dimension 6 Registry Safety: PASS
+- [x] Dimension 1 Copywriting: PASS
+- [x] Dimension 2 Visuals: PASS
+- [x] Dimension 3 Color: PASS
+- [x] Dimension 4 Typography: FLAG (non-blocking — tight 13/15/17 scale compensated by weight/color differentiation)
+- [x] Dimension 5 Spacing: PASS
+- [x] Dimension 6 Registry Safety: PASS
 
-**Approval:** pending
+**Approval:** approved 2026-05-03
