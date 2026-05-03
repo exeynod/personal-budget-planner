@@ -3,10 +3,17 @@ import { useUser } from './hooks/useUser';
 import { OnboardingScreen } from './screens/OnboardingScreen';
 import { HomeScreen } from './screens/HomeScreen';
 import { CategoriesScreen } from './screens/CategoriesScreen';
+import { TemplateScreen } from './screens/TemplateScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
 import styles from './App.module.css';
 
-type Screen = 'onboarding' | 'home' | 'categories' | 'settings';
+type Screen =
+  | 'onboarding'
+  | 'home'
+  | 'categories'
+  | 'template'
+  | 'planned'
+  | 'settings';
 
 export default function App() {
   const { user, loading, error, refetch } = useUser();
@@ -45,6 +52,22 @@ export default function App() {
   }
   if (screen === 'categories') {
     return <CategoriesScreen onBack={() => setOverrideScreen('home')} />;
+  }
+  if (screen === 'template') {
+    return <TemplateScreen onBack={() => setOverrideScreen('home')} />;
+  }
+  if (screen === 'planned') {
+    // PlannedScreen lands in Plan 03-05; placeholder keeps the navigation
+    // intact and avoids a TS narrowing hole on the Screen union.
+    return (
+      <div style={{ padding: 16, fontFamily: 'var(--font-sans)', color: 'var(--color-text)' }}>
+        План — будет реализован в Plan 03-05.
+        <br />
+        <button type="button" onClick={() => setOverrideScreen('home')}>
+          ← Назад
+        </button>
+      </div>
+    );
   }
   return <SettingsScreen onBack={() => setOverrideScreen('home')} />;
 }

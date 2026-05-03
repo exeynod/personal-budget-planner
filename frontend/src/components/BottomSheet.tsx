@@ -8,22 +8,11 @@ export interface BottomSheetProps {
   children: ReactNode;
 }
 
-interface TgBackButton {
-  show: () => void;
-  hide: () => void;
-  onClick: (cb: () => void) => void;
-  offClick: (cb: () => void) => void;
-}
-
-declare global {
-  interface Window {
-    Telegram?: {
-      WebApp?: {
-        BackButton?: TgBackButton;
-      };
-    };
-  }
-}
+// Telegram BackButton typing lives in `frontend/src/api/client.ts` —
+// adding it there (rather than re-declaring globals here) avoids the
+// "Subsequent property declarations must have the same type" error that
+// composite tsc -b raises when two files augment Window.Telegram with
+// disjoint shapes.
 
 /**
  * Reusable bottom sheet (sketch 002-B style, Phase 3 D-40).

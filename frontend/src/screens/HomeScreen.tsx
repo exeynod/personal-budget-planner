@@ -1,9 +1,16 @@
 import styles from './HomeScreen.module.css';
 
 export interface HomeScreenProps {
-  onNavigate: (screen: 'categories' | 'settings') => void;
+  onNavigate: (screen: 'categories' | 'template' | 'planned' | 'settings') => void;
 }
 
+/**
+ * Home/dashboard placeholder.
+ *
+ * The real dashboard arrives in Phase 5 (DSH-*); for now Home exposes
+ * navigation buttons to the screens that exist today: Categories (Phase 2),
+ * Шаблон / План (Phase 3), Settings (Phase 2).
+ */
 export function HomeScreen({ onNavigate }: HomeScreenProps) {
   return (
     <div className={styles.root}>
@@ -13,7 +20,7 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
       <div className={styles.placeholder}>
         Дашборд будет в Phase 5.
         <br />
-        Сейчас доступны только настройки и категории.
+        Сейчас доступны категории, шаблон, план и настройки.
       </div>
       <div className={styles.nav}>
         <button
@@ -22,6 +29,20 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
           onClick={() => onNavigate('categories')}
         >
           Категории
+        </button>
+        <button
+          type="button"
+          className={styles.navBtn}
+          onClick={() => onNavigate('template')}
+        >
+          Шаблон
+        </button>
+        <button
+          type="button"
+          className={styles.navBtn}
+          onClick={() => onNavigate('planned')}
+        >
+          План
         </button>
         <button
           type="button"

@@ -30,11 +30,12 @@
 }
 .nav {
   display: flex;
-  gap: 12px;
+  flex-wrap: wrap;
+  gap: 8px;
   padding: 16px 0 24px;
 }
 .navBtn {
-  flex: 1;
+  flex: 1 1 calc(50% - 4px);
   padding: 14px 16px;
   background: var(--color-surface);
   color: var(--color-text);
