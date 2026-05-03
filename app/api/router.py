@@ -13,6 +13,13 @@ Phase 2 routes (added via include_router):
 - ``/settings`` (GET/PATCH) — SET-01
 - ``/internal/telegram/chat-bind`` (POST) — ONB-03 (under internal_router)
 
+Phase 3 routes (added via include_router):
+- ``/template/items`` (GET/POST/PATCH/DELETE) — TPL-01, TPL-02
+- ``/template/snapshot-from-period/{id}`` (POST) — TPL-03
+- ``/periods/{id}/planned`` (GET/POST) — PLN-01, PLN-02
+- ``/periods/{id}/apply-template`` (POST) — TPL-04, PER-05
+- ``/planned/{id}`` (PATCH/DELETE) — PLN-01, PLN-03 enforcement
+
 D-11: ``app_user`` row is upserted on the first valid ``GET /me`` request
 (``INSERT ... ON CONFLICT DO NOTHING`` on ``tg_user_id``) — no migration seed.
 """
@@ -29,7 +36,9 @@ from app.api.routes.categories import categories_router
 from app.api.routes.internal_telegram import internal_telegram_router
 from app.api.routes.onboarding import onboarding_router
 from app.api.routes.periods import periods_router
+from app.api.routes.planned import planned_router
 from app.api.routes.settings import settings_router
+from app.api.routes.templates import templates_router
 from app.db.models import AppUser
 
 
@@ -81,6 +90,12 @@ public_router.include_router(categories_router)
 public_router.include_router(periods_router)
 public_router.include_router(onboarding_router)
 public_router.include_router(settings_router)
+
+# Phase 3 sub-routers — share the same /api/v1 prefix and bring their own
+# router-level Depends(get_current_user). ``planned_router`` has no prefix
+# of its own because it serves two URL groups (/periods/{id}/* and /planned/{id}).
+public_router.include_router(templates_router)
+public_router.include_router(planned_router)
 
 
 # ---- Internal router (requires X-Internal-Token) ----
