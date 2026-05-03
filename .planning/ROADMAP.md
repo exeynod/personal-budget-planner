@@ -14,7 +14,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Infrastructure & Auth** — docker-compose skeleton (5 контейнеров), БД-схема + миграции, Telegram initData валидация, OWNER_TG_ID whitelist, internal token для bot↔api ✓ 2026-05-02
 - [x] **Phase 2: Domain Foundation & Onboarding** — категории CRUD + seed, period engine (cycle_start_day), onboarding scrollable-page с bot bind, settings cycle_start_day ✓ 2026-05-02
-- [ ] **Phase 3: Plan Template & Planned Transactions** — шаблон плана + развёртывание на новый период, CRUD строк плана с inline-редактированием и bottom-sheet
+- [x] **Phase 3: Plan Template & Planned Transactions** — шаблон плана + развёртывание на новый период, CRUD строк плана с inline-редактированием и bottom-sheet ✓ 2026-05-03
 - [ ] **Phase 4: Actual Transactions & Bot Commands** — факт-транзакции через Mini App bottom-sheet, бот-команды `/add`, `/income`, `/balance`, `/today`, `/app` с парсингом и disambiguation
 - [ ] **Phase 5: Dashboard & Period Lifecycle** — главный экран Mini App (tabs Расходы/Доходы, hero-баланс, aggr-блок, прогресс-бары категорий), все edge-states, переключатель периодов, worker-job автозакрытия периода
 - [ ] **Phase 6: Subscriptions & Worker Jobs** — подписки CRUD + horizontal timeline UI, 2 cron-джобы (push 09:00, charge 00:05), notify_days_before settings
@@ -76,12 +76,12 @@ Plans:
 **Plans**: 6 планов
 
 Plans:
-- [ ] 03-01-PLAN.md — Wave 0: RED test stubs (templates, planned, apply-template idempotency, snapshot exclude subscription_auto)
-- [ ] 03-02-PLAN.md — Wave 1: Pydantic schemas + service layer (templates + planned with apply-template D-31 idempotency)
-- [ ] 03-03-PLAN.md — Wave 2: API routes (templates_router, planned_router) + register in app/api/router.py
-- [ ] 03-04-PLAN.md — Wave 3: TemplateScreen + BottomSheet/PlanItemEditor/PlanRow components + types/api/hook + HomeScreen+App wiring (placeholder для planned)
-- [ ] 03-05-PLAN.md — Wave 4: PlannedScreen + planned api/hooks + PLN-03 mock helper + App.tsx wires planned route
-- [ ] 03-06-PLAN.md — Wave 5: full pytest + Vite build + UI checkpoint (sketch 005-B acceptance) + 03-06-SUMMARY
+- [x] 03-01-PLAN.md — Wave 0: RED test stubs (templates, planned, apply-template idempotency, snapshot exclude subscription_auto)
+- [x] 03-02-PLAN.md — Wave 1: Pydantic schemas + service layer (templates + planned with apply-template D-31 idempotency)
+- [x] 03-03-PLAN.md — Wave 2: API routes (templates_router, planned_router) + register in app/api/router.py
+- [x] 03-04-PLAN.md — Wave 3: TemplateScreen + BottomSheet/PlanItemEditor/PlanRow components + types/api/hook + HomeScreen+App wiring (placeholder для planned)
+- [x] 03-05-PLAN.md — Wave 4: PlannedScreen + planned api/hooks + PLN-03 mock helper + App.tsx wires planned route
+- [x] 03-06-PLAN.md — Wave 5: full pytest + Vite build + UI checkpoint (sketch 005-B acceptance) + 03-06-SUMMARY
 **UI hint**: yes
 
 ### Phase 4: Actual Transactions & Bot Commands
@@ -132,7 +132,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 |-------|----------------|--------|-----------|
 | 1. Infrastructure & Auth | 6/6 | ✓ Complete (code-level) | 2026-05-02 |
 | 2. Domain Foundation & Onboarding | 7/7 | ✓ Complete (code-level) | 2026-05-02 |
-| 3. Plan Template & Planned Transactions | 0/6 | Planned (waves 0-5, sequential) | - |
+| 3. Plan Template & Planned Transactions | 6/6 | ✓ Complete (code-level) | 2026-05-03 |
 | 4. Actual Transactions & Bot Commands | 0/TBD | Not started | - |
 | 5. Dashboard & Period Lifecycle | 0/TBD | Not started | - |
 | 6. Subscriptions & Worker Jobs | 0/TBD | Not started | - |

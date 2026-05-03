@@ -144,13 +144,13 @@ Deferred to future. Tracked but not in current roadmap.
 | PER-03 | Phase 2 | Deferred to Phase 5 |
 | PER-04 | Phase 5 | Pending |
 | PER-05 | Phase 2 | Deferred to Phase 3 |
-| TPL-01 | Phase 3 | Pending |
-| TPL-02 | Phase 3 | Pending |
-| TPL-03 | Phase 3 | Pending |
-| TPL-04 | Phase 3 | Pending |
-| PLN-01 | Phase 3 | Pending |
-| PLN-02 | Phase 3 | Pending |
-| PLN-03 | Phase 3 | Pending |
+| TPL-01 | Phase 3 | ✓ Complete |
+| TPL-02 | Phase 3 | ✓ Complete |
+| TPL-03 | Phase 3 | ✓ Complete |
+| TPL-04 | Phase 3 | ✓ Complete |
+| PLN-01 | Phase 3 | ✓ Complete |
+| PLN-02 | Phase 3 | ✓ Complete |
+| PLN-03 | Phase 3 | ✓ Complete |
 | ACT-01 | Phase 4 | Pending |
 | ACT-02 | Phase 4 | Pending |
 | ACT-03 | Phase 4 | Pending |
