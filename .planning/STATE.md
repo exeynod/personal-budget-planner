@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v0.2
 milestone_name: milestone
 status: in-progress
-stopped_at: "Phase 04, Plan 02 complete (2026-05-03)"
-last_updated: "2026-05-03T09:10:00Z"
-last_activity: 2026-05-03 — Phase 04 Plan 02 complete (service layer + schemas)
+stopped_at: "Phase 04, Plan 03 complete (2026-05-03)"
+last_updated: "2026-05-03T10:00:00Z"
+last_activity: 2026-05-03 — Phase 04 Plan 03 complete (REST routes Wave 2)
 progress:
   total_phases: 6
   completed_phases: 3
@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-05-01)
 ## Current Position
 
 Phase: 4 of 6 (Actual Transactions & Bot Commands)
-Plan: 2 of 7 complete in current phase
+Plan: 3 of 7 complete in current phase
 Status: In progress
-Last activity: 2026-05-03 — Phase 04 Plan 02 complete — service layer + Pydantic schemas (ACT-01..05)
+Last activity: 2026-05-03 — Phase 04 Plan 03 complete — REST routes Wave 2 (actual_router + internal_bot_router)
 
 Progress: [████████░░] 80%
 
@@ -72,6 +72,8 @@ Recent decisions affecting current work:
 - 04-02: _ensure_category_active private copy в actual.py (не импортируем private из planned.py)
 - 04-02: _category_balance inline helper в internal_bot.py (не полный compute_balance — оптимизация)
 - 04-02: ActualRead.model_validate(actual_row).model_dump() в process_bot_actual — route re-creates BotActualResponse
+- 04-03: /actual/balance объявлен до /actual/{actual_id} — FastAPI first-match routing prevents 422 (T-04-25)
+- 04-03: internal_bot_router без dependencies — наследует verify_internal_token от parent (D-54, избегает double-execution)
 
 ### Pending Todos
 
@@ -92,6 +94,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-05-03T09:10:00Z
-Stopped at: Phase 04, Plan 02 complete — 04-02-SUMMARY.md written
+Last session: 2026-05-03T10:00:00Z
+Stopped at: Phase 04, Plan 03 complete — 04-03-SUMMARY.md written
 Resume file: None
