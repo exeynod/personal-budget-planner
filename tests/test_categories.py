@@ -30,11 +30,12 @@ def auth_headers(bot_token, owner_tg_id):
 
 
 @pytest_asyncio.fixture
-async def db_client(async_client):
+async def db_client(async_client, bot_token, owner_tg_id):
     """async_client + a real DB session injected via dependency_overrides.
 
     Truncates relevant tables before yielding to ensure clean state.
     Self-skips if DATABASE_URL is not configured.
+    Calls GET /me to bootstrap AppUser (D-11) so onboarding tests can proceed.
     """
     _require_db()
     from sqlalchemy import text
@@ -42,6 +43,7 @@ async def db_client(async_client):
 
     from app.api.dependencies import get_db
     from app.main_api import app
+    from tests.conftest import make_init_data
 
     db_url = os.environ["DATABASE_URL"]
     engine = create_async_engine(db_url, echo=False)
@@ -67,6 +69,14 @@ async def db_client(async_client):
                 raise
 
     app.dependency_overrides[get_db] = real_get_db
+
+    # Bootstrap AppUser via GET /me so onboarding/complete can find the user (D-11).
+    init_data = make_init_data(owner_tg_id, bot_token)
+    await async_client.get(
+        "/api/v1/me",
+        headers={"X-Telegram-Init-Data": init_data},
+    )
+
     yield async_client
     await engine.dispose()
 

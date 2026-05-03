@@ -43,17 +43,44 @@ def make_init_data(tg_user_id: int, bot_token: str, age_seconds: int = 0) -> str
 
 @pytest.fixture
 def bot_token() -> str:
-    return "1234567890:test_bot_token_for_testing_only"
+    import os
+    # If settings has already been loaded (e.g. due to a module-level import
+    # in another test file triggering app.core.settings at collection time),
+    # return the token that settings.BOT_TOKEN was initialised with so that
+    # make_init_data() and validate_init_data() use the same key.
+    try:
+        from app.core.settings import settings as _s
+        if _s.BOT_TOKEN and _s.BOT_TOKEN != "changeme":
+            return _s.BOT_TOKEN
+    except Exception:
+        pass
+    # Fallback: use env var if set, else the hard-coded test default.
+    return os.environ.get("BOT_TOKEN", "1234567890:test_bot_token_for_testing_only")
 
 
 @pytest.fixture
 def owner_tg_id() -> int:
-    return 123456789
+    import os
+    # Mirror bot_token: if settings is already loaded, match its OWNER_TG_ID.
+    try:
+        from app.core.settings import settings as _s
+        if _s.OWNER_TG_ID and _s.OWNER_TG_ID != 0:
+            return _s.OWNER_TG_ID
+    except Exception:
+        pass
+    return int(os.environ.get("OWNER_TG_ID", "123456789"))
 
 
 @pytest.fixture
 def internal_token() -> str:
-    return "test_internal_secret_token"
+    import os
+    try:
+        from app.core.settings import settings as _s
+        if _s.INTERNAL_TOKEN and _s.INTERNAL_TOKEN != "changeme":
+            return _s.INTERNAL_TOKEN
+    except Exception:
+        pass
+    return os.environ.get("INTERNAL_TOKEN", "test_internal_secret_token")
 
 
 @pytest_asyncio.fixture

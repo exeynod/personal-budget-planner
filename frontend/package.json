@@ -9,11 +9,12 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@telegram-apps/sdk-react": "3.3.9",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "@telegram-apps/sdk-react": "3.3.9"
+    "react-dom": "^18.3.1"
   },
   "devDependencies": {
+    "@playwright/test": "^1.59.1",
     "@types/react": "^18.3.1",
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^5.2.0",

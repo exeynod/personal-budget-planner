@@ -4,7 +4,48 @@ Wave-0 RED stub. The ``app.core.auth`` and ``app.main_api`` modules do not yet
 exist, so each test fails with ``ModuleNotFoundError`` until Plans 04 / 05 land.
 """
 
+import os
+
 import pytest
+import pytest_asyncio
+
+
+@pytest_asyncio.fixture
+async def db_client(async_client):
+    """async_client with real DB session for tests that need DB access (e.g. GET /me)."""
+    if not os.environ.get("DATABASE_URL"):
+        pytest.skip("DATABASE_URL not set — skipping DB-backed test")
+
+    from sqlalchemy import text
+    from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+
+    from app.api.dependencies import get_db
+    from app.main_api import app
+
+    engine = create_async_engine(os.environ["DATABASE_URL"], echo=False)
+    SessionLocal = async_sessionmaker(engine, expire_on_commit=False)
+
+    async with engine.begin() as conn:
+        await conn.execute(
+            text(
+                "TRUNCATE TABLE category, planned_transaction, actual_transaction, "
+                "plan_template_item, subscription, budget_period, app_user "
+                "RESTART IDENTITY CASCADE"
+            )
+        )
+
+    async def real_get_db():
+        async with SessionLocal() as session:
+            try:
+                yield session
+                await session.commit()
+            except Exception:
+                await session.rollback()
+                raise
+
+    app.dependency_overrides[get_db] = real_get_db
+    yield async_client
+    await engine.dispose()
 
 
 # ---------------------------------------------------------------------------
@@ -57,11 +98,11 @@ def test_validate_init_data_expired(bot_token, owner_tg_id):
 
 
 @pytest.mark.asyncio
-async def test_owner_whitelist_valid(async_client, bot_token, owner_tg_id):
+async def test_owner_whitelist_valid(db_client, bot_token, owner_tg_id):
     from tests.conftest import make_init_data
 
     init_data = make_init_data(tg_user_id=owner_tg_id, bot_token=bot_token)
-    response = await async_client.get(
+    response = await db_client.get(
         "/api/v1/me",
         headers={"X-Telegram-Init-Data": init_data},
     )

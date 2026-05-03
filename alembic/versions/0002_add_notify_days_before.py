@@ -19,14 +19,9 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.add_column(
-        "app_user",
-        sa.Column(
-            "notify_days_before",
-            sa.Integer(),
-            nullable=False,
-            server_default="2",
-        ),
+    op.execute(
+        "ALTER TABLE app_user ADD COLUMN IF NOT EXISTS "
+        "notify_days_before INTEGER NOT NULL DEFAULT 2"
     )
 
 

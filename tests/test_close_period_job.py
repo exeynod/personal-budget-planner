@@ -28,7 +28,7 @@ def _require_db():
 
 
 @pytest_asyncio.fixture
-async def db_setup(async_client):
+async def db_setup(async_client, monkeypatch):
     _require_db()
     from sqlalchemy import text
     from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
@@ -59,6 +59,13 @@ async def db_setup(async_client):
                 raise
 
     app.dependency_overrides[get_db] = real_get_db
+
+    # Patch worker AsyncSessionLocal to use the test engine (same event loop).
+    import app.db.session as db_session_module
+    import app.worker.jobs.close_period as close_period_module
+    monkeypatch.setattr(db_session_module, "AsyncSessionLocal", SessionLocal)
+    monkeypatch.setattr(close_period_module, "AsyncSessionLocal", SessionLocal)
+
     yield async_client, SessionLocal
     await engine.dispose()
 

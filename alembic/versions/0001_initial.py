@@ -20,20 +20,12 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    # ---- Enums (create explicitly so subsequent references skip creation) ----
-    categorykind = sa.Enum("expense", "income", name="categorykind")
-    periodstatus = sa.Enum("active", "closed", name="periodstatus")
-    plansource = sa.Enum(
-        "template", "manual", "subscription_auto", name="plansource"
-    )
-    actualsource = sa.Enum("mini_app", "bot", name="actualsource")
-    subcycle = sa.Enum("monthly", "yearly", name="subcycle")
-
-    categorykind.create(op.get_bind(), checkfirst=True)
-    periodstatus.create(op.get_bind(), checkfirst=True)
-    plansource.create(op.get_bind(), checkfirst=True)
-    actualsource.create(op.get_bind(), checkfirst=True)
-    subcycle.create(op.get_bind(), checkfirst=True)
+    # ---- Enums (raw SQL for async-alembic compatibility) ----
+    op.execute("DO $$ BEGIN CREATE TYPE categorykind AS ENUM ('expense', 'income'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;")
+    op.execute("DO $$ BEGIN CREATE TYPE periodstatus AS ENUM ('active', 'closed'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;")
+    op.execute("DO $$ BEGIN CREATE TYPE plansource AS ENUM ('template', 'manual', 'subscription_auto'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;")
+    op.execute("DO $$ BEGIN CREATE TYPE actualsource AS ENUM ('mini_app', 'bot'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;")
+    op.execute("DO $$ BEGIN CREATE TYPE subcycle AS ENUM ('monthly', 'yearly'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;")
 
     # ---- app_user ----
     op.create_table(
