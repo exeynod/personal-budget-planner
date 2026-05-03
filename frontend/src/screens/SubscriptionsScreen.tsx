@@ -8,11 +8,20 @@ import { createSubscription, updateSubscription, deleteSubscription } from '../a
 import type { SubscriptionRead, SubscriptionCreatePayload, SubscriptionUpdatePayload } from '../api/types';
 import styles from './SubscriptionsScreen.module.css';
 
+/**
+ * Parse an ISO date string (YYYY-MM-DD) as a local date, avoiding UTC offset.
+ * new Date("2026-05-01") parses as UTC midnight and can yield the wrong day
+ * in +03:00 timezones (returns Apr 30 in local time).
+ */
+function parseLocalDate(dateStr: string): Date {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+
 function daysUntil(dateStr: string): number {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const d = new Date(dateStr);
-  d.setHours(0, 0, 0, 0);
+  const d = parseLocalDate(dateStr);
   return Math.round((d.getTime() - today.getTime()) / 86400000);
 }
 
@@ -180,7 +189,7 @@ function Timeline({ subscriptions }: TimelineProps) {
   const todayPct = ((todayDay - 1) / (daysInMonth - 1)) * 100;
 
   const dotsThisMonth = subscriptions.filter((s) => {
-    const d = new Date(s.next_charge_date);
+    const d = parseLocalDate(s.next_charge_date);
     return d.getFullYear() === year && d.getMonth() === month;
   });
 
@@ -189,7 +198,7 @@ function Timeline({ subscriptions }: TimelineProps) {
       <div className={styles.timelineLine} />
       <div className={styles.todayLine} style={{ left: `${todayPct}%` }} />
       {dotsThisMonth.map((s) => {
-        const d = new Date(s.next_charge_date).getDate();
+        const d = parseLocalDate(s.next_charge_date).getDate();
         const pct = ((d - 1) / (daysInMonth - 1)) * 100;
         const days = daysUntil(s.next_charge_date);
         return (
