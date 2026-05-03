@@ -26,6 +26,8 @@ export interface SettingsScreenProps {
 export function SettingsScreen({ onBack }: SettingsScreenProps) {
   const [current, setCurrent] = useState<number | null>(null);
   const [draft, setDraft] = useState<number>(5);
+  const [currentNotifyDays, setCurrentNotifyDays] = useState<number | null>(null);
+  const [notifyDays, setNotifyDays] = useState<number>(2);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [savedFlash, setSavedFlash] = useState(false);
@@ -39,6 +41,8 @@ export function SettingsScreen({ onBack }: SettingsScreenProps) {
         if (!active) return;
         setCurrent(s.cycle_start_day);
         setDraft(s.cycle_start_day);
+        setCurrentNotifyDays(s.notify_days_before);
+        setNotifyDays(s.notify_days_before);
         setError(null);
       })
       .catch((e: unknown) => {
@@ -53,16 +57,23 @@ export function SettingsScreen({ onBack }: SettingsScreenProps) {
     };
   }, []);
 
-  const dirty = current !== null && draft !== current;
+  const dirty =
+    (current !== null && draft !== current) ||
+    (currentNotifyDays !== null && notifyDays !== currentNotifyDays);
 
   const handleSave = useCallback(async () => {
     if (!dirty || saving) return;
     setSaving(true);
     setError(null);
     try {
-      const updated = await updateSettings({ cycle_start_day: draft });
+      const updated = await updateSettings({
+        cycle_start_day: draft,
+        notify_days_before: notifyDays,
+      });
       setCurrent(updated.cycle_start_day);
       setDraft(updated.cycle_start_day);
+      setCurrentNotifyDays(updated.notify_days_before);
+      setNotifyDays(updated.notify_days_before);
       setSavedFlash(true);
       window.setTimeout(() => setSavedFlash(false), 1500);
     } catch (e) {
@@ -70,7 +81,7 @@ export function SettingsScreen({ onBack }: SettingsScreenProps) {
     } finally {
       setSaving(false);
     }
-  }, [dirty, draft, saving]);
+  }, [dirty, draft, notifyDays, saving]);
 
   return (
     <div className={styles.root}>
@@ -96,6 +107,29 @@ export function SettingsScreen({ onBack }: SettingsScreenProps) {
           <div className={styles.disclaimer}>
             ⓘ Изменение применится со следующего периода. Текущий период продолжается с
             тем же днём начала.
+          </div>
+        </section>
+      )}
+
+      {!loading && currentNotifyDays !== null && (
+        <section className={styles.card}>
+          <div className={styles.cardTitle}>Уведомления о подписках</div>
+          <label className={styles.notifyLabel}>
+            Напоминать за (дней до списания)
+            <input
+              type="number"
+              min={0}
+              max={30}
+              value={notifyDays}
+              onChange={(e) =>
+                setNotifyDays(Math.max(0, Math.min(30, Number(e.target.value) || 0)))
+              }
+              className={styles.notifyInput}
+            />
+          </label>
+          <div className={styles.disclaimer}>
+            ⓘ Применяется только к новым подпискам. Существующие имеют свой настроенный
+            override.
           </div>
         </section>
       )}
