@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { getSettings } from '../api/settings';
 import type { SettingsRead } from '../api/types';
 
@@ -7,21 +7,31 @@ import type { SettingsRead } from '../api/types';
  *
  * Returns settings, loading, error, refetch.
  * Mirrors the cancellation pattern from useActual/usePlanned.
+ * mountedRef guards refetch() against state updates after unmount.
  */
 export function useSettings() {
   const [settings, setSettings] = useState<SettingsRead | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   const refetch = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      setSettings(await getSettings());
+      const data = await getSettings();
+      if (mountedRef.current) setSettings(data);
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'load failed');
+      if (mountedRef.current) setError(e instanceof Error ? e.message : 'load failed');
     } finally {
-      setLoading(false);
+      if (mountedRef.current) setLoading(false);
     }
   }, []);
 

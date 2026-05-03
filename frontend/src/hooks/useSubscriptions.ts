@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { listSubscriptions } from '../api/subscriptions';
 import type { SubscriptionRead } from '../api/types';
 
@@ -11,21 +11,31 @@ import type { SubscriptionRead } from '../api/types';
  *
  * Mirrors useActual/usePlanned cancellation pattern with `cancelled` flag
  * to prevent stale state updates after unmount.
+ * mountedRef guards refetch() against state updates after unmount.
  */
 export function useSubscriptions() {
   const [subscriptions, setSubscriptions] = useState<SubscriptionRead[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   const refetch = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      setSubscriptions(await listSubscriptions());
+      const data = await listSubscriptions();
+      if (mountedRef.current) setSubscriptions(data);
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'load failed');
+      if (mountedRef.current) setError(e instanceof Error ? e.message : 'load failed');
     } finally {
-      setLoading(false);
+      if (mountedRef.current) setLoading(false);
     }
   }, []);
 
