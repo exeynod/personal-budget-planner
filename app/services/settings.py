@@ -1,9 +1,12 @@
-"""User-level settings (cycle_start_day) — SET-01.
+"""User-level settings (cycle_start_day, notify_days_before) — SET-01, SET-02.
 
 Note (SET-01 / D-17): updating cycle_start_day does NOT recompute existing
 periods. Only newly-created periods (next period boundary, Phase 5 worker)
 will use the new value. This module deliberately does NOT import
 ``BudgetPeriod`` to make the boundary explicit and grep-able.
+
+SET-02 (D-76): notify_days_before global default for subscription notifications.
+is_bot_bound: derived from AppUser.tg_chat_id is not None.
 
 Service layer is HTTP-framework-agnostic: raises ``UserNotFoundError`` for
 unknown ``tg_user_id``; the route layer (Plan 02-04) maps it to HTTP 404.
@@ -65,3 +68,34 @@ async def update_cycle_start_day(
     user.cycle_start_day = cycle_start_day
     await db.flush()
     return user.cycle_start_day
+
+
+async def get_notify_days_before(db: AsyncSession, tg_user_id: int) -> int:
+    """Return notify_days_before setting for the given user (SET-02 / D-76)."""
+    user = await _get_user_or_404(db, tg_user_id)
+    return user.notify_days_before
+
+
+async def update_notify_days_before(
+    db: AsyncSession,
+    tg_user_id: int,
+    value: int,
+) -> int:
+    """Persist the new notify_days_before on the user row (SET-02 / D-76).
+
+    Pydantic validates 0..30 upstream (``SettingsUpdate.notify_days_before``).
+    This function trusts the caller and does not re-validate.
+    """
+    user = await _get_user_or_404(db, tg_user_id)
+    user.notify_days_before = value
+    await db.flush()
+    return user.notify_days_before
+
+
+async def get_is_bot_bound(db: AsyncSession, tg_user_id: int) -> bool:
+    """Return True if the user has bound their Telegram chat (tg_chat_id is set).
+
+    Used in GET /settings to surface bot binding status to the frontend.
+    """
+    user = await _get_user_or_404(db, tg_user_id)
+    return user.tg_chat_id is not None

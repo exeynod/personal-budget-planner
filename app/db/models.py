@@ -73,6 +73,9 @@ class AppUser(Base):
     tg_user_id: Mapped[int] = mapped_column(BigInteger, unique=True, nullable=False)
     tg_chat_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True)
     cycle_start_day: Mapped[int] = mapped_column(Integer, default=5, nullable=False)
+    notify_days_before: Mapped[int] = mapped_column(
+        Integer, default=2, nullable=False, server_default="2"
+    )
     onboarded_at: Mapped[Optional[datetime]] = mapped_column(
         TIMESTAMP(timezone=True), nullable=True
     )
