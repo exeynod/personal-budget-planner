@@ -17,7 +17,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 3: Plan Template & Planned Transactions** — шаблон плана + развёртывание на новый период, CRUD строк плана с inline-редактированием и bottom-sheet
 - [ ] **Phase 4: Actual Transactions & Bot Commands** — факт-транзакции через Mini App bottom-sheet, бот-команды `/add`, `/income`, `/balance`, `/today`, `/app` с парсингом и disambiguation
 - [ ] **Phase 5: Dashboard & Period Lifecycle** — главный экран Mini App (tabs Расходы/Доходы, hero-баланс, aggr-блок, прогресс-бары категорий), все edge-states, переключатель периодов, worker-job автозакрытия периода
-- [ ] **Phase 6: Subscriptions & Worker Jobs** — подписки CRUD + horizontal timeline UI, 2 cron-джобы (push 09:00, charge 00:05), notify_days_before settings
+- [x] **Phase 6: Subscriptions & Worker Jobs** — подписки CRUD + horizontal timeline UI, 2 cron-джобы (push 09:00, charge 00:05), notify_days_before settings
 
 ## Phase Details
 
@@ -111,8 +111,17 @@ Plans:
   3. Worker-job в 00:05 МСК ежедневно создаёт `PlannedTransaction(source=subscription_auto)` для подписок с `next_charge_date == today` и сдвигает `next_charge_date` (+1 mo / +1 yr); повторный запуск в тот же день не создаёт дублей (защита через unique `(subscription_id, original_charge_date)`)
   4. Эндпоинт `POST /subscriptions/{id}/charge-now` ручным вызовом создаёт plan-строку и сдвигает дату — поведение идентично авто-джобе
   5. В Settings можно изменить дефолтный `notify_days_before` (применяется только к новым подпискам); существующие подписки имеют свой override
-**Plans**: TBD
+**Plans**: 7 планов
 **UI hint**: yes
+
+Plans:
+- [x] 06-01-PLAN.md — Wave 0: RED тесты подписок (test_subscriptions.py, D-87) + worker tests scaffold (test_worker_charge.py, D-88)
+- [x] 06-02-PLAN.md — DB + Service layer: notify_days_before migration (0002), Subscription service, charge_subscription shared logic, AlreadyChargedError, Settings extension
+- [x] 06-03-PLAN.md — API routes: subscriptions router (CRUD + charge-now), settings PATCH extension, router.py registration
+- [x] 06-04-PLAN.md — Worker cron jobs: notify_subscriptions_job (09:00, lock 20250502) + charge_subscriptions_job (00:05, lock 20250503), main_worker.py registration
+- [x] 06-05-PLAN.md — Frontend data layer: api/subscriptions.ts, api/types.ts extend, hooks useSubscriptions, SubscriptionEditor component
+- [x] 06-06-PLAN.md — Frontend UI: SubscriptionsScreen (hero + timeline + flat list), App.tsx nav, SettingsScreen notify_days_before field, HomeScreen quick-nav
+- [x] 06-07-PLAN.md — Final verification: pytest + tsc + build checks, 06-VERIFICATION.md, ROADMAP Phase 6 → Complete
 
 ## Progress
 
@@ -126,7 +135,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | 3. Plan Template & Planned Transactions | 6/6 | Complete | 2026-05-03 |
 | 4. Actual Transactions & Bot Commands | 6/7 | In progress | - |
 | 5. Dashboard & Period Lifecycle | 6/6 | Complete | 2026-05-03 |
-| 6. Subscriptions & Worker Jobs | 0/TBD | Not started | - |
+| 6. Subscriptions & Worker Jobs | 7/7 | Complete | 2026-05-03 |
 
 ---
 *Roadmap created: 2026-05-01*
