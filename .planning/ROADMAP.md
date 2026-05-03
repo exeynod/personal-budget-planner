@@ -73,7 +73,15 @@ Plans:
   3. Кнопка «Перенести план в шаблон» создаёт snapshot текущих плановых строк периода в `PlanTemplate` (перезатирая старый шаблон)
   4. На экране «План текущего периода» работает CRUD плановых строк с `source=manual`; строки от шаблона имеют `source=template`
   5. План-строки от подписок (когда они появятся) корректно отображаются с маркером «🔁 from subscription» (визуальный паттерн готов и проверен на mock-данных)
-**Plans**: TBD
+**Plans**: 6 планов
+
+Plans:
+- [ ] 03-01-PLAN.md — Wave 0: RED test stubs (templates, planned, apply-template idempotency, snapshot exclude subscription_auto)
+- [ ] 03-02-PLAN.md — Wave 1: Pydantic schemas + service layer (templates + planned with apply-template D-31 idempotency)
+- [ ] 03-03-PLAN.md — Wave 2: API routes (templates_router, planned_router) + register in app/api/router.py
+- [ ] 03-04-PLAN.md — Wave 3: TemplateScreen + BottomSheet/PlanItemEditor/PlanRow components + types/api/hook + HomeScreen+App wiring (placeholder для planned)
+- [ ] 03-05-PLAN.md — Wave 4: PlannedScreen + planned api/hooks + PLN-03 mock helper + App.tsx wires planned route
+- [ ] 03-06-PLAN.md — Wave 5: full pytest + Vite build + UI checkpoint (sketch 005-B acceptance) + 03-06-SUMMARY
 **UI hint**: yes
 
 ### Phase 4: Actual Transactions & Bot Commands
@@ -124,7 +132,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 |-------|----------------|--------|-----------|
 | 1. Infrastructure & Auth | 6/6 | ✓ Complete (code-level) | 2026-05-02 |
 | 2. Domain Foundation & Onboarding | 7/7 | ✓ Complete (code-level) | 2026-05-02 |
-| 3. Plan Template & Planned Transactions | 0/TBD | Not started | - |
+| 3. Plan Template & Planned Transactions | 0/6 | Planned (waves 0-5, sequential) | - |
 | 4. Actual Transactions & Bot Commands | 0/TBD | Not started | - |
 | 5. Dashboard & Period Lifecycle | 0/TBD | Not started | - |
 | 6. Subscriptions & Worker Jobs | 0/TBD | Not started | - |
@@ -133,3 +141,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 *Roadmap created: 2026-05-01*
 *Synthesized from docs/BRD.md v0.2, docs/HLD.md v0.1, .planning/sketches/ winners*
 *Phase 1 plans created: 2026-05-01*
+*Phase 2 plans created: 2026-05-02*
+*Phase 3 plans created: 2026-05-02*
