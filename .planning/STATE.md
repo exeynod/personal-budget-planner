@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v0.2
 milestone_name: milestone
 status: in-progress
-stopped_at: "Phase 04, Plan 01 complete (2026-05-03)"
-last_updated: "2026-05-03T08:38:59Z"
-last_activity: 2026-05-03 — Phase 04 Plan 01 complete (Wave-0 RED tests)
+stopped_at: "Phase 04, Plan 02 complete (2026-05-03)"
+last_updated: "2026-05-03T09:10:00Z"
+last_activity: 2026-05-03 — Phase 04 Plan 02 complete (service layer + schemas)
 progress:
   total_phases: 6
   completed_phases: 3
@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-05-01)
 ## Current Position
 
 Phase: 4 of 6 (Actual Transactions & Bot Commands)
-Plan: 1 of 7 complete in current phase
+Plan: 2 of 7 complete in current phase
 Status: In progress
-Last activity: 2026-05-03 — Phase 04 Plan 01 complete — 58 RED-state tests for ACT-01..ACT-05
+Last activity: 2026-05-03 — Phase 04 Plan 02 complete — service layer + Pydantic schemas (ACT-01..05)
 
 Progress: [████████░░] 80%
 
@@ -69,6 +69,9 @@ Recent decisions affecting current work:
 - 04-01: Untracked test files (58 тестов) проверены и приняты как соответствующие RED-gate требованиям
 - 04-01: parse_amount caps at 10^12 копеек (10 млрд рублей) — overflow guard
 - 04-01: In-memory disambiguation cache (D-47) — dict + TTL 5 мин, без aiogram FSM
+- 04-02: _ensure_category_active private copy в actual.py (не импортируем private из planned.py)
+- 04-02: _category_balance inline helper в internal_bot.py (не полный compute_balance — оптимизация)
+- 04-02: ActualRead.model_validate(actual_row).model_dump() в process_bot_actual — route re-creates BotActualResponse
 
 ### Pending Todos
 
@@ -89,6 +92,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-05-03T08:38:59Z
-Stopped at: Phase 04, Plan 01 complete — 04-01-SUMMARY.md written
+Last session: 2026-05-03T09:10:00Z
+Stopped at: Phase 04, Plan 02 complete — 04-02-SUMMARY.md written
 Resume file: None
