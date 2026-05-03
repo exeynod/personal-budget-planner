@@ -187,11 +187,11 @@ async def charge_subscription(
         subscription_id=sub.id,
         original_charge_date=original_date,
     )
-    db.add(planned)
     try:
-        await db.flush()
+        async with db.begin_nested():   # SAVEPOINT — откат только до точки сохранения
+            db.add(planned)
+            await db.flush()
     except IntegrityError:
-        await db.rollback()
         raise AlreadyChargedError(sub_id, original_date)
 
     sub.next_charge_date = _advance_charge_date(sub)
