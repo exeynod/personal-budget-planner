@@ -55,21 +55,21 @@ Exceptions:
 
 ## Typography
 
-All sizes from `--text-*` tokens in `default.css`. Phase 5 uses exactly 4 sizes:
+All sizes from `--text-*` tokens in `default.css`. Phase 5 uses exactly 4 sizes and exactly 2 weights:
 
 | Role | Token | Size | Weight | Line Height | Usage |
 |------|-------|------|--------|-------------|-------|
-| Body | --text-sm | 13px | 400 (--weight-regular) | 1.5 | Category name, description, muted labels |
+| Body | --text-sm | 13px | 400 (--weight-regular) | 1.5 | Category name, description, muted labels, section overlines, overspend badge |
 | Label | --text-base | 15px | 400 (--weight-regular) | 1.5 | Aggr-block values, period switcher text |
 | Heading | --text-md | 17px | 600 (--weight-semibold) | 1.2 | Category row amount, aggr-block amount |
-| Display | --text-2xl | 32px | 700 (--weight-bold) | 1.1 | Hero card balance_now_cents |
+| Display | --text-2xl | 32px | 600 (--weight-semibold) | 1.1 | Hero card balance_now_cents |
 
 Mono font (`--font-mono`) applies to all currency amounts — hero balance, aggr totals, category planned/actual values, delta badge.
 
 Supplementary:
-- Period switcher month label: --text-base (15px), weight 500 (--weight-medium)
-- Section overline (e.g. "РАСХОДЫ"): --text-xs (11px), weight 600, letter-spacing 0.06em, uppercase
-- Progress percentage badge (overspend): --text-xs (11px), weight 600
+- Period switcher month label: --text-base (15px), weight 600 (--weight-semibold), centered
+- Section overline (e.g. "РАСХОДЫ"): --text-sm (13px), weight 600, letter-spacing 0.06em, uppercase
+- Progress percentage badge (overspend): --text-sm (13px), weight 600
 
 ---
 
@@ -114,15 +114,15 @@ Semantic color rules:
 - Shadow: `--shadow-md`
 - Content layout: 3 rows stacked
   - Row 1: Period label — format "5 апр – 4 мая 2026" — --text-sm, --color-text-muted
-  - Row 2: Balance amount — `formatKopecks(balance_now_cents)` — --text-2xl, --weight-bold, --font-mono; on closed period use `ending_balance_cents` with label "Итог"
+  - Row 2: Balance amount — `formatKopecks(balance_now_cents)` — --text-2xl, --weight-semibold, --font-mono; on closed period use `ending_balance_cents` with label "Итог"
   - Row 3: Delta — `formatKopecksWithSign(delta_total_cents)` — --text-base, --font-mono; color determined by sign and kind rule; label "Δ"
 
 **PeriodSwitcher** (`components/PeriodSwitcher.tsx`)
 - Layout: single horizontal row, height 36px
 - Structure: `[‹]  [Май 2026  [Закрыт]]  [›]`
 - Arrows: Unicode "‹" / "›", --color-primary; disabled state → --color-text-dim, pointer-events none
-- Month label: --text-base, --weight-medium, centered
-- "Закрыт" badge: pill shape, --radius-full, padding 2px 8px, --text-xs, --color-text-muted text, --color-surface-2 background — appears only when period status = closed
+- Month label: --text-base, --weight-semibold, centered
+- "Закрыт" badge: pill shape, --radius-full, padding 2px 8px, --text-sm, --color-text-muted text, --color-surface-2 background — appears only when period status = closed
 - No badge on active period
 - Margin-bottom: --space-3 (12px) above tabs
 
@@ -141,7 +141,7 @@ Semantic color rules:
 - Border-bottom: 1px solid --color-border-subtle
 - Padding: --space-3 (12px) vertical, --space-4 (16px) horizontal
 - Layout: 3 equal columns — "План", "Факт", "Δ"
-- Each column: label --text-xs uppercase --color-text-dim, value --text-md --font-mono --weight-semibold
+- Each column: label --text-sm uppercase --color-text-dim, value --text-md --font-mono --weight-semibold
 - Delta value color: sign-based (--color-success / --color-danger / --color-text-muted)
 
 **DashboardCategoryRow** (extends/replaces CategoryRow for dashboard use)
@@ -156,7 +156,7 @@ Semantic color rules:
   - > 100%: --color-danger
 - Warn border: 1px solid --color-warn on row container
 - Overspend: 1px solid --color-danger border + overspend percentage badge
-- Overspend badge: pill, --color-danger background (--color-danger-soft), --color-danger text, --text-xs, --weight-600, shows "123%"
+- Overspend badge: pill, --color-danger background (--color-danger-soft), --color-danger text, --text-sm, --weight-600, shows "123%"
 - Zero-actual rows: show row normally with 0 actual, empty progress bar (no bar if planned = 0)
 - Row padding: --space-3 (12px) vertical, --space-4 (16px) horizontal
 - Row background: --color-surface; hover --color-surface-2
