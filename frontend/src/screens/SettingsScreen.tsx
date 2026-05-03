@@ -1,0 +1,112 @@
+import { useCallback, useEffect, useState } from 'react';
+import { getSettings, updateSettings } from '../api/settings';
+import { Stepper } from '../components/Stepper';
+import { MainButton } from '../components/MainButton';
+import styles from './SettingsScreen.module.css';
+
+export interface SettingsScreenProps {
+  onBack: () => void;
+}
+
+/**
+ * Settings editor (SET-01 UI).
+ *
+ * Loads current cycle_start_day from /settings on mount; user edits via
+ * Stepper (1..28, wrap-around enabled to match Onboarding behaviour).
+ * MainButton "Сохранить" is enabled only when draft != current (`dirty`).
+ *
+ * On save:
+ *  - PATCH /settings with new cycle_start_day
+ *  - Sync `current` from response (so MainButton goes back to disabled)
+ *  - Show "✓ Сохранено" toast for ~1.5 s
+ *
+ * Disclaimer below the stepper communicates SET-01 contract: change applies
+ * only to the *next* period; the current period keeps its existing dates.
+ */
+export function SettingsScreen({ onBack }: SettingsScreenProps) {
+  const [current, setCurrent] = useState<number | null>(null);
+  const [draft, setDraft] = useState<number>(5);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [savedFlash, setSavedFlash] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    getSettings()
+      .then((s) => {
+        if (!active) return;
+        setCurrent(s.cycle_start_day);
+        setDraft(s.cycle_start_day);
+        setError(null);
+      })
+      .catch((e: unknown) => {
+        if (!active) return;
+        setError(e instanceof Error ? e.message : String(e));
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const dirty = current !== null && draft !== current;
+
+  const handleSave = useCallback(async () => {
+    if (!dirty || saving) return;
+    setSaving(true);
+    setError(null);
+    try {
+      const updated = await updateSettings({ cycle_start_day: draft });
+      setCurrent(updated.cycle_start_day);
+      setDraft(updated.cycle_start_day);
+      setSavedFlash(true);
+      window.setTimeout(() => setSavedFlash(false), 1500);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setSaving(false);
+    }
+  }, [dirty, draft, saving]);
+
+  return (
+    <div className={styles.root}>
+      <header className={styles.header}>
+        <button
+          type="button"
+          onClick={onBack}
+          className={styles.backBtn}
+          aria-label="Назад"
+        >
+          ←
+        </button>
+        <div className={styles.title}>Настройки</div>
+      </header>
+
+      {loading && <div className={styles.muted}>Загрузка…</div>}
+      {error && <div className={styles.error}>Ошибка: {error}</div>}
+
+      {!loading && current !== null && (
+        <section className={styles.card}>
+          <div className={styles.cardTitle}>День начала периода</div>
+          <Stepper value={draft} min={1} max={28} onChange={setDraft} wrap />
+          <div className={styles.disclaimer}>
+            ⓘ Изменение применится со следующего периода. Текущий период продолжается с
+            тем же днём начала.
+          </div>
+        </section>
+      )}
+
+      {savedFlash && <div className={styles.savedToast}>✓ Сохранено</div>}
+
+      <MainButton
+        text={saving ? 'Сохранение…' : 'Сохранить'}
+        enabled={dirty && !saving}
+        onClick={handleSave}
+      />
+    </div>
+  );
+}

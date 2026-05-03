@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { useUser } from './hooks/useUser';
 import { OnboardingScreen } from './screens/OnboardingScreen';
 import { HomeScreen } from './screens/HomeScreen';
+import { CategoriesScreen } from './screens/CategoriesScreen';
+import { SettingsScreen } from './screens/SettingsScreen';
 import styles from './App.module.css';
 
 type Screen = 'onboarding' | 'home' | 'categories' | 'settings';
@@ -41,18 +43,8 @@ export default function App() {
   if (screen === 'home') {
     return <HomeScreen onNavigate={(s) => setOverrideScreen(s)} />;
   }
-  // categories | settings — placeholders until Plan 02-07
-  return (
-    <div className={styles.placeholderScreen}>
-      <button
-        type="button"
-        className={styles.backBtn}
-        onClick={() => setOverrideScreen('home')}
-      >
-        ← Назад
-      </button>
-      <h2>{screen === 'categories' ? 'Категории' : 'Настройки'}</h2>
-      <p>Этот экран реализован в Plan 02-07.</p>
-    </div>
-  );
+  if (screen === 'categories') {
+    return <CategoriesScreen onBack={() => setOverrideScreen('home')} />;
+  }
+  return <SettingsScreen onBack={() => setOverrideScreen('home')} />;
 }
