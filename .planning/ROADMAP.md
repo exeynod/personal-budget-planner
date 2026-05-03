@@ -99,7 +99,7 @@ Plans:
 - [ ] 05-03-PLAN.md — Frontend data-layer: utils/format (formatKopecks*), api/periods.ts, hooks usePeriods + useDashboard
 - [x] 05-04-PLAN.md — Frontend components: HeroCard, PeriodSwitcher, AggrStrip, DashboardCategoryRow (+ CSS modules)
 - [x] 05-05-PLAN.md — Frontend integration: HomeScreen full replacement + edge states (empty/warn/overspend/closed) + FAB/MainButton wiring
-- [ ] 05-06-PLAN.md — Verification: pytest + tsc + vite build regression + UAT visual checklist + PER-04 manual trigger + 05-VERIFICATION.md
+- [x] 05-06-PLAN.md — Verification: pytest + tsc + vite build regression + UAT visual checklist + PER-04 manual trigger + 05-VERIFICATION.md
 
 ### Phase 6: Subscriptions & Worker Jobs
 **Goal**: Пользователь ведёт список подписок с timeline-визуализацией, получает push за N дней до списания, плановые строки от подписок создаются автоматически без дублей
@@ -125,7 +125,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | 2. Domain Foundation & Onboarding | 6/6 | Complete | 2026-05-02 |
 | 3. Plan Template & Planned Transactions | 6/6 | Complete | 2026-05-03 |
 | 4. Actual Transactions & Bot Commands | 6/7 | In progress | - |
-| 5. Dashboard & Period Lifecycle | 5/6 | In progress | - |
+| 5. Dashboard & Period Lifecycle | 6/6 | Complete | 2026-05-03 |
 | 6. Subscriptions & Worker Jobs | 0/TBD | Not started | - |
 
 ---
