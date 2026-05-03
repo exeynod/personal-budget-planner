@@ -1,0 +1,50 @@
+.root {
+  max-width: 375px;
+  margin: 0 auto;
+  padding: 12px 16px;
+  min-height: 100vh;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  display: flex;
+  flex-direction: column;
+}
+.header {
+  text-align: center;
+  padding: 12px 0 24px;
+}
+.title {
+  font-weight: 700;
+  font-size: 22px;
+  letter-spacing: -0.02em;
+}
+.placeholder {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  font-size: 14px;
+  color: var(--color-text-muted);
+  line-height: 1.6;
+  padding: 24px;
+}
+.nav {
+  display: flex;
+  gap: 12px;
+  padding: 16px 0 24px;
+}
+.navBtn {
+  flex: 1;
+  padding: 14px 16px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: 0;
+  border-radius: var(--radius-md);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+}
+.navBtn:hover {
+  background: var(--color-surface-2);
+}
