@@ -28,7 +28,9 @@ from app.core.logging import configure_logging
 from app.core.settings import settings
 from app.db.models import AppHealth
 from app.db.session import AsyncSessionLocal
+from app.worker.jobs.charge_subscriptions import charge_subscriptions_job
 from app.worker.jobs.close_period import close_period_job
+from app.worker.jobs.notify_subscriptions import notify_subscriptions_job
 
 configure_logging(settings.LOG_LEVEL, settings.LOG_FORMAT)
 logger = structlog.get_logger(__name__)
@@ -87,11 +89,27 @@ async def main() -> None:
         timezone=MOSCOW_TZ,
     )
 
-    # Placeholder cron jobs — Phase 6 (notify/charge subscriptions):
-    # scheduler.add_job(notify_subscriptions, "cron", hour=9, minute=0,
-    #                   id="notify_subscriptions", timezone=MOSCOW_TZ)
-    # scheduler.add_job(charge_subscriptions, "cron", hour=0, minute=5,
-    #                   id="charge_subscriptions", timezone=MOSCOW_TZ)
+    # Phase 6: notify_subscriptions — daily at 09:00 Europe/Moscow (SUB-03, D-81).
+    scheduler.add_job(
+        notify_subscriptions_job,
+        "cron",
+        hour=9,
+        minute=0,
+        id="notify_subscriptions",
+        replace_existing=True,
+        timezone=MOSCOW_TZ,
+    )
+
+    # Phase 6: charge_subscriptions — daily at 00:05 Europe/Moscow (SUB-04, D-81).
+    scheduler.add_job(
+        charge_subscriptions_job,
+        "cron",
+        hour=0,
+        minute=5,
+        id="charge_subscriptions",
+        replace_existing=True,
+        timezone=MOSCOW_TZ,
+    )
 
     scheduler.start()
     logger.info("worker.scheduler.started", timezone=str(MOSCOW_TZ))
