@@ -32,6 +32,19 @@ async def get_current_active_period(db: AsyncSession) -> Optional[BudgetPeriod]:
     return result.scalar_one_or_none()
 
 
+async def list_all_periods(db: AsyncSession) -> list[BudgetPeriod]:
+    """Return ALL budget periods (active + closed), ordered by period_start DESC.
+
+    Used by GET /api/v1/periods (DSH-06 PeriodSwitcher) to populate the
+    navigation dropdown. Returns empty list (not 404) when no periods exist
+    yet (e.g. before onboarding).
+    """
+    result = await db.execute(
+        select(BudgetPeriod).order_by(BudgetPeriod.period_start.desc())
+    )
+    return list(result.scalars().all())
+
+
 async def create_first_period(
     db: AsyncSession,
     *,

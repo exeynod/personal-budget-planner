@@ -20,6 +20,20 @@ periods_router = APIRouter(
 )
 
 
+@periods_router.get("", response_model=list[PeriodRead])
+async def list_periods(
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> list[PeriodRead]:
+    """GET /api/v1/periods — list all budget periods, newest first (DSH-06).
+
+    Used by PeriodSwitcher to populate navigation. Returns an empty list
+    (not 404) when no periods exist (onboarding incomplete).
+    Includes both active and closed periods.
+    """
+    periods = await period_svc.list_all_periods(db)
+    return [PeriodRead.model_validate(p) for p in periods]
+
+
 @periods_router.get("/current", response_model=PeriodRead)
 async def get_current_period(
     db: Annotated[AsyncSession, Depends(get_db)],
