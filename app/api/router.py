@@ -26,6 +26,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_current_user, get_db, verify_internal_token
 from app.api.routes.categories import categories_router
+from app.api.routes.internal_telegram import internal_telegram_router
 from app.api.routes.onboarding import onboarding_router
 from app.api.routes.periods import periods_router
 from app.api.routes.settings import settings_router
@@ -95,6 +96,7 @@ async def internal_health() -> dict:
     return {"status": "ok", "service": "api-internal"}
 
 
-# Phase 2 internal sub-routers (e.g. internal_telegram_router) are appended
-# below in Task 2 of Plan 02-04. Caddy edge additionally blocks
-# ``/api/v1/internal/*`` from external traffic (Phase 1).
+# Register Phase 2 internal sub-routers. ``verify_internal_token`` is inherited
+# from ``internal_router`` and applied to every nested route. Caddy edge
+# additionally blocks ``/api/v1/internal/*`` from external traffic (Phase 1).
+internal_router.include_router(internal_telegram_router)
