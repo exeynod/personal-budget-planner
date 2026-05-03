@@ -1,3 +1,19 @@
+---
+gsd_state_version: 1.0
+milestone: v0.2
+milestone_name: milestone
+status: in-progress
+stopped_at: "Phase 04, Plan 01 complete (2026-05-03)"
+last_updated: "2026-05-03T08:38:59Z"
+last_activity: 2026-05-03 — Phase 04 Plan 01 complete (Wave-0 RED tests)
+progress:
+  total_phases: 6
+  completed_phases: 3
+  total_plans: 25
+  completed_plans: 20
+  percent: 80
+---
+
 # Project State
 
 ## Project Reference
@@ -5,20 +21,21 @@
 See: .planning/PROJECT.md (updated 2026-05-01)
 
 **Core value:** В один тап записать факт-трату и видеть актуальную дельту план/факт по категориям бюджета — быстрее, чем открывать Google-таблицу.
-**Current focus:** Phase 4 — Actual Transactions & Bot Commands
+**Current focus:** Phase 1 — Infrastructure & Auth
 
 ## Current Position
 
 Phase: 4 of 6 (Actual Transactions & Bot Commands)
-Plan: 0 of TBD in current phase
-Status: Phase 3 ✓ verified (5/5 + 7 reqs); Phase 4 ready to plan
-Last activity: 2026-05-03 — Phase 3 verified; PER-05 structurally addressed via apply-template
+Plan: 1 of 7 complete in current phase
+Status: In progress
+Last activity: 2026-05-03 — Phase 04 Plan 01 complete — 58 RED-state tests for ACT-01..ACT-05
 
-Progress: [███░░░] 3/6 phases (Phases 1-3 complete)
+Progress: [████████░░] 80%
 
 ## Performance Metrics
 
 **Velocity:**
+
 - Total plans completed: 0
 - Average duration: —
 - Total execution time: 0 hours
@@ -30,6 +47,7 @@ Progress: [███░░░] 3/6 phases (Phases 1-3 complete)
 | - | - | - | - |
 
 **Recent Trend:**
+
 - Last 5 plans: —
 - Trend: —
 
@@ -48,6 +66,9 @@ Recent decisions affecting current work:
 - Init: Деньги в копейках (BIGINT) — избежать ошибок округления float
 - Init: Worker как отдельный контейнер — чистое разделение API и cron-задач
 - Init: Frontend = React 18 + Vite + `@telegram-apps/sdk-react`
+- 04-01: Untracked test files (58 тестов) проверены и приняты как соответствующие RED-gate требованиям
+- 04-01: parse_amount caps at 10^12 копеек (10 млрд рублей) — overflow guard
+- 04-01: In-memory disambiguation cache (D-47) — dict + TTL 5 мин, без aiogram FSM
 
 ### Pending Todos
 
@@ -68,6 +89,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-05-02
-Stopped at: Phase 1 execution in progress (Wave 0/4)
+Last session: 2026-05-03T08:38:59Z
+Stopped at: Phase 04, Plan 01 complete — 04-01-SUMMARY.md written
 Resume file: None

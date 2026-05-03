@@ -12,9 +12,9 @@ MVP перенос личной Google-таблицы бюджета в TG Mini 
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [x] **Phase 1: Infrastructure & Auth** — docker-compose skeleton (5 контейнеров), БД-схема + миграции, Telegram initData валидация, OWNER_TG_ID whitelist, internal token для bot↔api ✓ 2026-05-02
-- [x] **Phase 2: Domain Foundation & Onboarding** — категории CRUD + seed, period engine (cycle_start_day), onboarding scrollable-page с bot bind, settings cycle_start_day ✓ 2026-05-02
-- [x] **Phase 3: Plan Template & Planned Transactions** — шаблон плана + развёртывание на новый период, CRUD строк плана с inline-редактированием и bottom-sheet ✓ 2026-05-03
+- [ ] **Phase 1: Infrastructure & Auth** — docker-compose skeleton (5 контейнеров), БД-схема + миграции, Telegram initData валидация, OWNER_TG_ID whitelist, internal token для bot↔api
+- [ ] **Phase 2: Domain Foundation & Onboarding** — категории CRUD + seed, period engine (cycle_start_day), onboarding scrollable-page с bot bind, settings cycle_start_day
+- [ ] **Phase 3: Plan Template & Planned Transactions** — шаблон плана + развёртывание на новый период, CRUD строк плана с inline-редактированием и bottom-sheet
 - [ ] **Phase 4: Actual Transactions & Bot Commands** — факт-транзакции через Mini App bottom-sheet, бот-команды `/add`, `/income`, `/balance`, `/today`, `/app` с парсингом и disambiguation
 - [ ] **Phase 5: Dashboard & Period Lifecycle** — главный экран Mini App (tabs Расходы/Доходы, hero-баланс, aggr-блок, прогресс-бары категорий), все edge-states, переключатель периодов, worker-job автозакрытия периода
 - [ ] **Phase 6: Subscriptions & Worker Jobs** — подписки CRUD + horizontal timeline UI, 2 cron-джобы (push 09:00, charge 00:05), notify_days_before settings
@@ -34,12 +34,12 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Plans**: 6 планов
 
 Plans:
-- [x] 01-01-PLAN.md — Wave 0: test stubs (pytest infrastructure, RED тесты AUTH-01/AUTH-02/INF-04/INF-05/INF-02)
-- [x] 01-02-PLAN.md — Python skeleton: pyproject.toml, app/ пакет, settings, logging, ORM-модели 6+1 таблиц
-- [x] 01-03-PLAN.md — Frontend scaffold: Vite+React+TypeScript stub, Dockerfile.frontend
-- [x] 01-04-PLAN.md — Auth layer: validate_init_data HMAC-SHA256, dependencies, Alembic async env + начальная миграция
-- [x] 01-05-PLAN.md — Entrypoints: main_api.py (lifespan+routers), main_bot.py (polling+healthz), main_worker.py (APScheduler), entrypoint.sh
-- [x] 01-06-PLAN.md — Docker infra: Dockerfile SERVICE, docker-compose.yml 5 сервисов, Caddyfile TLS, .env.example, .gitignore
+- [ ] 01-01-PLAN.md — Wave 0: test stubs (pytest infrastructure, RED тесты AUTH-01/AUTH-02/INF-04/INF-05/INF-02)
+- [ ] 01-02-PLAN.md — Python skeleton: pyproject.toml, app/ пакет, settings, logging, ORM-модели 6+1 таблиц
+- [ ] 01-03-PLAN.md — Frontend scaffold: Vite+React+TypeScript stub, Dockerfile.frontend
+- [ ] 01-04-PLAN.md — Auth layer: validate_init_data HMAC-SHA256, dependencies, Alembic async env + начальная миграция
+- [ ] 01-05-PLAN.md — Entrypoints: main_api.py (lifespan+routers), main_bot.py (polling+healthz), main_worker.py (APScheduler), entrypoint.sh
+- [ ] 01-06-PLAN.md — Docker infra: Dockerfile SERVICE, docker-compose.yml 5 сервисов, Caddyfile TLS, .env.example, .gitignore
 
 ### Phase 2: Domain Foundation & Onboarding
 **Goal**: Пользователь может пройти первый запуск и получить базовую конфигурацию: bot bind, стартовый баланс, cycle_start_day, seed категорий — после этого активный период существует и категории доступны
@@ -51,16 +51,7 @@ Plans:
   3. После завершения onboarding создан первый `budget_period` с введённым `starting_balance`, в БД 14 seed-категорий, активный период покрывает текущую дату согласно `cycle_start_day`
   4. В разделе «Категории» можно создать/переименовать/архивировать категорию; архивированная не появляется в списках выбора, но видна в фильтре «include_archived»
   5. В Settings можно изменить `cycle_start_day` (1..28); изменение применяется только к будущим периодам (текущий не пересчитывается)
-**Plans**: 7 планов
-
-Plans:
-- [x] 02-01-PLAN.md — Wave 0: RED test stubs (period engine, categories, periods, onboarding, settings, telegram chat-bind)
-- [x] 02-02-PLAN.md — Wave 1: deps (python-dateutil, httpx prod), period_for utility, Pydantic schemas, MINI_APP_URL setting
-- [x] 02-03-PLAN.md — Wave 2: services layer (categories, periods, settings, telegram, onboarding) — atomic complete_onboarding
-- [x] 02-04-PLAN.md — Wave 3: API routes — categories CRUD, periods/current, onboarding/complete, settings, internal/telegram/chat-bind
-- [x] 02-05-PLAN.md — Wave 4 (parallel): bot /start handler — chat-bind via internal API + WebApp button
-- [x] 02-06-PLAN.md — Wave 4 (parallel): frontend SPA scaffold — API client, OnboardingScreen (sketch 006-B), HomeScreen
-- [x] 02-07-PLAN.md — Wave 5: frontend CategoriesScreen + SettingsScreen + final UI checkpoint
+**Plans**: TBD
 **UI hint**: yes
 
 ### Phase 3: Plan Template & Planned Transactions
@@ -73,15 +64,7 @@ Plans:
   3. Кнопка «Перенести план в шаблон» создаёт snapshot текущих плановых строк периода в `PlanTemplate` (перезатирая старый шаблон)
   4. На экране «План текущего периода» работает CRUD плановых строк с `source=manual`; строки от шаблона имеют `source=template`
   5. План-строки от подписок (когда они появятся) корректно отображаются с маркером «🔁 from subscription» (визуальный паттерн готов и проверен на mock-данных)
-**Plans**: 6 планов
-
-Plans:
-- [x] 03-01-PLAN.md — Wave 0: RED test stubs (templates, planned, apply-template idempotency, snapshot exclude subscription_auto)
-- [x] 03-02-PLAN.md — Wave 1: Pydantic schemas + service layer (templates + planned with apply-template D-31 idempotency)
-- [x] 03-03-PLAN.md — Wave 2: API routes (templates_router, planned_router) + register in app/api/router.py
-- [x] 03-04-PLAN.md — Wave 3: TemplateScreen + BottomSheet/PlanItemEditor/PlanRow components + types/api/hook + HomeScreen+App wiring (placeholder для planned)
-- [x] 03-05-PLAN.md — Wave 4: PlannedScreen + planned api/hooks + PLN-03 mock helper + App.tsx wires planned route
-- [x] 03-06-PLAN.md — Wave 5: full pytest + Vite build + UI checkpoint (sketch 005-B acceptance) + 03-06-SUMMARY
+**Plans**: TBD
 **UI hint**: yes
 
 ### Phase 4: Actual Transactions & Bot Commands
@@ -130,10 +113,10 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Infrastructure & Auth | 6/6 | ✓ Complete (code-level) | 2026-05-02 |
-| 2. Domain Foundation & Onboarding | 7/7 | ✓ Complete (code-level) | 2026-05-02 |
-| 3. Plan Template & Planned Transactions | 6/6 | ✓ Complete (code-level) | 2026-05-03 |
-| 4. Actual Transactions & Bot Commands | 0/TBD | Not started | - |
+| 1. Infrastructure & Auth | 6/6 | Complete | 2026-05-02 |
+| 2. Domain Foundation & Onboarding | 6/6 | Complete | 2026-05-02 |
+| 3. Plan Template & Planned Transactions | 6/6 | Complete | 2026-05-03 |
+| 4. Actual Transactions & Bot Commands | 1/7 | In progress | - |
 | 5. Dashboard & Period Lifecycle | 0/TBD | Not started | - |
 | 6. Subscriptions & Worker Jobs | 0/TBD | Not started | - |
 
@@ -141,5 +124,3 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 *Roadmap created: 2026-05-01*
 *Synthesized from docs/BRD.md v0.2, docs/HLD.md v0.1, .planning/sketches/ winners*
 *Phase 1 plans created: 2026-05-01*
-*Phase 2 plans created: 2026-05-02*
-*Phase 3 plans created: 2026-05-02*
