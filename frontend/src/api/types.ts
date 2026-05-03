@@ -61,6 +61,7 @@ export interface OnboardingCompleteResponse {
 export interface SettingsRead {
   cycle_start_day: number;
   notify_days_before: number;
+  is_bot_bound: boolean;
 }
 
 export interface SettingsUpdatePayload {
