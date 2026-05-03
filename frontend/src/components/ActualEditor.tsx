@@ -30,13 +30,18 @@ export interface ActualEditorProps {
   maxTxDate?: string;
 }
 
-function todayISO(): string {
-  return new Date().toISOString().slice(0, 10);
+/** Returns today's date in Europe/Moscow (UTC+3) as ISO string (YYYY-MM-DD). */
+function todayInMoscow(): string {
+  return new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString().slice(0, 10);
 }
 
-/** Returns today + 7 days as ISO date string (client-side T-04-45 guard). */
+function todayISO(): string {
+  return todayInMoscow();
+}
+
+/** Returns today + 7 days as ISO date string in Moscow TZ (client-side T-04-45 guard). */
 function maxTxDateDefault(): string {
-  const d = new Date();
+  const d = new Date(Date.now() + 3 * 60 * 60 * 1000);
   d.setDate(d.getDate() + 7);
   return d.toISOString().slice(0, 10);
 }
