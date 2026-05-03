@@ -47,11 +47,11 @@ _PENDING: dict[str, PendingActual] = {}
 
 
 def store_pending(p: PendingActual) -> str:
-    """Store a PendingActual; returns an 8-hex token for use in callback_data.
+    """Store a PendingActual; returns a full UUID hex token for use in callback_data.
 
     Also triggers GC to drop expired entries.
     """
-    token = uuid4().hex[:8]
+    token = uuid4().hex
     _PENDING[token] = p
     _gc()
     return token
