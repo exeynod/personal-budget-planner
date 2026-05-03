@@ -133,17 +133,17 @@ Deferred to future. Tracked but not in current roadmap.
 |-------------|-------|--------|
 | AUTH-01 | Phase 1 | ✓ Complete |
 | AUTH-02 | Phase 1 | ✓ Complete |
-| ONB-01 | Phase 2 | Pending |
-| ONB-02 | Phase 2 | Pending |
-| ONB-03 | Phase 2 | Pending |
-| CAT-01 | Phase 2 | Pending |
-| CAT-02 | Phase 2 | Pending |
-| CAT-03 | Phase 2 | Pending |
-| PER-01 | Phase 2 | Pending |
-| PER-02 | Phase 2 | Pending |
-| PER-03 | Phase 2 | Pending |
+| ONB-01 | Phase 2 | ✓ Complete |
+| ONB-02 | Phase 2 | ✓ Complete |
+| ONB-03 | Phase 2 | ✓ Complete |
+| CAT-01 | Phase 2 | ✓ Complete |
+| CAT-02 | Phase 2 | ✓ Complete |
+| CAT-03 | Phase 2 | ✓ Complete |
+| PER-01 | Phase 2 | ✓ Complete |
+| PER-02 | Phase 2 | ✓ Complete |
+| PER-03 | Phase 2 | Deferred to Phase 5 |
 | PER-04 | Phase 5 | Pending |
-| PER-05 | Phase 2 | Pending |
+| PER-05 | Phase 2 | Deferred to Phase 3 |
 | TPL-01 | Phase 3 | Pending |
 | TPL-02 | Phase 3 | Pending |
 | TPL-03 | Phase 3 | Pending |
@@ -167,7 +167,7 @@ Deferred to future. Tracked but not in current roadmap.
 | SUB-03 | Phase 6 | Pending |
 | SUB-04 | Phase 6 | Pending |
 | SUB-05 | Phase 6 | Pending |
-| SET-01 | Phase 2 | Pending |
+| SET-01 | Phase 2 | ✓ Complete |
 | SET-02 | Phase 6 | Pending |
 | INF-01 | Phase 1 | ✓ Complete |
 | INF-02 | Phase 1 | ✓ Complete |

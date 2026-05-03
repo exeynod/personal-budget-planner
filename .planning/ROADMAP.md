@@ -13,7 +13,7 @@ MVP перенос личной Google-таблицы бюджета в TG Mini 
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Infrastructure & Auth** — docker-compose skeleton (5 контейнеров), БД-схема + миграции, Telegram initData валидация, OWNER_TG_ID whitelist, internal token для bot↔api ✓ 2026-05-02
-- [ ] **Phase 2: Domain Foundation & Onboarding** — категории CRUD + seed, period engine (cycle_start_day), onboarding scrollable-page с bot bind, settings cycle_start_day
+- [x] **Phase 2: Domain Foundation & Onboarding** — категории CRUD + seed, period engine (cycle_start_day), onboarding scrollable-page с bot bind, settings cycle_start_day ✓ 2026-05-02
 - [ ] **Phase 3: Plan Template & Planned Transactions** — шаблон плана + развёртывание на новый период, CRUD строк плана с inline-редактированием и bottom-sheet
 - [ ] **Phase 4: Actual Transactions & Bot Commands** — факт-транзакции через Mini App bottom-sheet, бот-команды `/add`, `/income`, `/balance`, `/today`, `/app` с парсингом и disambiguation
 - [ ] **Phase 5: Dashboard & Period Lifecycle** — главный экран Mini App (tabs Расходы/Доходы, hero-баланс, aggr-блок, прогресс-бары категорий), все edge-states, переключатель периодов, worker-job автозакрытия периода
@@ -54,13 +54,13 @@ Plans:
 **Plans**: 7 планов
 
 Plans:
-- [ ] 02-01-PLAN.md — Wave 0: RED test stubs (period engine, categories, periods, onboarding, settings, telegram chat-bind)
-- [ ] 02-02-PLAN.md — Wave 1: deps (python-dateutil, httpx prod), period_for utility, Pydantic schemas, MINI_APP_URL setting
-- [ ] 02-03-PLAN.md — Wave 2: services layer (categories, periods, settings, telegram, onboarding) — atomic complete_onboarding
-- [ ] 02-04-PLAN.md — Wave 3: API routes — categories CRUD, periods/current, onboarding/complete, settings, internal/telegram/chat-bind
-- [ ] 02-05-PLAN.md — Wave 4 (parallel): bot /start handler — chat-bind via internal API + WebApp button
-- [ ] 02-06-PLAN.md — Wave 4 (parallel): frontend SPA scaffold — API client, OnboardingScreen (sketch 006-B), HomeScreen
-- [ ] 02-07-PLAN.md — Wave 5: frontend CategoriesScreen + SettingsScreen + final UI checkpoint
+- [x] 02-01-PLAN.md — Wave 0: RED test stubs (period engine, categories, periods, onboarding, settings, telegram chat-bind)
+- [x] 02-02-PLAN.md — Wave 1: deps (python-dateutil, httpx prod), period_for utility, Pydantic schemas, MINI_APP_URL setting
+- [x] 02-03-PLAN.md — Wave 2: services layer (categories, periods, settings, telegram, onboarding) — atomic complete_onboarding
+- [x] 02-04-PLAN.md — Wave 3: API routes — categories CRUD, periods/current, onboarding/complete, settings, internal/telegram/chat-bind
+- [x] 02-05-PLAN.md — Wave 4 (parallel): bot /start handler — chat-bind via internal API + WebApp button
+- [x] 02-06-PLAN.md — Wave 4 (parallel): frontend SPA scaffold — API client, OnboardingScreen (sketch 006-B), HomeScreen
+- [x] 02-07-PLAN.md — Wave 5: frontend CategoriesScreen + SettingsScreen + final UI checkpoint
 **UI hint**: yes
 
 ### Phase 3: Plan Template & Planned Transactions
@@ -123,7 +123,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Infrastructure & Auth | 6/6 | ✓ Complete (code-level) | 2026-05-02 |
-| 2. Domain Foundation & Onboarding | 0/7 | Not started | - |
+| 2. Domain Foundation & Onboarding | 7/7 | ✓ Complete (code-level) | 2026-05-02 |
 | 3. Plan Template & Planned Transactions | 0/TBD | Not started | - |
 | 4. Actual Transactions & Bot Commands | 0/TBD | Not started | - |
 | 5. Dashboard & Period Lifecycle | 0/TBD | Not started | - |
