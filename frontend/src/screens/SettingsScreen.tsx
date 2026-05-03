@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { getSettings, updateSettings } from '../api/settings';
 import { Stepper } from '../components/Stepper';
 import { MainButton } from '../components/MainButton';
@@ -32,6 +32,16 @@ export function SettingsScreen({ onBack }: SettingsScreenProps) {
   const [error, setError] = useState<string | null>(null);
   const [savedFlash, setSavedFlash] = useState(false);
   const [saving, setSaving] = useState(false);
+  const flashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Clear pending flash timer on unmount to avoid state updates on unmounted component.
+  useEffect(() => {
+    return () => {
+      if (flashTimerRef.current !== null) {
+        clearTimeout(flashTimerRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -75,7 +85,10 @@ export function SettingsScreen({ onBack }: SettingsScreenProps) {
       setCurrentNotifyDays(updated.notify_days_before);
       setNotifyDays(updated.notify_days_before);
       setSavedFlash(true);
-      window.setTimeout(() => setSavedFlash(false), 1500);
+      if (flashTimerRef.current !== null) {
+        clearTimeout(flashTimerRef.current);
+      }
+      flashTimerRef.current = setTimeout(() => setSavedFlash(false), 1500);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
