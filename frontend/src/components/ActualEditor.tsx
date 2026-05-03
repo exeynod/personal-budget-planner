@@ -45,9 +45,10 @@ function maxTxDateDefault(): string {
 function parseRublesToKopecks(input: string): number | null {
   const cleaned = input.replace(/\s/g, '').replace(',', '.');
   if (cleaned === '') return null;
-  const f = parseFloat(cleaned);
-  if (isNaN(f) || !isFinite(f)) return null;
-  return Math.round(f * 100);
+  const [intPart, fracPart = ''] = cleaned.split('.');
+  if (!/^\d+$/.test(intPart) || !/^\d{0,2}$/.test(fracPart)) return null;
+  const kopecks = parseInt(intPart, 10) * 100 + parseInt(fracPart.padEnd(2, '0'), 10);
+  return kopecks > 0 ? kopecks : null;
 }
 
 function formatKopecksToRubles(cents: number | undefined | null): string {
