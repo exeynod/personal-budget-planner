@@ -403,6 +403,7 @@ async def cb_disambiguation(callback: CallbackQuery) -> None:
             except Exception:
                 # edit_text may fail (e.g., message too old, parse mode mismatch)
                 await callback.message.answer(text)
-        await callback.answer()
     else:
         await callback.answer(f"Неожиданный статус: {status}", show_alert=True)
+        return
+    await callback.answer()  # always acknowledge on success
