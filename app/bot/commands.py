@@ -229,7 +229,8 @@ async def _handle_add_or_income(
     message: Message, command: CommandObject, *, kind: str
 ) -> None:
     """Common implementation for /add (kind=expense) and /income (kind=income)."""
-    if not _is_owner(message):
+    user = message.from_user
+    if not user or not _is_owner(message):
         return  # silent — non-OWNER (T-04-30)
 
     parsed = parse_add_command(command.args)
@@ -245,7 +246,7 @@ async def _handle_add_or_income(
 
     try:
         result = await bot_create_actual(
-            tg_user_id=message.from_user.id,
+            tg_user_id=user.id,
             kind=kind,
             amount_cents=amount_cents,
             category_query=category_query,
@@ -302,10 +303,11 @@ async def cmd_income(message: Message, command: CommandObject) -> None:
 @router.message(Command("balance"))
 async def cmd_balance(message: Message) -> None:
     """``/balance`` — сводка баланса текущего периода (D-60)."""
-    if not _is_owner(message):
+    user = message.from_user
+    if not user or not _is_owner(message):
         return
     try:
-        result = await bot_get_balance(message.from_user.id)
+        result = await bot_get_balance(user.id)
     except InternalApiError as exc:
         logger.warning("bot.cmd.balance.api_failed", error=str(exc))
         await message.answer(
@@ -318,10 +320,11 @@ async def cmd_balance(message: Message) -> None:
 @router.message(Command("today"))
 async def cmd_today(message: Message) -> None:
     """``/today`` — список факт-трат за сегодня (D-61)."""
-    if not _is_owner(message):
+    user = message.from_user
+    if not user or not _is_owner(message):
         return
     try:
-        result = await bot_get_today(message.from_user.id)
+        result = await bot_get_today(user.id)
     except InternalApiError as exc:
         logger.warning("bot.cmd.today.api_failed", error=str(exc))
         await message.answer("Не удалось получить список трат за сегодня.")
