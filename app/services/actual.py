@@ -35,6 +35,7 @@ from datetime import date, timedelta
 from typing import Optional
 
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.schemas.actual import ActualUpdate
@@ -163,9 +164,20 @@ async def _resolve_period_for_date(
         ending_balance_cents=None,
         status=status,
     )
-    db.add(period)
-    await db.flush()
-    return period.id
+    try:
+        db.add(period)
+        await db.flush()
+        return period.id
+    except IntegrityError:
+        # Concurrent request won the race — re-fetch the existing period.
+        await db.rollback()
+        existing = await db.scalar(
+            select(BudgetPeriod.id).where(
+                BudgetPeriod.period_start <= tx_date,
+                BudgetPeriod.period_end >= tx_date,
+            )
+        )
+        return existing  # type: ignore[return-value]
 
 
 # ---------- CRUD ----------
