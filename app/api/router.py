@@ -20,6 +20,14 @@ Phase 3 routes (added via include_router):
 - ``/periods/{id}/apply-template`` (POST) — TPL-04, PER-05
 - ``/planned/{id}`` (PATCH/DELETE) — PLN-01, PLN-03 enforcement
 
+Phase 4 routes (added via include_router):
+- ``/actual`` (POST/PATCH/DELETE) — ACT-01, ACT-02, ACT-05 (Mini App actual CRUD)
+- ``/periods/{id}/actual`` (GET) — ACT-01 list per period
+- ``/actual/balance`` (GET) — ACT-04 (balance for active period)
+- ``/internal/bot/actual`` (POST) — ACT-03 (bot actual create with disambiguation)
+- ``/internal/bot/balance`` (POST) — ACT-04 (bot /balance command data)
+- ``/internal/bot/today`` (POST) — ACT-04 (bot /today command data)
+
 D-11: ``app_user`` row is upserted on the first valid ``GET /me`` request
 (``INSERT ... ON CONFLICT DO NOTHING`` on ``tg_user_id``) — no migration seed.
 """
@@ -32,7 +40,9 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_current_user, get_db, verify_internal_token
+from app.api.routes.actual import actual_router
 from app.api.routes.categories import categories_router
+from app.api.routes.internal_bot import internal_bot_router
 from app.api.routes.internal_telegram import internal_telegram_router
 from app.api.routes.onboarding import onboarding_router
 from app.api.routes.periods import periods_router
@@ -97,6 +107,9 @@ public_router.include_router(settings_router)
 public_router.include_router(templates_router)
 public_router.include_router(planned_router)
 
+# Phase 4 sub-router — Mini App actual transactions + balance.
+public_router.include_router(actual_router)
+
 
 # ---- Internal router (requires X-Internal-Token) ----
 internal_router = APIRouter(
@@ -115,3 +128,6 @@ async def internal_health() -> dict:
 # from ``internal_router`` and applied to every nested route. Caddy edge
 # additionally blocks ``/api/v1/internal/*`` from external traffic (Phase 1).
 internal_router.include_router(internal_telegram_router)
+
+# Phase 4 internal sub-router — bot↔api communication for actual transactions.
+internal_router.include_router(internal_bot_router)
