@@ -35,6 +35,8 @@ def _make_message(*, user_id: int | None, chat_id: int = 999) -> MagicMock:
     msg.from_user = SimpleNamespace(id=user_id) if user_id is not None else None
     msg.chat = SimpleNamespace(id=chat_id)
     msg.answer = AsyncMock()
+    msg.edit_text = AsyncMock()
+    msg.edit_reply_markup = AsyncMock()
     return msg
 
 
@@ -253,7 +255,7 @@ async def test_cb_disambiguation_flow():
     from app.bot.commands import cb_disambiguation
     from app.bot.disambiguation import PendingActual, store_pending
     from app.core.settings import settings
-    from datetime import datetime
+    from datetime import datetime, timezone
 
     owner_id = settings.OWNER_TG_ID
 
@@ -264,7 +266,7 @@ async def test_cb_disambiguation_flow():
         description=None,
         tx_date=None,
         candidates=[{"id": 5, "name": "Продукты", "kind": "expense"}],
-        created_at=datetime.utcnow(),
+        created_at=datetime.now(timezone.utc),
     )
     token = store_pending(pending)
 
@@ -286,4 +288,5 @@ async def test_cb_disambiguation_flow():
     with patch("app.bot.commands.bot_create_actual", new=AsyncMock(return_value=mock_response)):
         await cb_disambiguation(callback)
 
-    callback.message.answer.assert_awaited_once()
+    callback.message.edit_text.assert_awaited_once()
+    callback.message.answer.assert_not_awaited()
