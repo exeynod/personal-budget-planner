@@ -175,7 +175,7 @@ def _format_balance_reply(result: dict) -> str:
     )[:5]
 
     lines = [
-        f"💰 Баланс: {format_kopecks(result['balance_now_cents'])} ₽",
+        f"💰 Баланс: {format_kopecks_with_sign(result['balance_now_cents'])}",
         f"Δ периода: {format_kopecks_with_sign(result['delta_total_cents'])}",
         "",
         "Топ-5 категорий:",
