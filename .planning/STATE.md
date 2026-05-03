@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v0.2
 milestone_name: milestone
 status: in-progress
-stopped_at: "Phase 04, Plan 04 complete (2026-05-03)"
-last_updated: "2026-05-03T11:00:00Z"
-last_activity: 2026-05-03 — Phase 04 Plan 04 complete (Bot Command Handlers Wave 3)
+stopped_at: "Phase 04, Plan 05 complete (2026-05-03)"
+last_updated: "2026-05-03T12:00:00Z"
+last_activity: 2026-05-03 — Phase 04 Plan 05 complete (Frontend Infrastructure Wave 3)
 progress:
   total_phases: 6
   completed_phases: 3
@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-05-01)
 ## Current Position
 
 Phase: 4 of 6 (Actual Transactions & Bot Commands)
-Plan: 4 of 7 complete in current phase
+Plan: 5 of 7 complete in current phase
 Status: In progress
-Last activity: 2026-05-03 — Phase 04 Plan 04 complete — Bot Command Handlers Wave 3 (parsers + disambiguation + commands + api_client extension)
+Last activity: 2026-05-03 — Phase 04 Plan 05 complete — Frontend Infrastructure Wave 3 (TS types, actual API wrappers, useActual hook, ActualEditor form, FAB component)
 
 Progress: [████████░░] 80%
 
@@ -77,6 +77,9 @@ Recent decisions affecting current work:
 - 04-04: commands.py — отдельный Router; app/bot/handlers.py (Phase 2) не модифицирован; два роутера в main_bot.py
 - 04-04: `router` переименован в `start_router` в main_bot.py — test_main_bot_entry.py обновлён соответственно
 - 04-04: _post_internal helper в api_client.py — DRY для Phase 4 bot→api; bind_chat_id без изменений
+- 04-05: ActualEditorInitial и ActualEditorSavePayload — именованные интерфейсы (не inline типы) для Plan 04-06 reuse
+- 04-05: isEdit guard в JSX используется один (не isEdit && onDelete) — TS2774 prevention
+- 04-05: maxTxDateDefault() — fallback today+7d всегда активен (T-04-45 client guard)
 
 ### Pending Todos
 
@@ -97,6 +100,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-05-03T10:00:00Z
-Stopped at: Phase 04, Plan 03 complete — 04-03-SUMMARY.md written
+Last session: 2026-05-03T12:00:00Z
+Stopped at: Phase 04, Plan 05 complete — 04-05-SUMMARY.md written
 Resume file: None
