@@ -6,6 +6,13 @@ Phase 1 routes:
 - ``/internal/health`` (internal_router) — internal service-to-service health
   probe; protected by ``verify_internal_token`` (X-Internal-Token).
 
+Phase 2 routes (added via include_router):
+- ``/categories`` (GET/POST/PATCH/DELETE) — CAT-01, CAT-02
+- ``/periods/current`` (GET) — PER-01, PER-02
+- ``/onboarding/complete`` (POST) — ONB-01, PER-02, CAT-03
+- ``/settings`` (GET/PATCH) — SET-01
+- ``/internal/telegram/chat-bind`` (POST) — ONB-03 (under internal_router)
+
 D-11: ``app_user`` row is upserted on the first valid ``GET /me`` request
 (``INSERT ... ON CONFLICT DO NOTHING`` on ``tg_user_id``) — no migration seed.
 """
@@ -18,6 +25,10 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_current_user, get_db, verify_internal_token
+from app.api.routes.categories import categories_router
+from app.api.routes.onboarding import onboarding_router
+from app.api.routes.periods import periods_router
+from app.api.routes.settings import settings_router
 from app.db.models import AppUser
 
 
@@ -63,6 +74,14 @@ async def get_me(
     )
 
 
+# Register Phase 2 sub-routers under the same /api/v1 prefix.
+# Each sub-router brings its own router-level Depends(get_current_user).
+public_router.include_router(categories_router)
+public_router.include_router(periods_router)
+public_router.include_router(onboarding_router)
+public_router.include_router(settings_router)
+
+
 # ---- Internal router (requires X-Internal-Token) ----
 internal_router = APIRouter(
     prefix="/internal",
@@ -74,3 +93,8 @@ internal_router = APIRouter(
 async def internal_health() -> dict:
     """Health check for internal service-to-service communication (bot↔api)."""
     return {"status": "ok", "service": "api-internal"}
+
+
+# Phase 2 internal sub-routers (e.g. internal_telegram_router) are appended
+# below in Task 2 of Plan 02-04. Caddy edge additionally blocks
+# ``/api/v1/internal/*`` from external traffic (Phase 1).
