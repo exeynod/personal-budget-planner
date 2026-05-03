@@ -5,6 +5,7 @@ import { HomeScreen } from './screens/HomeScreen';
 import { CategoriesScreen } from './screens/CategoriesScreen';
 import { TemplateScreen } from './screens/TemplateScreen';
 import { PlannedScreen } from './screens/PlannedScreen';
+import { ActualScreen } from './screens/ActualScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
 import styles from './App.module.css';
 
@@ -14,6 +15,7 @@ type Screen =
   | 'categories'
   | 'template'
   | 'planned'
+  | 'actual'
   | 'settings';
 
 export default function App() {
@@ -64,6 +66,9 @@ export default function App() {
         onNavigateToTemplate={() => setOverrideScreen('template')}
       />
     );
+  }
+  if (screen === 'actual') {
+    return <ActualScreen onBack={() => setOverrideScreen('home')} />;
   }
   return <SettingsScreen onBack={() => setOverrideScreen('home')} />;
 }
