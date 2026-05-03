@@ -96,7 +96,7 @@ Plans:
 Plans:
 - [x] 05-01-PLAN.md — Backend: GET /api/v1/periods + GET /api/v1/periods/{id}/balance endpoints (DSH-06)
 - [x] 05-02-PLAN.md — Worker: close_period_job (PER-04 + PER-03 inheritance) с pg_try_advisory_lock + cron 00:01 МСК
-- [ ] 05-03-PLAN.md — Frontend data-layer: utils/format (formatKopecks*), api/periods.ts, hooks usePeriods + useDashboard
+- [x] 05-03-PLAN.md — Frontend data-layer: utils/format (formatKopecks*), api/periods.ts, hooks usePeriods + useDashboard
 - [ ] 05-04-PLAN.md — Frontend components: HeroCard, PeriodSwitcher, AggrStrip, DashboardCategoryRow (+ CSS modules)
 - [ ] 05-05-PLAN.md — Frontend integration: HomeScreen full replacement + edge states (empty/warn/overspend/closed) + FAB/MainButton wiring
 - [ ] 05-06-PLAN.md — Verification: pytest + tsc + vite build regression + UAT visual checklist + PER-04 manual trigger + 05-VERIFICATION.md
@@ -125,7 +125,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | 2. Domain Foundation & Onboarding | 6/6 | Complete | 2026-05-02 |
 | 3. Plan Template & Planned Transactions | 6/6 | Complete | 2026-05-03 |
 | 4. Actual Transactions & Bot Commands | 6/7 | In progress | - |
-| 5. Dashboard & Period Lifecycle | 2/6 | In progress | - |
+| 5. Dashboard & Period Lifecycle | 3/6 | In progress | - |
 | 6. Subscriptions & Worker Jobs | 0/TBD | Not started | - |
 
 ---
