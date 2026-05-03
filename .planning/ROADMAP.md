@@ -116,7 +116,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | 1. Infrastructure & Auth | 6/6 | Complete | 2026-05-02 |
 | 2. Domain Foundation & Onboarding | 6/6 | Complete | 2026-05-02 |
 | 3. Plan Template & Planned Transactions | 6/6 | Complete | 2026-05-03 |
-| 4. Actual Transactions & Bot Commands | 4/7 | In progress | - |
+| 4. Actual Transactions & Bot Commands | 6/7 | In progress | - |
 | 5. Dashboard & Period Lifecycle | 0/TBD | Not started | - |
 | 6. Subscriptions & Worker Jobs | 0/TBD | Not started | - |
 
