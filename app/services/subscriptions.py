@@ -123,7 +123,8 @@ async def update_subscription(
     """Partial-update a subscription by id.
 
     Raises LookupError if sub_id not found.
-    Only non-None values in patch are applied.
+    patch already contains only explicitly-set fields (model_dump(exclude_unset=True)
+    in the route layer), so every field in patch is applied unconditionally.
     """
     sub = await db.scalar(
         select(Subscription)
@@ -133,8 +134,7 @@ async def update_subscription(
     if sub is None:
         raise LookupError(f"Subscription {sub_id} not found")
     for k, v in patch.items():
-        if v is not None:
-            setattr(sub, k, v)
+        setattr(sub, k, v)
     await db.flush()
     return sub
 
