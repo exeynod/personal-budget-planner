@@ -60,10 +60,12 @@ export interface OnboardingCompleteResponse {
 
 export interface SettingsRead {
   cycle_start_day: number;
+  notify_days_before: number;
 }
 
 export interface SettingsUpdatePayload {
-  cycle_start_day: number;
+  cycle_start_day?: number;
+  notify_days_before?: number;
 }
 
 // ---------- Phase 3: Plan Template & Planned Transactions ----------
@@ -199,3 +201,45 @@ export interface BalanceResponse {
  * Type alias for documentation; consumers can use PeriodRead[] directly.
  */
 export type PeriodListResponse = PeriodRead[];
+
+// ---------- Phase 6: Subscriptions ----------
+
+export type SubCycle = 'monthly' | 'yearly';
+
+/** Mirrors `SubscriptionRead` from app/api/schemas/subscriptions.py. */
+export interface SubscriptionRead {
+  id: number;
+  name: string;
+  amount_cents: number;
+  cycle: SubCycle;
+  next_charge_date: string; // ISO date YYYY-MM-DD
+  category_id: number;
+  notify_days_before: number;
+  is_active: boolean;
+  category: CategoryRead;
+}
+
+export interface SubscriptionCreatePayload {
+  name: string;
+  amount_cents: number;
+  cycle: SubCycle;
+  next_charge_date: string;
+  category_id: number;
+  notify_days_before?: number;
+  is_active?: boolean;
+}
+
+export interface SubscriptionUpdatePayload {
+  name?: string;
+  amount_cents?: number;
+  cycle?: SubCycle;
+  next_charge_date?: string;
+  category_id?: number;
+  notify_days_before?: number;
+  is_active?: boolean;
+}
+
+export interface ChargeNowResponse {
+  planned_id: number;
+  next_charge_date: string;
+}
