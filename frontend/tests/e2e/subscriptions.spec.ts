@@ -98,10 +98,7 @@ test('shows subscriptions screen when navigating', async ({ page }) => {
 
   await clickBottomNavTab(page, 'Подписки');
 
-  const content = page.locator('text=Подписок пока нет').or(
-    page.locator('text=Все подписки')
-  );
-  await expect(content).toBeVisible({ timeout: 10000 });
+  await expect(page.locator('text=Подписок пока нет')).toBeVisible({ timeout: 10000 });
 });
 
 test('shows subscriptions with data', async ({ page }) => {
@@ -126,5 +123,5 @@ test('shows subscriptions with data', async ({ page }) => {
 
   await page.goto('/');
   await clickBottomNavTab(page, 'Подписки');
-  await expect(page.locator('text=Netflix')).toBeVisible({ timeout: 10000 });
+  await expect(page.locator('text=Netflix').first()).toBeVisible({ timeout: 10000 });
 });

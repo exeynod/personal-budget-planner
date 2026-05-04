@@ -51,6 +51,29 @@ async function mockApiRich(page: import('@playwright/test').Page) {
         }),
       });
     }
+    if (url.includes('/api/v1/actual/balance')) {
+      return route.fulfill({
+        status: 200, contentType: 'application/json',
+        body: JSON.stringify({
+          period_id: 1,
+          balance_now_cents: 32500,
+          delta_total_cents: -12800,
+          planned_total_expense_cents: 85000,
+          actual_total_expense_cents: 42500,
+          planned_total_income_cents: 150000,
+          actual_total_income_cents: 137200,
+          by_category: [
+            { category_id: 1, name: 'Продукты', kind: 'expense', planned_cents: 20000, actual_cents: 18500 },
+            { category_id: 2, name: 'Транспорт', kind: 'expense', planned_cents: 10000, actual_cents: 9200 },
+            { category_id: 3, name: 'Кафе', kind: 'expense', planned_cents: 15000, actual_cents: 14800 },
+            { category_id: 4, name: 'Одежда', kind: 'expense', planned_cents: 20000, actual_cents: 0 },
+            { category_id: 5, name: 'Здоровье', kind: 'expense', planned_cents: 10000, actual_cents: 0 },
+            { category_id: 6, name: 'Развлечения', kind: 'expense', planned_cents: 10000, actual_cents: 0 },
+            { category_id: 7, name: 'Зарплата', kind: 'income', planned_cents: 150000, actual_cents: 137200 },
+          ],
+        }),
+      });
+    }
     if (url.includes('/api/v1/actual') && !url.includes('balance')) {
       return route.fulfill({
         status: 200, contentType: 'application/json',
@@ -124,8 +147,8 @@ async function mockApiRich(page: import('@playwright/test').Page) {
 }
 
 async function waitForLoad(page: import('@playwright/test').Page) {
-  await expect(page.locator('text=Загрузка…')).not.toBeVisible({ timeout: 8000 });
-  await page.waitForTimeout(400);
+  // Wait for BottomNav to be visible — proves React mounted and user loaded.
+  await expect(page.locator('button[aria-label="Главная"]')).toBeVisible({ timeout: 10000 });
 }
 
 test('audit-01: Home screen - expenses tab', async ({ page }) => {
