@@ -1,0 +1,7 @@
+# cloudflared local ingress config.
+# Overrides the Dashboard-configured service URL so cloudflared can reach
+# Caddy via the Docker internal hostname instead of localhost.
+#
+# Auth is handled by TUNNEL_TOKEN env var — only ingress is defined here.
+ingress:
+  - service: http://caddy:80

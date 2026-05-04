@@ -33,12 +33,17 @@ services:
 
   # cloudflared — connects Cloudflare Edge to Caddy over an outbound tunnel.
   # No inbound ports needed: the tunnel is initiated from the server side.
+  #
+  # Local config file overrides the Dashboard ingress so that cloudflared
+  # routes to `caddy:80` (Docker internal hostname) instead of localhost.
   cloudflared:
     image: cloudflare/cloudflared:latest
     restart: unless-stopped
-    command: tunnel --no-autoupdate run
+    command: tunnel --no-autoupdate --config /etc/cloudflared/config.yml run
     environment:
       TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN}
+    volumes:
+      - ./cloudflared-config.yml:/etc/cloudflared/config.yml:ro
     networks:
       - budget_net
     depends_on:
