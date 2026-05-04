@@ -5,7 +5,7 @@
 #
 # Source: 01-RESEARCH.md Pattern 10.
 
-{env.PUBLIC_DOMAIN} {
+{$PUBLIC_DOMAIN} {
 
 	# T-internal mitigation: Caddy responds 403 to /api/v1/internal/* BEFORE
 	# the reverse-proxy directive runs, so internal endpoints are never
