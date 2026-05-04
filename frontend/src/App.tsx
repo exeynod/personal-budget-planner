@@ -79,7 +79,10 @@ export default function App() {
           )}
           {!subScreen && activeTab === 'home' && (
             <HomeScreen
-              onNavigateToSub={(s) => setSubScreen(s)}
+              onNavigateToSub={(s) => {
+                if (s === 'planned') { setActiveTab('planned'); }
+                else { setSubScreen(s); }
+              }}
               onNavigateToHistory={(categoryId) => {
                 setHistoryFilter(categoryId ?? null);
                 setActiveTab('history');

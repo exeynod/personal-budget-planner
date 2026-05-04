@@ -10,7 +10,7 @@ import { useCurrentPeriod } from '../hooks/useCurrentPeriod';
 import { usePlanned } from '../hooks/usePlanned';
 import { useTemplate } from '../hooks/useTemplate';
 import { useCategories } from '../hooks/useCategories';
-import type { CategoryKind, CategoryRead, PlannedRead } from '../api/types';
+import type { CategoryKind, PlannedRead } from '../api/types';
 import { type PlanRowItem } from '../components/PlanRow';
 import { PlanGroupView, type CategoryEntry } from '../components/PlanGroupView';
 import { BottomSheet } from '../components/BottomSheet';
@@ -68,11 +68,11 @@ declare global {
  * useEffect guarded by `import.meta.env.DEV`; cleared on unmount. Not present
  * in prod builds.
  */
-export function PlannedScreen({ onBack, onNavigateToTemplate }: PlannedScreenProps) {
+export function PlannedScreen({ onBack, onNavigateToTemplate: _onNavigateToTemplate }: PlannedScreenProps) {
   const { period, loading: perLoading, error: perError } = useCurrentPeriod();
   const {
     rows: realRows,
-    loading: rowsLoading,
+    loading: _rowsLoading,
     error: rowsError,
     refetch: refetchPlanned,
   } = usePlanned(period?.id ?? null);
@@ -301,6 +301,15 @@ export function PlannedScreen({ onBack, onNavigateToTemplate }: PlannedScreenPro
           Применить шаблон
         </button>
       )}
+
+      <button
+        type="button"
+        onClick={handleSnapshot}
+        disabled={busy}
+        className={styles.snapshotBtn}
+      >
+        ↻ В шаблон
+      </button>
 
       {rowsError && <div className={styles.error}>Ошибка плана: {rowsError}</div>}
       {mutationError && <div className={styles.error}>Ошибка: {mutationError}</div>}

@@ -6,7 +6,7 @@ import {
 } from '../api/templates';
 import { useTemplate } from '../hooks/useTemplate';
 import { useCategories } from '../hooks/useCategories';
-import type { CategoryKind, CategoryRead, TemplateItemRead } from '../api/types';
+import type { CategoryKind, TemplateItemRead } from '../api/types';
 import { type PlanRowItem } from '../components/PlanRow';
 import { PlanGroupView, type CategoryEntry } from '../components/PlanGroupView';
 import { BottomSheet } from '../components/BottomSheet';

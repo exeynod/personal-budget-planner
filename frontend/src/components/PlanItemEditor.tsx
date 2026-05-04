@@ -74,7 +74,7 @@ export function PlanItemEditor({
   mode,
   initial,
   categories,
-  periodBounds,
+  periodBounds: _periodBounds,
   onSave,
   onDelete,
   onCancel,

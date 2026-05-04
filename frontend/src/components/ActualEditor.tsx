@@ -40,12 +40,6 @@ function todayISO(): string {
   return todayInMoscow();
 }
 
-/** Returns today + 7 days as ISO date string in Moscow TZ (client-side T-04-45 guard). */
-function maxTxDateDefault(): string {
-  const d = new Date(Date.now() + 3 * 60 * 60 * 1000);
-  d.setDate(d.getDate() + 7);
-  return d.toISOString().slice(0, 10);
-}
 
 /** Parses a Russian-localised rubles string ("1 500,50") to integer kopecks. */
 function parseRublesToKopecks(input: string): number | null {
@@ -74,7 +68,7 @@ export function ActualEditor({
   onSave,
   onDelete,
   onCancel,
-  maxTxDate,
+  maxTxDate: _maxTxDate,
 }: ActualEditorProps) {
   const isEdit = onDelete !== undefined;
 
