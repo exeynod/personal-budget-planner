@@ -162,6 +162,7 @@ services:
       OWNER_TG_ID: ${OWNER_TG_ID}
       INTERNAL_TOKEN: ${INTERNAL_TOKEN}
       API_BASE_URL: http://api:8000
+      MINI_APP_URL: ${MINI_APP_URL}
       DEV_MODE: "false"
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       LOG_FORMAT: "json"

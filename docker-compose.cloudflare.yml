@@ -1,0 +1,46 @@
+# TG Budget Planner — Cloudflare Tunnel production override.
+#
+# Use instead of Let's Encrypt when the server is behind Cloudflare:
+#
+#     docker compose -f docker-compose.yml -f docker-compose.cloudflare.yml up -d --build
+#
+# What this override does:
+#   1. Caddy switches to HTTP-only mode (Caddyfile.dev) — Cloudflare terminates TLS.
+#   2. Caddy listens only on 127.0.0.1:8087 — not exposed to the open Internet.
+#   3. cloudflared connects the tunnel: Cloudflare Edge → 127.0.0.1:8087 → Caddy → api/SPA.
+#
+# Prerequisites (done once on the server, see docs/DEPLOY.md §2.2–2.4):
+#   - cloudflared tunnel create tg-budget
+#   - cloudflared tunnel route dns tg-budget <PUBLIC_DOMAIN>
+#   - Set CLOUDFLARE_TUNNEL_TOKEN in .env  (cloudflared tunnel token tg-budget)
+#
+# Trust boundary: ports 80/443 are NOT published by Caddy in this mode.
+# Only cloudflared (inside budget_net) reaches Caddy at 127.0.0.1:8087.
+
+version: "3.9"
+
+services:
+
+  # Override Caddy: HTTP-only on 127.0.0.1:8087, no Let's Encrypt.
+  caddy:
+    ports:
+      - "127.0.0.1:8087:80"   # Cloudflare Tunnel calls this; closed to the Internet
+    volumes:
+      - ./Caddyfile.dev:/etc/caddy/Caddyfile:ro   # HTTP-only, no TLS
+      - caddy_data:/data
+      - caddy_config:/config
+      - frontend_dist:/srv/dist:ro
+
+  # cloudflared — connects Cloudflare Edge to Caddy over an outbound tunnel.
+  # No inbound ports needed: the tunnel is initiated from the server side.
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN}
+    networks:
+      - budget_net
+    depends_on:
+      caddy:
+        condition: service_started
