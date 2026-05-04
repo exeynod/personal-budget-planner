@@ -1,7 +1,7 @@
 .strip {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
-  gap: var(--space-5);
+  gap: var(--space-3);
   padding: var(--space-3) var(--space-4);
   background: var(--color-surface);
   border-bottom: 1px solid var(--color-border-subtle);
@@ -23,9 +23,12 @@
 
 .value {
   font-family: var(--font-mono);
-  font-size: var(--text-md);
+  font-size: var(--text-base);
   font-weight: var(--weight-semibold);
   color: var(--color-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .deltaPositive { color: var(--color-success); }

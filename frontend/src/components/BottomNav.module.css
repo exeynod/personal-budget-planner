@@ -1,0 +1,61 @@
+.nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px));
+  background: var(--color-bg-elevated);
+  border-top: 1px solid var(--color-border);
+  display: flex;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  z-index: 100;
+  box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* On desktop — center the nav within the column */
+@media (min-width: 540px) {
+  .nav {
+    left: 50%;
+    transform: translateX(-50%);
+    width: var(--col-width);
+    border-radius: 0 0 20px 20px;
+  }
+}
+
+.tab {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  color: var(--color-text-muted);
+  padding: 6px 0;
+  font-family: inherit;
+  transition: color 100ms;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.tab:active {
+  opacity: 0.7;
+}
+
+.active {
+  color: var(--color-primary);
+}
+
+.icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.label {
+  font-size: 10px;
+  font-weight: var(--weight-medium);
+  letter-spacing: 0.01em;
+  line-height: 1;
+}

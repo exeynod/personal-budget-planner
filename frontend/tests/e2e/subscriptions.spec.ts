@@ -87,24 +87,16 @@ async function mockApi(page: import('@playwright/test').Page, subscriptions: unk
   });
 }
 
-async function clickQuickNav(page: import('@playwright/test').Page, label: string) {
-  await expect(page.locator('button').filter({ hasText: new RegExp(`^${label}$`) })).toBeVisible({ timeout: 10000 });
-  await page.evaluate((labelText) => {
-    const buttons = document.querySelectorAll('button');
-    for (const btn of buttons) {
-      if (btn.textContent?.trim() === labelText) {
-        btn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-        break;
-      }
-    }
-  }, label);
+async function clickBottomNavTab(page: import('@playwright/test').Page, ariaLabel: string) {
+  await expect(page.locator(`button[aria-label="${ariaLabel}"]`)).toBeVisible({ timeout: 10000 });
+  await page.click(`button[aria-label="${ariaLabel}"]`);
 }
 
 test('shows subscriptions screen when navigating', async ({ page }) => {
   await mockApi(page, []);
   await page.goto('/');
 
-  await clickQuickNav(page, 'Подписки');
+  await clickBottomNavTab(page, 'Подписки');
 
   const content = page.locator('text=Подписок пока нет').or(
     page.locator('text=Все подписки')
@@ -133,6 +125,6 @@ test('shows subscriptions with data', async ({ page }) => {
   ]);
 
   await page.goto('/');
-  await clickQuickNav(page, 'Подписки');
+  await clickBottomNavTab(page, 'Подписки');
   await expect(page.locator('text=Netflix')).toBeVisible({ timeout: 10000 });
 });

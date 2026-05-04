@@ -8,72 +8,103 @@ import { PlannedScreen } from './screens/PlannedScreen';
 import { ActualScreen } from './screens/ActualScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
 import { SubscriptionsScreen } from './screens/SubscriptionsScreen';
+import { MoreScreen } from './screens/MoreScreen';
+import { BottomNav, type TabId } from './components/BottomNav';
 import styles from './App.module.css';
 
-type Screen =
-  | 'onboarding'
-  | 'home'
-  | 'categories'
-  | 'template'
-  | 'planned'
-  | 'actual'
-  | 'settings'
-  | 'subscriptions';
+type SubScreen = 'categories' | 'template' | 'settings';
 
 export default function App() {
   const { user, loading, error, refetch } = useUser();
-  const [overrideScreen, setOverrideScreen] = useState<Screen | null>(null);
+  const [activeTab, setActiveTab] = useState<TabId>('home');
+  const [subScreen, setSubScreen] = useState<SubScreen | null>(null);
+  const [historyFilter, setHistoryFilter] = useState<number | null>(null);
 
   if (loading && !user) {
-    return <div className={styles.loadingRoot}>Загрузка…</div>;
+    return (
+      <div className={styles.appWrapper}>
+        <div className={styles.loadingRoot}>Загрузка…</div>
+      </div>
+    );
   }
   if (error || !user) {
     return (
-      <div className={styles.errorRoot}>
-        Не удалось загрузить пользователя.
-        <br />
-        {error && <code>{error}</code>}
+      <div className={styles.appWrapper}>
+        <div className={styles.errorRoot}>
+          Не удалось загрузить пользователя.
+          <br />
+          {error && <code>{error}</code>}
+        </div>
       </div>
     );
   }
 
   const isOnboarded = user.onboarded_at !== null;
-  const screen: Screen = overrideScreen ?? (isOnboarded ? 'home' : 'onboarding');
 
-  if (screen === 'onboarding') {
+  if (!isOnboarded) {
     return (
-      <OnboardingScreen
-        user={user}
-        onRefreshUser={refetch}
-        onComplete={() => {
-          setOverrideScreen('home');
-          void refetch(); // sync onboarded_at
-        }}
-      />
+      <div className={styles.appWrapper}>
+        <div className={styles.appRoot}>
+          <OnboardingScreen
+            user={user}
+            onRefreshUser={refetch}
+            onComplete={() => {
+              setActiveTab('home');
+              void refetch();
+            }}
+          />
+        </div>
+      </div>
     );
   }
-  if (screen === 'home') {
-    return <HomeScreen onNavigate={(s) => setOverrideScreen(s)} />;
-  }
-  if (screen === 'categories') {
-    return <CategoriesScreen onBack={() => setOverrideScreen('home')} />;
-  }
-  if (screen === 'template') {
-    return <TemplateScreen onBack={() => setOverrideScreen('home')} />;
-  }
-  if (screen === 'planned') {
-    return (
-      <PlannedScreen
-        onBack={() => setOverrideScreen('home')}
-        onNavigateToTemplate={() => setOverrideScreen('template')}
-      />
-    );
-  }
-  if (screen === 'actual') {
-    return <ActualScreen onBack={() => setOverrideScreen('home')} />;
-  }
-  if (screen === 'subscriptions') {
-    return <SubscriptionsScreen onBack={() => setOverrideScreen('home')} />;
-  }
-  return <SettingsScreen onBack={() => setOverrideScreen('home')} />;
+
+  const handleTabChange = (tab: TabId) => {
+    setActiveTab(tab);
+    setSubScreen(null);
+    if (tab !== 'history') setHistoryFilter(null);
+  };
+
+  return (
+    <div className={styles.appWrapper}>
+      <div className={styles.appRoot}>
+        <div className={styles.screenContainer}>
+          {subScreen === 'categories' && (
+            <CategoriesScreen onBack={() => setSubScreen(null)} />
+          )}
+          {subScreen === 'template' && (
+            <TemplateScreen onBack={() => setSubScreen(null)} />
+          )}
+          {subScreen === 'settings' && (
+            <SettingsScreen onBack={() => setSubScreen(null)} />
+          )}
+          {!subScreen && activeTab === 'home' && (
+            <HomeScreen
+              onNavigateToSub={(s) => setSubScreen(s)}
+              onNavigateToHistory={(categoryId) => {
+                setHistoryFilter(categoryId ?? null);
+                setActiveTab('history');
+              }}
+            />
+          )}
+          {!subScreen && activeTab === 'history' && (
+            <ActualScreen
+              categoryFilter={historyFilter}
+              onClearFilter={() => setHistoryFilter(null)}
+            />
+          )}
+          {!subScreen && activeTab === 'planned' && (
+            <PlannedScreen
+              onBack={() => handleTabChange('home')}
+              onNavigateToTemplate={() => setSubScreen('template')}
+            />
+          )}
+          {!subScreen && activeTab === 'subscriptions' && <SubscriptionsScreen />}
+          {!subScreen && activeTab === 'more' && (
+            <MoreScreen onNavigate={(s) => setSubScreen(s)} />
+          )}
+        </div>
+        <BottomNav activeTab={activeTab} onTabChange={handleTabChange} />
+      </div>
+    </div>
+  );
 }

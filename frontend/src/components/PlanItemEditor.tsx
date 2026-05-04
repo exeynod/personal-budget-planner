@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import type { CategoryRead } from '../api/types';
+import { useDateInput } from '../hooks/useDateInput';
 import styles from './PlanItemEditor.module.css';
 
 export type EditorMode =
@@ -91,7 +92,7 @@ export function PlanItemEditor({
       ? String(initial.day_of_period)
       : '',
   );
-  const [plannedDate, setPlannedDate] = useState<string>(initial?.planned_date ?? '');
+  const { iso: plannedDate, display: plannedDateDisplay, handleChange: handlePlannedDateChange } = useDateInput(initial?.planned_date ?? '');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -223,11 +224,11 @@ export function PlanItemEditor({
         <label className={styles.field}>
           <span className={styles.label}>Дата (опц.)</span>
           <input
-            type="date"
-            value={plannedDate}
-            min={periodBounds?.start}
-            max={periodBounds?.end}
-            onChange={(e) => setPlannedDate(e.target.value)}
+            type="text"
+            inputMode="numeric"
+            value={plannedDateDisplay}
+            onChange={(e) => handlePlannedDateChange(e.target.value)}
+            placeholder="ДД.ММ.ГГГГ (опц.)"
             disabled={submitting}
             className={styles.input}
           />

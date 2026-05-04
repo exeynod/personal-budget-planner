@@ -90,7 +90,7 @@ class Category(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     name: Mapped[str] = mapped_column(Text, nullable=False)
     kind: Mapped[CategoryKind] = mapped_column(
-        PgEnum(CategoryKind, name="categorykind", create_type=True), nullable=False
+        PgEnum(CategoryKind, name="categorykind", create_type=False), nullable=False
     )
     is_archived: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     sort_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
@@ -110,7 +110,7 @@ class BudgetPeriod(Base):
     )
     ending_balance_cents: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True)
     status: Mapped[PeriodStatus] = mapped_column(
-        PgEnum(PeriodStatus, name="periodstatus", create_type=True),
+        PgEnum(PeriodStatus, name="periodstatus", create_type=False),
         default=PeriodStatus.active,
         nullable=False,
     )
@@ -146,7 +146,7 @@ class Subscription(Base):
     name: Mapped[str] = mapped_column(Text, nullable=False)
     amount_cents: Mapped[int] = mapped_column(BigInteger, nullable=False)
     cycle: Mapped[SubCycle] = mapped_column(
-        PgEnum(SubCycle, name="subcycle", create_type=True), nullable=False
+        PgEnum(SubCycle, name="subcycle", create_type=False), nullable=False
     )
     next_charge_date: Mapped[date] = mapped_column(Date, nullable=False)
     category_id: Mapped[int] = mapped_column(ForeignKey("category.id"), nullable=False)
@@ -173,7 +173,7 @@ class PlannedTransaction(Base):
     category_id: Mapped[int] = mapped_column(ForeignKey("category.id"), nullable=False)
     planned_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
     source: Mapped[PlanSource] = mapped_column(
-        PgEnum(PlanSource, name="plansource", create_type=True), nullable=False
+        PgEnum(PlanSource, name="plansource", create_type=False), nullable=False
     )
     subscription_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("subscription.id"), nullable=True
@@ -206,7 +206,7 @@ class ActualTransaction(Base):
     category_id: Mapped[int] = mapped_column(ForeignKey("category.id"), nullable=False)
     tx_date: Mapped[date] = mapped_column(Date, nullable=False)
     source: Mapped[ActualSource] = mapped_column(
-        PgEnum(ActualSource, name="actualsource", create_type=True), nullable=False
+        PgEnum(ActualSource, name="actualsource", create_type=False), nullable=False
     )
     created_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True), server_default=func.now(), nullable=False

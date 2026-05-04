@@ -9,7 +9,11 @@ import { useCategories } from '../hooks/useCategories';
 import { useCurrentPeriod } from '../hooks/useCurrentPeriod';
 import styles from './ActualScreen.module.css';
 
-export interface ActualScreenProps { onBack: () => void; }
+export interface ActualScreenProps {
+  onBack?: () => void;
+  categoryFilter?: number | null;
+  onClearFilter?: () => void;
+}
 
 interface SheetState {
   open: boolean;
@@ -37,7 +41,7 @@ function formatAmount(cents: number, kind: CategoryKind): string {
   return kind === 'income' ? `+${rubles} ₽` : `${rubles} ₽`;
 }
 
-export function ActualScreen({ onBack }: ActualScreenProps): JSX.Element {
+export function ActualScreen({ onBack, categoryFilter, onClearFilter }: ActualScreenProps): JSX.Element {
   const { period, loading: perLoading, error: perError } = useCurrentPeriod();
   const { rows, loading, error, refetch } = useActual(period?.id ?? null);
   const { categories } = useCategories(false);
@@ -59,6 +63,14 @@ export function ActualScreen({ onBack }: ActualScreenProps): JSX.Element {
   const periodLabel = period
     ? `${new Date(period.period_start).toLocaleDateString('ru-RU', { day: '2-digit', month: 'short' })} — ${new Date(period.period_end).toLocaleDateString('ru-RU', { day: '2-digit', month: 'short' })}`
     : '';
+
+  const filteredRows = categoryFilter != null
+    ? rows.filter((r) => r.category_id === categoryFilter)
+    : rows;
+
+  const filterCategoryName = categoryFilter != null
+    ? (categories.find((c) => c.id === categoryFilter)?.name ?? '—')
+    : null;
 
   const handleSave = async (data: {
     kind: CategoryKind;
@@ -104,17 +116,30 @@ export function ActualScreen({ onBack }: ActualScreenProps): JSX.Element {
     return <div className={styles.error}>Ошибка периода: {perError}</div>;
   }
 
-  const groups = groupByDate(rows);
+  const groups = groupByDate(filteredRows);
 
   return (
     <div className={styles.root}>
       <header className={styles.header}>
-        <button type="button" onClick={onBack} className={styles.backBtn} aria-label="Назад">←</button>
+        {onBack && (
+          <button type="button" onClick={onBack} className={styles.backBtn} aria-label="Назад">←</button>
+        )}
         <div className={styles.titleBlock}>
-          <div className={styles.title}>Факт периода</div>
+          <div className={styles.title}>История</div>
           {periodLabel && <div className={styles.subtitle}>{periodLabel}</div>}
         </div>
       </header>
+
+      {filterCategoryName && (
+        <div className={styles.filterBadge}>
+          <span className={styles.filterLabel}>Категория: {filterCategoryName}</span>
+          {onClearFilter && (
+            <button type="button" className={styles.filterClear} onClick={onClearFilter} aria-label="Сбросить фильтр">
+              ✕
+            </button>
+          )}
+        </div>
+      )}
 
       {error && <div className={styles.error}>Ошибка загрузки: {error}</div>}
       {mutationError && <div className={styles.error}>Ошибка: {mutationError}</div>}
@@ -122,7 +147,11 @@ export function ActualScreen({ onBack }: ActualScreenProps): JSX.Element {
       {loading && <div className={styles.muted}>Загрузка…</div>}
 
       {!loading && groups.length === 0 && (
-        <div className={styles.empty}>Пока нет факт-трат. Нажмите + чтобы добавить.</div>
+        <div className={styles.empty}>
+          {filterCategoryName
+            ? `Нет транзакций в категории «${filterCategoryName}»`
+            : 'Пока нет транзакций. Нажмите + чтобы добавить.'}
+        </div>
       )}
 
       {groups.map((g) => (

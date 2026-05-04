@@ -37,30 +37,30 @@ export function MainButton({ text, enabled, onClick }: MainButtonProps) {
     return null;
   }
 
-  // Browser fallback (dev mode, opening Mini App URL directly in a browser).
+  // Browser fallback (dev mode): sticky button at the bottom of the page.
   return (
-    <button
-      type="button"
-      onClick={enabled ? onClick : undefined}
-      disabled={!enabled}
-      style={{
-        position: 'fixed',
-        left: 16,
-        right: 16,
-        bottom: 28,
-        height: 'var(--main-button-height, 54px)',
-        background: 'var(--color-primary)',
-        color: '#fff',
-        border: 0,
-        borderRadius: 'var(--radius-md, 14px)',
-        fontSize: 16,
-        fontWeight: 600,
-        cursor: enabled ? 'pointer' : 'not-allowed',
-        opacity: enabled ? 1 : 0.5,
-        boxShadow: '0 6px 18px rgba(78,164,255,0.35)',
-      }}
-    >
-      {text}
-    </button>
+    <div style={{ padding: '16px 0 8px' }}>
+      <button
+        type="button"
+        onClick={enabled ? onClick : undefined}
+        disabled={!enabled}
+        style={{
+          display: 'block',
+          width: '100%',
+          height: 'var(--main-button-height, 54px)',
+          background: 'var(--color-primary)',
+          color: '#fff',
+          border: 0,
+          borderRadius: 'var(--radius-md, 14px)',
+          fontSize: 16,
+          fontWeight: 600,
+          cursor: enabled ? 'pointer' : 'not-allowed',
+          opacity: enabled ? 1 : 0.5,
+          boxShadow: '0 6px 18px rgba(78,164,255,0.35)',
+        }}
+      >
+        {text}
+      </button>
+    </div>
   );
 }

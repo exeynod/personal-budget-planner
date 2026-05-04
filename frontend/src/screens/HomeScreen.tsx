@@ -16,26 +16,14 @@ import { useDashboard } from '../hooks/useDashboard';
 import { usePeriods } from '../hooks/usePeriods';
 import styles from './HomeScreen.module.css';
 
+type SubScreen = 'categories' | 'template' | 'planned' | 'settings';
+
 export interface HomeScreenProps {
-  onNavigate: (
-    screen: 'categories' | 'template' | 'planned' | 'actual' | 'settings' | 'subscriptions',
-  ) => void;
+  onNavigateToSub: (screen: SubScreen) => void;
+  onNavigateToHistory: (categoryId?: number) => void;
 }
 
-/**
- * HomeScreen — Dashboard (Phase 5, DSH-01..06).
- *
- * Layout (top→bottom):
- *   HeroCard → PeriodSwitcher → TabBar (sticky) → AggrStrip
- *   → DashboardCategoryRow list  OR  EmptyState (DSH-04)
- *   → Fab (active current only)  OR  MainButton (closed read-only DSH-05)
- *   → BottomSheet (FAB-triggered ActualEditor)
- *
- * Period selection (DSH-06): selectedPeriodId starts null, syncs with
- * useCurrentPeriod once it loads. PeriodSwitcher mutates selectedPeriodId;
- * useDashboard re-fetches automatically.
- */
-export function HomeScreen({ onNavigate }: HomeScreenProps) {
+export function HomeScreen({ onNavigateToSub, onNavigateToHistory }: HomeScreenProps) {
   const { period: currentPeriod, loading: curLoading } = useCurrentPeriod();
   const { periods } = usePeriods();
   const { categories } = useCategories(false);
@@ -47,14 +35,12 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
   const [busy, setBusy] = useState(false);
   const [mutationError, setMutationError] = useState<string | null>(null);
 
-  // Sync selectedPeriodId to current period once it resolves.
   useEffect(() => {
     if (selectedPeriodId === null && currentPeriod) {
       setSelectedPeriodId(currentPeriod.id);
     }
   }, [currentPeriod, selectedPeriodId]);
 
-  // Resolve selectedPeriod object (prefer periods list; fallback to currentPeriod).
   const selectedPeriod =
     periods.find((p) => p.id === selectedPeriodId) ?? currentPeriod;
 
@@ -79,12 +65,10 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
     window.setTimeout(() => setToast(null), 2200);
   };
 
-  // Empty state: nothing planned at all (no template applied, no manual rows).
   const isEmpty =
     balance !== null &&
     balance.by_category.filter((r) => r.planned_cents > 0).length === 0;
 
-  // Filtered + sorted rows for active tab.
   const visibleRows = useMemo(() => {
     if (!balance) return [];
     const rowsByCatId = new Map(
@@ -96,7 +80,6 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
       .filter((c) => c.kind === activeTab && rowsByCatId.has(c.id))
       .map((c) => rowsByCatId.get(c.id)!)
       .filter((r) => r !== undefined);
-    // Append any orphan rows (category not in useCategories — shouldn't happen).
     const knownIds = new Set(sorted.map((r) => r.category_id));
     const orphans = balance.by_category
       .filter((r) => r.kind === activeTab && !knownIds.has(r.category_id));
@@ -124,7 +107,7 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
     }
   };
 
-  const handleAddManual = () => onNavigate('planned');
+  const handleAddManual = () => onNavigateToSub('planned');
 
   const maxTxDate = (() => {
     const d = new Date();
@@ -145,7 +128,6 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
     await refetchDashboard();
   };
 
-  // Loading / no period guard.
   if (curLoading) {
     return <div className={styles.muted}>Загрузка периода…</div>;
   }
@@ -164,24 +146,6 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
           <HeroCard balance={balance} period={selectedPeriod} isClosed={isClosed} />
         </div>
       )}
-
-      {/* Quick nav bar — Subscriptions + Settings */}
-      <div className={styles.quickNav}>
-        <button
-          type="button"
-          className={styles.quickNavBtn}
-          onClick={() => onNavigate('subscriptions')}
-        >
-          Подписки
-        </button>
-        <button
-          type="button"
-          className={styles.quickNavBtn}
-          onClick={() => onNavigate('settings')}
-        >
-          Настройки
-        </button>
-      </div>
 
       {periods.length > 0 && selectedPeriodId !== null && (
         <PeriodSwitcher
@@ -250,7 +214,11 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
       {!balLoading && balance && !isEmpty && (
         <div className={styles.list}>
           {visibleRows.map((row) => (
-            <DashboardCategoryRow key={row.category_id} row={row} />
+            <DashboardCategoryRow
+              key={row.category_id}
+              row={row}
+              onClick={() => onNavigateToHistory(row.category_id)}
+            />
           ))}
           {visibleRows.length === 0 && (
             <div className={styles.muted}>
@@ -262,7 +230,6 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
 
       {toast && <div className={styles.toast}>{toast}</div>}
 
-      {/* Active current period only — quick-add via FAB. */}
       {isActiveCurrent && !isClosed && (
         <Fab
           onClick={() => setSheetOpen(true)}
@@ -270,7 +237,6 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
         />
       )}
 
-      {/* Closed period — disabled MainButton placeholder. */}
       {isClosed && (
         <MainButton
           text="Период закрыт"

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { CategoryKind, CategoryRead } from '../api/types';
+import { useDateInput } from '../hooks/useDateInput';
 import styles from './ActualEditor.module.css';
 
 export interface ActualEditorInitial {
@@ -83,7 +84,7 @@ export function ActualEditor({
     formatKopecksToRubles(initial?.amount_cents),
   );
   const [description, setDescription] = useState<string>(initial?.description ?? '');
-  const [txDate, setTxDate] = useState<string>(initial?.tx_date ?? todayISO());
+  const { iso: txDate, display: txDateDisplay, handleChange: handleTxDateChange } = useDateInput(initial?.tx_date ?? todayISO());
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -217,10 +218,11 @@ export function ActualEditor({
       <label className={styles.field}>
         <span className={styles.label}>Дата</span>
         <input
-          type="date"
-          value={txDate}
-          max={maxTxDate ?? maxTxDateDefault()}
-          onChange={(e) => setTxDate(e.target.value)}
+          type="text"
+          inputMode="numeric"
+          value={txDateDisplay}
+          onChange={(e) => handleTxDateChange(e.target.value)}
+          placeholder="ДД.ММ.ГГГГ"
           disabled={submitting}
           className={styles.input}
         />

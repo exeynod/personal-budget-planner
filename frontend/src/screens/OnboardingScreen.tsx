@@ -2,7 +2,6 @@ import { useCallback, useEffect, useState } from 'react';
 import { apiFetch, openTelegramLink, ApiError } from '../api/client';
 import type { OnboardingCompleteRequest, MeResponse } from '../api/types';
 import { SectionCard } from '../components/SectionCard';
-import { Stepper } from '../components/Stepper';
 import { MainButton } from '../components/MainButton';
 import styles from './OnboardingScreen.module.css';
 
@@ -31,7 +30,6 @@ export function OnboardingScreen({ user, onRefreshUser, onComplete }: Onboarding
 
   const balanceCents = parseRubles(balanceStr);
   const isValid =
-    user.chat_id_known &&
     balanceCents !== null &&
     cycleDay >= 1 &&
     cycleDay <= 28 &&
@@ -136,7 +134,17 @@ export function OnboardingScreen({ user, onRefreshUser, onComplete }: Onboarding
 
       {/* Section 3: cycle day */}
       <SectionCard number={3} title="День начала периода">
-        <Stepper value={cycleDay} min={1} max={28} onChange={setCycleDay} wrap />
+        <div className={styles.field}>
+          <select
+            className={styles.cycleDaySelect}
+            value={cycleDay}
+            onChange={(e) => setCycleDay(Number(e.target.value))}
+          >
+            {Array.from({ length: 28 }, (_, i) => i + 1).map((d) => (
+              <option key={d} value={d}>{d}</option>
+            ))}
+          </select>
+        </div>
         <div className={styles.fieldHint}>
           Например, 5 = период с 5-го одного месяца по 4-е следующего. Можно поменять в Настройках.
         </div>
@@ -145,12 +153,10 @@ export function OnboardingScreen({ user, onRefreshUser, onComplete }: Onboarding
       {/* Section 4: seed categories */}
       <SectionCard number={4} title="Стартовые категории">
         <label className={styles.checkboxRow}>
-          <input
-            type="checkbox"
-            checked={seedCats}
-            onChange={(e) => setSeedCats(e.target.checked)}
-          />
-          <span>Засеять 14 стартовых категорий (Продукты, Дом, Машина и т.д.)</span>
+          <span className={`${styles.checkbox} ${seedCats ? styles.checkboxChecked : ''}`} onClick={() => setSeedCats(v => !v)}>
+            {seedCats && <span className={styles.checkmark}>✓</span>}
+          </span>
+          <span>Добавить 14 готовых категорий (Продукты, Дом, Машина и т.д.)</span>
         </label>
         <div className={styles.fieldHint}>
           Можно отредактировать или добавить свои в разделе «Категории».

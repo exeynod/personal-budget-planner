@@ -3,9 +3,11 @@
   flex-direction: column;
   gap: var(--space-4);
   padding: var(--space-4);
-  padding-bottom: calc(var(--main-button-height) + var(--safe-bottom) + var(--space-4));
-  min-height: 100vh;
+  padding-bottom: var(--space-12);
+  min-height: 100dvh;
   background: var(--color-bg);
+  width: 100%;
+  box-sizing: border-box;
 }
 
 /* ── Header ── */
@@ -68,53 +70,51 @@
   color: var(--color-text-muted);
 }
 
-/* ── Timeline ── */
-.timeline {
-  position: relative;
-  height: 40px;
-  margin: var(--space-2) var(--space-2);
+/* ── Upcoming ── */
+.upcomingList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-1) 0;
 }
 
-.timelineLine {
-  position: absolute;
-  top: 50%;
-  left: 0;
-  right: 0;
-  height: 2px;
-  background: var(--color-border);
-  transform: translateY(-50%);
+.upcomingEmpty {
+  font-size: var(--text-sm);
+  color: var(--color-text-dim);
+  padding: var(--space-2) 0;
 }
 
-.todayLine {
-  position: absolute;
-  top: 4px;
-  bottom: 4px;
-  width: 2px;
-  background: var(--color-primary);
-  transform: translateX(-50%);
+.upcomingRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
 }
 
-.dot {
-  position: absolute;
-  top: 50%;
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  transform: translate(-50%, -50%);
-  border: 2px solid var(--color-bg-elevated);
-  cursor: default;
+.upcomingDate {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  min-width: 48px;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  text-align: center;
+  color: var(--color-text-muted);
+  background: var(--color-surface-2);
 }
 
-.dot.danger {
-  background: var(--color-danger);
+.upcomingName {
+  flex: 1;
+  font-size: var(--text-sm);
+  color: var(--color-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.dot.warn {
-  background: var(--color-warn);
-}
-
-.dot.neutral {
-  background: var(--color-primary);
+.upcomingAmount {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  color: var(--color-text-muted);
+  white-space: nowrap;
 }
 
 /* ── Subscription cards ── */
@@ -200,21 +200,8 @@
   font-weight: var(--weight-medium);
   padding: 2px 8px;
   border-radius: var(--radius-full);
-}
-
-.pill.danger {
-  background: var(--color-danger-soft);
-  color: var(--color-danger);
-}
-
-.pill.warn {
-  background: rgba(255, 181, 71, 0.15);
-  color: var(--color-warn);
-}
-
-.pill.neutral {
-  background: var(--color-primary-soft);
-  color: var(--color-primary);
+  background: var(--color-surface-2);
+  color: var(--color-text-muted);
 }
 
 /* ── Empty state ── */

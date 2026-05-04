@@ -36,6 +36,8 @@ export function AggrStrip({ balance, kind }: AggrStripProps) {
         ? styles.deltaNegative
         : styles.deltaZero;
 
+  const deltaLabel = kind === 'expense' ? 'Остаток' : 'Сверх';
+
   return (
     <div className={styles.strip}>
       <div className={styles.col}>
@@ -47,7 +49,7 @@ export function AggrStrip({ balance, kind }: AggrStripProps) {
         <div className={styles.value}>{formatKopecks(actual)} ₽</div>
       </div>
       <div className={styles.col}>
-        <div className={styles.label}>Δ</div>
+        <div className={styles.label}>{deltaLabel}</div>
         <div className={`${styles.value} ${deltaCls}`}>
           {formatKopecksWithSign(delta)} ₽
         </div>

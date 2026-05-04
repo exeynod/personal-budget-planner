@@ -1,8 +1,7 @@
 .root {
-  max-width: 375px;
-  margin: 0 auto;
-  padding: 12px 16px 120px; /* bottom padding for MainButton */
-  min-height: 100vh;
+
+
+  padding: 12px 16px 24px;
   background: var(--color-bg);
   color: var(--color-text);
   font-family: var(--font-sans);
@@ -79,6 +78,23 @@
   font-variant-numeric: tabular-nums;
   margin-bottom: 6px;
 }
+.cycleDaySelect {
+  width: 100%;
+  background: transparent;
+  border: 0;
+  color: var(--color-text);
+  font-size: 22px;
+  font-weight: 700;
+  font-family: inherit;
+  outline: none;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+}
+.cycleDaySelect option {
+  background: var(--color-bg-elevated);
+  color: var(--color-text);
+}
 .fieldHint {
   font-size: 11px;
   color: var(--color-text-dim);
@@ -86,11 +102,34 @@
 }
 .checkboxRow {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 10px;
-  font-size: 14px;
+  font-size: 13px;
   color: var(--color-text);
   cursor: pointer;
+  line-height: 1.4;
+}
+.checkbox {
+  flex-shrink: 0;
+  align-self: flex-start;
+  margin-top: 1px;
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
+  border: 2px solid var(--color-text-dim);
+  display: grid;
+  place-items: center;
+  transition: border-color 0.15s, background 0.15s;
+}
+.checkboxChecked {
+  border-color: var(--color-primary);
+  background: var(--color-primary);
+}
+.checkmark {
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
 }
 .errorBanner {
   margin: 12px 0;

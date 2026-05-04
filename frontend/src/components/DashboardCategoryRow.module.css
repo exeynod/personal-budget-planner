@@ -10,8 +10,22 @@
   margin-bottom: var(--space-2);
 }
 
-.row:hover {
+.rowButton {
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.rowButton:active {
   background: var(--color-surface-2);
+}
+
+.rowButton .name::after {
+  content: ' ›';
+  color: var(--color-text-dim);
+  font-size: var(--text-sm);
 }
 
 .row.warn {

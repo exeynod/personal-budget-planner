@@ -1,11 +1,28 @@
 .fab {
-  position: fixed; bottom: calc(24px + var(--safe-bottom, 0px)); right: 24px;
-  width: 56px; height: 56px; border-radius: 50%;
-  background: var(--color-accent, var(--color-primary)); color: #fff;
-  border: 0; box-shadow: var(--shadow-lg, 0 4px 16px rgba(0,0,0,.4));
-  font-size: 28px; line-height: 1; cursor: pointer; z-index: 50;
-  display: flex; align-items: center; justify-content: center;
-  transition: transform 100ms ease-out;
+  position: fixed;
+  bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px) + 16px);
+  right: 24px;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  color: #fff;
+  border: 0;
+  box-shadow: 0 4px 20px rgba(78, 164, 255, 0.4);
+  font-size: 28px;
+  line-height: 1;
+  cursor: pointer;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 100ms ease-out, box-shadow 100ms;
 }
-.fab:hover { transform: scale(1.05); }
+.fab:hover { transform: scale(1.05); box-shadow: 0 6px 28px rgba(78, 164, 255, 0.5); }
 .fab:active { transform: scale(0.95); }
+
+@media (min-width: 540px) {
+  .fab {
+    right: calc(50vw - calc(var(--col-width) / 2) + 24px);
+  }
+}

@@ -20,12 +20,6 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    # ---- Enums (raw SQL for async-alembic compatibility) ----
-    op.execute("DO $$ BEGIN CREATE TYPE categorykind AS ENUM ('expense', 'income'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;")
-    op.execute("DO $$ BEGIN CREATE TYPE periodstatus AS ENUM ('active', 'closed'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;")
-    op.execute("DO $$ BEGIN CREATE TYPE plansource AS ENUM ('template', 'manual', 'subscription_auto'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;")
-    op.execute("DO $$ BEGIN CREATE TYPE actualsource AS ENUM ('mini_app', 'bot'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;")
-    op.execute("DO $$ BEGIN CREATE TYPE subcycle AS ENUM ('monthly', 'yearly'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;")
 
     # ---- app_user ----
     op.create_table(
@@ -60,7 +54,7 @@ def upgrade() -> None:
                 "expense",
                 "income",
                 name="categorykind",
-                create_type=False,
+                create_type=True,
             ),
             nullable=False,
         ),
@@ -93,7 +87,7 @@ def upgrade() -> None:
         sa.Column(
             "cycle",
             sa.Enum(
-                "monthly", "yearly", name="subcycle", create_type=False
+                "monthly", "yearly", name="subcycle", create_type=True
             ),
             nullable=False,
         ),
@@ -139,7 +133,7 @@ def upgrade() -> None:
         sa.Column(
             "status",
             sa.Enum(
-                "active", "closed", name="periodstatus", create_type=False
+                "active", "closed", name="periodstatus", create_type=True
             ),
             server_default="active",
             nullable=False,
@@ -205,7 +199,7 @@ def upgrade() -> None:
                 "manual",
                 "subscription_auto",
                 name="plansource",
-                create_type=False,
+                create_type=True,
             ),
             nullable=False,
         ),
@@ -263,7 +257,7 @@ def upgrade() -> None:
                 "mini_app",
                 "bot",
                 name="actualsource",
-                create_type=False,
+                create_type=True,
             ),
             nullable=False,
         ),

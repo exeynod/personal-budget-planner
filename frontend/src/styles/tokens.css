@@ -28,8 +28,8 @@
   --gradient-hero-glow: radial-gradient(circle at 20% 0%, rgba(78,164,255,0.25), transparent 60%);
 
   /* Typography */
-  --font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', 'Segoe UI', system-ui, sans-serif;
-  --font-mono: 'SF Mono', 'JetBrains Mono', 'Menlo', monospace;
+  --font-sans: 'Inter', -apple-system, 'Segoe UI', system-ui, sans-serif;
+  --font-mono: 'Inter', -apple-system, system-ui, sans-serif;
 
   --text-xs: 11px;
   --text-sm: 13px;
@@ -71,9 +71,27 @@
 
   /* Layout */
   --tg-viewport: 375px;
+  --col-width: 420px;
   --safe-bottom: 28px;
   --main-button-height: 54px;
+  --bottom-nav-height: 56px;
 }
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html, body {
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  color: var(--color-text);
+  background: var(--color-bg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  margin: 0;
+  padding: 0;
+}
+
 
 /* Light theme override (опционально, переключатель в toolbar) */
 [data-theme="light"] {

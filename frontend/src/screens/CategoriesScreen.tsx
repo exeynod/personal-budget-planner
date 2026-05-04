@@ -4,6 +4,7 @@ import { useCategories } from '../hooks/useCategories';
 import type { CategoryKind, CategoryRead } from '../api/types';
 import { CategoryRow } from '../components/CategoryRow';
 import { NewCategoryForm } from '../components/NewCategoryForm';
+import { ScreenHeader } from '../components/ScreenHeader';
 import styles from './CategoriesScreen.module.css';
 
 export interface CategoriesScreenProps {
@@ -73,24 +74,19 @@ export function CategoriesScreen({ onBack }: CategoriesScreenProps) {
 
   return (
     <div className={styles.root}>
-      <header className={styles.header}>
-        <button
-          type="button"
-          onClick={onBack}
-          className={styles.backBtn}
-          aria-label="Назад"
-        >
-          ←
-        </button>
-        <div className={styles.title}>Категории</div>
-        <button
-          type="button"
-          onClick={() => setShowNewForm((s) => !s)}
-          className={styles.addBtn}
-        >
-          {showNewForm ? '×' : '+ Новая'}
-        </button>
-      </header>
+      <ScreenHeader
+        title="Категории"
+        onBack={onBack}
+        rightAction={
+          <button
+            type="button"
+            onClick={() => setShowNewForm((s) => !s)}
+            className={styles.addBtn}
+          >
+            {showNewForm ? '×' : '+ Новая'}
+          </button>
+        }
+      />
 
       {showNewForm && (
         <NewCategoryForm onCreate={handleCreate} onCancel={() => setShowNewForm(false)} />

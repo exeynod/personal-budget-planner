@@ -1,6 +1,6 @@
 .root {
-  max-width: 375px;
-  margin: 0 auto;
+
+
   min-height: 100vh;
   padding: var(--space-4) var(--space-4) var(--space-12);
   background: var(--color-bg);
@@ -41,42 +41,35 @@
   margin-top: 2px;
 }
 
-.actionsRow {
-  display: flex;
-  gap: var(--space-2);
-  margin-bottom: var(--space-4);
-  flex-wrap: wrap;
-}
-
-.primaryAction {
-  background: var(--color-primary);
-  color: #fff;
+.addBtn {
+  background: transparent;
+  color: var(--color-primary);
   border: 0;
-  border-radius: var(--radius-md);
-  padding: 10px 16px;
-  font-weight: var(--weight-semibold);
+  font-size: var(--text-md);
   cursor: pointer;
-  flex: 1;
-  min-width: 0;
+  padding: 4px 8px;
   font-family: inherit;
-  font-size: var(--text-base);
 }
-.primaryAction:disabled {
-  opacity: 0.5;
+.addBtn:disabled {
+  opacity: 0.4;
   cursor: not-allowed;
 }
 
-.secondaryAction {
-  background: transparent;
-  color: var(--color-text-muted);
-  border: 1px solid var(--color-border);
+
+.applyTemplate {
+  width: 100%;
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+  border: 0;
   border-radius: var(--radius-md);
   padding: 10px 16px;
-  cursor: pointer;
+  font-weight: var(--weight-medium);
   font-family: inherit;
   font-size: var(--text-base);
+  cursor: pointer;
+  margin-bottom: var(--space-4);
 }
-.secondaryAction:disabled {
+.applyTemplate:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }

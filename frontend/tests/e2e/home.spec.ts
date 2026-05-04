@@ -95,15 +95,17 @@ test('loads home screen with tab bar', async ({ page }) => {
   await expect(tabBar).toBeVisible({ timeout: 5000 });
 });
 
-test('home screen shows navigation buttons', async ({ page }) => {
+test('home screen shows bottom navigation tabs', async ({ page }) => {
   await mockApi(page);
   await page.goto('/');
 
   await expect(page.locator('text=Загрузка…')).not.toBeVisible({ timeout: 5000 });
 
-  // Quick nav buttons should be present
+  // Bottom nav tabs should be present
+  await expect(page.locator('text=Главная')).toBeVisible({ timeout: 5000 });
+  await expect(page.locator('text=История')).toBeVisible({ timeout: 5000 });
   await expect(page.locator('text=Подписки')).toBeVisible({ timeout: 5000 });
-  await expect(page.locator('text=Настройки')).toBeVisible({ timeout: 5000 });
+  await expect(page.locator('text=Ещё')).toBeVisible({ timeout: 5000 });
 });
 
 test('home screen does not show error state when API responds', async ({ page }) => {

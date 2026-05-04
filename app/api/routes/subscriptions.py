@@ -14,6 +14,7 @@ Threat mitigations (threat_model 06-03):
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_current_user, get_db
@@ -23,6 +24,7 @@ from app.api.schemas.subscriptions import (
     SubscriptionRead,
     SubscriptionUpdate,
 )
+from app.db.models import BudgetPeriod, PeriodStatus
 from app.services import subscriptions as sub_service
 from app.services.settings import UserNotFoundError, get_cycle_start_day
 
@@ -67,6 +69,15 @@ async def create_sub(
             notify_days_before=payload.notify_days_before,
             is_active=payload.is_active,
         )
+        # If next_charge_date falls in the current active period, add planned row.
+        active_period = await db.scalar(
+            select(BudgetPeriod).where(BudgetPeriod.status == PeriodStatus.active)
+        )
+        if (
+            active_period is not None
+            and active_period.period_start <= sub.next_charge_date <= active_period.period_end
+        ):
+            await sub_service.add_subscription_to_period(db, sub, active_period.id)
         await db.commit()
         return SubscriptionRead.model_validate(sub)
     except sub_service.CategoryNotFoundOrArchived as exc:

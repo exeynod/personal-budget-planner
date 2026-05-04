@@ -32,6 +32,8 @@ export function HeroCard({ balance, period, isClosed }: HeroCardProps) {
         ? styles.deltaNegative
         : styles.deltaZero;
 
+  const deltaLabel = delta > 0 ? 'экономия' : delta < 0 ? 'перерасход' : 'по плану';
+
   return (
     <div className={styles.card}>
       <div className={styles.glow} aria-hidden />
@@ -41,8 +43,10 @@ export function HeroCard({ balance, period, isClosed }: HeroCardProps) {
         <span className={styles.amount}>{formatKopecks(amountCents)} ₽</span>
       </div>
       <div className={styles.deltaWrap}>
-        <span className={styles.deltaLabel}>Δ</span>
-        <span className={deltaCls}>{formatKopecksWithSign(delta)} ₽</span>
+        <span className={`${styles.deltaChip} ${deltaCls}`}>
+          {formatKopecksWithSign(delta)} ₽
+        </span>
+        <span className={styles.deltaLabel}>{deltaLabel}</span>
       </div>
     </div>
   );

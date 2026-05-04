@@ -20,13 +20,16 @@ from datetime import datetime, timezone
 import structlog
 from sqlalchemy import select, text
 
+from sqlalchemy.orm import selectinload
+
 from app.core.period import period_for
 from app.core.settings import settings
-from app.db.models import BudgetPeriod, PeriodStatus
+from app.db.models import BudgetPeriod, PeriodStatus, Subscription
 from app.db.session import AsyncSessionLocal
 from app.services.actual import compute_balance
 from app.services.periods import _today_in_app_tz
 from app.services.settings import UserNotFoundError, get_cycle_start_day
+from app.services.subscriptions import add_subscription_to_period
 
 logger = structlog.get_logger(__name__)
 
@@ -100,6 +103,20 @@ async def close_period_job() -> None:
                 status=PeriodStatus.active,
             )
             session.add(new_period)
+            await session.flush()  # populate new_period.id
+
+            # Add subscription planned rows for the new period.
+            subs_result = await session.execute(
+                select(Subscription)
+                .where(
+                    Subscription.is_active.is_(True),
+                    Subscription.next_charge_date >= p_start,
+                    Subscription.next_charge_date <= p_end,
+                )
+                .options(selectinload(Subscription.category))
+            )
+            for sub in subs_result.scalars().all():
+                await add_subscription_to_period(session, sub, new_period.id)
 
             await session.commit()
             logger.info(

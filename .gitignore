@@ -62,6 +62,8 @@ logs/
 .coverage
 htmlcov/
 .tox/
+frontend/test-results/
+frontend/tests/ui-audit-screenshots/
 
 # =====================================================================
 # Claude Code worktree metadata (managed by GSD agents)

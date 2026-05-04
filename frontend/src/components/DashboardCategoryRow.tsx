@@ -4,20 +4,10 @@ import styles from './DashboardCategoryRow.module.css';
 
 export interface DashboardCategoryRowProps {
   row: BalanceCategoryRow;
+  onClick?: () => void;
 }
 
-/**
- * DashboardCategoryRow (DSH-01 list, DSH-03 warn/overspend):
- * Single row in the dashboard category list.
- *
- * Progress bar fill width = min(actual/planned * 100, 100)%.
- * Style states (D-02 sign-agnostic; based on consumption ratio):
- *   - normal  (<80%):  primary blue progress bar, no row border highlight
- *   - warn    (≥80% and ≤100%): warn yellow progress + 1px warn border
- *   - overspend (>100%): danger red progress + 1px danger border + "123%" badge
- * If planned_cents === 0, no progress bar is rendered at all.
- */
-export function DashboardCategoryRow({ row }: DashboardCategoryRowProps) {
+export function DashboardCategoryRow({ row, onClick }: DashboardCategoryRowProps) {
   const hasPlanned = row.planned_cents > 0;
   const pct = hasPlanned ? row.actual_cents / row.planned_cents : 0;
   const isWarn = hasPlanned && pct >= 0.8 && pct <= 1.0;
@@ -25,6 +15,7 @@ export function DashboardCategoryRow({ row }: DashboardCategoryRowProps) {
 
   const rowCls = [
     styles.row,
+    onClick ? styles.rowButton : '',
     isWarn ? styles.warn : '',
     isOverspend ? styles.overspend : '',
   ].filter(Boolean).join(' ');
@@ -41,8 +32,8 @@ export function DashboardCategoryRow({ row }: DashboardCategoryRowProps) {
 
   const overspendPct = isOverspend ? `${Math.round(pct * 100)}%` : null;
 
-  return (
-    <div className={rowCls}>
+  const content = (
+    <>
       <div className={styles.topRow}>
         <span className={styles.name}>{row.name}</span>
         <span className={styles.amounts}>
@@ -62,6 +53,16 @@ export function DashboardCategoryRow({ row }: DashboardCategoryRowProps) {
           <div className={barFillCls} style={{ width: fillWidth }} />
         </div>
       )}
-    </div>
+    </>
   );
+
+  if (onClick) {
+    return (
+      <button type="button" className={rowCls} onClick={onClick}>
+        {content}
+      </button>
+    );
+  }
+
+  return <div className={rowCls}>{content}</div>;
 }

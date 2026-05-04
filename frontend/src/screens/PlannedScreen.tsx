@@ -11,12 +11,14 @@ import { usePlanned } from '../hooks/usePlanned';
 import { useTemplate } from '../hooks/useTemplate';
 import { useCategories } from '../hooks/useCategories';
 import type { CategoryKind, CategoryRead, PlannedRead } from '../api/types';
-import { PlanRow } from '../components/PlanRow';
+import { type PlanRowItem } from '../components/PlanRow';
+import { PlanGroupView, type CategoryEntry } from '../components/PlanGroupView';
 import { BottomSheet } from '../components/BottomSheet';
 import {
   PlanItemEditor,
   type EditorSavePayload,
 } from '../components/PlanItemEditor';
+import { ScreenHeader } from '../components/ScreenHeader';
 import styles from './PlannedScreen.module.css';
 
 export interface PlannedScreenProps {
@@ -31,11 +33,6 @@ interface SheetState {
   presetCategoryId?: number;
 }
 
-interface CategoryGroup {
-  kindTitle: 'Расходы' | 'Доходы';
-  kind: CategoryKind;
-  categories: { category: CategoryRead; rows: PlannedRead[] }[];
-}
 
 const CLOSED_SHEET: SheetState = { open: false, mode: 'create-planned' };
 
@@ -106,37 +103,37 @@ export function PlannedScreen({ onBack, onNavigateToTemplate }: PlannedScreenPro
     [realRows, mockRows],
   );
 
-  const groups = useMemo<CategoryGroup[]>(() => {
-    const catById = new Map(categories.map((c) => [c.id, c]));
-    const byKind: Record<CategoryKind, CategoryGroup> = {
-      expense: { kindTitle: 'Расходы', kind: 'expense', categories: [] },
-      income: { kindTitle: 'Доходы', kind: 'income', categories: [] },
-    };
+  const groups = useMemo(() => {
+    const byKind: Record<CategoryKind, CategoryEntry[]> = { expense: [], income: [] };
     const byCat = new Map<number, PlannedRead[]>();
     for (const r of allRows) {
       const arr = byCat.get(r.category_id) ?? [];
       arr.push(r);
       byCat.set(r.category_id, arr);
     }
-    for (const [catId, catRows] of byCat.entries()) {
-      const cat = catById.get(catId);
-      if (!cat) continue;
-      catRows.sort((a, b) => {
+    for (const cat of categories) {
+      const catRows = (byCat.get(cat.id) ?? []).slice().sort((a, b) => {
         const da = a.planned_date ?? '9999-12-31';
         const db = b.planned_date ?? '9999-12-31';
         if (da !== db) return da.localeCompare(db);
         return a.id - b.id;
       });
-      byKind[cat.kind].categories.push({ category: cat, rows: catRows });
+      byKind[cat.kind].push({
+        category: cat,
+        items: catRows.map((row) => ({ kind: 'planned' as const, row })),
+      });
     }
     for (const k of ['expense', 'income'] as CategoryKind[]) {
-      byKind[k].categories.sort(
+      byKind[k].sort(
         (a, b) =>
           a.category.sort_order - b.category.sort_order ||
           a.category.name.localeCompare(b.category.name, 'ru'),
       );
     }
-    return [byKind.expense, byKind.income].filter((g) => g.categories.length > 0);
+    return [
+      { kind: 'expense' as CategoryKind, entries: byKind.expense },
+      { kind: 'income' as CategoryKind, entries: byKind.income },
+    ];
   }, [allRows, categories]);
 
   const showToast = (msg: string) => {
@@ -189,10 +186,10 @@ export function PlannedScreen({ onBack, onNavigateToTemplate }: PlannedScreenPro
     }
   };
 
-  const handleAmountSave = async (id: number, newAmountCents: number) => {
+  const handleAmountSave = async (item: PlanRowItem, newAmountCents: number) => {
     setMutationError(null);
     try {
-      await updatePlanned(id, { amount_cents: newAmountCents });
+      await updatePlanned(item.row.id, { amount_cents: newAmountCents });
       await refetchPlanned();
     } catch (e) {
       setMutationError(e instanceof Error ? e.message : String(e));
@@ -240,8 +237,10 @@ export function PlannedScreen({ onBack, onNavigateToTemplate }: PlannedScreenPro
       item: undefined,
       presetCategoryId: categoryId,
     });
-  const openEdit = (row: PlannedRead) =>
-    setSheet({ open: true, mode: 'edit-planned', item: row });
+  const openEdit = (planItem: PlanRowItem) => {
+    if (planItem.kind !== 'planned') return;
+    setSheet({ open: true, mode: 'edit-planned', item: planItem.row });
+  };
 
   const periodLabel = period
     ? `${new Date(period.period_start).toLocaleDateString('ru-RU', {
@@ -268,17 +267,7 @@ export function PlannedScreen({ onBack, onNavigateToTemplate }: PlannedScreenPro
   if (!period) {
     return (
       <div className={styles.root}>
-        <header className={styles.header}>
-          <button
-            type="button"
-            onClick={onBack}
-            className={styles.backBtn}
-            aria-label="Назад"
-          >
-            ←
-          </button>
-          <div className={styles.title}>План</div>
-        </header>
+        <ScreenHeader title="План" onBack={onBack} />
         <div className={styles.empty}>Сначала завершите onboarding.</div>
       </div>
     );
@@ -286,91 +275,42 @@ export function PlannedScreen({ onBack, onNavigateToTemplate }: PlannedScreenPro
 
   return (
     <div className={styles.root}>
-      <header className={styles.header}>
-        <button
-          type="button"
-          onClick={onBack}
-          className={styles.backBtn}
-          aria-label="Назад"
-        >
-          ←
-        </button>
-        <div className={styles.titleBlock}>
-          <div className={styles.title}>План текущего периода</div>
-          <div className={styles.subtitle}>{periodLabel}</div>
-        </div>
-      </header>
-
-      <div className={styles.actionsRow}>
-        {isEmptyPlanned && !templateIsEmpty && (
+      <ScreenHeader
+        title="План периода"
+        subtitle={periodLabel}
+        onBack={onBack}
+        rightAction={
           <button
             type="button"
-            onClick={handleApplyTemplate}
-            disabled={busy}
-            className={styles.primaryAction}
+            onClick={() => openCreate(undefined)}
+            className={styles.addBtn}
+            disabled={categories.length === 0}
           >
-            Применить шаблон
+            Добавить
           </button>
-        )}
+        }
+      />
+
+      {isEmptyPlanned && !templateIsEmpty && (
         <button
           type="button"
-          onClick={handleSnapshot}
+          onClick={handleApplyTemplate}
           disabled={busy}
-          className={styles.secondaryAction}
+          className={styles.applyTemplate}
         >
-          ↻ В шаблон
+          Применить шаблон
         </button>
-      </div>
+      )}
 
       {rowsError && <div className={styles.error}>Ошибка плана: {rowsError}</div>}
-      {mutationError && (
-        <div className={styles.error}>Ошибка: {mutationError}</div>
-      )}
+      {mutationError && <div className={styles.error}>Ошибка: {mutationError}</div>}
 
-      {!rowsLoading && isEmptyPlanned && templateIsEmpty && (
-        <div className={styles.empty}>
-          Шаблон пуст.{' '}
-          {onNavigateToTemplate ? (
-            <button
-              type="button"
-              onClick={onNavigateToTemplate}
-              className={styles.linkBtn}
-            >
-              Перейдите в «Шаблон»
-            </button>
-          ) : (
-            <>Перейдите в «Шаблон»</>
-          )}{' '}
-          чтобы заполнить.
-        </div>
-      )}
-
-      {groups.map((g) => (
-        <section key={g.kind} className={styles.kindGroup}>
-          <h3 className={styles.kindTitle}>{g.kindTitle}</h3>
-          {g.categories.map(({ category, rows }) => (
-            <div key={category.id} className={styles.categoryGroup}>
-              <h4 className={styles.categoryTitle}>{category.name}</h4>
-              {rows.map((row) => (
-                <PlanRow
-                  key={row.id}
-                  item={{ kind: 'planned', row }}
-                  category={category}
-                  onAmountSave={(cents) => handleAmountSave(row.id, cents)}
-                  onOpenEditor={() => openEdit(row)}
-                />
-              ))}
-              <button
-                type="button"
-                onClick={() => openCreate(category.id)}
-                className={styles.addInGroup}
-              >
-                + Добавить строку в {category.name}
-              </button>
-            </div>
-          ))}
-        </section>
-      ))}
+      <PlanGroupView
+        groups={groups}
+        onAmountSave={handleAmountSave}
+        onOpenEditor={openEdit}
+        onAdd={openCreate}
+      />
 
       {toast && <div className={styles.toast}>{toast}</div>}
 

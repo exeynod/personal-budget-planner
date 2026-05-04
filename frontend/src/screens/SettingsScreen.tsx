@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { getSettings, updateSettings } from '../api/settings';
 import { Stepper } from '../components/Stepper';
 import { MainButton } from '../components/MainButton';
+import { ScreenHeader } from '../components/ScreenHeader';
 import styles from './SettingsScreen.module.css';
 
 export interface SettingsScreenProps {
@@ -98,17 +99,7 @@ export function SettingsScreen({ onBack }: SettingsScreenProps) {
 
   return (
     <div className={styles.root}>
-      <header className={styles.header}>
-        <button
-          type="button"
-          onClick={onBack}
-          className={styles.backBtn}
-          aria-label="Назад"
-        >
-          ←
-        </button>
-        <div className={styles.title}>Настройки</div>
-      </header>
+      <ScreenHeader title="Настройки" onBack={onBack} />
 
       {loading && <div className={styles.muted}>Загрузка…</div>}
       {error && <div className={styles.error}>Ошибка: {error}</div>}

@@ -16,6 +16,7 @@ from datetime import date
 from typing import Optional
 
 from dateutil.relativedelta import relativedelta
+
 from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -23,6 +24,7 @@ from sqlalchemy.orm import selectinload
 
 from app.db.models import (
     AppUser,
+    BudgetPeriod,
     Category,
     PlannedTransaction,
     PlanSource,
@@ -142,11 +144,46 @@ async def update_subscription(
 async def delete_subscription(db: AsyncSession, sub_id: int) -> None:
     """Hard-delete a subscription by id (CLAUDE.md convention: subscriptions hard delete).
 
+    Also removes subscription_auto planned rows referencing this subscription
+    to satisfy the FK constraint.
+
     Raises LookupError if sub_id not found (rowcount == 0).
     """
+    await db.execute(
+        delete(PlannedTransaction).where(PlannedTransaction.subscription_id == sub_id)
+    )
     result = await db.execute(delete(Subscription).where(Subscription.id == sub_id))
     if result.rowcount == 0:
         raise LookupError(f"Subscription {sub_id} not found")
+
+
+async def add_subscription_to_period(
+    db: AsyncSession,
+    sub: Subscription,
+    period_id: int,
+) -> PlannedTransaction | None:
+    """Create a PlannedTransaction for sub in period without advancing next_charge_date.
+
+    Called when a new period is created or when a subscription is added mid-period.
+    Idempotent via SAVEPOINT: returns None if (subscription_id, original_charge_date)
+    already exists.
+    """
+    planned = PlannedTransaction(
+        period_id=period_id,
+        category_id=sub.category_id,
+        kind=sub.category.kind,
+        amount_cents=sub.amount_cents,
+        source=PlanSource.subscription_auto,
+        subscription_id=sub.id,
+        original_charge_date=sub.next_charge_date,
+    )
+    try:
+        async with db.begin_nested():
+            db.add(planned)
+            await db.flush()
+    except IntegrityError:
+        return None
+    return planned
 
 
 async def charge_subscription(

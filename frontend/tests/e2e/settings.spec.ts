@@ -67,24 +67,20 @@ async function mockApi(page: import('@playwright/test').Page) {
   });
 }
 
-async function clickQuickNav(page: import('@playwright/test').Page, label: string) {
-  await expect(page.locator(`text=${label}`)).toBeVisible({ timeout: 10000 });
-  await page.evaluate((labelText) => {
-    const buttons = document.querySelectorAll('button');
-    for (const btn of buttons) {
-      if (btn.textContent?.trim() === labelText) {
-        btn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-        break;
-      }
-    }
-  }, label);
+async function navigateToSettings(page: import('@playwright/test').Page) {
+  // Click "Ещё" bottom nav tab
+  await expect(page.locator('button[aria-label="Ещё"]')).toBeVisible({ timeout: 10000 });
+  await page.click('button[aria-label="Ещё"]');
+  // Click "Настройки" row in MoreScreen
+  await expect(page.locator('text=Настройки').first()).toBeVisible({ timeout: 10000 });
+  await page.locator('button').filter({ hasText: /Настройки/ }).first().click();
 }
 
 test('settings screen shows notify_days_before field', async ({ page }) => {
   await mockApi(page);
   await page.goto('/');
 
-  await clickQuickNav(page, 'Настройки');
+  await navigateToSettings(page);
 
   await expect(
     page.locator('text=Уведомления о подписках').first()
@@ -95,7 +91,7 @@ test('settings screen shows cycle_start_day field', async ({ page }) => {
   await mockApi(page);
   await page.goto('/');
 
-  await clickQuickNav(page, 'Настройки');
+  await navigateToSettings(page);
 
   await expect(
     page.locator('text=День начала периода')

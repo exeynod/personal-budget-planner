@@ -25,11 +25,6 @@ function daysUntil(dateStr: string): number {
   return Math.round((d.getTime() - today.getTime()) / 86400000);
 }
 
-function pillClass(days: number): string {
-  if (days <= 2) return styles.danger;
-  if (days <= 7) return styles.warn;
-  return styles.neutral;
-}
 
 interface EditorState {
   mode: 'create' | 'edit';
@@ -37,7 +32,7 @@ interface EditorState {
 }
 
 export interface SubscriptionsScreenProps {
-  onBack: () => void;
+  onBack?: () => void;
 }
 
 export function SubscriptionsScreen({ onBack }: SubscriptionsScreenProps) {
@@ -79,11 +74,13 @@ export function SubscriptionsScreen({ onBack }: SubscriptionsScreenProps) {
 
   return (
     <div className={styles.screen}>
-      {/* Header with back button */}
+      {/* Header */}
       <header className={styles.header}>
-        <button type="button" onClick={onBack} className={styles.backBtn} aria-label="Назад">
-          ←
-        </button>
+        {onBack && (
+          <button type="button" onClick={onBack} className={styles.backBtn} aria-label="Назад">
+            ←
+          </button>
+        )}
         <div className={styles.headerTitle}>Подписки</div>
       </header>
 
@@ -102,10 +99,10 @@ export function SubscriptionsScreen({ onBack }: SubscriptionsScreenProps) {
         </div>
       </div>
 
-      {/* Timeline card */}
+      {/* Upcoming card */}
       <div className={styles.sectionContent}>
         <div className={styles.sectionTitle}>Ближайшие списания</div>
-        <Timeline subscriptions={subscriptions.filter((s) => s.is_active)} />
+        <Upcoming subscriptions={subscriptions} />
       </div>
 
       {/* Subscription list */}
@@ -147,7 +144,7 @@ export function SubscriptionsScreen({ onBack }: SubscriptionsScreenProps) {
               </div>
               <div className={styles.cardRight}>
                 <div className={styles.cardAmount}>{formatKopecksWithCurrency(s.amount_cents)}</div>
-                <div className={`${styles.pill} ${pillClass(days)}`}>{pillLabel}</div>
+                <div className={styles.pill}>{pillLabel}</div>
               </div>
             </button>
           );
@@ -176,38 +173,33 @@ export function SubscriptionsScreen({ onBack }: SubscriptionsScreenProps) {
   );
 }
 
-interface TimelineProps {
+const MONTH_SHORT = ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
+
+interface UpcomingProps {
   subscriptions: SubscriptionRead[];
 }
 
-function Timeline({ subscriptions }: TimelineProps) {
-  const today = new Date();
-  const year = today.getFullYear();
-  const month = today.getMonth();
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const todayDay = today.getDate();
-  const todayPct = ((todayDay - 1) / (daysInMonth - 1)) * 100;
+function Upcoming({ subscriptions }: UpcomingProps) {
+  const items = [...subscriptions]
+    .filter((s) => s.is_active)
+    .sort((a, b) => a.next_charge_date.localeCompare(b.next_charge_date))
+    .slice(0, 3);
 
-  const dotsThisMonth = subscriptions.filter((s) => {
-    const d = parseLocalDate(s.next_charge_date);
-    return d.getFullYear() === year && d.getMonth() === month;
-  });
+  if (items.length === 0) {
+    return <div className={styles.upcomingEmpty}>Нет предстоящих списаний</div>;
+  }
 
   return (
-    <div className={styles.timeline}>
-      <div className={styles.timelineLine} />
-      <div className={styles.todayLine} style={{ left: `${todayPct}%` }} />
-      {dotsThisMonth.map((s) => {
-        const d = parseLocalDate(s.next_charge_date).getDate();
-        const pct = ((d - 1) / (daysInMonth - 1)) * 100;
-        const days = daysUntil(s.next_charge_date);
+    <div className={styles.upcomingList}>
+      {items.map((s) => {
+        const d = parseLocalDate(s.next_charge_date);
+        const dateLabel = `${d.getDate()} ${MONTH_SHORT[d.getMonth()]}`;
         return (
-          <div
-            key={s.id}
-            className={`${styles.dot} ${pillClass(days)}`}
-            style={{ left: `${pct}%` }}
-            title={`${s.name}: ${s.next_charge_date}`}
-          />
+          <div key={s.id} className={styles.upcomingRow}>
+            <div className={styles.upcomingDate}>{dateLabel}</div>
+            <div className={styles.upcomingName}>{s.name}</div>
+            <div className={styles.upcomingAmount}>{formatKopecksWithCurrency(s.amount_cents)}</div>
+          </div>
         );
       })}
     </div>

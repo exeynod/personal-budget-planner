@@ -48,9 +48,35 @@ export function SubscriptionEditor({
     initial ? (initial.amount_cents / 100).toString() : '',
   );
   const [cycle, setCycle] = useState<SubCycle>(initial?.cycle ?? 'monthly');
+  const isoToDisplay = (iso: string) => {
+    const [y, m, d] = iso.split('-');
+    return `${d}.${m}.${y}`;
+  };
+  const displayToIso = (display: string): string | null => {
+    const match = display.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
+    if (!match) return null;
+    const [, d, m, y] = match;
+    const date = new Date(+y, +m - 1, +d);
+    if (isNaN(date.getTime()) || date.getMonth() !== +m - 1) return null;
+    return `${y}-${m}-${d}`;
+  };
+
   const [chargeDate, setChargeDate] = useState(
     initial?.next_charge_date ?? new Date().toISOString().slice(0, 10),
   );
+  const [chargeDateDisplay, setChargeDateDisplay] = useState(
+    isoToDisplay(initial?.next_charge_date ?? new Date().toISOString().slice(0, 10)),
+  );
+
+  const handleChargeDateInput = (raw: string) => {
+    const digits = raw.replace(/\D/g, '').slice(0, 8);
+    let masked = digits;
+    if (digits.length > 4) masked = `${digits.slice(0, 2)}.${digits.slice(2, 4)}.${digits.slice(4)}`;
+    else if (digits.length > 2) masked = `${digits.slice(0, 2)}.${digits.slice(2)}`;
+    setChargeDateDisplay(masked);
+    const iso = displayToIso(masked);
+    if (iso) setChargeDate(iso);
+  };
   const [categoryId, setCategoryId] = useState<number | null>(initial?.category_id ?? null);
   const [notifyDays, setNotifyDays] = useState(
     initial?.notify_days_before ?? defaultNotifyDays,
@@ -162,13 +188,15 @@ export function SubscriptionEditor({
           </div>
         </div>
 
-        {/* 4. next_charge_date date picker */}
+        {/* 4. next_charge_date */}
         <label className={styles.field}>
           <span className={styles.label}>Следующее списание</span>
           <input
-            type="date"
-            value={chargeDate}
-            onChange={(e) => setChargeDate(e.target.value)}
+            type="text"
+            inputMode="numeric"
+            value={chargeDateDisplay}
+            onChange={(e) => handleChargeDateInput(e.target.value)}
+            placeholder="ДД.ММ.ГГГГ"
             className={styles.input}
           />
         </label>

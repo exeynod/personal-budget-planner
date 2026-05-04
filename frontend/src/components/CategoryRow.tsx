@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { PencilSimple, Archive } from '@phosphor-icons/react';
 import type { CategoryRead } from '../api/types';
 import styles from './CategoryRow.module.css';
 
@@ -113,7 +114,7 @@ export function CategoryRow({ category, onRename, onArchive, onUnarchive }: Cate
                 className={styles.iconBtn}
                 aria-label="Переименовать"
               >
-                ✎
+                <PencilSimple size={18} weight="thin" />
               </button>
               <button
                 type="button"
@@ -121,7 +122,7 @@ export function CategoryRow({ category, onRename, onArchive, onUnarchive }: Cate
                 className={styles.iconBtn}
                 aria-label="Архивировать"
               >
-                ⊟
+                <Archive size={18} weight="thin" />
               </button>
             </>
           )}

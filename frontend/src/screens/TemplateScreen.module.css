@@ -1,6 +1,6 @@
 .root {
-  max-width: 375px;
-  margin: 0 auto;
+
+
   min-height: 100vh;
   padding: var(--space-4) var(--space-4) var(--space-12);
   background: var(--color-bg);
@@ -56,17 +56,6 @@
   padding: var(--space-8);
 }
 
-.kindGroup {
-  margin-bottom: var(--space-6);
-}
-
-.kindTitle {
-  font-size: var(--text-sm);
-  text-transform: uppercase;
-  color: var(--color-text-muted);
-  margin: var(--space-3) 0 var(--space-2);
-  letter-spacing: 0.04em;
-}
 
 .categoryGroup {
   margin-bottom: var(--space-4);
