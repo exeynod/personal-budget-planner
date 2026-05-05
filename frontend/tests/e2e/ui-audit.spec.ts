@@ -167,38 +167,40 @@ test('audit-02: Home screen - income tab', async ({ page }) => {
   await page.screenshot({ path: `${SCREENSHOTS_DIR}/02-home-income.png`, fullPage: true });
 });
 
-test('audit-03: History screen', async ({ page }) => {
+test('audit-03: Transactions screen', async ({ page }) => {
   await mockApiRich(page);
   await page.goto('/');
   await waitForLoad(page);
-  await page.click('button[aria-label="История"]');
+  await page.click('button[aria-label="Транзакции"]');
   await page.waitForTimeout(400);
-  await page.screenshot({ path: `${SCREENSHOTS_DIR}/03-history.png`, fullPage: true });
+  await page.screenshot({ path: `${SCREENSHOTS_DIR}/03-transactions.png`, fullPage: true });
 });
 
-test('audit-04: Subscriptions screen', async ({ page }) => {
+test('audit-04: Management screen', async ({ page }) => {
   await mockApiRich(page);
   await page.goto('/');
   await waitForLoad(page);
-  await page.click('button[aria-label="Подписки"]');
+  await page.click('button[aria-label="Управление"]');
   await page.waitForTimeout(400);
-  await page.screenshot({ path: `${SCREENSHOTS_DIR}/04-subscriptions.png`, fullPage: true });
+  await page.screenshot({ path: `${SCREENSHOTS_DIR}/04-management.png`, fullPage: true });
 });
 
-test('audit-05: More screen', async ({ page }) => {
+test('audit-05: Management subscriptions screen', async ({ page }) => {
   await mockApiRich(page);
   await page.goto('/');
   await waitForLoad(page);
-  await page.click('button[aria-label="Ещё"]');
+  await page.click('button[aria-label="Управление"]');
   await page.waitForTimeout(200);
-  await page.screenshot({ path: `${SCREENSHOTS_DIR}/05-more.png`, fullPage: true });
+  await page.locator('text=Подписки').first().click();
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: `${SCREENSHOTS_DIR}/05-management-subscriptions.png`, fullPage: true });
 });
 
 test('audit-06: Settings screen', async ({ page }) => {
   await mockApiRich(page);
   await page.goto('/');
   await waitForLoad(page);
-  await page.click('button[aria-label="Ещё"]');
+  await page.click('button[aria-label="Управление"]');
   await page.waitForTimeout(200);
   await page.locator('button').filter({ hasText: /Настройки/ }).first().click();
   await page.waitForTimeout(400);
@@ -209,7 +211,7 @@ test('audit-07: Add transaction bottom sheet', async ({ page }) => {
   await mockApiRich(page);
   await page.goto('/');
   await waitForLoad(page);
-  await page.click('button[aria-label="Добавить факт-трату"]');
+  await page.click('button[aria-label="Добавить транзакцию"]');
   await page.waitForTimeout(300);
   await page.screenshot({ path: `${SCREENSHOTS_DIR}/07-add-transaction.png`, fullPage: true });
 });
@@ -249,7 +251,7 @@ test('audit-10: History with category filter', async ({ page }) => {
     await catRow.click();
     await page.waitForTimeout(400);
   } else {
-    await page.click('button[aria-label="История"]');
+    await page.click('button[aria-label="Транзакции"]');
     await page.waitForTimeout(300);
   }
   await page.screenshot({ path: `${SCREENSHOTS_DIR}/10-history-filtered.png`, fullPage: true });
