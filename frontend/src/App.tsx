@@ -5,20 +5,16 @@ import { HomeScreen } from './screens/HomeScreen';
 import { CategoriesScreen } from './screens/CategoriesScreen';
 import { TemplateScreen } from './screens/TemplateScreen';
 import { PlannedScreen } from './screens/PlannedScreen';
-import { ActualScreen } from './screens/ActualScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
-import { SubscriptionsScreen } from './screens/SubscriptionsScreen';
-import { MoreScreen } from './screens/MoreScreen';
 import { BottomNav, type TabId } from './components/BottomNav';
 import styles from './App.module.css';
 
-type SubScreen = 'categories' | 'template' | 'settings';
+type SubScreen = 'categories' | 'template' | 'settings' | 'planned';
 
 export default function App() {
   const { user, loading, error, refetch } = useUser();
   const [activeTab, setActiveTab] = useState<TabId>('home');
   const [subScreen, setSubScreen] = useState<SubScreen | null>(null);
-  const [historyFilter, setHistoryFilter] = useState<number | null>(null);
 
   if (loading && !user) {
     return (
@@ -61,7 +57,6 @@ export default function App() {
   const handleTabChange = (tab: TabId) => {
     setActiveTab(tab);
     setSubScreen(null);
-    if (tab !== 'history') setHistoryFilter(null);
   };
 
   return (
@@ -77,33 +72,35 @@ export default function App() {
           {subScreen === 'settings' && (
             <SettingsScreen onBack={() => setSubScreen(null)} />
           )}
-          {!subScreen && activeTab === 'home' && (
-            <HomeScreen
-              onNavigateToSub={(s) => {
-                if (s === 'planned') { setActiveTab('planned'); }
-                else { setSubScreen(s); }
-              }}
-              onNavigateToHistory={(categoryId) => {
-                setHistoryFilter(categoryId ?? null);
-                setActiveTab('history');
-              }}
-            />
-          )}
-          {!subScreen && activeTab === 'history' && (
-            <ActualScreen
-              categoryFilter={historyFilter}
-              onClearFilter={() => setHistoryFilter(null)}
-            />
-          )}
-          {!subScreen && activeTab === 'planned' && (
+          {subScreen === 'planned' && (
             <PlannedScreen
-              onBack={() => handleTabChange('home')}
+              onBack={() => setSubScreen(null)}
               onNavigateToTemplate={() => setSubScreen('template')}
             />
           )}
-          {!subScreen && activeTab === 'subscriptions' && <SubscriptionsScreen />}
-          {!subScreen && activeTab === 'more' && (
-            <MoreScreen onNavigate={(s) => setSubScreen(s)} />
+          {!subScreen && activeTab === 'home' && (
+            <HomeScreen
+              onNavigateToSub={(s) => setSubScreen(s)}
+              onNavigateToHistory={() => {
+                setActiveTab('transactions');
+              }}
+            />
+          )}
+          {/* TODO(07-03): TransactionsScreen (История+План sub-tabs) */}
+          {!subScreen && activeTab === 'transactions' && (
+            <div style={{ padding: 16, color: 'var(--color-text-muted)' }}>Транзакции — coming in Plan 03</div>
+          )}
+          {/* TODO(07-04): AnalyticsScreen */}
+          {!subScreen && activeTab === 'analytics' && (
+            <div style={{ padding: 16, color: 'var(--color-text-muted)' }}>Аналитика — coming in Phase 8</div>
+          )}
+          {/* TODO(07-05): AIScreen */}
+          {!subScreen && activeTab === 'ai' && (
+            <div style={{ padding: 16, color: 'var(--color-text-muted)' }}>AI — coming in Phase 9</div>
+          )}
+          {/* TODO(07-04): ManagementScreen (Подписки+Шаблон+Категории+Настройки) */}
+          {!subScreen && activeTab === 'management' && (
+            <div style={{ padding: 16, color: 'var(--color-text-muted)' }}>Управление — coming in Plan 04</div>
           )}
         </div>
         <BottomNav activeTab={activeTab} onTabChange={handleTabChange} />
