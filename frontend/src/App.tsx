@@ -4,17 +4,20 @@ import { OnboardingScreen } from './screens/OnboardingScreen';
 import { HomeScreen } from './screens/HomeScreen';
 import { CategoriesScreen } from './screens/CategoriesScreen';
 import { TemplateScreen } from './screens/TemplateScreen';
-import { PlannedScreen } from './screens/PlannedScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
+import { SubscriptionsScreen } from './screens/SubscriptionsScreen';
+import { TransactionsScreen } from './screens/TransactionsScreen';
+import { ManagementScreen, type ManagementView } from './screens/ManagementScreen';
+import { AnalyticsScreen } from './screens/AnalyticsScreen';
+import { AiScreen } from './screens/AiScreen';
 import { BottomNav, type TabId } from './components/BottomNav';
 import styles from './App.module.css';
-
-type SubScreen = 'categories' | 'template' | 'settings' | 'planned';
 
 export default function App() {
   const { user, loading, error, refetch } = useUser();
   const [activeTab, setActiveTab] = useState<TabId>('home');
-  const [subScreen, setSubScreen] = useState<SubScreen | null>(null);
+  const [managementView, setManagementView] = useState<ManagementView | null>(null);
+  const [historyFilter, setHistoryFilter] = useState<number | null>(null);
 
   if (loading && !user) {
     return (
@@ -56,51 +59,55 @@ export default function App() {
 
   const handleTabChange = (tab: TabId) => {
     setActiveTab(tab);
-    setSubScreen(null);
+    setManagementView(null);
+    if (tab !== 'transactions') setHistoryFilter(null);
   };
 
   return (
     <div className={styles.appWrapper}>
       <div className={styles.appRoot}>
         <div className={styles.screenContainer}>
-          {subScreen === 'categories' && (
-            <CategoriesScreen onBack={() => setSubScreen(null)} />
+          {/* Management sub-screens (рендерятся поверх всего) */}
+          {managementView === 'subscriptions' && (
+            <SubscriptionsScreen onBack={() => setManagementView(null)} />
           )}
-          {subScreen === 'template' && (
-            <TemplateScreen onBack={() => setSubScreen(null)} />
+          {managementView === 'template' && (
+            <TemplateScreen onBack={() => setManagementView(null)} />
           )}
-          {subScreen === 'settings' && (
-            <SettingsScreen onBack={() => setSubScreen(null)} />
+          {managementView === 'categories' && (
+            <CategoriesScreen onBack={() => setManagementView(null)} />
           )}
-          {subScreen === 'planned' && (
-            <PlannedScreen
-              onBack={() => setSubScreen(null)}
-              onNavigateToTemplate={() => setSubScreen('template')}
-            />
+          {managementView === 'settings' && (
+            <SettingsScreen onBack={() => setManagementView(null)} />
           )}
-          {!subScreen && activeTab === 'home' && (
+
+          {/* Main tabs (скрыты когда показывается management sub-screen) */}
+          {!managementView && activeTab === 'home' && (
             <HomeScreen
-              onNavigateToSub={(s) => setSubScreen(s)}
-              onNavigateToHistory={() => {
+              onNavigateToSub={(s) => {
+                // s может быть 'planned' (cross-tab) или 'template'|'categories'|'settings'
+                if (s === 'planned') {
+                  setActiveTab('transactions');
+                } else {
+                  setManagementView(s as ManagementView);
+                }
+              }}
+              onNavigateToHistory={(categoryId) => {
+                setHistoryFilter(categoryId ?? null);
                 setActiveTab('transactions');
               }}
             />
           )}
-          {/* TODO(07-03): TransactionsScreen (История+План sub-tabs) */}
-          {!subScreen && activeTab === 'transactions' && (
-            <div style={{ padding: 16, color: 'var(--color-text-muted)' }}>Транзакции — coming in Plan 03</div>
+          {!managementView && activeTab === 'transactions' && (
+            <TransactionsScreen
+              categoryFilter={historyFilter}
+              onClearFilter={() => setHistoryFilter(null)}
+            />
           )}
-          {/* TODO(07-04): AnalyticsScreen */}
-          {!subScreen && activeTab === 'analytics' && (
-            <div style={{ padding: 16, color: 'var(--color-text-muted)' }}>Аналитика — coming in Phase 8</div>
-          )}
-          {/* TODO(07-05): AIScreen */}
-          {!subScreen && activeTab === 'ai' && (
-            <div style={{ padding: 16, color: 'var(--color-text-muted)' }}>AI — coming in Phase 9</div>
-          )}
-          {/* TODO(07-04): ManagementScreen (Подписки+Шаблон+Категории+Настройки) */}
-          {!subScreen && activeTab === 'management' && (
-            <div style={{ padding: 16, color: 'var(--color-text-muted)' }}>Управление — coming in Plan 04</div>
+          {!managementView && activeTab === 'analytics' && <AnalyticsScreen />}
+          {!managementView && activeTab === 'ai' && <AiScreen />}
+          {!managementView && activeTab === 'management' && (
+            <ManagementScreen onNavigate={(screen) => setManagementView(screen)} />
           )}
         </div>
         <BottomNav activeTab={activeTab} onTabChange={handleTabChange} />
