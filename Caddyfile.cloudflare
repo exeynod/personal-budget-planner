@@ -1,0 +1,35 @@
+# TG Budget Planner — Cloudflare Tunnel Caddyfile.
+#
+# HTTP-only (TLS terminated by Cloudflare edge). Mounted by
+# docker-compose.cloudflare.yml. Listens on :80 inside budget_net; only
+# cloudflared reaches it via http://caddy:80.
+#
+# Uses `handle {}` blocks (mutually exclusive, evaluated in written order)
+# instead of bare directives — bare directives follow Caddy's default
+# directive order, in which `try_files` runs BEFORE `respond` /
+# `reverse_proxy` and rewrites unmatched paths to /index.html, masking
+# /api/* routes with the SPA. `handle` short-circuits at the first match.
+
+:80 {
+	encode zstd gzip
+
+	# T-internal mitigation: 403 for internal endpoints. Must come first so
+	# /api/v1/internal/* never reaches the reverse-proxy below.
+	handle /api/v1/internal/* {
+		respond "Forbidden" 403
+	}
+
+	# Reverse-proxy the rest of /api/* to FastAPI on the docker network.
+	handle /api/* {
+		reverse_proxy api:8000
+	}
+
+	# SPA fallback: every other path serves the React app from the
+	# frontend_dist volume mounted at /srv/dist (read-only).
+	handle {
+		root * /srv/dist
+		header /assets/* Cache-Control "public, max-age=31536000, immutable"
+		try_files {path} /index.html
+		file_server
+	}
+}

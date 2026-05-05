@@ -23,10 +23,13 @@ services:
 
   # Override Caddy: HTTP-only on 127.0.0.1:8087, no Let's Encrypt.
   caddy:
-    ports:
+    # !override replaces the base file's ports list entirely (default merge is
+    # union, which would leave 0.0.0.0:80/443 open and break the trust boundary
+    # — Cloudflare Tunnel mode must NOT expose Caddy directly to the Internet).
+    ports: !override
       - "127.0.0.1:8087:80"   # Cloudflare Tunnel calls this; closed to the Internet
     volumes:
-      - ./Caddyfile.dev:/etc/caddy/Caddyfile:ro   # HTTP-only, no TLS
+      - ./Caddyfile.cloudflare:/etc/caddy/Caddyfile:ro   # HTTP-only, handle{} blocks
       - caddy_data:/data
       - caddy_config:/config
       - frontend_dist:/srv/dist:ro
