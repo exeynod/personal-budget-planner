@@ -1,0 +1,60 @@
+name: Deploy
+
+# Triggers on every push to master, AFTER the CI workflow finishes
+# successfully. Manual dispatch is also available for re-deploys without
+# new commits.
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [master]
+  workflow_dispatch:
+
+# Serialize deploys: a second push waits for the first to finish instead
+# of racing it. cancel-in-progress: false because aborting mid-deploy
+# leaves containers in mixed-version state.
+concurrency:
+  group: deploy-vps
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    # workflow_run gives us a `conclusion` field; only deploy on success.
+    # workflow_dispatch always runs.
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+
+    steps:
+      # The VPS is only reachable inside the user's tailnet. The runner
+      # joins as an ephemeral device with tag:ci; ACL pins tag:ci → VPS:2222.
+      # Auth keys are minted on the fly from the OAuth client.
+      - name: Tailscale up
+        uses: tailscale/github-action@v3
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:ci
+          version: latest
+
+      # The github-deploy key on the VPS is force-commanded
+      # (command="/home/exy/.../deploy.sh" in authorized_keys), so the
+      # exact SSH command doesn't matter — anything triggers deploy.sh.
+      - name: SSH deploy
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_PORT: ${{ secrets.SSH_PORT }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -p "$SSH_PORT" "$SSH_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+          ssh -p "$SSH_PORT" -i ~/.ssh/id_ed25519 \
+              -o StrictHostKeyChecking=yes \
+              -o BatchMode=yes \
+              -o ConnectTimeout=15 \
+              "$SSH_USER@$SSH_HOST" \
+              deploy
