@@ -26,7 +26,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 ### Milestone v0.3 — Analytics & AI (Active)
 
 - [x] **Phase 7: Nav Refactor** — функциональный bottom nav (Главная / Транзакции / Аналитика / AI / Управление), объединение History+Plan под «Транзакциями» с под-табами, переименование More→Управление, placeholder-табы «Аналитика» и «AI» (completed 2026-05-05)
-- [ ] **Phase 8: Analytics Screen** — экран Аналитики с трендом расходов по месяцам, топом перерасходов, топом категорий и прогнозом остатка; новые API endpoints `/api/v1/analytics/*`
+- [x] **Phase 8: Analytics Screen** — экран Аналитики с трендом расходов по месяцам, топом перерасходов, топом категорий и прогнозом остатка; новые API endpoints `/api/v1/analytics/*` (completed 2026-05-05)
 - [ ] **Phase 9: AI Assistant** — conversational AI с tool-use над данными бюджета (OpenAI gpt-4.1-nano), streaming SSE, prompt caching, persistence в БД, абстрактный provider-agnostic LLM-клиент
 - [ ] **Phase 10: AI Categorization** — AI-предложение категории в форме новой транзакции через embeddings (text-embedding-3-small + pgvector cosine similarity)
 
@@ -168,11 +168,11 @@ Plans:
 **Plans**: 5 планов
 
 Plans:
-- [ ] 08-01-PLAN.md — Wave 0: RED contract-тесты для 4 analytics endpoints (test_analytics.py)
-- [ ] 08-02-PLAN.md — Wave 1: Backend service + schemas + API routes + router registration
-- [ ] 08-03-PLAN.md — Wave 2: Frontend data layer (types.ts extend, api/analytics.ts, useAnalytics hook)
-- [ ] 08-04-PLAN.md — Wave 3: Frontend UI — полный AnalyticsScreen + 4 chart компонента + CSS
-- [ ] 08-05-PLAN.md — Wave 4: Verification — pytest + tsc + vite build + VERIFICATION.md + ROADMAP Complete
+- [x] 08-01-PLAN.md — Wave 0: RED contract-тесты для 4 analytics endpoints (test_analytics.py)
+- [x] 08-02-PLAN.md — Wave 1: Backend service + schemas + API routes + router registration
+- [x] 08-03-PLAN.md — Wave 2: Frontend data layer (types.ts extend, api/analytics.ts, useAnalytics hook)
+- [x] 08-04-PLAN.md — Wave 3: Frontend UI — полный AnalyticsScreen + 4 chart компонента + CSS
+- [x] 08-05-PLAN.md — Wave 4: Verification — pytest + tsc + vite build + VERIFICATION.md + ROADMAP Complete
 **UI hint**: yes — sketch 008-A
 
 ### Phase 9: AI Assistant
@@ -224,7 +224,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 7. Nav Refactor | 6/6 | Complete   | 2026-05-05 |
-| 8. Analytics Screen | 0/5 | In progress | - |
+| 8. Analytics Screen | 5/5 | Complete   | 2026-05-05 |
 | 9. AI Assistant | 0/0 | Pending plan | - |
 | 10. AI Categorization | 0/0 | Pending plan | - |
 
