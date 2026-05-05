@@ -128,6 +128,8 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       LOG_FORMAT: "json"
       APP_TZ: "Europe/Moscow"
+    labels:
+      monitoring.alerts: "true"   # picked up by /home/exy/dockerlog2tg sidecar
     networks:
       - budget_net
     # IMPORTANT: no `ports:` in production — api is reachable only via Caddy
@@ -167,6 +169,8 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       LOG_FORMAT: "json"
       APP_TZ: "Europe/Moscow"
+    labels:
+      monitoring.alerts: "true"
     networks:
       - budget_net
     # bot exposes /healthz on :8001 (D-12) but we do not publish that port —
@@ -203,6 +207,8 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       LOG_FORMAT: "json"
       APP_TZ: "Europe/Moscow"
+    labels:
+      monitoring.alerts: "true"
     networks:
       - budget_net
     # Worker depends on api being healthy because api runs `alembic upgrade
