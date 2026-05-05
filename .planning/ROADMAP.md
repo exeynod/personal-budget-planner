@@ -147,7 +147,7 @@ Plans:
 **Plans**: 6 планов
 
 Plans:
-- [ ] 07-01-PLAN.md — Wave 0: RED e2e тесты (nav-v03.spec.ts)
+- [x] 07-01-PLAN.md — Wave 0: RED e2e тесты (nav-v03.spec.ts)
 - [ ] 07-02-PLAN.md — Общие компоненты: BottomNav (5 табов), SubTabBar, PageTitle
 - [ ] 07-03-PLAN.md — TransactionsScreen: HistoryView + PlannedView + filter chips + context-aware FAB
 - [ ] 07-04-PLAN.md — ManagementScreen (4 пункта) + placeholder AnalyticsScreen + AiScreen
@@ -216,7 +216,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 7. Nav Refactor | 0/6 | In progress | - |
+| 7. Nav Refactor | 1/6 | In Progress|  |
 | 8. Analytics Screen | 0/0 | Pending plan | - |
 | 9. AI Assistant | 0/0 | Pending plan | - |
 | 10. AI Categorization | 0/0 | Pending plan | - |
