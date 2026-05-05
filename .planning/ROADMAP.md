@@ -186,7 +186,16 @@ Plans:
   4. Conversation persistence: новые таблицы `ai_conversation` (user_id, created_at, last_message_at) и `ai_message` (conversation_id, role, content, tool_calls, created_at); пользователь может очистить историю
   5. Prompt caching системного промпта + контекста бюджета (категории, текущий период, агрегаты) — отдельные `cache_control` блоки в OpenAI request; снижает input cost при повторных вопросах
   6. Rate limit 30 req/мин на пользователя enforced на API-слое; превышение → 429 с `Retry-After` header
-**Plans**: TBD
+**Plans**: 7 планов
+
+Plans:
+- [ ] 09-01-PLAN.md — Wave 0: RED тесты AI-слоя (test_llm_client, test_tools, test_ai_chat, test_ai_conversation_service)
+- [ ] 09-02-PLAN.md — Wave 1: DB схема + Alembic 0003 (AiConversation, AiMessage) + settings LLM
+- [ ] 09-03-PLAN.md — Wave 2: AbstractLLMClient + OpenAI провайдер (streaming, prompt caching)
+- [ ] 09-04-PLAN.md — Wave 2: Tools registry (4 tools) + system prompt builder + conversation service + Pydantic схемы
+- [ ] 09-05-PLAN.md — Wave 3: API endpoints POST /ai/chat (SSE) + GET /ai/history + DELETE /ai/conversation + rate limiter
+- [ ] 09-06-PLAN.md — Wave 4: Frontend data layer (types.ts, api/ai.ts, useAiConversation, ChatMessage, ToolUseIndicator)
+- [ ] 09-07-PLAN.md — Wave 5: AiScreen integration (replace placeholder, suggestion chips, streaming render, auto-scroll)
 **UI hint**: yes — sketch 009-A
 
 ### Phase 10: AI Categorization
