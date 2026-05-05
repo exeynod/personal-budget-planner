@@ -189,6 +189,14 @@ services:
       SERVICE: worker
       DATABASE_URL: postgresql+asyncpg://budget:${DB_PASSWORD}@db:5432/budget_db
       DATABASE_URL_SYNC: postgresql://budget:${DB_PASSWORD}@db:5432/budget_db
+      # BOT_TOKEN + OWNER_TG_ID required by notify_subscriptions_job:
+      # it instantiates aiogram Bot to push subscription reminders at 09:00
+      # Europe/Moscow (SUB-03, D-81). Without these the worker started
+      # silently with placeholder values and would have failed at runtime
+      # when Telegram rejected "changeme" — startup-guard now surfaces this
+      # at boot instead.
+      BOT_TOKEN: ${BOT_TOKEN}
+      OWNER_TG_ID: ${OWNER_TG_ID}
       INTERNAL_TOKEN: ${INTERNAL_TOKEN}
       API_BASE_URL: http://api:8000
       DEV_MODE: "false"
