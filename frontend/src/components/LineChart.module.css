@@ -1,0 +1,14 @@
+.wrapper { overflow-x: auto; }
+.chart { width: 100%; height: auto; display: block; min-width: 240px; }
+.xLabel {
+  font-family: var(--font-sans);
+  font-size: 10px;
+  fill: var(--color-text-muted);
+  text-anchor: middle;
+}
+.yLabel {
+  font-family: var(--font-sans);
+  font-size: 9px;
+  fill: var(--color-text-muted);
+  text-anchor: end;
+}

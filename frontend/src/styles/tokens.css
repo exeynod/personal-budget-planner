@@ -69,6 +69,14 @@
   --shadow-lg: 0 16px 40px rgba(0,0,0,0.45);
   --shadow-glow: 0 0 30px rgba(78,164,255,0.25);
 
+  /* Chart palette — Phase 8 Analytics (ANL-07) */
+  --chart-1: #4ea4ff;
+  --chart-2: #2ecc71;
+  --chart-3: #ffd166;
+  --chart-4: #ff5d5d;
+  --chart-5: #a78bfa;
+  --chart-6: #38bdf8;
+
   /* Layout */
   --tg-viewport: 375px;
   --col-width: 420px;
