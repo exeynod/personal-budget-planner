@@ -99,3 +99,11 @@
   padding: 2px 8px;
   font-size: var(--text-xs);
 }
+
+.sourceBadge {
+  background: var(--color-surface-2);
+  color: var(--color-text-muted);
+  border-radius: var(--radius-full);
+  padding: 2px 8px;
+  font-size: var(--text-xs);
+}

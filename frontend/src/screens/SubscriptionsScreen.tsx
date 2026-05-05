@@ -181,7 +181,7 @@ interface UpcomingProps {
 
 function Upcoming({ subscriptions }: UpcomingProps) {
   const items = [...subscriptions]
-    .filter((s) => s.is_active)
+    .filter((s) => s.is_active && daysUntil(s.next_charge_date) <= s.notify_days_before)
     .sort((a, b) => a.next_charge_date.localeCompare(b.next_charge_date))
     .slice(0, 3);
 

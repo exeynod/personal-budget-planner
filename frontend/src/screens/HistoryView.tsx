@@ -181,7 +181,7 @@ export const HistoryView = forwardRef<HistoryViewHandle, HistoryViewProps>(
         )}
 
         {groups.map((g) => (
-          <div key={g.date} className={styles.dateGroup}>
+          <div key={g.date} className={`${styles.dateGroup} ${styles.dayHeader}`}>
             <div className={styles.dateLabel}>
               <span>{g.label}</span>
               {g.totalCents > 0 && (

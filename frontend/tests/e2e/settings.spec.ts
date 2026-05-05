@@ -68,10 +68,10 @@ async function mockApi(page: import('@playwright/test').Page) {
 }
 
 async function navigateToSettings(page: import('@playwright/test').Page) {
-  // Click "Ещё" bottom nav tab
-  await expect(page.locator('button[aria-label="Ещё"]')).toBeVisible({ timeout: 10000 });
-  await page.click('button[aria-label="Ещё"]');
-  // Click "Настройки" row in MoreScreen
+  // Click "Управление" bottom nav tab (Phase 7 nav)
+  await expect(page.locator('button[aria-label="Управление"]')).toBeVisible({ timeout: 10000 });
+  await page.click('button[aria-label="Управление"]');
+  // Click "Настройки" row in ManagementScreen
   await expect(page.locator('text=Настройки').first()).toBeVisible({ timeout: 10000 });
   await page.locator('button').filter({ hasText: /Настройки/ }).first().click();
 }

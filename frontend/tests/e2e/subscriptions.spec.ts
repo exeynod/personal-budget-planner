@@ -96,7 +96,8 @@ test('shows subscriptions screen when navigating', async ({ page }) => {
   await mockApi(page, []);
   await page.goto('/');
 
-  await clickBottomNavTab(page, 'Подписки');
+  await clickBottomNavTab(page, 'Управление');
+  await page.locator('button').filter({ hasText: /Подписки/ }).first().click();
 
   await expect(page.locator('text=Подписок пока нет')).toBeVisible({ timeout: 10000 });
 });
@@ -122,6 +123,7 @@ test('shows subscriptions with data', async ({ page }) => {
   ]);
 
   await page.goto('/');
-  await clickBottomNavTab(page, 'Подписки');
+  await clickBottomNavTab(page, 'Управление');
+  await page.locator('button').filter({ hasText: /Подписки/ }).first().click();
   await expect(page.locator('text=Netflix').first()).toBeVisible({ timeout: 10000 });
 });

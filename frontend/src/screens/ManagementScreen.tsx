@@ -16,7 +16,7 @@ const ICONS: Record<ManagementView, Icon> = {
 };
 
 const ITEMS: { id: ManagementView; label: string; description: string }[] = [
-  { id: 'subscriptions', label: 'Подписки', description: 'Активные подписки и напоминания' },
+  { id: 'subscriptions', label: 'Подписки', description: 'Регулярные платежи и напоминания' },
   { id: 'template', label: 'Шаблон бюджета', description: 'Повторяющийся план для нового периода' },
   { id: 'categories', label: 'Категории', description: 'Управление категориями расходов и доходов' },
   { id: 'settings', label: 'Настройки', description: 'День начала периода, уведомления' },

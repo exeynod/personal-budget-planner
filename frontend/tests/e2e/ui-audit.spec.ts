@@ -211,6 +211,9 @@ test('audit-07: Add transaction bottom sheet', async ({ page }) => {
   await mockApiRich(page);
   await page.goto('/');
   await waitForLoad(page);
+  // FAB is inside TransactionsScreen (Phase 7 nav) — navigate there first
+  await page.click('button[aria-label="Транзакции"]');
+  await page.waitForTimeout(400);
   await page.click('button[aria-label="Добавить транзакцию"]');
   await page.waitForTimeout(300);
   await page.screenshot({ path: `${SCREENSHOTS_DIR}/07-add-transaction.png`, fullPage: true });

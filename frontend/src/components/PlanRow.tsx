@@ -157,6 +157,11 @@ export function PlanRow({ item, category, onAmountSave, onOpenEditor }: PlanRowP
         </div>
         <div className={styles.badges}>
           {isSubAuto && <span className={styles.subBadge}>🔁 Подписка</span>}
+          {!isSubAuto && item.kind === 'planned' && (
+            <span className={styles.sourceBadge}>
+              {item.row.source === 'template' ? 'Шаблон' : 'Вручную'}
+            </span>
+          )}
           {dayBadge && <span className={styles.dayBadge}>{dayBadge}</span>}
         </div>
       </div>

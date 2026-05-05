@@ -76,6 +76,27 @@ async function mockApiRich(page: import('@playwright/test').Page) {
         ]),
       });
     }
+    // Period-scoped actual/planned endpoints (must be before generic /periods catch-all)
+    if (url.match(/\/api\/v1\/periods\/\d+\/actual/)) {
+      return route.fulfill({
+        status: 200, contentType: 'application/json',
+        body: JSON.stringify([
+          { id: 1, category_id: 1, kind: 'expense', amount_cents: 18500, description: 'Пятёрочка', tx_date: '2026-05-03' },
+          { id: 2, category_id: 2, kind: 'expense', amount_cents: 9200, description: null, tx_date: '2026-05-02' },
+          { id: 3, category_id: 3, kind: 'expense', amount_cents: 14800, description: 'Обед с командой', tx_date: '2026-05-02' },
+          { id: 4, category_id: 7, kind: 'income', amount_cents: 137200, description: 'Аванс', tx_date: '2026-04-25' },
+        ]),
+      });
+    }
+    if (url.match(/\/api\/v1\/periods\/\d+\/planned/)) {
+      return route.fulfill({
+        status: 200, contentType: 'application/json',
+        body: JSON.stringify([
+          { id: 1, period_id: 1, category_id: 1, kind: 'expense', amount_cents: 20000, description: 'Продукты план', planned_date: null, source: 'manual' },
+          { id: 2, period_id: 1, category_id: 7, kind: 'income', amount_cents: 150000, description: 'Зарплата', planned_date: null, source: 'template' },
+        ]),
+      });
+    }
     if (url.includes('/api/v1/periods')) {
       return route.fulfill({
         status: 200, contentType: 'application/json',
