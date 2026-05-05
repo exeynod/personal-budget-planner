@@ -248,7 +248,7 @@ export const PlannedView = forwardRef<PlannedViewHandle, PlannedViewProps>(
     if (!period) {
       return (
         <div className={styles.root}>
-          {!inTransactions && <ScreenHeader title="План" onBack={onBack} />}
+          {!inTransactions && <ScreenHeader title="План" onBack={onBack ?? (() => undefined)} />}
           <div className={styles.empty}>Сначала завершите onboarding.</div>
         </div>
       );
@@ -260,7 +260,7 @@ export const PlannedView = forwardRef<PlannedViewHandle, PlannedViewProps>(
           <ScreenHeader
             title="План периода"
             subtitle={periodLabel}
-            onBack={onBack}
+            onBack={onBack ?? (() => undefined)}
             rightAction={
               <button
                 type="button"
