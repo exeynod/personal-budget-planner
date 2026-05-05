@@ -165,7 +165,14 @@ Plans:
   3. SVG-чарты — самописные (без recharts/visx); используют tokens-цвета и chart-палитру (chart-1..chart-6)
   4. Прогноз остатка к концу периода = текущий баланс + (плановые-факт) с linear-extrapolation темпа дневных расходов; обрабатывает edge-case первых дней периода
   5. Pytest contract-тесты + Vitest unit-тесты для ANL-* блоков
-**Plans**: TBD
+**Plans**: 5 планов
+
+Plans:
+- [ ] 08-01-PLAN.md — Wave 0: RED contract-тесты для 4 analytics endpoints (test_analytics.py)
+- [ ] 08-02-PLAN.md — Wave 1: Backend service + schemas + API routes + router registration
+- [ ] 08-03-PLAN.md — Wave 2: Frontend data layer (types.ts extend, api/analytics.ts, useAnalytics hook)
+- [ ] 08-04-PLAN.md — Wave 3: Frontend UI — полный AnalyticsScreen + 4 chart компонента + CSS
+- [ ] 08-05-PLAN.md — Wave 4: Verification — pytest + tsc + vite build + VERIFICATION.md + ROADMAP Complete
 **UI hint**: yes — sketch 008-A
 
 ### Phase 9: AI Assistant
@@ -217,7 +224,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 7. Nav Refactor | 6/6 | Complete   | 2026-05-05 |
-| 8. Analytics Screen | 0/0 | Pending plan | - |
+| 8. Analytics Screen | 0/5 | In progress | - |
 | 9. AI Assistant | 0/0 | Pending plan | - |
 | 10. AI Categorization | 0/0 | Pending plan | - |
 
