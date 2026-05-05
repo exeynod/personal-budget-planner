@@ -138,8 +138,8 @@ cloudflared tunnel --url http://localhost:8087
 
 Cloudflare сам терминирует TLS, поэтому Caddy нужен в HTTP-режиме. Переопределения уже прописаны в `docker-compose.cloudflare.yml`:
 
-- монтирует `Caddyfile.dev` (HTTP-only, без Let's Encrypt)
-- открывает Caddy только на `127.0.0.1:8087` — снаружи недоступно, Cloudflare Tunnel дотягивается изнутри
+- монтирует `Caddyfile.cloudflare` (HTTP-only, без Let's Encrypt; использует `handle {}`-блоки чтобы `/api/v1/internal/*` корректно отвечали 403, а `/api/*` проксировались в `api:8000` — без этого Caddy default directive order ломает роутинг и отдаёт SPA на API-путях)
+- через `ports: !override` ЗАМЕНЯЕТ список портов из базового compose, оставляя только `127.0.0.1:8087:80` — `0.0.0.0:80/443` наружу не публикуются (trust boundary: к Caddy достукается ТОЛЬКО cloudflared изнутри docker-сети)
 
 Ничего редактировать вручную не нужно.
 
@@ -194,6 +194,14 @@ docker compose logs -f cloudflared
 
 Проверка: открой `https://budget.yourdomain.com` в браузере — должен ответить SPA.
 
+**Если cloudflared логи показывают `Unauthorized: Tunnel not found`** — значит токен в `.env` не соответствует туннелю в дашборде (туннель пересоздавали или токен от другого). Возьми актуальный из дашборда (Tunnels → твой туннель → Connectors → Install connector → Docker, в команде после `--token`), обнови `CLOUDFLARE_TUNNEL_TOKEN` в `.env`, перезапусти cloudflared:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.cloudflare.yml up -d --force-recreate cloudflared
+```
+
+**DPI в РФ-сегменте.** Cloudflare-блоки (104.16.0.0/13 и др.) активно режутся российскими провайдерами на длинных TLS-стримах. Без VPN сайт может: открываться частично, обрывать загрузку JS/шрифтов на 50–200 КБ, выдавать `ERR_NETWORK_CHANGED` / `kCFURLErrorNetworkConnectionLost`. Решение: VPN на стороне клиента (например, v2RayTun + VLESS), в proxy-list добавить `domain:exypersonal.ru` или направлять через прокси всё, что не в `geoip:ru`. Telegram-клиент на телефоне обычно не страдает — он сам ходит через свой шлюз.
+
 ### 2.7 Настройка в BotFather
 
 ```
@@ -211,6 +219,23 @@ docker compose -f docker-compose.yml -f docker-compose.cloudflare.yml up -d --bu
 
 `api` накатывает миграции автоматически при перезапуске.
 
+### 2.9 Локальный dev-режим
+
+Для разработки на ноутбуке (HMAC-валидация initData отключена, мок-владелец, api опубликован на `localhost:8000`):
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+```
+
+`docker-compose.dev.yml` нужно подключать **явно через `-f`** — он не автоматически мерджится с `docker-compose.yml` (раньше был `docker-compose.override.yml`, который Compose всасывал на каждом `up` и рисковал утечкой `DEV_MODE=true` в прод).
+
+В dev-режиме:
+- `api`: `DEV_MODE=true` → принимает запросы без валидного initData, инжектит мок-owner
+- `caddy`: монтирует `Caddyfile.dev` (HTTP-only, без TLS)
+- логи: `LOG_FORMAT=console`, `LOG_LEVEL=DEBUG`
+
+Тестировать API напрямую (минуя Caddy): `curl http://localhost:8000/api/v1/me`.
+
 ---
 
 ## Шпаргалка
@@ -224,6 +249,9 @@ docker compose -f docker-compose.yml -f docker-compose.cloudflare.yml up -d --bu
 # Обновление
 git pull && docker compose -f docker-compose.yml -f docker-compose.cloudflare.yml up -d --build
 
+# Локальный dev (DEV_MODE=true, api на :8000)
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+
 # Логи
 docker compose logs -f api bot worker cloudflared
 
@@ -232,4 +260,7 @@ docker compose restart api
 
 # Проверить тоннель
 docker compose logs cloudflared | tail -20
+
+# Cloudflared "Unauthorized: Tunnel not found" → обновить токен в .env, потом:
+docker compose -f docker-compose.yml -f docker-compose.cloudflare.yml up -d --force-recreate cloudflared
 ```
