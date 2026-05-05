@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Sketch 013 — Управление (top-level tab)</title>
+<link rel="stylesheet" href="../themes/default.css">
+<style>
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body { background: #05070b; color: var(--color-text); font-family: var(--font-sans); padding-top: 56px; min-height: 100vh; }
+
+#variant-nav { position: fixed; top: 0; left: 0; right: 0; z-index: 9998; background: #0a0d13; border-bottom: 1px solid #1a1f2c; padding: 8px; display: flex; gap: 6px; font-family: var(--font-sans); font-size: 12px; }
+.variant-tab { background: transparent; color: #94a0b8; border: 1px solid #232a3a; padding: 8px 14px; border-radius: 999px; cursor: pointer; white-space: nowrap; }
+.variant-tab.active { background: var(--color-primary); color: #fff; border-color: var(--color-primary); font-weight: 600; }
+.variant { display: none; }
+.variant.active { display: block; }
+
+.frame { max-width: var(--tg-viewport); margin: 24px auto; background: var(--color-bg); border-radius: 28px; overflow: hidden; box-shadow: var(--shadow-lg); position: relative; min-height: 760px; padding: var(--space-4) var(--space-4) calc(var(--bottom-nav-height) + var(--safe-bottom) + 16px); font-family: var(--font-sans); }
+
+/* PageTitle */
+.pageTitle { padding: var(--space-3) 0 var(--space-4); }
+.pageTitle h1 { margin: 0; font-size: var(--text-xl); font-weight: 700; color: var(--color-text); }
+.pageTitle .sub { font-size: var(--text-xs); color: var(--color-text-muted); margin-top: 2px; }
+
+/* Section title (uppercase muted) */
+.sectionTitle { font-size: var(--text-sm); font-weight: 600; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.06em; margin: var(--space-4) 0 var(--space-2); padding: 0 var(--space-1); }
+
+/* Menu item */
+.menuItem { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-4); background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); margin-bottom: var(--space-2); cursor: pointer; text-align: left; width: 100%; font-family: inherit; }
+.menuItem:hover, .menuItem:active { background: var(--color-surface-2); }
+.menuItem .icon { width: 36px; height: 36px; border-radius: var(--radius-sm); background: var(--color-primary-soft); color: var(--color-primary); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.menuItem .icon svg { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.menuItem .body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.menuItem .ttl { font-size: var(--text-base); font-weight: 600; color: var(--color-text); }
+.menuItem .desc { font-size: var(--text-xs); color: var(--color-text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.menuItem .chev { color: var(--color-text-dim); font-size: 18px; flex-shrink: 0; line-height: 1; }
+.menuItem .badge { padding: 2px 8px; border-radius: var(--radius-full); background: var(--color-bg-elevated); color: var(--color-text-muted); font-family: var(--font-mono); font-size: 11px; font-weight: 500; flex-shrink: 0; }
+.menuItem.warn .icon { background: rgba(255,181,71,0.12); color: var(--color-warn); }
+
+/* Compact variant: меньше высота, без описания */
+.menuItem.compact { padding: var(--space-3) var(--space-4); }
+.menuItem.compact .icon { width: 28px; height: 28px; }
+.menuItem.compact .icon svg { width: 16px; height: 16px; }
+
+/* Footer */
+.footer { padding: var(--space-6) var(--space-2); text-align: center; }
+.footer .ver { font-size: var(--text-xs); color: var(--color-text-dim); }
+.footer .ver a { color: var(--color-primary); text-decoration: none; }
+
+/* BottomNav */
+.nav { position: absolute; bottom: 0; left: 0; right: 0; height: calc(var(--bottom-nav-height) + var(--safe-bottom)); background: var(--color-bg-elevated); border-top: 1px solid var(--color-border); display: flex; padding-bottom: var(--safe-bottom); box-shadow: 0 -2px 12px rgba(0,0,0,0.3); }
+.nav .tab { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; background: transparent; border: 0; cursor: pointer; color: var(--color-text-muted); padding: 6px 0; font-family: inherit; }
+.nav .tab.active { color: var(--color-primary); }
+.nav .tab .ic svg { width: 26px; height: 26px; stroke: currentColor; fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.nav .tab.active .ic svg { stroke-width: 2; fill: currentColor; }
+.nav .tab.ai .ic svg { stroke-width: 1.5; }
+.nav .tab .lb { font-size: 10px; font-weight: 500; line-height: 1; }
+</style>
+</head>
+<body>
+
+<div id="variant-nav">
+  <button class="variant-tab active" onclick="show('a',this)">A: Меню с описаниями</button>
+  <button class="variant-tab" onclick="show('b',this)">B: С счётчиками</button>
+  <button class="variant-tab" onclick="show('c',this)">C: Compact (без описаний)</button>
+</div>
+
+<!-- ============================================== -->
+<!-- VARIANT A: Меню с описанием каждого пункта      -->
+<!-- ============================================== -->
+<div id="variant-a" class="variant active">
+  <div class="frame">
+    <div class="pageTitle">
+      <h1>Управление</h1>
+      <div class="sub">Подписки · Шаблон · Категории · Настройки</div>
+    </div>
+
+    <button class="menuItem">
+      <div class="icon"><svg viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9z"/><path d="M10 21a2 2 0 0 0 4 0"/></svg></div>
+      <div class="body">
+        <span class="ttl">Подписки</span>
+        <span class="desc">3 активные · 1 097 ₽/мес</span>
+      </div>
+      <span class="chev">›</span>
+    </button>
+
+    <button class="menuItem">
+      <div class="icon"><svg viewBox="0 0 24 24"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/><path d="M9 13h6M9 17h6"/></svg></div>
+      <div class="body">
+        <span class="ttl">Шаблон бюджета</span>
+        <span class="desc">Повторяющийся план для нового периода</span>
+      </div>
+      <span class="chev">›</span>
+    </button>
+
+    <button class="menuItem">
+      <div class="icon"><svg viewBox="0 0 24 24"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><circle cx="7" cy="7" r="1.5"/></svg></div>
+      <div class="body">
+        <span class="ttl">Категории</span>
+        <span class="desc">14 активных · 0 архивных</span>
+      </div>
+      <span class="chev">›</span>
+    </button>
+
+    <button class="menuItem">
+      <div class="icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></div>
+      <div class="body">
+        <span class="ttl">Настройки</span>
+        <span class="desc">День начала периода, уведомления</span>
+      </div>
+      <span class="chev">›</span>
+    </button>
+
+    <div class="sectionTitle">О приложении</div>
+
+    <button class="menuItem compact">
+      <div class="icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg></div>
+      <div class="body"><span class="ttl">Помощь и обратная связь</span></div>
+      <span class="chev">›</span>
+    </button>
+
+    <div class="footer">
+      <div class="ver">TG Budget Planner v0.3 · <a href="#">Changelog</a></div>
+    </div>
+
+    <nav class="nav">
+      <button class="tab"><span class="ic"><svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7v9a2 2 0 0 1-2 2h-4v-7H9v7H5a2 2 0 0 1-2-2v-9z"/></svg></span><span class="lb">Главная</span></button>
+      <button class="tab"><span class="ic"><svg viewBox="0 0 24 24"><path d="M3 7h13M3 7l4-4M3 7l4 4M21 17H8M21 17l-4-4M21 17l-4 4"/></svg></span><span class="lb">Транзакции</span></button>
+      <button class="tab"><span class="ic"><svg viewBox="0 0 24 24"><path d="M3 21h18M7 21V10M12 21V4M17 21v-7"/></svg></span><span class="lb">Аналитика</span></button>
+      <button class="tab ai"><span class="ic"><svg viewBox="0 0 24 24"><path d="M12 3l1.8 5.4L19 10l-5.2 1.6L12 17l-1.8-5.4L5 10l5.2-1.6L12 3z"/></svg></span><span class="lb">AI</span></button>
+      <button class="tab active"><span class="ic"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="8" rx="1"/><rect x="13" y="3" width="8" height="8" rx="1"/><rect x="3" y="13" width="8" height="8" rx="1"/><rect x="13" y="13" width="8" height="8" rx="1"/></svg></span><span class="lb">Управление</span></button>
+    </nav>
+  </div>
+</div>
+
+<!-- ============================================== -->
+<!-- VARIANT B: С счётчиками-бейджами справа         -->
+<!-- ============================================== -->
+<div id="variant-b" class="variant">
+  <div class="frame">
+    <div class="pageTitle">
+      <h1>Управление</h1>
+      <div class="sub">4 раздела</div>
+    </div>
+
+    <button class="menuItem">
+      <div class="icon"><svg viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9z"/><path d="M10 21a2 2 0 0 0 4 0"/></svg></div>
+      <div class="body">
+        <span class="ttl">Подписки</span>
+        <span class="desc">Ближайшее списание: 6 мая, 299 ₽</span>
+      </div>
+      <span class="badge">3</span>
+      <span class="chev">›</span>
+    </button>
+
+    <button class="menuItem">
+      <div class="icon"><svg viewBox="0 0 24 24"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/></svg></div>
+      <div class="body">
+        <span class="ttl">Шаблон бюджета</span>
+        <span class="desc">Последнее обновление: 5 апр</span>
+      </div>
+      <span class="badge">14</span>
+      <span class="chev">›</span>
+    </button>
+
+    <button class="menuItem warn">
+      <div class="icon"><svg viewBox="0 0 24 24"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/></svg></div>
+      <div class="body">
+        <span class="ttl">Категории</span>
+        <span class="desc">14 активных · 0 архивных</span>
+      </div>
+      <span class="badge">14</span>
+      <span class="chev">›</span>
+    </button>
+
+    <button class="menuItem">
+      <div class="icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 1v6m0 10v6M4.22 4.22l4.24 4.24m7.08 7.08l4.24 4.24M1 12h6m10 0h6M4.22 19.78l4.24-4.24m7.08-7.08l4.24-4.24"/></svg></div>
+      <div class="body">
+        <span class="ttl">Настройки</span>
+        <span class="desc">cycle_start_day = 5 · уведомления вкл.</span>
+      </div>
+      <span class="chev">›</span>
+    </button>
+
+    <nav class="nav">
+      <button class="tab"><span class="ic"><svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7v9a2 2 0 0 1-2 2h-4v-7H9v7H5a2 2 0 0 1-2-2v-9z"/></svg></span><span class="lb">Главная</span></button>
+      <button class="tab"><span class="ic"><svg viewBox="0 0 24 24"><path d="M3 7h13M3 7l4-4M3 7l4 4M21 17H8M21 17l-4-4M21 17l-4 4"/></svg></span><span class="lb">Транзакции</span></button>
+      <button class="tab"><span class="ic"><svg viewBox="0 0 24 24"><path d="M3 21h18M7 21V10M12 21V4M17 21v-7"/></svg></span><span class="lb">Аналитика</span></button>
+      <button class="tab ai"><span class="ic"><svg viewBox="0 0 24 24"><path d="M12 3l1.8 5.4L19 10l-5.2 1.6L12 17l-1.8-5.4L5 10l5.2-1.6L12 3z"/></svg></span><span class="lb">AI</span></button>
+      <button class="tab active"><span class="ic"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="8" rx="1"/><rect x="13" y="3" width="8" height="8" rx="1"/><rect x="3" y="13" width="8" height="8" rx="1"/><rect x="13" y="13" width="8" height="8" rx="1"/></svg></span><span class="lb">Управление</span></button>
+    </nav>
+  </div>
+</div>
+
+<!-- ============================================== -->
+<!-- VARIANT C: Compact list                         -->
+<!-- ============================================== -->
+<div id="variant-c" class="variant">
+  <div class="frame">
+    <div class="pageTitle">
+      <h1>Управление</h1>
+    </div>
+
+    <button class="menuItem compact">
+      <div class="icon"><svg viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9z"/><path d="M10 21a2 2 0 0 0 4 0"/></svg></div>
+      <div class="body"><span class="ttl">Подписки</span></div>
+      <span class="chev">›</span>
+    </button>
+    <button class="menuItem compact">
+      <div class="icon"><svg viewBox="0 0 24 24"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/></svg></div>
+      <div class="body"><span class="ttl">Шаблон бюджета</span></div>
+      <span class="chev">›</span>
+    </button>
+    <button class="menuItem compact">
+      <div class="icon"><svg viewBox="0 0 24 24"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/></svg></div>
+      <div class="body"><span class="ttl">Категории</span></div>
+      <span class="chev">›</span>
+    </button>
+    <button class="menuItem compact">
+      <div class="icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></div>
+      <div class="body"><span class="ttl">Настройки</span></div>
+      <span class="chev">›</span>
+    </button>
+
+    <nav class="nav">
+      <button class="tab"><span class="ic"><svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7v9a2 2 0 0 1-2 2h-4v-7H9v7H5a2 2 0 0 1-2-2v-9z"/></svg></span><span class="lb">Главная</span></button>
+      <button class="tab"><span class="ic"><svg viewBox="0 0 24 24"><path d="M3 7h13M3 7l4-4M3 7l4 4M21 17H8M21 17l-4-4M21 17l-4 4"/></svg></span><span class="lb">Транзакции</span></button>
+      <button class="tab"><span class="ic"><svg viewBox="0 0 24 24"><path d="M3 21h18M7 21V10M12 21V4M17 21v-7"/></svg></span><span class="lb">Аналитика</span></button>
+      <button class="tab ai"><span class="ic"><svg viewBox="0 0 24 24"><path d="M12 3l1.8 5.4L19 10l-5.2 1.6L12 17l-1.8-5.4L5 10l5.2-1.6L12 3z"/></svg></span><span class="lb">AI</span></button>
+      <button class="tab active"><span class="ic"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="8" rx="1"/><rect x="13" y="3" width="8" height="8" rx="1"/><rect x="3" y="13" width="8" height="8" rx="1"/><rect x="13" y="13" width="8" height="8" rx="1"/></svg></span><span class="lb">Управление</span></button>
+    </nav>
+  </div>
+</div>
+
+<div id="sketch-tools" style="position:fixed;bottom:12px;right:12px;z-index:9999;font-family:system-ui;font-size:12px;background:rgba(0,0,0,0.75);color:white;padding:8px 12px;border-radius:8px;opacity:0.4;" onmouseenter="this.style.opacity='1'" onmouseleave="this.style.opacity='0.4'">Sketch 013</div>
+
+<script>
+function show(id, btn) {
+  document.querySelectorAll('.variant').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.variant-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('variant-' + id).classList.add('active');
+  btn.classList.add('active');
+}
+</script>
+</body>
+</html>

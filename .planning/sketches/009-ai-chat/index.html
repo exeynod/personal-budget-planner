@@ -1,0 +1,331 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Sketch 009 — AI</title>
+<link rel="stylesheet" href="../themes/default.css">
+<style>
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body { background: #05070b; color: var(--color-text); font-family: var(--font-sans); padding-top: 56px; min-height: 100vh; }
+
+#variant-nav { position: fixed; top: 0; left: 0; right: 0; z-index: 9998; background: #0a0d13; border-bottom: 1px solid #1a1f2c; padding: 8px; display: flex; gap: 6px; font-family: var(--font-sans); font-size: 12px; }
+.variant-tab { background: transparent; color: #94a0b8; border: 1px solid #232a3a; padding: 8px 14px; border-radius: 999px; cursor: pointer; white-space: nowrap; }
+.variant-tab.active { background: #a78bfa; color: #fff; border-color: #a78bfa; font-weight: 600; }
+.variant { display: none; }
+.variant.active { display: block; }
+
+.frame { max-width: var(--tg-viewport); margin: 24px auto; background: var(--color-bg); border-radius: 28px; overflow: hidden; box-shadow: var(--shadow-lg); position: relative; min-height: 760px; display: flex; flex-direction: column; font-family: var(--font-sans); }
+
+/* Common screen — без внешних паддингов, нав внизу */
+.scr { flex: 1; display: flex; flex-direction: column; padding: var(--space-4); padding-bottom: calc(var(--bottom-nav-height) + var(--safe-bottom) + 8px); }
+
+/* ── PageTitle (top-level, без back-button) ── */
+.pageTitle { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3) 0 var(--space-4); }
+.pageTitle .av { width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg,#4c1d95,#1e1b4b); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.pageTitle .av svg { width: 18px; height: 18px; fill: #fff; }
+.pageTitle .info { flex: 1; min-width: 0; }
+.pageTitle h1 { margin: 0; font-size: var(--text-xl); font-weight: 700; color: var(--color-text); display: inline-flex; align-items: center; gap: 8px; }
+.pageTitle .sub { font-size: var(--text-xs); color: var(--color-text-muted); margin-top: 2px; }
+.aiBadge { padding: 2px 8px; border-radius: var(--radius-full); background: rgba(167,139,250,0.12); border: 1px solid rgba(167,139,250,0.25); color: #a78bfa; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+
+/* ── Variant A: chat ── */
+.msgs { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-2) 0; }
+.empty { text-align: center; padding: var(--space-8) var(--space-4); }
+.empty .icon { width: 48px; height: 48px; margin: 0 auto var(--space-3); display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg,#4c1d95,#1e1b4b); border-radius: 50%; }
+.empty .icon svg { width: 24px; height: 24px; stroke: #fff; fill: #fff; stroke-width: 0; }
+.empty .ttl { font-size: var(--text-base); color: var(--color-text); font-weight: 600; margin-bottom: 4px; }
+.empty .stl { font-size: var(--text-sm); color: var(--color-text-muted); margin-bottom: var(--space-3); }
+.chips { display: flex; gap: var(--space-2); flex-wrap: wrap; justify-content: center; }
+.chip { padding: 6px 12px; background: rgba(167,139,250,0.12); border: 1px solid rgba(167,139,250,0.25); border-radius: var(--radius-full); font-size: var(--text-sm); color: #a78bfa; cursor: pointer; font-family: inherit; }
+
+.mUser { display: flex; justify-content: flex-end; }
+.mUser .b { background: var(--color-primary); color: #fff; padding: 10px 14px; border-radius: 18px 18px 4px 18px; max-width: 80%; font-size: var(--text-sm); line-height: 1.4; }
+.mAi { display: flex; gap: 8px; align-items: flex-end; }
+.mAi .av { width: 28px; height: 28px; border-radius: 50%; background: linear-gradient(135deg,#4c1d95,#1e1b4b); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.mAi .av svg { width: 14px; height: 14px; fill: #fff; }
+.mAi .b { background: var(--color-surface); border: 1px solid var(--color-border-subtle); color: var(--color-text); padding: 10px 14px; border-radius: 18px 18px 18px 4px; max-width: 80%; font-size: var(--text-sm); line-height: 1.5; }
+
+.toolInd { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; background: rgba(167,139,250,0.12); border: 1px solid rgba(167,139,250,0.25); border-radius: var(--radius-full); font-size: 11px; color: #a78bfa; margin-bottom: 4px; }
+.toolDot { width: 6px; height: 6px; border-radius: 50%; background: #a78bfa; animation: pulse 1.2s infinite; }
+@keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:0.3;} }
+
+.dataCard { background: var(--color-surface-2); border-radius: var(--radius-sm); padding: 10px; margin-top: var(--space-2); }
+.dataRow { display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid var(--color-border-subtle); }
+.dataRow:last-child { border-bottom: none; }
+.dCat { font-size: 11px; color: var(--color-text-muted); }
+.dAmt { font-family: var(--font-mono); font-size: 11px; color: var(--color-text); font-weight: 600; }
+
+.inputBar { display: flex; gap: 8px; align-items: flex-end; padding-top: var(--space-3); }
+.cinput { flex: 1; background: var(--color-surface-2); border: 1px solid var(--color-border); border-radius: 22px; padding: 10px 16px; color: var(--color-text); font-size: var(--text-sm); font-family: inherit; outline: none; min-height: 42px; }
+.cinput::placeholder { color: var(--color-text-dim); }
+.send { width: 42px; height: 42px; border-radius: 50%; background: #a78bfa; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.send svg { width: 18px; height: 18px; fill: #fff; }
+
+/* ── Variant B: bottom-sheet поверх Главной ── */
+.bgmain { flex: 1; padding: var(--space-4); position: relative; opacity: 0.4; }
+.bgmain .heroWrap { margin: calc(-1 * var(--space-4)) calc(-1 * var(--space-4)) var(--space-4); }
+.bgmain .hero { padding: var(--space-5) var(--space-5) var(--space-6); background: var(--gradient-hero); position: relative; overflow: hidden; }
+.bgmain .pr { font-size: var(--text-sm); color: rgba(255,255,255,0.5); margin-bottom: var(--space-4); font-weight: 500; }
+.bgmain .al { font-size: var(--text-xs); color: rgba(255,255,255,0.5); font-weight: 500; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 4px; }
+.bgmain .am { font-family: var(--font-mono); font-size: var(--text-3xl); font-weight: 700; color: #fff; }
+
+.sheet { position: absolute; left: 0; right: 0; bottom: 0; background: var(--color-surface); border-radius: var(--radius-lg) var(--radius-lg) 0 0; max-height: 85%; display: flex; flex-direction: column; box-shadow: var(--shadow-lg); }
+.sheet .handle { width: 40px; height: 4px; background: var(--color-border); border-radius: var(--radius-full); margin: 12px auto 0; }
+.sheet .head { display: flex; align-items: center; justify-content: space-between; padding: var(--space-4) var(--space-5) var(--space-3); }
+.sheet .ttl { font-size: var(--text-md); font-weight: 600; color: var(--color-text); display: flex; align-items: center; gap: 8px; }
+.sheet .ttl .dot { width: 24px; height: 24px; border-radius: 50%; background: linear-gradient(135deg,#4c1d95,#1e1b4b); display: flex; align-items: center; justify-content: center; }
+.sheet .ttl .dot svg { width: 12px; height: 12px; fill: #fff; }
+.sheet .close { background: transparent; border: 0; color: var(--color-text-muted); font-size: 28px; line-height: 1; cursor: pointer; padding: 0 8px; }
+.sheet .body { padding: 0 var(--space-5) var(--space-5); flex: 1; overflow: auto; display: flex; flex-direction: column; gap: var(--space-3); }
+
+.fab { position: absolute; right: 24px; bottom: calc(var(--bottom-nav-height) + var(--safe-bottom) + 16px); width: 56px; height: 56px; border-radius: 50%; background: linear-gradient(135deg,#4c1d95,#1e1b4b); border: 0; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 20px rgba(167,139,250,0.45); }
+.fab svg { width: 28px; height: 28px; fill: #fff; }
+
+/* ── Variant C: Insights feed ── */
+.feed { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-2) 0; }
+.ins { border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: var(--space-3) var(--space-4); background: var(--color-surface); }
+.ins.danger { border-left: 3px solid var(--color-danger); }
+.ins.warn { border-left: 3px solid var(--color-warn); }
+.ins.success { border-left: 3px solid var(--color-success); }
+.ins.info { border-left: 3px solid var(--color-primary); }
+.ins .top { display: flex; align-items: flex-start; gap: var(--space-2); margin-bottom: 6px; }
+.ins .ic { width: 24px; height: 24px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+.ins .ic svg { width: 18px; height: 18px; stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.ins.danger .ic svg { stroke: var(--color-danger); }
+.ins.warn .ic svg { stroke: var(--color-warn); }
+.ins.success .ic svg { stroke: var(--color-success); }
+.ins.info .ic svg { stroke: var(--color-primary); }
+.ins .h { flex: 1; font-size: var(--text-base); font-weight: 600; color: var(--color-text); line-height: 1.3; }
+.ins .d { font-family: var(--font-mono); font-size: var(--text-sm); font-weight: 700; flex-shrink: 0; }
+.ins.danger .d { color: var(--color-danger); }
+.ins.warn .d { color: var(--color-warn); }
+.ins.success .d { color: var(--color-success); }
+.ins.info .d { color: var(--color-primary); }
+.ins .desc { font-size: var(--text-sm); color: var(--color-text-muted); margin-bottom: var(--space-2); line-height: 1.4; }
+.ins .ibar { height: 4px; background: var(--color-border); border-radius: 2px; overflow: hidden; margin-bottom: var(--space-2); }
+.ins .ifill { height: 4px; border-radius: 2px; }
+.ins.danger .ifill { background: var(--color-danger); }
+.ins.warn .ifill { background: var(--color-warn); }
+.ins.success .ifill { background: var(--color-success); }
+.ins.info .ifill { background: var(--color-primary); }
+.ins .ask { display: inline-flex; align-items: center; gap: 4px; font-size: var(--text-sm); font-weight: 600; color: #a78bfa; cursor: pointer; padding: 4px 0; }
+
+/* ── BottomNav ── */
+.nav { position: absolute; bottom: 0; left: 0; right: 0; height: calc(var(--bottom-nav-height) + var(--safe-bottom)); background: var(--color-bg-elevated); border-top: 1px solid var(--color-border); display: flex; padding-bottom: var(--safe-bottom); box-shadow: 0 -2px 12px rgba(0,0,0,0.3); }
+.nav .tab { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; background: transparent; border: 0; cursor: pointer; color: var(--color-text-muted); padding: 6px 0; font-family: inherit; }
+.nav .tab.active { color: var(--color-primary); }
+.nav .tab .ic svg { width: 26px; height: 26px; stroke: currentColor; fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.nav .tab.active .ic svg { stroke-width: 2; fill: currentColor; }
+.nav .tab .lb { font-size: 10px; font-weight: 500; line-height: 1; }
+</style>
+</head>
+<body>
+
+<div id="variant-nav">
+  <button class="variant-tab active" onclick="show('a',this)">A: Полноэкранный чат</button>
+  <button class="variant-tab" onclick="show('b',this)">B: Bottom-sheet + FAB</button>
+  <button class="variant-tab" onclick="show('c',this)">C: Лента инсайтов</button>
+</div>
+
+<!-- ============================================== -->
+<!-- VARIANT A: Полноэкранный чат                    -->
+<!-- ============================================== -->
+<div id="variant-a" class="variant active">
+  <div class="frame">
+
+    <div class="scr">
+      <div class="pageTitle">
+        <div class="av"><svg viewBox="0 0 24 24"><path d="M12 3l1.8 5.4L19 10l-5.2 1.6L12 17l-1.8-5.4L5 10l5.2-1.6L12 3z"/></svg></div>
+        <div class="info">
+          <h1>Budget AI</h1>
+          <div class="sub">Помощник по бюджету</div>
+        </div>
+      </div>
+
+      <div class="msgs" id="msgs-a">
+        <div class="empty">
+          <div class="icon"><svg viewBox="0 0 24 24"><path d="M12 3l1.8 5.4L19 10l-5.2 1.6L12 17l-1.8-5.4L5 10l5.2-1.6L12 3z"/></svg></div>
+          <div class="ttl">Спроси что угодно о бюджете</div>
+          <div class="stl">Я знаю твои траты, план и подписки</div>
+          <div class="chips">
+            <button class="chip">Топ расходов</button>
+            <button class="chip">Сравни месяцы</button>
+            <button class="chip">Где экономить?</button>
+          </div>
+        </div>
+
+        <div class="mUser"><div class="b">Сколько потратил на кафе в марте?</div></div>
+
+        <div class="mAi">
+          <div class="av"><svg viewBox="0 0 24 24"><path d="M12 3l1.8 5.4L19 10l-5.2 1.6L12 17l-1.8-5.4L5 10l5.2-1.6L12 3z"/></svg></div>
+          <div class="b">
+            <div class="toolInd"><div class="toolDot"></div>Смотрю март...</div>
+            <div>В марте на <b>Кафе</b> потрачено <b>540 ₽</b> при плане 450 ₽ — на 20% больше.</div>
+            <div class="dataCard">
+              <div class="dataRow"><span class="dCat">Точка кофе</span><span class="dAmt">240 ₽</span></div>
+              <div class="dataRow"><span class="dCat">Доставка</span><span class="dAmt">180 ₽</span></div>
+              <div class="dataRow"><span class="dCat">Другое</span><span class="dAmt">120 ₽</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="inputBar">
+        <textarea class="cinput" placeholder="Спроси о бюджете..." rows="1"></textarea>
+        <button class="send"><svg viewBox="0 0 24 24"><path d="M2 12l20-9-7 20-3-9-10-2z"/></svg></button>
+      </div>
+    </div>
+
+    <nav class="nav">
+      <button class="tab"><span class="ic"><svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7v9a2 2 0 0 1-2 2h-4v-7H9v7H5a2 2 0 0 1-2-2v-9z"/></svg></span><span class="lb">Главная</span></button>
+      <button class="tab"><span class="ic"><svg viewBox="0 0 24 24"><path d="M3 7h13M3 7l4-4M3 7l4 4M21 17H8M21 17l-4-4M21 17l-4 4"/></svg></span><span class="lb">Транзакции</span></button>
+      <button class="tab"><span class="ic"><svg viewBox="0 0 24 24"><path d="M3 21h18M7 21V10M12 21V4M17 21v-7"/></svg></span><span class="lb">Аналитика</span></button>
+      <button class="tab ai active"><span class="ic"><svg viewBox="0 0 24 24"><path d="M12 3l1.8 5.4L19 10l-5.2 1.6L12 17l-1.8-5.4L5 10l5.2-1.6L12 3z"/></svg></span><span class="lb">AI</span></button>
+      <button class="tab"><span class="ic"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="8" rx="1"/><rect x="13" y="3" width="8" height="8" rx="1"/><rect x="3" y="13" width="8" height="8" rx="1"/><rect x="13" y="13" width="8" height="8" rx="1"/></svg></span><span class="lb">Управление</span></button>
+    </nav>
+  </div>
+</div>
+
+<!-- ============================================== -->
+<!-- VARIANT B: Bottom-sheet + FAB поверх Главной    -->
+<!-- ============================================== -->
+<div id="variant-b" class="variant">
+  <div class="frame">
+    <div class="bgmain">
+      <div class="heroWrap"><div class="hero">
+        <div class="pr">5 апр. – 4 мая 2026 г.</div>
+        <div class="al">Баланс</div>
+        <div class="am">325 ₽</div>
+      </div></div>
+      <div style="font-size:var(--text-sm);color:var(--color-text-muted);text-align:center;padding:8px;">Главный экран · «Расходы»</div>
+    </div>
+
+    <button class="fab"><svg viewBox="0 0 24 24"><path d="M12 3l1.8 5.4L19 10l-5.2 1.6L12 17l-1.8-5.4L5 10l5.2-1.6L12 3z"/></svg></button>
+
+    <div class="sheet">
+      <div class="handle"></div>
+      <div class="head">
+        <div class="ttl">
+          <div class="dot"><svg viewBox="0 0 24 24"><path d="M12 3l1.8 5.4L19 10l-5.2 1.6L12 17l-1.8-5.4L5 10l5.2-1.6L12 3z"/></svg></div>
+          Budget AI
+        </div>
+        <button class="close">×</button>
+      </div>
+      <div class="body">
+        <div class="chips">
+          <button class="chip">Топ расходов</button>
+          <button class="chip">Где экономить?</button>
+        </div>
+        <div class="mUser"><div class="b">Где я трачу больше всего?</div></div>
+        <div class="mAi">
+          <div class="av"><svg viewBox="0 0 24 24"><path d="M12 3l1.8 5.4L19 10l-5.2 1.6L12 17l-1.8-5.4L5 10l5.2-1.6L12 3z"/></svg></div>
+          <div class="b">Топ-3 в апреле: <b>Продукты</b> 185 ₽, <b>Кафе</b> 148 ₽, <b>Транспорт</b> 92 ₽.</div>
+        </div>
+        <div class="inputBar" style="border-top:1px solid var(--color-border-subtle); padding: var(--space-3) 0 0;">
+          <input class="cinput" placeholder="Спроси..." style="min-height: 38px;">
+          <button class="send" style="width:38px; height: 38px;"><svg viewBox="0 0 24 24"><path d="M2 12l20-9-7 20-3-9-10-2z"/></svg></button>
+        </div>
+      </div>
+    </div>
+
+    <nav class="nav">
+      <button class="tab active"><span class="ic"><svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7v9a2 2 0 0 1-2 2h-4v-7H9v7H5a2 2 0 0 1-2-2v-9z"/></svg></span><span class="lb">Главная</span></button>
+      <button class="tab"><span class="ic"><svg viewBox="0 0 24 24"><path d="M3 7h13M3 7l4-4M3 7l4 4M21 17H8M21 17l-4-4M21 17l-4 4"/></svg></span><span class="lb">Транзакции</span></button>
+      <button class="tab"><span class="ic"><svg viewBox="0 0 24 24"><path d="M3 21h18M7 21V10M12 21V4M17 21v-7"/></svg></span><span class="lb">Аналитика</span></button>
+      <button class="tab ai"><span class="ic"><svg viewBox="0 0 24 24"><path d="M12 3l1.8 5.4L19 10l-5.2 1.6L12 17l-1.8-5.4L5 10l5.2-1.6L12 3z"/></svg></span><span class="lb">AI</span></button>
+      <button class="tab"><span class="ic"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="8" rx="1"/><rect x="13" y="3" width="8" height="8" rx="1"/><rect x="3" y="13" width="8" height="8" rx="1"/><rect x="13" y="13" width="8" height="8" rx="1"/></svg></span><span class="lb">Управление</span></button>
+    </nav>
+  </div>
+</div>
+
+<!-- ============================================== -->
+<!-- VARIANT C: Лента инсайтов                       -->
+<!-- ============================================== -->
+<div id="variant-c" class="variant">
+  <div class="frame">
+    <div class="scr">
+      <div class="pageTitle">
+        <div class="av"><svg viewBox="0 0 24 24"><path d="M12 3l1.8 5.4L19 10l-5.2 1.6L12 17l-1.8-5.4L5 10l5.2-1.6L12 3z"/></svg></div>
+        <div class="info">
+          <h1>AI Инсайты <span class="aiBadge">4</span></h1>
+          <div class="sub">Апрель 2026 · обновлено сейчас</div>
+        </div>
+      </div>
+
+      <div class="feed">
+
+        <div class="ins danger">
+          <div class="top">
+            <div class="ic"><svg viewBox="0 0 24 24"><path d="M12 3l9 16H3z"/><path d="M12 9v5M12 17h.01"/></svg></div>
+            <div class="h">Перерасход: Кафе</div>
+            <div class="d">−90 ₽</div>
+          </div>
+          <div class="desc">Потрачено 540 ₽ при плане 450 ₽. На 20% сверх лимита, осталось 12 дней до конца периода.</div>
+          <div class="ibar"><div class="ifill" style="width:100%"></div></div>
+          <div class="ask">Спросить AI об этом →</div>
+        </div>
+
+        <div class="ins warn">
+          <div class="top">
+            <div class="ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div>
+            <div class="h">Продукты: 92% от плана</div>
+            <div class="d">15 ₽ остаток</div>
+          </div>
+          <div class="desc">Потрачено 185 ₽ из 200 ₽. При текущем темпе можешь выйти за лимит за 3 дня.</div>
+          <div class="ibar"><div class="ifill" style="width:92%"></div></div>
+          <div class="ask">Детали →</div>
+        </div>
+
+        <div class="ins success">
+          <div class="top">
+            <div class="ic"><svg viewBox="0 0 24 24"><path d="M5 12l5 5 9-11"/></svg></div>
+            <div class="h">Транспорт: экономия</div>
+            <div class="d">+8 ₽</div>
+          </div>
+          <div class="desc">Факт 92 ₽ из плана 100 ₽. Остаток перейдёт в баланс периода.</div>
+          <div class="ibar"><div class="ifill" style="width:92%"></div></div>
+          <div class="ask">Как ещё сэкономить? →</div>
+        </div>
+
+        <div class="ins info">
+          <div class="top">
+            <div class="ic"><svg viewBox="0 0 24 24"><path d="M12 3v3M21 12h-3M12 21v-3M3 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/><circle cx="12" cy="12" r="4"/></svg></div>
+            <div class="h">Прогноз: −80 ₽ к концу</div>
+            <div class="d">−80 ₽</div>
+          </div>
+          <div class="desc">При текущем темпе расходов закроешь апрель с дефицитом 80 ₽. Сократи Кафе на 90 ₽ для нуля.</div>
+          <div class="ask">Посмотреть сценарии →</div>
+        </div>
+
+      </div>
+
+      <div class="inputBar">
+        <input class="cinput" placeholder="Задать вопрос AI...">
+        <button class="send"><svg viewBox="0 0 24 24"><path d="M2 12l20-9-7 20-3-9-10-2z"/></svg></button>
+      </div>
+    </div>
+
+    <nav class="nav">
+      <button class="tab"><span class="ic"><svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7v9a2 2 0 0 1-2 2h-4v-7H9v7H5a2 2 0 0 1-2-2v-9z"/></svg></span><span class="lb">Главная</span></button>
+      <button class="tab"><span class="ic"><svg viewBox="0 0 24 24"><path d="M3 7h13M3 7l4-4M3 7l4 4M21 17H8M21 17l-4-4M21 17l-4 4"/></svg></span><span class="lb">Транзакции</span></button>
+      <button class="tab"><span class="ic"><svg viewBox="0 0 24 24"><path d="M3 21h18M7 21V10M12 21V4M17 21v-7"/></svg></span><span class="lb">Аналитика</span></button>
+      <button class="tab ai active"><span class="ic"><svg viewBox="0 0 24 24"><path d="M12 3l1.8 5.4L19 10l-5.2 1.6L12 17l-1.8-5.4L5 10l5.2-1.6L12 3z"/></svg></span><span class="lb">AI</span></button>
+      <button class="tab"><span class="ic"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="8" rx="1"/><rect x="13" y="3" width="8" height="8" rx="1"/><rect x="3" y="13" width="8" height="8" rx="1"/><rect x="13" y="13" width="8" height="8" rx="1"/></svg></span><span class="lb">Управление</span></button>
+    </nav>
+  </div>
+</div>
+
+<div id="sketch-tools" style="position:fixed;bottom:12px;right:12px;z-index:9999;font-family:system-ui;font-size:12px;background:rgba(0,0,0,0.75);color:white;padding:8px 12px;border-radius:8px;opacity:0.4;" onmouseenter="this.style.opacity='1'" onmouseleave="this.style.opacity='0.4'">Sketch 009</div>
+
+<script>
+function show(id, btn) {
+  document.querySelectorAll('.variant').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.variant-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('variant-' + id).classList.add('active');
+  btn.classList.add('active');
+}
+</script>
+</body>
+</html>

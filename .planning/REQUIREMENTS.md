@@ -71,6 +71,62 @@ Requirements for initial release. Каждый замаплен на ровно 
 
 - [ ] **SET-01**: Настройка `cycle_start_day` через UI, применяется только к будущим периодам
 - [ ] **SET-02**: Настройка `notify_days_before` для подписок (default = 2)
+- [ ] **SET-03** (v0.3): Toggle `enable_ai_categorization` (default = on) — отключает AI-предложение категории в форме новой транзакции
+
+### Navigation v0.3 (Phase 7)
+
+- [ ] **NAV-01**: Bottom nav содержит ровно 5 функциональных табов: Главная / Транзакции / Аналитика / AI / Управление
+- [ ] **NAV-02**: Активный таб «AI» окрашен в фиолетовый (`#a78bfa`); остальные активные — primary blue
+- [ ] **NAV-03**: Phosphor line-icons: House / ArrowsLeftRight / ChartBar / Sparkle / SquaresFour
+- [ ] **NAV-04**: Существующие топ-уровневые экраны (HistoryScreen, PlannedScreen, SubscriptionsScreen, MoreScreen) реорганизуются под новую nav без потери функциональности
+
+### Transactions tab v0.3 (Phase 7)
+
+- [ ] **TXN-01**: Таб «Транзакции» содержит 2 под-таба (underline sticky TabBar): История / План
+- [ ] **TXN-02**: Под-таб «История» — факт-транзакции сгруппированы по дням, в day-header — total за день
+- [ ] **TXN-03**: Под-таб «План» — плановые строки сгруппированы по категориям, у каждой строки source-badge (template / manual / subscription)
+- [ ] **TXN-04**: Фильтр-чипы над списком (Все / Расходы / Доходы / По категории)
+- [ ] **TXN-05**: FAB добавляет факт-транзакцию (под-таб История) или плановую строку (под-таб План)
+
+### Management tab v0.3 (Phase 7)
+
+- [ ] **MGT-01**: Таб «Управление» = меню-список из 4 пунктов: Подписки / Шаблон / Категории / Настройки
+- [ ] **MGT-02**: Каждый пункт меню — surface card с иконкой 36×36, title + контекстная desc + chevron
+- [ ] **MGT-03**: Контекстные desc: «3 активные · 1 097 ₽/мес», «14 активных категорий», и т.п.
+- [ ] **MGT-04**: Саб-скрины (SubscriptionsScreen, TemplateScreen, CategoriesScreen, SettingsScreen) переиспользуются как есть; меняется только entry point
+
+### Analytics v0.3 (Phase 8)
+
+- [ ] **ANL-01**: Экран Аналитика — top-level таб с PageTitle (без back-button)
+- [ ] **ANL-02**: Period chips (1 мес / 3 мес / 6 мес / Год)
+- [ ] **ANL-03**: Топ перерасходов текущего периода — карточки с лево-бордером danger/warn
+- [ ] **ANL-04**: Тренд расходов по месяцам — SVG line chart за последние N месяцев
+- [ ] **ANL-05**: Топ категорий по расходам — горизонтальные bars с цветами из chart-палитры
+- [ ] **ANL-06**: Прогноз остатка к концу текущего периода (linear extrapolation по дневному темпу)
+- [ ] **ANL-07**: API endpoints `GET /api/v1/analytics/trend`, `/top-overspend`, `/top-categories`, `/forecast`
+- [ ] **ANL-08**: Все агрегаты считаются на backend (не frontend)
+
+### AI Assistant v0.3 (Phase 9)
+
+- [ ] **AI-01**: Экран AI — top-level таб с PageTitle «Budget AI» + аватар
+- [ ] **AI-02**: Empty-state с suggestion chips (Топ расходов / Сравни месяцы / Где экономить?)
+- [ ] **AI-03**: Streaming через SSE: `POST /api/v1/ai/chat` инициирует, frontend получает chunks через EventSource
+- [ ] **AI-04**: Tool-use indicator в bubble во время вызова tool («Смотрю март...» с pulse-точкой)
+- [ ] **AI-05**: Tools (function calling): `query_transactions`, `get_period_balance`, `get_category_summary`, `compare_periods`, `get_subscriptions`, `get_forecast`
+- [ ] **AI-06**: Conversation persistence в БД (`ai_conversation`, `ai_message`) — одна активная conversation на пользователя, можно очистить
+- [ ] **AI-07**: Prompt caching системного промпта + контекста бюджета — снижает input cost
+- [ ] **AI-08**: Provider-agnostic LLM client `app/ai/llm_client.py`, дефолт `openai/gpt-4.1-nano`, переключение через ENV `LLM_PROVIDER`/`LLM_MODEL`
+- [ ] **AI-09**: `OPENAI_API_KEY` только в backend ENV; frontend никогда не получает ключ
+- [ ] **AI-10**: Rate limit ≤30 req/мин на пользователя
+
+### AI Categorization v0.3 (Phase 10)
+
+- [ ] **AICAT-01**: При вводе описания в форме «Новая транзакция» AI предлагает категорию через cosine similarity
+- [ ] **AICAT-02**: AI-suggestion box заменяет `<select>` категории — имя + confidence-bar; кнопка «Сменить» возвращает стандартный select
+- [ ] **AICAT-03**: Эмбеддинги категорий хранятся в `category_embedding(category_id PK, vector(1536), updated_at)`
+- [ ] **AICAT-04**: Если top-1 cosine similarity < 0.5 — показывать обычный select, AI не навязывает
+- [ ] **AICAT-05**: Embedding для description вычисляется через OpenAI `text-embedding-3-small`
+- [ ] **AICAT-06**: Toggle через `SET-03` (`enable_ai_categorization`)
 
 ### Infrastructure
 
@@ -84,11 +140,11 @@ Requirements for initial release. Каждый замаплен на ровно 
 
 Deferred to future. Tracked but not in current roadmap.
 
-### Analytics
+> Analytics promoted to v1 in milestone v0.3 — see ANL-* block above. Push-алерты при перерасходе остаются deferred.
 
-- **ANL-01**: Графики трендов по месяцам (stacked bar по категориям)
-- **ANL-02**: Top-категорий перерасхода
-- **ANL-03**: Push-алерт при достижении 90% бюджета по критичной категории
+### Push alerts
+
+- **ALERT-01**: Push-алерт при достижении 90% бюджета по критичной категории (deferred — не критично для personal pet)
 
 ### Import / Export
 

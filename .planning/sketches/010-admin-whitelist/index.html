@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sketch 010 — Admin Whitelist</title>
+<link rel="stylesheet" href="../themes/default.css">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #1a1a2e; font-family: var(--font-sans); display: flex; flex-direction: column; align-items: center; min-height: 100vh; padding-top: 48px; padding-bottom: 40px; }
+#variant-nav { position: fixed; top: 0; left: 0; right: 0; z-index: 9998; background: #0a0a14; border-bottom: 1px solid #2a2a3e; padding: 8px 16px; display: flex; gap: 8px; }
+.variant-tab { background: transparent; border: 1px solid #2a2a3e; color: #8e98ad; padding: 5px 14px; border-radius: 6px; cursor: pointer; font-size: 12px; transition: all 0.15s; }
+.variant-tab.active { background: var(--color-primary); border-color: var(--color-primary); color: white; }
+.variant { display: none; }
+.variant.active { display: block; }
+.phone { width: 375px; background: var(--color-bg); border-radius: 40px; overflow: hidden; box-shadow: 0 30px 80px rgba(0,0,0,0.7); position: relative; border: 2px solid #2a2a3e; }
+.screen { height: 680px; display: flex; flex-direction: column; overflow: hidden; }
+.status-bar { height: 44px; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; flex-shrink: 0; }
+.status-time { font-size: 15px; font-weight: 600; color: var(--color-text); }
+.status-icons { color: var(--color-text); font-size: 12px; }
+
+.page-header { padding: 0 16px 16px; flex-shrink: 0; }
+.back-row { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; cursor: pointer; }
+.back-icon { font-size: 20px; color: var(--color-primary); }
+.back-label { font-size: var(--text-sm); color: var(--color-primary); }
+.page-title { font-size: var(--text-xl); font-weight: 700; color: var(--color-text); }
+.page-sub { font-size: var(--text-xs); color: var(--color-text-muted); margin-top: 2px; }
+
+.scroll-area { flex: 1; overflow-y: auto; padding: 0 16px; }
+
+/* User list variant A */
+.user-card { background: var(--color-surface); border-radius: var(--radius-md); padding: 14px; margin-bottom: 10px; display: flex; align-items: center; gap: 12px; border: 1px solid var(--color-border-subtle); }
+.user-avatar { width: 40px; height: 40px; border-radius: 50%; background: var(--color-surface-2); display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+.user-info { flex: 1; min-width: 0; }
+.user-name { font-size: var(--text-sm); font-weight: 600; color: var(--color-text); }
+.user-meta { font-size: 11px; color: var(--color-text-muted); margin-top: 2px; }
+.user-badge { font-size: 10px; padding: 2px 8px; border-radius: var(--radius-full); font-weight: 600; }
+.badge-owner { background: rgba(255,209,102,0.15); color: var(--color-accent); border: 1px solid rgba(255,209,102,0.3); }
+.badge-member { background: var(--color-primary-soft); color: var(--color-primary); border: 1px solid rgba(78,164,255,0.2); }
+.user-actions { display: flex; gap: 6px; }
+.btn-revoke { padding: 5px 10px; background: var(--color-danger-soft); color: var(--color-danger); border: 1px solid rgba(255,93,93,0.2); border-radius: var(--radius-sm); font-size: 11px; cursor: pointer; transition: all 0.15s; white-space: nowrap; }
+.btn-revoke:hover { background: var(--color-danger); color: white; }
+
+/* Add button */
+.add-btn { width: 100%; padding: 14px; background: var(--color-primary-soft); border: 1px dashed rgba(78,164,255,0.4); border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; transition: all 0.15s; margin-bottom: 16px; }
+.add-btn:hover { background: var(--color-primary); border-style: solid; }
+.add-btn-text { font-size: var(--text-sm); color: var(--color-primary); font-weight: 600; }
+.add-btn:hover .add-btn-text { color: white; }
+
+/* Bottom sheet for invite */
+.sheet-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.6); display: flex; flex-direction: column; justify-content: flex-end; z-index: 100; transition: opacity 0.2s; }
+.sheet-overlay.hidden { opacity: 0; pointer-events: none; }
+.sheet { background: var(--color-bg-elevated); border-radius: 24px 24px 0 0; padding: 0 16px 32px; }
+.sheet-handle { width: 36px; height: 4px; background: var(--color-border); border-radius: 2px; margin: 12px auto 20px; }
+.sheet-title { font-size: var(--text-md); font-weight: 700; color: var(--color-text); margin-bottom: 4px; }
+.sheet-sub { font-size: var(--text-xs); color: var(--color-text-muted); margin-bottom: 20px; }
+.input-group { margin-bottom: 16px; }
+.input-label { font-size: 11px; color: var(--color-text-muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+.input-field { width: 100%; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: 12px 14px; color: var(--color-text); font-size: var(--text-sm); font-family: inherit; outline: none; transition: border-color 0.15s; }
+.input-field:focus { border-color: var(--color-primary); }
+.btn-primary { width: 100%; padding: 14px; background: var(--color-primary); color: white; border: none; border-radius: var(--radius-md); font-size: var(--text-sm); font-weight: 600; cursor: pointer; transition: all 0.15s; }
+.btn-primary:hover { background: var(--color-primary-hover); }
+
+/* Revoke confirm sheet */
+.confirm-sheet { background: var(--color-bg-elevated); border-radius: 24px 24px 0 0; padding: 0 16px 32px; }
+.danger-icon { font-size: 36px; text-align: center; margin: 16px 0 12px; }
+.confirm-title { font-size: var(--text-md); font-weight: 700; color: var(--color-text); text-align: center; margin-bottom: 6px; }
+.confirm-sub { font-size: var(--text-sm); color: var(--color-text-muted); text-align: center; margin-bottom: 24px; line-height: 1.5; }
+.btn-danger { width: 100%; padding: 14px; background: var(--color-danger); color: white; border: none; border-radius: var(--radius-md); font-size: var(--text-sm); font-weight: 600; cursor: pointer; margin-bottom: 10px; transition: all 0.15s; }
+.btn-cancel { width: 100%; padding: 14px; background: var(--color-surface); color: var(--color-text); border: 1px solid var(--color-border); border-radius: var(--radius-md); font-size: var(--text-sm); font-weight: 500; cursor: pointer; }
+
+/* Stats bar */
+.stats-bar { display: flex; gap: 8px; margin-bottom: 16px; }
+.stat { flex: 1; background: var(--color-surface); border-radius: var(--radius-md); padding: 10px 12px; }
+.stat-val { font-size: var(--text-lg); font-weight: 700; color: var(--color-text); font-variant-numeric: tabular-nums; }
+.stat-lbl { font-size: 10px; color: var(--color-text-muted); }
+</style>
+</head>
+<body>
+
+<div id="variant-nav">
+  <button class="variant-tab active" onclick="showVariant('a', this)">A: Список + inline</button>
+  <button class="variant-tab" onclick="showVariant('b', this)">B: Invite sheet</button>
+  <button class="variant-tab" onclick="showVariant('c', this)">C: Revoke confirm</button>
+</div>
+
+<!-- VARIANT A: Список пользователей -->
+<div id="variant-a" class="variant active">
+  <div class="phone">
+    <div class="screen">
+<div class="page-header">
+        <div class="back-row"><span class="back-icon">‹</span><span class="back-label">Настройки</span></div>
+        <div class="page-title">Пользователи</div>
+        <div class="page-sub">Управление whitelist-доступом</div>
+      </div>
+
+      <div class="scroll-area">
+        <div class="stats-bar">
+          <div class="stat"><div class="stat-val">3</div><div class="stat-lbl">Всего</div></div>
+          <div class="stat"><div class="stat-val">2</div><div class="stat-lbl">Активных</div></div>
+          <div class="stat"><div class="stat-val">1</div><div class="stat-lbl">Владелец</div></div>
+        </div>
+
+        <div class="user-card">
+          <div class="user-avatar">👤</div>
+          <div class="user-info">
+            <div style="display:flex;align-items:center;gap:6px;">
+              <div class="user-name">@exeynod</div>
+              <div class="user-badge badge-owner">OWNER</div>
+            </div>
+            <div class="user-meta">ID: 123456789 · с 01 янв 2026</div>
+          </div>
+        </div>
+
+        <div class="user-card">
+          <div class="user-avatar">👤</div>
+          <div class="user-info">
+            <div style="display:flex;align-items:center;gap:6px;">
+              <div class="user-name">@maria_k</div>
+              <div class="user-badge badge-member">member</div>
+            </div>
+            <div class="user-meta">Последний вход: сегодня 08:12</div>
+          </div>
+          <div class="user-actions">
+            <button class="btn-revoke" onclick="showRevoke('a')">Убрать</button>
+          </div>
+        </div>
+
+        <div class="user-card">
+          <div class="user-avatar">👤</div>
+          <div class="user-info">
+            <div style="display:flex;align-items:center;gap:6px;">
+              <div class="user-name">@alexsmirnov</div>
+              <div class="user-badge badge-member">member</div>
+            </div>
+            <div class="user-meta">Последний вход: вчера 14:30</div>
+          </div>
+          <div class="user-actions">
+            <button class="btn-revoke" onclick="showRevoke('a')">Убрать</button>
+          </div>
+        </div>
+
+        <button class="add-btn" onclick="showInvite('a')">
+          <span style="font-size:20px;color:var(--color-primary);">+</span>
+          <span class="add-btn-text">Добавить пользователя</span>
+        </button>
+      </div>
+
+      <!-- Invite sheet -->
+      <div class="sheet-overlay hidden" id="invite-sheet-a">
+        <div class="sheet">
+          <div class="sheet-handle"></div>
+          <div class="sheet-title">Добавить пользователя</div>
+          <div class="sheet-sub">Пользователь получит доступ после входа через Telegram</div>
+          <div class="input-group">
+            <div class="input-label">Telegram ID</div>
+            <input class="input-field" placeholder="например: 987654321" type="number">
+          </div>
+          <button class="btn-primary" onclick="hideInvite('a')">Отправить приглашение</button>
+        </div>
+      </div>
+
+      <!-- Revoke confirm -->
+      <div class="sheet-overlay hidden" id="revoke-sheet-a">
+        <div class="confirm-sheet">
+          <div class="sheet-handle"></div>
+          <div class="danger-icon">⚠️</div>
+          <div class="confirm-title">Убрать доступ?</div>
+          <div class="confirm-sub">@maria_k потеряет доступ к приложению. Её данные останутся и могут быть удалены отдельно.</div>
+          <button class="btn-danger" onclick="hideRevoke('a')">Да, убрать доступ</button>
+          <button class="btn-cancel" onclick="hideRevoke('a')">Отмена</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- VARIANT B: invite sheet open state -->
+<div id="variant-b" class="variant">
+  <div class="phone">
+    <div class="screen">
+<div class="page-header">
+        <div class="back-row"><span class="back-icon">‹</span><span class="back-label">Настройки</span></div>
+        <div class="page-title">Пользователи</div>
+      </div>
+      <div class="scroll-area" style="opacity:0.3;">
+        <div class="user-card">
+          <div class="user-avatar">👤</div>
+          <div class="user-info"><div class="user-name">@exeynod</div><div class="user-meta">ID: 123456789</div></div>
+          <div class="user-badge badge-owner">OWNER</div>
+        </div>
+        <div class="user-card">
+          <div class="user-avatar">👤</div>
+          <div class="user-info"><div class="user-name">@maria_k</div><div class="user-meta">сегодня 08:12</div></div>
+          <button class="btn-revoke">Убрать</button>
+        </div>
+      </div>
+      <!-- Invite sheet open -->
+      <div class="sheet-overlay" style="opacity:1;">
+        <div class="sheet">
+          <div class="sheet-handle"></div>
+          <div class="sheet-title">Добавить пользователя</div>
+          <div class="sheet-sub">Введи Telegram ID — найти его можно через @userinfobot</div>
+          <div class="input-group">
+            <div class="input-label">Telegram ID</div>
+            <input class="input-field" value="456789123" type="number" style="border-color:var(--color-primary);">
+          </div>
+          <div class="input-group">
+            <div class="input-label">Комментарий (опц.)</div>
+            <input class="input-field" placeholder="Кто это..." type="text">
+          </div>
+          <button class="btn-primary">Добавить в whitelist</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- VARIANT C: Revoke confirm sheet -->
+<div id="variant-c" class="variant">
+  <div class="phone">
+    <div class="screen">
+<div class="page-header">
+        <div class="page-title">Пользователи</div>
+      </div>
+      <div class="scroll-area" style="opacity:0.25;">
+        <div class="user-card"><div class="user-avatar">👤</div><div class="user-info"><div class="user-name">@exeynod</div></div><div class="user-badge badge-owner">OWNER</div></div>
+        <div class="user-card"><div class="user-avatar">👤</div><div class="user-info"><div class="user-name">@maria_k</div></div><button class="btn-revoke">Убрать</button></div>
+      </div>
+      <!-- Revoke confirm open -->
+      <div class="sheet-overlay" style="opacity:1;">
+        <div class="confirm-sheet">
+          <div class="sheet-handle"></div>
+          <div class="danger-icon">⛔</div>
+          <div class="confirm-title">Убрать @maria_k?</div>
+          <div class="confirm-sub">Пользователь сразу потеряет доступ к приложению и будет выкинут из сессии.<br><br>Данные не удаляются автоматически.</div>
+          <button class="btn-danger">Да, убрать доступ</button>
+          <button class="btn-cancel">Отмена</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="sketch-tools" style="position:fixed;bottom:12px;right:12px;z-index:9999;font-family:system-ui;font-size:12px;background:rgba(0,0,0,0.75);color:white;padding:8px 12px;border-radius:8px;opacity:0.4;transition:opacity 0.2s;" onmouseenter="this.style.opacity='1'" onmouseleave="this.style.opacity='0.4'">Sketch 010</div>
+
+<script>
+function showVariant(id, btn) {
+  document.querySelectorAll('.variant').forEach(v => v.style.display = 'none');
+  document.querySelectorAll('.variant-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('variant-' + id).style.display = 'block';
+  btn.classList.add('active');
+}
+function showInvite(v) { document.getElementById('invite-sheet-'+v).classList.remove('hidden'); }
+function hideInvite(v) { document.getElementById('invite-sheet-'+v).classList.add('hidden'); }
+function showRevoke(v) { document.getElementById('revoke-sheet-'+v).classList.remove('hidden'); }
+function hideRevoke(v) { document.getElementById('revoke-sheet-'+v).classList.add('hidden'); }
+</script>
+</body>
+</html>

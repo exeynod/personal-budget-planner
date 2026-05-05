@@ -1,0 +1,297 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Sketch 012 — Транзакции (top-level tab с под-табами История/План)</title>
+<link rel="stylesheet" href="../themes/default.css">
+<style>
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body { background: #05070b; color: var(--color-text); font-family: var(--font-sans); padding-top: 56px; min-height: 100vh; }
+
+#variant-nav { position: fixed; top: 0; left: 0; right: 0; z-index: 9998; background: #0a0d13; border-bottom: 1px solid #1a1f2c; padding: 8px; display: flex; gap: 6px; font-family: var(--font-sans); font-size: 12px; }
+.variant-tab { background: transparent; color: #94a0b8; border: 1px solid #232a3a; padding: 8px 14px; border-radius: 999px; cursor: pointer; white-space: nowrap; }
+.variant-tab.active { background: var(--color-primary); color: #fff; border-color: var(--color-primary); font-weight: 600; }
+.variant { display: none; }
+.variant.active { display: block; }
+
+.frame { max-width: var(--tg-viewport); margin: 24px auto; background: var(--color-bg); border-radius: 28px; overflow: hidden; box-shadow: var(--shadow-lg); position: relative; min-height: 760px; padding: var(--space-4) var(--space-4) calc(var(--bottom-nav-height) + var(--safe-bottom) + 16px); font-family: var(--font-sans); }
+
+/* PageTitle (top-level) */
+.pageTitle { padding: var(--space-3) 0 var(--space-4); }
+.pageTitle h1 { margin: 0; font-size: var(--text-xl); font-weight: 700; color: var(--color-text); }
+.pageTitle .sub { font-size: var(--text-xs); color: var(--color-text-muted); margin-top: 2px; }
+
+/* TabBar (под-табы История/План) */
+.tabBar { position: sticky; top: 0; z-index: 20; display: flex; height: 44px; background: var(--color-bg-elevated); width: calc(100% + 2 * var(--space-4)); margin-left: calc(-1 * var(--space-4)); padding: 0 var(--space-4); border-bottom: 1px solid var(--color-border-subtle); margin-bottom: var(--space-3); }
+.tabBar button { flex: 1; background: transparent; border: 0; cursor: pointer; font-family: inherit; font-size: var(--text-base); padding: var(--space-3) var(--space-2); }
+.tabBar .tabA { color: var(--color-text); font-weight: 600; border-bottom: 2px solid var(--color-primary); }
+.tabBar .tabI { color: var(--color-text-muted); font-weight: 400; }
+
+/* Filter chips */
+.filterRow { display: flex; gap: var(--space-2); padding-bottom: var(--space-3); overflow-x: auto; }
+.fchip { padding: 6px 12px; border-radius: var(--radius-full); font-size: var(--text-sm); font-weight: 500; background: var(--color-surface); color: var(--color-text-muted); border: 1px solid transparent; cursor: pointer; white-space: nowrap; flex-shrink: 0; }
+.fchip.active { background: var(--color-primary-soft); color: var(--color-primary); border-color: rgba(78,164,255,0.3); }
+
+/* Day section header (для группировки по датам) */
+.daySection { font-size: var(--text-sm); font-weight: 600; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.06em; margin: var(--space-4) 0 var(--space-2); display: flex; align-items: baseline; justify-content: space-between; }
+.daySection .total { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--color-text-dim); text-transform: none; letter-spacing: 0; font-weight: 500; }
+
+/* Transaction row */
+.txnRow { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-4); background: var(--color-surface); border: 1px solid transparent; border-radius: var(--radius-md); margin-bottom: var(--space-2); cursor: pointer; }
+.txnRow:hover { background: var(--color-surface-2); }
+.txnRow .icon { width: 32px; height: 32px; border-radius: 50%; background: var(--color-bg-elevated); display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: var(--color-text-muted); font-size: 14px; font-weight: 600; }
+.txnRow.expense .icon { background: rgba(255,93,93,0.12); color: var(--color-danger); }
+.txnRow.income .icon { background: rgba(46,204,113,0.12); color: var(--color-success); }
+.txnRow .body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.txnRow .cat { font-size: var(--text-base); color: var(--color-text); font-weight: 500; }
+.txnRow .desc { font-size: var(--text-xs); color: var(--color-text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.txnRow .meta { display: flex; gap: 8px; align-items: baseline; }
+.txnRow .src { font-size: 9px; padding: 1px 5px; border-radius: var(--radius-full); background: var(--color-primary-soft); color: var(--color-primary); font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+.txnRow .src.tpl { background: var(--color-success-soft); color: var(--color-success); }
+.txnRow .src.sub { background: rgba(167,139,250,0.12); color: #a78bfa; }
+.txnRow .right { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; flex-shrink: 0; }
+.txnRow .amt { font-family: var(--font-mono); font-size: var(--text-base); font-weight: 600; color: var(--color-text); }
+.txnRow.expense .amt { color: var(--color-text); }
+.txnRow.income .amt { color: var(--color-success); }
+.txnRow .time { font-size: var(--text-xs); color: var(--color-text-dim); }
+
+/* Empty state */
+.empty { text-align: center; padding: var(--space-12) var(--space-4); color: var(--color-text-muted); }
+.empty .ttl { font-size: var(--text-md); font-weight: 600; color: var(--color-text); margin-bottom: 4px; }
+.empty .body { font-size: var(--text-sm); }
+
+/* Plan grouped by category */
+.catGroup { margin-bottom: var(--space-3); }
+.catGroup .head { display: flex; align-items: center; justify-content: space-between; padding: var(--space-2) var(--space-1); }
+.catGroup .head .name { font-size: var(--text-base); font-weight: 600; color: var(--color-text); }
+.catGroup .head .agg { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--color-text-muted); }
+.planRow { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-4); background: var(--color-surface); border: 1px solid transparent; border-radius: var(--radius-md); margin-bottom: var(--space-2); }
+.planRow .body { flex: 1; min-width: 0; }
+.planRow .desc { font-size: var(--text-base); color: var(--color-text); }
+.planRow .meta { font-size: var(--text-xs); color: var(--color-text-muted); margin-top: 2px; }
+.planRow .amt { font-family: var(--font-mono); font-size: var(--text-base); font-weight: 600; color: var(--color-text); }
+
+/* FAB */
+.fab { position: absolute; right: 24px; bottom: calc(var(--bottom-nav-height) + var(--safe-bottom) + 16px); width: 56px; height: 56px; border-radius: 50%; background: var(--color-primary); border: 0; box-shadow: 0 4px 20px rgba(78,164,255,0.4); display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 50; }
+.fab svg { width: 28px; height: 28px; stroke: #fff; stroke-width: 2.5; fill: none; stroke-linecap: round; }
+
+/* BottomNav */
+.nav { position: absolute; bottom: 0; left: 0; right: 0; height: calc(var(--bottom-nav-height) + var(--safe-bottom)); background: var(--color-bg-elevated); border-top: 1px solid var(--color-border); display: flex; padding-bottom: var(--safe-bottom); box-shadow: 0 -2px 12px rgba(0,0,0,0.3); }
+.nav .tab { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; background: transparent; border: 0; cursor: pointer; color: var(--color-text-muted); padding: 6px 0; font-family: inherit; }
+.nav .tab.active { color: var(--color-primary); }
+.nav .tab .ic svg { width: 26px; height: 26px; stroke: currentColor; fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.nav .tab.active .ic svg { stroke-width: 2; fill: currentColor; }
+.nav .tab.ai .ic svg { stroke-width: 1.5; }
+.nav .tab.ai.active { color: #a78bfa; }
+.nav .tab .lb { font-size: 10px; font-weight: 500; line-height: 1; }
+</style>
+</head>
+<body>
+
+<div id="variant-nav">
+  <button class="variant-tab active" onclick="show('a',this)">A: Под-таб «История»</button>
+  <button class="variant-tab" onclick="show('b',this)">B: Под-таб «План»</button>
+  <button class="variant-tab" onclick="show('c',this)">C: «История» empty</button>
+</div>
+
+<!-- ============================================== -->
+<!-- VARIANT A: под-таб История активен              -->
+<!-- ============================================== -->
+<div id="variant-a" class="variant active">
+  <div class="frame">
+    <div class="pageTitle">
+      <h1>Транзакции</h1>
+      <div class="sub">Апрель 2026 · 23 факт-записи · 18 плановых</div>
+    </div>
+
+    <div class="tabBar">
+      <button class="tabA">История</button>
+      <button class="tabI">План</button>
+    </div>
+
+    <div class="filterRow">
+      <button class="fchip active">Все</button>
+      <button class="fchip">Расходы</button>
+      <button class="fchip">Доходы</button>
+      <button class="fchip">По категории ▾</button>
+    </div>
+
+    <div class="daySection">Сегодня · 18 апреля<span class="total">−1 248 ₽ за день</span></div>
+    <div class="txnRow expense">
+      <div class="icon">К</div>
+      <div class="body">
+        <span class="cat">Кафе</span>
+        <span class="desc">Старбакс латте</span>
+      </div>
+      <div class="right">
+        <span class="amt">−320 ₽</span>
+        <span class="time">14:23</span>
+      </div>
+    </div>
+    <div class="txnRow expense">
+      <div class="icon">П</div>
+      <div class="body">
+        <span class="cat">Продукты</span>
+        <span class="desc">Перекрёсток</span>
+      </div>
+      <div class="right">
+        <span class="amt">−812 ₽</span>
+        <span class="time">12:15</span>
+      </div>
+    </div>
+    <div class="txnRow expense">
+      <div class="icon">Т</div>
+      <div class="body">
+        <span class="cat">Транспорт</span>
+        <span class="desc">Метро</span>
+      </div>
+      <div class="right">
+        <span class="amt">−116 ₽</span>
+        <span class="time">09:48</span>
+      </div>
+    </div>
+
+    <div class="daySection">Вчера · 17 апреля<span class="total">−2 105 ₽ за день</span></div>
+    <div class="txnRow income">
+      <div class="icon">З</div>
+      <div class="body">
+        <span class="cat">Зарплата</span>
+        <span class="desc">Аванс</span>
+      </div>
+      <div class="right">
+        <span class="amt">+15 000 ₽</span>
+        <span class="time">10:00</span>
+      </div>
+    </div>
+    <div class="txnRow expense">
+      <div class="icon">Д</div>
+      <div class="body">
+        <span class="cat">Доставка еды</span>
+        <span class="desc">Яндекс Еда</span>
+      </div>
+      <div class="right">
+        <span class="amt">−1 240 ₽</span>
+        <span class="time">19:32</span>
+      </div>
+    </div>
+
+    <button class="fab" aria-label="Добавить"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+
+    <nav class="nav">
+      <button class="tab"><span class="ic"><svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7v9a2 2 0 0 1-2 2h-4v-7H9v7H5a2 2 0 0 1-2-2v-9z"/></svg></span><span class="lb">Главная</span></button>
+      <button class="tab active"><span class="ic"><svg viewBox="0 0 24 24"><path d="M3 7h13M3 7l4-4M3 7l4 4M21 17H8M21 17l-4-4M21 17l-4 4"/></svg></span><span class="lb">Транзакции</span></button>
+      <button class="tab"><span class="ic"><svg viewBox="0 0 24 24"><path d="M3 21h18M7 21V10M12 21V4M17 21v-7"/></svg></span><span class="lb">Аналитика</span></button>
+      <button class="tab ai"><span class="ic"><svg viewBox="0 0 24 24"><path d="M12 3l1.8 5.4L19 10l-5.2 1.6L12 17l-1.8-5.4L5 10l5.2-1.6L12 3z"/></svg></span><span class="lb">AI</span></button>
+      <button class="tab"><span class="ic"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="8" rx="1"/><rect x="13" y="3" width="8" height="8" rx="1"/><rect x="3" y="13" width="8" height="8" rx="1"/><rect x="13" y="13" width="8" height="8" rx="1"/></svg></span><span class="lb">Управление</span></button>
+    </nav>
+  </div>
+</div>
+
+<!-- ============================================== -->
+<!-- VARIANT B: под-таб План активен                 -->
+<!-- ============================================== -->
+<div id="variant-b" class="variant">
+  <div class="frame">
+    <div class="pageTitle">
+      <h1>Транзакции</h1>
+      <div class="sub">Апрель 2026 · 23 факт-записи · 18 плановых</div>
+    </div>
+
+    <div class="tabBar">
+      <button class="tabI">История</button>
+      <button class="tabA">План</button>
+    </div>
+
+    <div class="filterRow">
+      <button class="fchip active">Все</button>
+      <button class="fchip">Расходы</button>
+      <button class="fchip">Доходы</button>
+      <button class="fchip">Источник ▾</button>
+    </div>
+
+    <div class="catGroup">
+      <div class="head"><span class="name">Продукты</span><span class="agg">3 строки · 200 ₽</span></div>
+      <div class="planRow">
+        <div class="body"><div class="desc">Молоко, хлеб, фрукты</div><div class="meta"><span class="src tpl">шаблон</span></div></div>
+        <span class="amt">120 ₽</span>
+      </div>
+      <div class="planRow">
+        <div class="body"><div class="desc">Закупка на неделю</div><div class="meta"><span class="src">manual</span></div></div>
+        <span class="amt">80 ₽</span>
+      </div>
+    </div>
+
+    <div class="catGroup">
+      <div class="head"><span class="name">Подписки</span><span class="agg">2 строки · 1 097 ₽</span></div>
+      <div class="planRow">
+        <div class="body"><div class="desc">Netflix · списание 10 апр</div><div class="meta"><span class="src sub">subscription</span></div></div>
+        <span class="amt">699 ₽</span>
+      </div>
+      <div class="planRow">
+        <div class="body"><div class="desc">Spotify · списание 6 апр</div><div class="meta"><span class="src sub">subscription</span></div></div>
+        <span class="amt">299 ₽</span>
+      </div>
+    </div>
+
+    <div class="catGroup">
+      <div class="head"><span class="name">Кафе</span><span class="agg">1 строка · 150 ₽</span></div>
+      <div class="planRow">
+        <div class="body"><div class="desc">Кофе по утрам</div><div class="meta"><span class="src tpl">шаблон</span></div></div>
+        <span class="amt">150 ₽</span>
+      </div>
+    </div>
+
+    <button class="fab" aria-label="Добавить план"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+
+    <nav class="nav">
+      <button class="tab"><span class="ic"><svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7v9a2 2 0 0 1-2 2h-4v-7H9v7H5a2 2 0 0 1-2-2v-9z"/></svg></span><span class="lb">Главная</span></button>
+      <button class="tab active"><span class="ic"><svg viewBox="0 0 24 24"><path d="M3 7h13M3 7l4-4M3 7l4 4M21 17H8M21 17l-4-4M21 17l-4 4"/></svg></span><span class="lb">Транзакции</span></button>
+      <button class="tab"><span class="ic"><svg viewBox="0 0 24 24"><path d="M3 21h18M7 21V10M12 21V4M17 21v-7"/></svg></span><span class="lb">Аналитика</span></button>
+      <button class="tab ai"><span class="ic"><svg viewBox="0 0 24 24"><path d="M12 3l1.8 5.4L19 10l-5.2 1.6L12 17l-1.8-5.4L5 10l5.2-1.6L12 3z"/></svg></span><span class="lb">AI</span></button>
+      <button class="tab"><span class="ic"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="8" rx="1"/><rect x="13" y="3" width="8" height="8" rx="1"/><rect x="3" y="13" width="8" height="8" rx="1"/><rect x="13" y="13" width="8" height="8" rx="1"/></svg></span><span class="lb">Управление</span></button>
+    </nav>
+  </div>
+</div>
+
+<!-- ============================================== -->
+<!-- VARIANT C: пустая История                       -->
+<!-- ============================================== -->
+<div id="variant-c" class="variant">
+  <div class="frame">
+    <div class="pageTitle">
+      <h1>Транзакции</h1>
+      <div class="sub">Апрель 2026 · ещё не было записей</div>
+    </div>
+    <div class="tabBar">
+      <button class="tabA">История</button>
+      <button class="tabI">План</button>
+    </div>
+    <div class="empty">
+      <div class="ttl">Записей пока нет</div>
+      <div class="body">Нажми «+» чтобы добавить первую факт-трату</div>
+    </div>
+    <button class="fab" aria-label="Добавить"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+    <nav class="nav">
+      <button class="tab"><span class="ic"><svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7v9a2 2 0 0 1-2 2h-4v-7H9v7H5a2 2 0 0 1-2-2v-9z"/></svg></span><span class="lb">Главная</span></button>
+      <button class="tab active"><span class="ic"><svg viewBox="0 0 24 24"><path d="M3 7h13M3 7l4-4M3 7l4 4M21 17H8M21 17l-4-4M21 17l-4 4"/></svg></span><span class="lb">Транзакции</span></button>
+      <button class="tab"><span class="ic"><svg viewBox="0 0 24 24"><path d="M3 21h18M7 21V10M12 21V4M17 21v-7"/></svg></span><span class="lb">Аналитика</span></button>
+      <button class="tab ai"><span class="ic"><svg viewBox="0 0 24 24"><path d="M12 3l1.8 5.4L19 10l-5.2 1.6L12 17l-1.8-5.4L5 10l5.2-1.6L12 3z"/></svg></span><span class="lb">AI</span></button>
+      <button class="tab"><span class="ic"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="8" rx="1"/><rect x="13" y="3" width="8" height="8" rx="1"/><rect x="3" y="13" width="8" height="8" rx="1"/><rect x="13" y="13" width="8" height="8" rx="1"/></svg></span><span class="lb">Управление</span></button>
+    </nav>
+  </div>
+</div>
+
+<div id="sketch-tools" style="position:fixed;bottom:12px;right:12px;z-index:9999;font-family:system-ui;font-size:12px;background:rgba(0,0,0,0.75);color:white;padding:8px 12px;border-radius:8px;opacity:0.4;" onmouseenter="this.style.opacity='1'" onmouseleave="this.style.opacity='0.4'">Sketch 012</div>
+
+<script>
+function show(id, btn) {
+  document.querySelectorAll('.variant').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.variant-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('variant-' + id).classList.add('active');
+  btn.classList.add('active');
+}
+</script>
+</body>
+</html>

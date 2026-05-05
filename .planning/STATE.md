@@ -1,36 +1,39 @@
 ---
 gsd_state_version: 1.0
-milestone: v0.2
-milestone_name: milestone
-status: completed
-stopped_at: context exhaustion at 75% (2026-05-04)
-last_updated: "2026-05-04T10:59:40.356Z"
-last_activity: 2026-05-03 — Phase 06 executed — all 7 plans complete
+milestone: v0.3
+milestone_name: Analytics & AI
+status: active
+stopped_at: null
+last_updated: "2026-05-05T18:55:00.000Z"
+last_activity: 2026-05-05 — milestone v0.3 opened, sketches 007/008/009/012/013 + roadmap phases 7-10 planned
 progress:
-  total_phases: 6
-  completed_phases: 6
-  total_plans: 38
-  completed_plans: 38
-  percent: 100
+  total_phases: 4
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-05-01)
+See: .planning/PROJECT.md (updated 2026-05-05 for milestone v0.3)
 
 **Core value:** В один тап записать факт-трату и видеть актуальную дельту план/факт по категориям бюджета — быстрее, чем открывать Google-таблицу.
-**Current focus:** Phase 1 — Infrastructure & Auth
+**Current focus:** Milestone v0.3 — Analytics & AI. Next phase: Phase 7 — Nav Refactor.
 
 ## Current Position
 
-Phase: 6 of 6 (Subscriptions & Worker Jobs) — COMPLETE
-Plan: 7 of 7 complete
-Status: Milestone v0.2 complete — all 6 phases executed
-Last activity: 2026-05-03 — Phase 06 executed — all 7 plans complete
+Milestone: v0.3 (Active) — Analytics & AI
+Phase: 7 of 10 (Nav Refactor) — pending plan creation
+Plan: 0 of 0 (no plans created yet)
+Status: Milestone v0.3 opened on 2026-05-05; sketches 007-A/008-A/009-A/012/013-A locked; LLM provider locked = OpenAI gpt-4.1-nano + text-embedding-3-small
+Last activity: 2026-05-05 — milestone v0.3 opened, ROADMAP/REQUIREMENTS/PROJECT updated, sketches переработаны под функциональную nav
 
-Progress: [██████████] 100%
+Previous milestone v0.2 (MVP) — Complete 2026-05-03, 6 phases / 38 plans.
+
+Progress: [          ] 0% (milestone v0.3)
 
 ## Performance Metrics
 
@@ -60,6 +63,10 @@ Progress: [██████████] 100%
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
+- v0.3 (2026-05-05): Bottom nav реорганизуется в функциональную: Главная / Транзакции / Аналитика / AI / Управление. Заменяет MVP-nav (История/План/Подписки/Ещё) — История+План объединяются в «Транзакции» с под-табами, Подписки+Шаблон+Категории+Настройки в «Управление»
+- v0.3 (2026-05-05): LLM provider = OpenAI (gpt-4.1-nano для chat, text-embedding-3-small для эмбеддингов); абстрактный LLM-клиент с `LLM_PROVIDER` ENV для возможности переключения
+- v0.3 (2026-05-05): AI Categorization (Phase 10) через embeddings + cosine similarity, без LLM-вызова на каждой транзакции — pgvector в Postgres
+- v0.3 (2026-05-05): Аналитика повышена из v2 в v1 — агрегаты считаются на backend, SVG-чарты самописные без chart-libs
 - Init: Single-tenant без `user_id` в FK — упрощение для pet
 - Init: `cycle_start_day` настраиваемый, default = 5 — payroll-цикл заказчика
 - Init: Дельта расходов = `План−Факт`, доходов = `Факт−План` — единое правило «положительная = хорошо»
@@ -89,6 +96,8 @@ None yet.
 
 - Q-7 (HLD): UI-kit Mini App ещё не выбран (`@telegram-apps/telegram-ui` vs shadcn vs кастом). Нужно решить в Phase 2 при первой UI-задаче.
 - Q-9 (HLD): Стратегия выноса pg_dump (S3 vs локальный том) — открыто, можно отложить до production-deploy.
+- Q-v0.3-1 (Phase 9): Под какую модель кэшируем системный промпт? OpenAI Cached Input включён по умолчанию — нужно убедиться, что `gpt-4.1-nano` его поддерживает (большинство моделей семейства поддерживают). Решить при создании плана Phase 9.
+- Q-v0.3-2 (Phase 10): pgvector index — HNSW vs IVFFlat? Для 14 категорий любой ок; HNSW проще, IVFFlat легче бэкапить. Решить в плане Phase 10.
 
 ## Deferred Items
 
