@@ -2,7 +2,9 @@
 
 ## Overview
 
-MVP перенос личной Google-таблицы бюджета в TG Mini App. Шесть фаз ведут от пустого репозитория до работающего single-tenant продукта на VPS: сначала инфраструктура и auth, затем доменное ядро (категории/периоды) с onboarding, потом план (шаблон + ручные строки), факт-транзакции через Mini App и бот, дашборд с lifecycle периодов, и в финале подписки с cron-джобами.
+MVP (milestone v0.2, **complete 2026-05-03**) перенёс личную Google-таблицу бюджета в TG Mini App: 6 фаз от пустого репозитория до работающего single-tenant продукта на VPS — инфраструктура и auth, доменное ядро (категории/периоды) с onboarding, план (шаблон + ручные строки), факт-транзакции через Mini App и бот, дашборд с lifecycle периодов, подписки с cron-джобами.
+
+**Milestone v0.3 (active, started 2026-05-05) — «Analytics & AI»:** функциональный редизайн nav (5 табов: Главная / Транзакции / Аналитика / AI / Управление), новый экран Аналитики с трендами и прогнозом, conversational AI-помощник с tool-use над данными бюджета, AI-категоризация в форме новой транзакции через эмбеддинги.
 
 ## Phases
 
@@ -12,12 +14,21 @@ MVP перенос личной Google-таблицы бюджета в TG Mini 
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Infrastructure & Auth** — docker-compose skeleton (5 контейнеров), БД-схема + миграции, Telegram initData валидация, OWNER_TG_ID whitelist, internal token для bot↔api
-- [ ] **Phase 2: Domain Foundation & Onboarding** — категории CRUD + seed, period engine (cycle_start_day), onboarding scrollable-page с bot bind, settings cycle_start_day
-- [ ] **Phase 3: Plan Template & Planned Transactions** — шаблон плана + развёртывание на новый период, CRUD строк плана с inline-редактированием и bottom-sheet
-- [ ] **Phase 4: Actual Transactions & Bot Commands** — факт-транзакции через Mini App bottom-sheet, бот-команды `/add`, `/income`, `/balance`, `/today`, `/app` с парсингом и disambiguation
-- [ ] **Phase 5: Dashboard & Period Lifecycle** — главный экран Mini App (tabs Расходы/Доходы, hero-баланс, aggr-блок, прогресс-бары категорий), все edge-states, переключатель периодов, worker-job автозакрытия периода
+### Milestone v0.2 — MVP (Complete)
+
+- [x] **Phase 1: Infrastructure & Auth** — docker-compose skeleton (5 контейнеров), БД-схема + миграции, Telegram initData валидация, OWNER_TG_ID whitelist, internal token для bot↔api
+- [x] **Phase 2: Domain Foundation & Onboarding** — категории CRUD + seed, period engine (cycle_start_day), onboarding scrollable-page с bot bind, settings cycle_start_day
+- [x] **Phase 3: Plan Template & Planned Transactions** — шаблон плана + развёртывание на новый период, CRUD строк плана с inline-редактированием и bottom-sheet
+- [x] **Phase 4: Actual Transactions & Bot Commands** — факт-транзакции через Mini App bottom-sheet, бот-команды `/add`, `/income`, `/balance`, `/today`, `/app` с парсингом и disambiguation
+- [x] **Phase 5: Dashboard & Period Lifecycle** — главный экран Mini App (tabs Расходы/Доходы, hero-баланс, aggr-блок, прогресс-бары категорий), все edge-states, переключатель периодов, worker-job автозакрытия периода
 - [x] **Phase 6: Subscriptions & Worker Jobs** — подписки CRUD + horizontal timeline UI, 2 cron-джобы (push 09:00, charge 00:05), notify_days_before settings
+
+### Milestone v0.3 — Analytics & AI (Active)
+
+- [ ] **Phase 7: Nav Refactor** — функциональный bottom nav (Главная / Транзакции / Аналитика / AI / Управление), объединение History+Plan под «Транзакциями» с под-табами, переименование More→Управление, placeholder-табы «Аналитика» и «AI»
+- [ ] **Phase 8: Analytics Screen** — экран Аналитики с трендом расходов по месяцам, топом перерасходов, топом категорий и прогнозом остатка; новые API endpoints `/api/v1/analytics/*`
+- [ ] **Phase 9: AI Assistant** — conversational AI с tool-use над данными бюджета (OpenAI gpt-4.1-nano), streaming SSE, prompt caching, persistence в БД, абстрактный provider-agnostic LLM-клиент
+- [ ] **Phase 10: AI Categorization** — AI-предложение категории в форме новой транзакции через embeddings (text-embedding-3-small + pgvector cosine similarity)
 
 ## Phase Details
 
@@ -123,22 +134,96 @@ Plans:
 - [x] 06-06-PLAN.md — Frontend UI: SubscriptionsScreen (hero + timeline + flat list), App.tsx nav, SettingsScreen notify_days_before field, HomeScreen quick-nav
 - [x] 06-07-PLAN.md — Final verification: pytest + tsc + build checks, 06-VERIFICATION.md, ROADMAP Phase 6 → Complete
 
+### Phase 7: Nav Refactor
+**Goal**: Bottom nav v0.3 заменяет MVP-навигацию на функциональную (Главная / Транзакции / Аналитика / AI / Управление); существующие экраны реорганизуются без потери функциональности; placeholder-экраны «Аналитика» и «AI» содержат «Скоро будет», чтобы разблокировать UX-форму до Phase 8/9
+**Depends on**: Phase 6 (milestone v0.2 complete)
+**Requirements**: NAV-01, NAV-02, NAV-03, NAV-04, TXN-01, TXN-02, TXN-03, TXN-04, TXN-05, MGT-01, MGT-02, MGT-03, MGT-04
+**Success Criteria** (what must be TRUE):
+  1. Bottom nav показывает ровно 5 табов с функциональными лейблами и Phosphor-иконками; AI-таб подсвечен фиолетовым (`#a78bfa`) когда активен
+  2. Таб «Транзакции» содержит под-табы История / План; История группирует факт-транзакции по дням с total в day-header; План группирует по категориям с source-badge
+  3. Таб «Управление» = меню-список 4 пунктов (Подписки / Шаблон / Категории / Настройки) с контекстными desc; entry-point в `SubscriptionsScreen`/`TemplateScreen`/`CategoriesScreen`/`SettingsScreen` без изменений саб-скринов
+  4. Табы «Аналитика» и «AI» рендерят PageTitle + блок «Скоро будет» — placeholder для Phase 8/9
+  5. Старая `BottomNav.tsx` удалена / переписана; `App.tsx` routing соответствует новой nav; e2e тесты обновлены
+**Plans**: 6 планов
+
+Plans:
+- [ ] 07-01-PLAN.md — Wave 0: RED e2e тесты (nav-v03.spec.ts)
+- [ ] 07-02-PLAN.md — Общие компоненты: BottomNav (5 табов), SubTabBar, PageTitle
+- [ ] 07-03-PLAN.md — TransactionsScreen: HistoryView + PlannedView + filter chips + context-aware FAB
+- [ ] 07-04-PLAN.md — ManagementScreen (4 пункта) + placeholder AnalyticsScreen + AiScreen
+- [ ] 07-05-PLAN.md — App.tsx routing rewrite + удаление MoreScreen
+- [ ] 07-06-PLAN.md — Verification: e2e GREEN + VERIFICATION.md + ROADMAP complete
+**UI hint**: yes — sketches 007-A, 012 (all 3 states valid), 013-A
+
+### Phase 8: Analytics Screen
+**Goal**: Экран Аналитика — top-level таб с трендом расходов, топом перерасходов, топом категорий и прогнозом остатка периода; backend API возвращает агрегаты, UI рендерит SVG-чарты без внешних chart-libs
+**Depends on**: Phase 7
+**Requirements**: ANL-01, ANL-02, ANL-03, ANL-04, ANL-05, ANL-06, ANL-07, ANL-08
+**Success Criteria** (what must be TRUE):
+  1. Экран рендерит PageTitle, period chips (1/3/6/Год мес), блок «Топ перерасходов» с лево-бордером danger/warn, line chart тренда расходов, горизонтальные bars топ-категорий, forecast card
+  2. API endpoints `GET /api/v1/analytics/{trend,top-overspend,top-categories,forecast}` отвечают валидной структурой и проходят contract-тесты; все агрегаты считаются на backend
+  3. SVG-чарты — самописные (без recharts/visx); используют tokens-цвета и chart-палитру (chart-1..chart-6)
+  4. Прогноз остатка к концу периода = текущий баланс + (плановые-факт) с linear-extrapolation темпа дневных расходов; обрабатывает edge-case первых дней периода
+  5. Pytest contract-тесты + Vitest unit-тесты для ANL-* блоков
+**Plans**: TBD
+**UI hint**: yes — sketch 008-A
+
+### Phase 9: AI Assistant
+**Goal**: Экран AI — conversational chat с tool-use над данными бюджета. OpenAI gpt-4.1-nano, streaming SSE, prompt caching, persistence в БД, абстрактный provider-agnostic LLM-клиент. Tools покрывают основные сценарии (баланс, топ расходов, сравнение периодов)
+**Depends on**: Phase 7
+**Requirements**: AI-01, AI-02, AI-03, AI-04, AI-05, AI-06, AI-07, AI-08, AI-09, AI-10
+**Success Criteria** (what must be TRUE):
+  1. Экран AI рендерит PageTitle с аватаром, empty-state с suggestion chips, при отправке сообщения streaming-ответ появляется token-by-token через SSE
+  2. Tool-use indicator («Смотрю март...» pulse-pill) показывается во время вызова tool; после завершения tool-call ответ AI содержит реальные данные из БД
+  3. LLM-клиент `app/ai/llm_client.py` имеет `chat()` и `embed()` контракт; провайдер выбирается через ENV `LLM_PROVIDER=openai|anthropic|deepseek`, дефолт `openai`; switch на DeepSeek через ENV не требует кода
+  4. Conversation persistence: новые таблицы `ai_conversation` (user_id, created_at, last_message_at) и `ai_message` (conversation_id, role, content, tool_calls, created_at); пользователь может очистить историю
+  5. Prompt caching системного промпта + контекста бюджета (категории, текущий период, агрегаты) — отдельные `cache_control` блоки в OpenAI request; снижает input cost при повторных вопросах
+  6. Rate limit 30 req/мин на пользователя enforced на API-слое; превышение → 429 с `Retry-After` header
+**Plans**: TBD
+**UI hint**: yes — sketch 009-A
+
+### Phase 10: AI Categorization
+**Goal**: AI-предложение категории в форме «Новая транзакция» через embeddings и cosine similarity, без LLM-вызова на каждой транзакции (только embedding API)
+**Depends on**: Phase 9 (LLM-клиент готов)
+**Requirements**: AICAT-01, AICAT-02, AICAT-03, AICAT-04, AICAT-05, AICAT-06, SET-03
+**Success Criteria** (what must be TRUE):
+  1. При вводе описания в `ActualEditor` через ~500ms debounce backend возвращает топ-1 категорию по cosine similarity description-embedding и cached category-embeddings
+  2. Если confidence ≥ 0.5 — UI показывает AI-suggestion box (имя + confidence-bar) вместо `<select>`; кнопка «Сменить» возвращает обычный select
+  3. Если confidence < 0.5 — UI показывает обычный select без AI-навязывания
+  4. Эмбеддинги категорий хранятся в новой таблице `category_embedding(category_id PK, vector(1536), updated_at)`; pgvector extension добавлен в Postgres init; перегенерация при изменении имени категории
+  5. Toggle `enable_ai_categorization` в Settings (`SET-03`) отключает feature; default = on
+  6. Pgvector index (HNSW или IVFFlat — выбрать в plan) для быстрого cosine search; для 14 категорий любой подход работает
+**Plans**: TBD
+**UI hint**: yes — sketch 011-A
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
+Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10. Внутри milestone v0.3 фазы 8 и 9 могут идти параллельно после Phase 7.
+
+### Milestone v0.2 (Complete)
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Infrastructure & Auth | 6/6 | Complete | 2026-05-02 |
 | 2. Domain Foundation & Onboarding | 6/6 | Complete | 2026-05-02 |
 | 3. Plan Template & Planned Transactions | 6/6 | Complete | 2026-05-03 |
-| 4. Actual Transactions & Bot Commands | 6/7 | In progress | - |
+| 4. Actual Transactions & Bot Commands | 6/7 | Mostly complete | - |
 | 5. Dashboard & Period Lifecycle | 6/6 | Complete | 2026-05-03 |
 | 6. Subscriptions & Worker Jobs | 7/7 | Complete | 2026-05-03 |
+
+### Milestone v0.3 (Active)
+
+| Phase | Plans Complete | Status | Completed |
+|-------|----------------|--------|-----------|
+| 7. Nav Refactor | 0/6 | In progress | - |
+| 8. Analytics Screen | 0/0 | Pending plan | - |
+| 9. AI Assistant | 0/0 | Pending plan | - |
+| 10. AI Categorization | 0/0 | Pending plan | - |
 
 ---
 *Roadmap created: 2026-05-01*
 *Synthesized from docs/BRD.md v0.2, docs/HLD.md v0.1, .planning/sketches/ winners*
 *Phase 1 plans created: 2026-05-01*
 *Phase 5 plans created: 2026-05-03*
+*Milestone v0.3 added: 2026-05-05 — phases 7-10, sketches 007-A/008-A/009-A/012/013-A*
