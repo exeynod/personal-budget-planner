@@ -13,6 +13,7 @@ Covered:
 import os
 
 import pytest
+import pytest_asyncio
 
 
 def _require_db():
@@ -25,6 +26,53 @@ def auth_headers(bot_token, owner_tg_id):
     from tests.conftest import make_init_data
 
     return {"X-Telegram-Init-Data": make_init_data(owner_tg_id, bot_token)}
+
+
+@pytest_asyncio.fixture
+async def db_client(async_client, bot_token, owner_tg_id):
+    """async_client with real DB session override. Skip if DB unavailable."""
+    _require_db()
+    from sqlalchemy import text
+    from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+
+    from app.api.dependencies import get_db
+    from app.main_api import app
+    from tests.conftest import make_init_data
+
+    db_url = os.environ["DATABASE_URL"]
+    engine = create_async_engine(db_url, echo=False)
+    SessionLocal = async_sessionmaker(engine, expire_on_commit=False)
+
+    async with engine.begin() as conn:
+        await conn.execute(
+            text(
+                "TRUNCATE TABLE category, planned_transaction, "
+                "actual_transaction, plan_template_item, subscription, "
+                "budget_period, app_user RESTART IDENTITY CASCADE"
+            )
+        )
+
+    async def real_get_db():
+        async with SessionLocal() as session:
+            try:
+                yield session
+                await session.commit()
+            except Exception:
+                await session.rollback()
+                raise
+
+    app.dependency_overrides[get_db] = real_get_db
+
+    # Bootstrap AppUser via GET /me (D-11).
+    init_data = make_init_data(owner_tg_id, bot_token)
+    await async_client.get(
+        "/api/v1/me",
+        headers={"X-Telegram-Init-Data": init_data},
+    )
+
+    yield async_client, {"X-Telegram-Init-Data": init_data}
+
+    await engine.dispose()
 
 
 # --- 403 auth tests (do NOT require DB — routes will 403 before DB) ---
@@ -58,10 +106,10 @@ async def test_forecast_requires_auth(async_client):
 
 
 @pytest.mark.asyncio
-async def test_trend_range_1m_returns_200(async_client, auth_headers):
-    _require_db()
-    response = await async_client.get(
-        "/api/v1/analytics/trend?range=1M", headers=auth_headers
+async def test_trend_range_1m_returns_200(db_client):
+    client, headers = db_client
+    response = await client.get(
+        "/api/v1/analytics/trend?range=1M", headers=headers
     )
     assert response.status_code == 200
     data = response.json()
@@ -70,10 +118,10 @@ async def test_trend_range_1m_returns_200(async_client, auth_headers):
 
 
 @pytest.mark.asyncio
-async def test_trend_range_3m_returns_200(async_client, auth_headers):
-    _require_db()
-    response = await async_client.get(
-        "/api/v1/analytics/trend?range=3M", headers=auth_headers
+async def test_trend_range_3m_returns_200(db_client):
+    client, headers = db_client
+    response = await client.get(
+        "/api/v1/analytics/trend?range=3M", headers=headers
     )
     assert response.status_code == 200
     data = response.json()
@@ -81,10 +129,10 @@ async def test_trend_range_3m_returns_200(async_client, auth_headers):
 
 
 @pytest.mark.asyncio
-async def test_trend_point_shape(async_client, auth_headers):
-    _require_db()
-    response = await async_client.get(
-        "/api/v1/analytics/trend?range=6M", headers=auth_headers
+async def test_trend_point_shape(db_client):
+    client, headers = db_client
+    response = await client.get(
+        "/api/v1/analytics/trend?range=6M", headers=headers
     )
     assert response.status_code == 200
     points = response.json()["points"]
@@ -97,10 +145,10 @@ async def test_trend_point_shape(async_client, auth_headers):
 
 
 @pytest.mark.asyncio
-async def test_top_overspend_returns_200(async_client, auth_headers):
-    _require_db()
-    response = await async_client.get(
-        "/api/v1/analytics/top-overspend?range=1M", headers=auth_headers
+async def test_top_overspend_returns_200(db_client):
+    client, headers = db_client
+    response = await client.get(
+        "/api/v1/analytics/top-overspend?range=1M", headers=headers
     )
     assert response.status_code == 200
     data = response.json()
@@ -109,10 +157,10 @@ async def test_top_overspend_returns_200(async_client, auth_headers):
 
 
 @pytest.mark.asyncio
-async def test_top_overspend_item_shape(async_client, auth_headers):
-    _require_db()
-    response = await async_client.get(
-        "/api/v1/analytics/top-overspend?range=1M", headers=auth_headers
+async def test_top_overspend_item_shape(db_client):
+    client, headers = db_client
+    response = await client.get(
+        "/api/v1/analytics/top-overspend?range=1M", headers=headers
     )
     assert response.status_code == 200
     items = response.json()["items"]
@@ -123,10 +171,10 @@ async def test_top_overspend_item_shape(async_client, auth_headers):
 
 
 @pytest.mark.asyncio
-async def test_top_categories_returns_200(async_client, auth_headers):
-    _require_db()
-    response = await async_client.get(
-        "/api/v1/analytics/top-categories?range=3M", headers=auth_headers
+async def test_top_categories_returns_200(db_client):
+    client, headers = db_client
+    response = await client.get(
+        "/api/v1/analytics/top-categories?range=3M", headers=headers
     )
     assert response.status_code == 200
     data = response.json()
@@ -135,10 +183,10 @@ async def test_top_categories_returns_200(async_client, auth_headers):
 
 
 @pytest.mark.asyncio
-async def test_top_categories_item_shape(async_client, auth_headers):
-    _require_db()
-    response = await async_client.get(
-        "/api/v1/analytics/top-categories?range=3M", headers=auth_headers
+async def test_top_categories_item_shape(db_client):
+    client, headers = db_client
+    response = await client.get(
+        "/api/v1/analytics/top-categories?range=3M", headers=headers
     )
     assert response.status_code == 200
     items = response.json()["items"]
@@ -149,10 +197,10 @@ async def test_top_categories_item_shape(async_client, auth_headers):
 
 
 @pytest.mark.asyncio
-async def test_forecast_returns_200(async_client, auth_headers):
-    _require_db()
-    response = await async_client.get(
-        "/api/v1/analytics/forecast", headers=auth_headers
+async def test_forecast_returns_200(db_client):
+    client, headers = db_client
+    response = await client.get(
+        "/api/v1/analytics/forecast", headers=headers
     )
     assert response.status_code == 200
     data = response.json()
@@ -162,10 +210,10 @@ async def test_forecast_returns_200(async_client, auth_headers):
 
 
 @pytest.mark.asyncio
-async def test_forecast_insufficient_data_null_fields(async_client, auth_headers):
-    _require_db()
-    response = await async_client.get(
-        "/api/v1/analytics/forecast", headers=auth_headers
+async def test_forecast_insufficient_data_null_fields(db_client):
+    client, headers = db_client
+    response = await client.get(
+        "/api/v1/analytics/forecast", headers=headers
     )
     assert response.status_code == 200
     data = response.json()

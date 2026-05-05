@@ -50,6 +50,7 @@ from app.api.routes.onboarding import onboarding_router
 from app.api.routes.periods import periods_router
 from app.api.routes.planned import planned_router
 from app.api.routes.settings import settings_router
+from app.api.routes.analytics import router as analytics_router
 from app.api.routes.subscriptions import router as subscriptions_router
 from app.api.routes.templates import templates_router
 from app.db.models import AppUser
@@ -115,6 +116,9 @@ public_router.include_router(actual_router)
 
 # Phase 6 sub-router — Subscriptions CRUD + charge-now (D-71).
 public_router.include_router(subscriptions_router)
+
+# Phase 8 sub-router — Analytics aggregates (ANL-07).
+public_router.include_router(analytics_router)
 
 
 # ---- Internal router (requires X-Internal-Token) ----
