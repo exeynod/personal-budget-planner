@@ -1,6 +1,7 @@
 import hashlib
 import hmac
 import json
+import os
 import time
 from typing import AsyncGenerator
 from urllib.parse import urlencode
@@ -8,6 +9,27 @@ from urllib.parse import urlencode
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
+
+
+# Set test env vars at conftest import time so any module-level
+# `from app.* import *` in test files loads `app.core.settings` with
+# non-default values. `setdefault` lets CI/external env override.
+# Required because `validate_production_settings()` (called from each
+# entry point's lifespan/startup) refuses to start with the "changeme"
+# defaults when DEV_MODE=False.
+os.environ.setdefault("BOT_TOKEN", "1234567890:test_bot_token_for_testing_only")
+os.environ.setdefault("OWNER_TG_ID", "123456789")
+os.environ.setdefault("INTERNAL_TOKEN", "test_internal_secret_token")
+os.environ.setdefault("DEV_MODE", "false")
+os.environ.setdefault(
+    "DATABASE_URL",
+    "postgresql+asyncpg://budget:budget@localhost:5432/budget_test",
+)
+os.environ.setdefault(
+    "DATABASE_URL_SYNC",
+    "postgresql://budget:budget@localhost:5432/budget_test",
+)
+os.environ.setdefault("PUBLIC_DOMAIN", "localhost")
 
 
 def make_init_data(tg_user_id: int, bot_token: str, age_seconds: int = 0) -> str:

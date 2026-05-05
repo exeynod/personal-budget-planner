@@ -11,6 +11,7 @@ Security design (HLD §7):
 """
 from __future__ import annotations
 
+import hmac
 from typing import AsyncGenerator
 
 from fastapi import Header, HTTPException, status
@@ -73,7 +74,9 @@ async def verify_internal_token(
 
     Used exclusively by bot↔api internal communication (HLD §7.3).
     """
-    if not x_internal_token or x_internal_token != settings.INTERNAL_TOKEN:
+    if not x_internal_token or not hmac.compare_digest(
+        x_internal_token, settings.INTERNAL_TOKEN
+    ):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Invalid or missing X-Internal-Token",

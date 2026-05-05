@@ -26,7 +26,7 @@ from aiohttp import web
 from app.bot.commands import router as commands_router  # Phase 4 handlers
 from app.bot.handlers import router as start_router  # Phase 2 handler — replaces stub
 from app.core.logging import configure_logging
-from app.core.settings import settings
+from app.core.settings import settings, validate_production_settings
 
 
 configure_logging(settings.LOG_LEVEL, settings.LOG_FORMAT)
@@ -42,6 +42,7 @@ async def health_handler(request: web.Request) -> web.Response:
 
 
 async def main() -> None:
+    validate_production_settings()
     bot = Bot(
         token=settings.BOT_TOKEN,
         default=DefaultBotProperties(parse_mode=ParseMode.HTML),

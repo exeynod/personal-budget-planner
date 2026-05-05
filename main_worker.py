@@ -25,7 +25,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from sqlalchemy import select
 
 from app.core.logging import configure_logging
-from app.core.settings import settings
+from app.core.settings import settings, validate_production_settings
 from app.db.models import AppHealth
 from app.db.session import AsyncSessionLocal
 from app.worker.jobs.charge_subscriptions import charge_subscriptions_job
@@ -66,6 +66,7 @@ async def heartbeat_job() -> None:
 
 
 async def main() -> None:
+    validate_production_settings()
     scheduler = AsyncIOScheduler(timezone=MOSCOW_TZ)
 
     # Phase 1: heartbeat every 5 minutes (D-12).

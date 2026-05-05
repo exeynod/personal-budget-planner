@@ -22,7 +22,7 @@ from fastapi import FastAPI
 
 from app.api.router import internal_router, public_router
 from app.core.logging import configure_logging
-from app.core.settings import settings
+from app.core.settings import settings, validate_production_settings
 from app.db.session import async_engine
 
 logger = structlog.get_logger(__name__)
@@ -32,6 +32,7 @@ logger = structlog.get_logger(__name__)
 async def lifespan(app: FastAPI):
     """FastAPI lifespan: startup → yield → shutdown."""
     configure_logging(settings.LOG_LEVEL, settings.LOG_FORMAT)
+    validate_production_settings()
     logger.info(
         "api.startup",
         dev_mode=settings.DEV_MODE,
