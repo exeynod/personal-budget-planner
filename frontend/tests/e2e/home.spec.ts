@@ -101,11 +101,12 @@ test('home screen shows bottom navigation tabs', async ({ page }) => {
 
   await expect(page.locator('text=Загрузка…')).not.toBeVisible({ timeout: 5000 });
 
-  // Bottom nav tabs should be present
+  // Bottom nav tabs should be present (nav v0.3 labels)
   await expect(page.locator('text=Главная')).toBeVisible({ timeout: 5000 });
-  await expect(page.locator('text=История')).toBeVisible({ timeout: 5000 });
-  await expect(page.locator('text=Подписки')).toBeVisible({ timeout: 5000 });
-  await expect(page.locator('text=Ещё')).toBeVisible({ timeout: 5000 });
+  await expect(page.locator('text=Транзакции')).toBeVisible({ timeout: 5000 });
+  await expect(page.locator('text=Аналитика')).toBeVisible({ timeout: 5000 });
+  await expect(page.locator('text=AI')).toBeVisible({ timeout: 5000 });
+  await expect(page.locator('text=Управление')).toBeVisible({ timeout: 5000 });
 });
 
 test('home screen does not show error state when API responds', async ({ page }) => {
