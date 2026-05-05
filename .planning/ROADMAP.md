@@ -25,7 +25,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 ### Milestone v0.3 — Analytics & AI (Active)
 
-- [ ] **Phase 7: Nav Refactor** — функциональный bottom nav (Главная / Транзакции / Аналитика / AI / Управление), объединение History+Plan под «Транзакциями» с под-табами, переименование More→Управление, placeholder-табы «Аналитика» и «AI»
+- [x] **Phase 7: Nav Refactor** — функциональный bottom nav (Главная / Транзакции / Аналитика / AI / Управление), объединение History+Plan под «Транзакциями» с под-табами, переименование More→Управление, placeholder-табы «Аналитика» и «AI» (completed 2026-05-05)
 - [ ] **Phase 8: Analytics Screen** — экран Аналитики с трендом расходов по месяцам, топом перерасходов, топом категорий и прогнозом остатка; новые API endpoints `/api/v1/analytics/*`
 - [ ] **Phase 9: AI Assistant** — conversational AI с tool-use над данными бюджета (OpenAI gpt-4.1-nano), streaming SSE, prompt caching, persistence в БД, абстрактный provider-agnostic LLM-клиент
 - [ ] **Phase 10: AI Categorization** — AI-предложение категории в форме новой транзакции через embeddings (text-embedding-3-small + pgvector cosine similarity)
@@ -152,7 +152,7 @@ Plans:
 - [x] 07-03-PLAN.md — TransactionsScreen: HistoryView + PlannedView + filter chips + context-aware FAB
 - [x] 07-04-PLAN.md — ManagementScreen (4 пункта) + placeholder AnalyticsScreen + AiScreen
 - [x] 07-05-PLAN.md — App.tsx routing rewrite + удаление MoreScreen
-- [ ] 07-06-PLAN.md — Verification: e2e GREEN + VERIFICATION.md + ROADMAP complete
+- [x] 07-06-PLAN.md — Verification: e2e GREEN + VERIFICATION.md + ROADMAP complete
 **UI hint**: yes — sketches 007-A, 012 (all 3 states valid), 013-A
 
 ### Phase 8: Analytics Screen
@@ -216,7 +216,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 7. Nav Refactor | 5/6 | In Progress|  |
+| 7. Nav Refactor | 6/6 | Complete   | 2026-05-05 |
 | 8. Analytics Screen | 0/0 | Pending plan | - |
 | 9. AI Assistant | 0/0 | Pending plan | - |
 | 10. AI Categorization | 0/0 | Pending plan | - |
