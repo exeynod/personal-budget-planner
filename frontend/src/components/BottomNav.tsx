@@ -1,7 +1,7 @@
-import { House, Receipt, CalendarBlank, Bell, DotsNine } from '@phosphor-icons/react';
+import { House, ArrowsLeftRight, ChartBar, Sparkle, SquaresFour } from '@phosphor-icons/react';
 import styles from './BottomNav.module.css';
 
-export type TabId = 'home' | 'history' | 'planned' | 'subscriptions' | 'more';
+export type TabId = 'home' | 'transactions' | 'analytics' | 'ai' | 'management';
 
 export interface BottomNavProps {
   activeTab: TabId;
@@ -14,36 +14,39 @@ const TabIcon = ({ id, active }: TabIconProps) => {
   const weight = active ? 'fill' : 'thin';
   const size = 26;
   if (id === 'home') return <House size={size} weight={weight} />;
-  if (id === 'history') return <Receipt size={size} weight={weight} />;
-  if (id === 'planned') return <CalendarBlank size={size} weight={weight} />;
-  if (id === 'subscriptions') return <Bell size={size} weight={weight} />;
-  return <DotsNine size={size} weight={weight} />;
+  if (id === 'transactions') return <ArrowsLeftRight size={size} weight={weight} />;
+  if (id === 'analytics') return <ChartBar size={size} weight={weight} />;
+  if (id === 'ai') return <Sparkle size={size} weight={weight} />;
+  return <SquaresFour size={size} weight={weight} />;
 };
 
 const TABS: { id: TabId; label: string }[] = [
   { id: 'home', label: 'Главная' },
-  { id: 'history', label: 'История' },
-  { id: 'planned', label: 'План' },
-  { id: 'subscriptions', label: 'Подписки' },
-  { id: 'more', label: 'Ещё' },
+  { id: 'transactions', label: 'Транзакции' },
+  { id: 'analytics', label: 'Аналитика' },
+  { id: 'ai', label: 'AI' },
+  { id: 'management', label: 'Управление' },
 ];
 
 export function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
   return (
     <nav className={styles.nav} aria-label="Навигация">
-      {TABS.map(({ id, label }) => (
-        <button
-          key={id}
-          type="button"
-          className={`${styles.tab} ${activeTab === id ? styles.active : ''}`}
-          onClick={() => onTabChange(id)}
-          aria-label={label}
-          aria-current={activeTab === id ? 'page' : undefined}
-        >
-          <span className={styles.icon}><TabIcon id={id} active={activeTab === id} /></span>
-          <span className={styles.label}>{label}</span>
-        </button>
-      ))}
+      {TABS.map(({ id, label }) => {
+        const isActive = activeTab === id;
+        return (
+          <button
+            key={id}
+            type="button"
+            className={[styles.tab, isActive ? styles.active : '', id === 'ai' ? styles.ai : ''].filter(Boolean).join(' ')}
+            onClick={() => onTabChange(id)}
+            aria-label={label}
+            aria-current={isActive ? 'page' : undefined}
+          >
+            <span className={styles.icon}><TabIcon id={id} active={isActive} /></span>
+            <span className={styles.label}>{label}</span>
+          </button>
+        );
+      })}
     </nav>
   );
 }

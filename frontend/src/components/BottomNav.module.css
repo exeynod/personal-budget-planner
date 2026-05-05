@@ -59,3 +59,7 @@
   letter-spacing: 0.01em;
   line-height: 1;
 }
+
+.ai.active {
+  color: #a78bfa;
+}
