@@ -244,3 +244,46 @@ export interface ChargeNowResponse {
   planned_id: number;
   next_charge_date: string;
 }
+
+// ---------- Phase 8: Analytics ----------
+
+export interface TrendPoint {
+  period_label: string;      // e.g. "Янв", "Фев"
+  expense_cents: number;
+  income_cents: number;
+}
+
+export interface TrendResponse {
+  points: TrendPoint[];
+}
+
+export interface OverspendItem {
+  category_id: number;
+  name: string;
+  planned_cents: number;
+  actual_cents: number;
+  overspend_pct: number;     // actual/plan*100, float
+}
+
+export interface TopOverspendResponse {
+  items: OverspendItem[];
+}
+
+export interface TopCategoryItem {
+  category_id: number;
+  name: string;
+  actual_cents: number;
+  planned_cents: number;
+}
+
+export interface TopCategoriesResponse {
+  items: TopCategoryItem[];
+}
+
+export interface ForecastResponse {
+  insufficient_data: boolean;
+  current_balance_cents: number;
+  projected_end_balance_cents: number | null;
+  will_burn_cents: number | null;
+  period_end: string | null;   // ISO date
+}
