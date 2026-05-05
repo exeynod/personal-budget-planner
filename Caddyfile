@@ -1,33 +1,44 @@
-# TG Budget Planner — production Caddyfile (INF-03).
+# TG Budget Planner — production Caddyfile (INF-03), Let's Encrypt mode.
 #
 # Caddy auto-HTTPS via Let's Encrypt: requires the configured public domain
 # to resolve to this VPS's public IP and ports 80/443 open (Pitfall 4).
+# In Cloudflare Tunnel mode (the current production deployment) this file is
+# NOT mounted — see Caddyfile.cloudflare instead.
+#
+# Uses `handle {}` blocks (mutually exclusive, evaluated in written order)
+# instead of bare directives — bare directives follow Caddy's default
+# directive order, in which `try_files` runs BEFORE `respond` /
+# `reverse_proxy` and rewrites unmatched paths to /index.html, masking
+# /api/v1/internal/* (which must 403) and /api/* (which must reverse-proxy)
+# with the SPA. `handle` short-circuits at the first match.
 #
 # Source: 01-RESEARCH.md Pattern 10.
 
 {$PUBLIC_DOMAIN} {
+	encode zstd gzip
 
-	# T-internal mitigation: Caddy responds 403 to /api/v1/internal/* BEFORE
-	# the reverse-proxy directive runs, so internal endpoints are never
-	# proxied to api:8000 from the public Internet. The bot reaches them
-	# directly over the budget_net docker network at http://api:8000/...
-	# and presents X-Internal-Token (verified by FastAPI dependency).
-	#
-	# Caddyfile directive order matters here: both rules can match a path
-	# under /api/v1/internal/..., and a terminating handler like `respond`
-	# wins when it appears earlier in the site block.
-	respond /api/v1/internal/* "Forbidden" 403
+	# T-internal mitigation: 403 for internal endpoints. Must come first so
+	# /api/v1/internal/* never reaches the reverse-proxy below. The bot
+	# reaches these directly over the budget_net docker network at
+	# http://api:8000/... and presents X-Internal-Token (verified by the
+	# FastAPI verify_internal_token dependency).
+	handle /api/v1/internal/* {
+		respond "Forbidden" 403
+	}
 
-	# Proxy the rest of /api/* to FastAPI on the docker network.
+	# Reverse-proxy the rest of /api/* to FastAPI on the docker network.
 	# api container does NOT publish :8000 on the host — only Caddy can
 	# reach it (T-internal + T-db-exposure threat model).
-	reverse_proxy /api/* api:8000
+	handle /api/* {
+		reverse_proxy api:8000
+	}
 
-	# SPA fallback: serve the React app from the frontend_dist named volume
-	# mounted at /srv/dist (read-only). The directive below preserves deep
-	# links by falling back to /index.html for any non-file request — React
-	# Router (or future router) then handles client-side routing.
-	root * /srv/dist
-	try_files {path} /index.html
-	file_server
+	# SPA fallback: every other path serves the React app from the
+	# frontend_dist named volume mounted at /srv/dist (read-only).
+	handle {
+		root * /srv/dist
+		header /assets/* Cache-Control "public, max-age=31536000, immutable"
+		try_files {path} /index.html
+		file_server
+	}
 }

@@ -1,25 +1,36 @@
 # TG Budget Planner — dev Caddyfile (HTTP only, no TLS).
 #
-# Used by docker-compose.override.yml for local development where there is
-# no public DNS and Let's Encrypt cannot issue a cert. Listens on :80 over
+# Used by docker-compose.dev.yml for local development where there is no
+# public DNS and Let's Encrypt cannot issue a cert. Listens on :80 over
 # plain HTTP — never deploy this to a public VPS.
+#
+# Uses `handle {}` blocks for the same reason as Caddyfile / Caddyfile.cloudflare:
+# default directive order has `try_files` running before `respond` /
+# `reverse_proxy`, which masks /api/* paths with the SPA. `handle` blocks
+# are mutually exclusive and evaluated in the written order.
 #
 # Source: 01-RESEARCH.md Open Question 2 recommendation.
 
 :80 {
 	encode zstd gzip
 
-	# T-internal mitigation must apply in dev too: the override file should
-	# not accidentally re-expose internal endpoints when developers test
+	# T-internal mitigation must apply in dev too: the dev file should not
+	# accidentally re-expose internal endpoints when developers test
 	# locally via curl through Caddy.
-	respond /api/v1/internal/* "Forbidden" 403
+	handle /api/v1/internal/* {
+		respond "Forbidden" 403
+	}
 
 	# Reverse-proxy /api/* to the api container.
-	reverse_proxy /api/* api:8000
+	handle /api/* {
+		reverse_proxy api:8000
+	}
 
 	# SPA fallback (same as production).
-	root * /srv/dist
-	header /assets/* Cache-Control "public, max-age=31536000, immutable"
-	try_files {path} /index.html
-	file_server
+	handle {
+		root * /srv/dist
+		header /assets/* Cache-Control "public, max-age=31536000, immutable"
+		try_files {path} /index.html
+		file_server
+	}
 }
