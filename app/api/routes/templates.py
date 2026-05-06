@@ -5,6 +5,9 @@ shape mapping (Pydantic <-> ORM) and domain-exception → HTTP status mapping.
 All business logic — including the destructive snapshot semantics (D-32),
 archived-category guard (D-36), and ordering — lives in the service layer.
 
+Phase 11 (Plan 11-05): handlers use ``get_db_with_tenant_scope`` +
+``get_current_user_id`` and forward ``user_id`` to all service calls.
+
 Endpoints (all under router-level ``Depends(get_current_user)``):
 
 - ``GET    /api/v1/template/items``                      — TPL-01
@@ -24,7 +27,11 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.dependencies import get_current_user, get_db
+from app.api.dependencies import (
+    get_current_user,
+    get_current_user_id,
+    get_db_with_tenant_scope,
+)
 from app.api.schemas.templates import (
     SnapshotFromPeriodResponse,
     TemplateItemCreate,
@@ -46,13 +53,14 @@ templates_router = APIRouter(
 
 @templates_router.get("/items", response_model=list[TemplateItemRead])
 async def list_template_items(
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Annotated[AsyncSession, Depends(get_db_with_tenant_scope)],
+    user_id: Annotated[int, Depends(get_current_user_id)],
 ) -> list[TemplateItemRead]:
     """GET /api/v1/template/items — list all template items (TPL-01).
 
     Returns rows ordered by (category_id, sort_order, id).
     """
-    items = await tpl_svc.list_template_items(db)
+    items = await tpl_svc.list_template_items(db, user_id=user_id)
     return [TemplateItemRead.model_validate(it) for it in items]
 
 
@@ -63,7 +71,8 @@ async def list_template_items(
 )
 async def create_template_item(
     body: TemplateItemCreate,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Annotated[AsyncSession, Depends(get_db_with_tenant_scope)],
+    user_id: Annotated[int, Depends(get_current_user_id)],
 ) -> TemplateItemRead:
     """POST /api/v1/template/items — create a new template item.
 
@@ -74,7 +83,7 @@ async def create_template_item(
         400: category exists but is_archived=True
     """
     try:
-        item = await tpl_svc.create_template_item(db, body=body)
+        item = await tpl_svc.create_template_item(db, user_id=user_id, body=body)
     except CategoryNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
@@ -90,7 +99,8 @@ async def create_template_item(
 async def update_template_item(
     item_id: int,
     body: TemplateItemUpdate,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Annotated[AsyncSession, Depends(get_db_with_tenant_scope)],
+    user_id: Annotated[int, Depends(get_current_user_id)],
 ) -> TemplateItemRead:
     """PATCH /api/v1/template/items/{id} — partial update.
 
@@ -101,7 +111,7 @@ async def update_template_item(
         400: new category is archived
     """
     try:
-        item = await tpl_svc.update_template_item(db, item_id, body)
+        item = await tpl_svc.update_template_item(db, item_id, body, user_id=user_id)
     except TemplateItemNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
@@ -120,7 +130,8 @@ async def update_template_item(
 @templates_router.delete("/items/{item_id}", response_model=TemplateItemRead)
 async def delete_template_item(
     item_id: int,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Annotated[AsyncSession, Depends(get_db_with_tenant_scope)],
+    user_id: Annotated[int, Depends(get_current_user_id)],
 ) -> TemplateItemRead:
     """DELETE /api/v1/template/items/{id} — hard delete.
 
@@ -132,7 +143,7 @@ async def delete_template_item(
         404: template item does not exist
     """
     try:
-        item = await tpl_svc.delete_template_item(db, item_id)
+        item = await tpl_svc.delete_template_item(db, item_id, user_id=user_id)
     except TemplateItemNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
@@ -147,7 +158,8 @@ async def delete_template_item(
 )
 async def snapshot_from_period(
     period_id: int,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Annotated[AsyncSession, Depends(get_db_with_tenant_scope)],
+    user_id: Annotated[int, Depends(get_current_user_id)],
 ) -> SnapshotFromPeriodResponse:
     """POST /api/v1/template/snapshot-from-period/{period_id} — TPL-03 (D-32).
 
@@ -162,7 +174,9 @@ async def snapshot_from_period(
         404: period does not exist
     """
     try:
-        result = await tpl_svc.snapshot_from_period(db, period_id=period_id)
+        result = await tpl_svc.snapshot_from_period(
+            db, user_id=user_id, period_id=period_id
+        )
     except PeriodNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
