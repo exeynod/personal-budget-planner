@@ -5,15 +5,20 @@ shape mapping (Pydantic <-> ORM) and exception → HTTP status mapping. All
 business logic — including the soft-archive semantics, default seed list, and
 ordering — lives in the service layer.
 """
+import structlog
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.ai.embedding_service import get_embedding_service
 from app.api.dependencies import get_current_user, get_db
 from app.api.schemas.categories import CategoryCreate, CategoryRead, CategoryUpdate
+from app.core.settings import settings
 from app.services import categories as cat_svc
 from app.services.categories import CategoryNotFoundError
+
+logger = structlog.get_logger(__name__)
 
 
 categories_router = APIRouter(
@@ -52,15 +57,40 @@ async def create_category(
     return CategoryRead.model_validate(cat)
 
 
+async def _refresh_embedding(category_id: int, name: str) -> None:
+    """Background task: regenerate category embedding after name change (AICAT-04).
+
+    Runs outside the request lifecycle — uses its own DB session.
+    Skips silently if OPENAI_API_KEY is not configured.
+    """
+    from app.db.session import AsyncSessionLocal
+
+    try:
+        embedding_svc = get_embedding_service()
+        vector = await embedding_svc.embed_text(name)
+        async with AsyncSessionLocal() as session:
+            await embedding_svc.upsert_category_embedding(session, category_id, vector)
+        logger.info("category.embedding.refreshed", category_id=category_id)
+    except Exception:
+        logger.warning(
+            "category.embedding.refresh_failed",
+            category_id=category_id,
+            exc_info=True,
+        )
+
+
 @categories_router.patch("/{category_id}", response_model=CategoryRead)
 async def update_category(
     category_id: int,
     body: CategoryUpdate,
     db: Annotated[AsyncSession, Depends(get_db)],
+    background_tasks: BackgroundTasks,
 ) -> CategoryRead:
     """PATCH /api/v1/categories/{id} — partial update including is_archived toggle.
 
     Returns 404 if the category does not exist (``CategoryNotFoundError``).
+    When name changes and AI categorization is enabled, schedules an embedding
+    refresh as a background task so the suggestion index stays up to date (AICAT-04).
     """
     try:
         cat = await cat_svc.update_category(db, category_id, body)
@@ -69,6 +99,11 @@ async def update_category(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(exc),
         ) from exc
+
+    # Schedule embedding refresh when category name changed and AI is enabled (AICAT-04).
+    if settings.ENABLE_AI_CATEGORIZATION and body.name is not None:
+        background_tasks.add_task(_refresh_embedding, cat.id, cat.name)
+
     return CategoryRead.model_validate(cat)
 
 
