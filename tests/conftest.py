@@ -233,3 +233,30 @@ async def async_client(bot_token, owner_tg_id, internal_token):
         yield client
 
     app.dependency_overrides.clear()
+
+
+@pytest_asyncio.fixture
+async def two_tenants(db_session) -> tuple[int, int]:
+    """Two-tenant fixture — возвращает (user_a_id, user_b_id).
+
+    На момент Phase 11-01 (RED): возвращает фиктивные id-ы (1, 2) и НЕ создаёт
+    реальные AppUser строки — миграция ещё не применена и user_id колонок
+    в доменных таблицах нет, seed бессмысленен.
+
+    В Plan 11-07 (verification) этот fixture будет расширен: реально INSERT
+    двух AppUser строк + seed по 2-3 категории и транзакции для каждого
+    (категории с одинаковыми именами в обоих tenant — для проверки unique
+    scoped по user_id), потом возвращает их PK id-ы. Тесты multitenancy
+    опираются на это.
+
+    В 11-01 — placeholder: pytest.skip с reason="multitenancy fixture not
+    yet implemented — filled in Plan 11-07" чтобы все тесты, использующие
+    этот fixture, явно skip'ались а не passing-by-accident.
+    """
+    import pytest as _pytest
+    _pytest.skip(
+        "two_tenants fixture is a Plan 11-01 RED placeholder — "
+        "real implementation lands in Plan 11-07"
+    )
+    # Unreachable, но Python требует return-path для type hint:
+    return (1, 2)
