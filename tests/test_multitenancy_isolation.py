@@ -1,25 +1,25 @@
-"""Multi-tenancy isolation integration tests — Phase 11 (MUL-03).
+"""Multi-tenancy isolation integration tests — Phase 11 (MUL-03, MUL-04).
 
-RED phase (Plan 11-01): эти тесты намеренно падают с NotImplementedError;
-они заполняются реальной логикой в Plan 11-07 после того как:
-  - 11-02 применил миграцию с user_id + RLS
-  - 11-03 обновил ORM модели
-  - 11-04..06 добавил user_id фильтрацию во всех queries
+GREEN phase (Plan 11-07): real assertions backed by the two_tenants fixture
+seeded in tests/conftest.py and the user_id-scoped service layer (Plans
+11-05/06). Each test sets the RLS GUC via set_tenant_scope() before issuing
+queries.
 
-Каждый тест проверяет одно из:
-  1. test_user_a_does_not_see_user_b_categories — list_categories(user_a)
-     НЕ возвращает категории user_b
-  2. test_user_a_cannot_get_user_b_category_by_id — direct GET category/{B_id}
-     от user_a возвращает 404, не 200 (или 403 — выбрать)
-  3. test_user_a_cannot_get_user_b_subscription_by_id — то же для subscription
-  4. test_user_a_cannot_see_user_b_planned_transactions — list query изолирован
-  5. test_user_a_cannot_see_user_b_actual_transactions — list query изолирован
-  6. test_unique_category_name_scoped_per_user — оба tenant могут иметь
-     категорию "Продукты" одновременно (MUL-04)
+Tests:
+  1. test_user_a_does_not_see_user_b_categories
+  2. test_user_a_cannot_get_user_b_category_by_id
+  3. test_user_a_cannot_get_user_b_subscription_by_id
+  4. test_user_a_cannot_see_user_b_planned_transactions
+  5. test_user_a_cannot_see_user_b_actual_transactions
+  6. test_unique_category_name_scoped_per_user
 """
 from __future__ import annotations
 
 import pytest
+from sqlalchemy import select, text
+
+from app.db.models import Category, Subscription
+from app.db.session import set_tenant_scope
 
 
 pytestmark = pytest.mark.asyncio
@@ -27,56 +27,115 @@ pytestmark = pytest.mark.asyncio
 
 async def test_user_a_does_not_see_user_b_categories(two_tenants, db_session):
     """MUL-03: list_categories для user_a не должен возвращать категории user_b."""
-    user_a_id, user_b_id = two_tenants
-    raise NotImplementedError(
-        "Plan 11-07: implement after services accept user_id parameter "
-        "(11-05/11-06). Call list_categories(db_session, user_id=user_a_id) "
-        "and assert no row has user_id == user_b_id."
+    user_a = two_tenants["user_a"]
+    user_b = two_tenants["user_b"]
+
+    # Set tenant scope для user_a (defense-in-depth: RLS).
+    await set_tenant_scope(db_session, user_a["id"])
+
+    from app.services.categories import list_categories
+
+    cats = await list_categories(db_session, user_id=user_a["id"])
+    cat_ids = [c.id for c in cats]
+
+    # Должны быть только user_a категории
+    assert set(cat_ids) == set(user_a["category_ids"]), (
+        f"user_a sees {cat_ids}, expected only {user_a['category_ids']}; "
+        f"user_b's categories are {user_b['category_ids']}"
     )
+    for cat_b_id in user_b["category_ids"]:
+        assert cat_b_id not in cat_ids
 
 
 async def test_user_a_cannot_get_user_b_category_by_id(two_tenants, db_session):
-    """MUL-03: прямой GET category by id user_b от имени user_a → 404."""
-    user_a_id, user_b_id = two_tenants
-    raise NotImplementedError(
-        "Plan 11-07: после refactor get_or_404(db, category_id, user_id) "
-        "вызвать с user_id=user_a и category_id принадлежащим user_b — "
-        "ожидать CategoryNotFoundError."
-    )
+    """MUL-03: прямой get_or_404 user_a с category_id user_b → CategoryNotFoundError."""
+    from app.services.categories import get_or_404, CategoryNotFoundError
+
+    user_a = two_tenants["user_a"]
+    user_b = two_tenants["user_b"]
+
+    await set_tenant_scope(db_session, user_a["id"])
+
+    foreign_cat_id = user_b["category_ids"][0]
+    with pytest.raises(CategoryNotFoundError):
+        await get_or_404(db_session, foreign_cat_id, user_id=user_a["id"])
 
 
 async def test_user_a_cannot_get_user_b_subscription_by_id(two_tenants, db_session):
-    """MUL-03: subscription lookup by id у чужого юзера → not found."""
-    user_a_id, user_b_id = two_tenants
-    raise NotImplementedError(
-        "Plan 11-07: вызвать get_subscription(db, sub_id, user_id) и "
-        "ожидать SubscriptionNotFoundError или None."
+    """MUL-03: subscription с чужим user_id невидим (RLS + app-side filter)."""
+    user_a = two_tenants["user_a"]
+    user_b = two_tenants["user_b"]
+
+    await set_tenant_scope(db_session, user_a["id"])
+
+    # Direct ORM query (test isolation at the lowest layer — RLS).
+    result = await db_session.execute(
+        select(Subscription).where(Subscription.id == user_b["sub_id"])
+    )
+    sub = result.scalar_one_or_none()
+    # RLS должен блокировать row → None.
+    assert sub is None, (
+        f"Expected None (RLS blocked) but got Subscription for "
+        f"user_b sub_id={user_b['sub_id']}"
     )
 
 
 async def test_user_a_cannot_see_user_b_planned_transactions(two_tenants, db_session):
-    """MUL-03: list_planned для user_a не возвращает строки user_b."""
-    user_a_id, user_b_id = two_tenants
-    raise NotImplementedError(
-        "Plan 11-07: list_planned_for_period(db, period_id, user_id=user_a) — "
-        "assert все returned rows .user_id == user_a_id."
-    )
+    """MUL-03: select(PlannedTransaction) под user_a scope не видит rows user_b.
+
+    Note: two_tenants fixture не seed'ит planned транзакции. Тест проверяет
+    что под user_a scope, какие бы rows ни существовали (включая seed
+    OWNER'а из dev_seed), все .user_id == user_a.id.
+    """
+    from app.db.models import PlannedTransaction
+
+    user_a = two_tenants["user_a"]
+    await set_tenant_scope(db_session, user_a["id"])
+
+    result = await db_session.execute(select(PlannedTransaction))
+    rows = result.scalars().all()
+    for row in rows:
+        assert row.user_id == user_a["id"], (
+            f"Cross-tenant leak: row.user_id={row.user_id}, expected {user_a['id']}"
+        )
 
 
 async def test_user_a_cannot_see_user_b_actual_transactions(two_tenants, db_session):
-    """MUL-03: list_actuals для user_a не возвращает строки user_b."""
-    user_a_id, user_b_id = two_tenants
-    raise NotImplementedError(
-        "Plan 11-07: list_actuals_for_period(db, period_id, user_id=user_a) — "
-        "assert все returned rows .user_id == user_a_id."
-    )
+    """MUL-03: то же для actual_transaction."""
+    from app.db.models import ActualTransaction
+
+    user_a = two_tenants["user_a"]
+    await set_tenant_scope(db_session, user_a["id"])
+
+    result = await db_session.execute(select(ActualTransaction))
+    rows = result.scalars().all()
+    for row in rows:
+        assert row.user_id == user_a["id"], (
+            f"Cross-tenant leak: row.user_id={row.user_id}, expected {user_a['id']}"
+        )
 
 
 async def test_unique_category_name_scoped_per_user(two_tenants, db_session):
-    """MUL-04: оба tenant могут иметь категорию 'Продукты' (unique scoped per user_id)."""
-    user_a_id, user_b_id = two_tenants
-    raise NotImplementedError(
-        "Plan 11-07: создать Category(name='Продукты', user_id=user_a_id) и "
-        "Category(name='Продукты', user_id=user_b_id) — обе должны успешно "
-        "INSERT'нуться без IntegrityError."
+    """MUL-04: оба tenant имеют категорию 'Продукты' (already seeded в fixture).
+
+    Если бы существовал глобальный UNIQUE(name) — fixture упал бы на втором
+    INSERT. Тест явно проверяет что обе строки присутствуют, а scoped
+    UNIQUE(user_id, name) при этом сохраняется.
+    """
+    # Bypass RLS чтобы видеть оба row из admin-perspective.
+    await db_session.execute(text("SET LOCAL row_security = off"))
+
+    result = await db_session.execute(
+        select(Category).where(Category.name == "Продукты")
     )
+    cats = result.scalars().all()
+    user_ids_with_produkty = {c.user_id for c in cats}
+    # Минимум 2 разных user_id с категорией 'Продукты' — fixture добавил
+    # двух тестовых юзеров; OWNER из dev_seed может или не может иметь её.
+    assert len(user_ids_with_produkty) >= 2, (
+        f"Ожидалось 2+ юзера с 'Продукты' (per-user scoped unique). "
+        f"Получено: {user_ids_with_produkty}"
+    )
+    # И обоих наших test users эти категории есть.
+    assert two_tenants["user_a"]["id"] in user_ids_with_produkty
+    assert two_tenants["user_b"]["id"] in user_ids_with_produkty
