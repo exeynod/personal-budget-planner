@@ -90,12 +90,12 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| MUL-01 | Phase 11 | Pending |
-| MUL-02 | Phase 11 | Pending |
-| MUL-03 | Phase 11 | Pending |
-| MUL-04 | Phase 11 | Pending |
-| MUL-05 | Phase 11 | Pending |
-| ROLE-01 | Phase 11 | Pending |
+| MUL-01 | Phase 11 | In progress (schema artifact ready in 11-02 alembic 0006; DB application + verify in 11-07) |
+| MUL-02 | Phase 11 | In progress (RLS DDL in 11-02 alembic 0006; DB application + verify in 11-07) |
+| MUL-03 | Phase 11 | Pending (Python query refactor in 11-05/11-06) |
+| MUL-04 | Phase 11 | In progress (scoped uniques in 11-02 alembic 0006; verify in 11-07) |
+| MUL-05 | Phase 11 | In progress (backfill DDL in 11-02 alembic 0006; DB application + verify in 11-07) |
+| ROLE-01 | Phase 11 | In progress (role enum + column DDL in 11-02 alembic 0006; verify in 11-07) |
 | ROLE-02 | Phase 12 | Pending |
 | ROLE-03 | Phase 12 | Pending |
 | ROLE-04 | Phase 12 | Pending |
