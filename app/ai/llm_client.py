@@ -38,6 +38,15 @@ class AbstractLLMClient(ABC):
         # Объявление абстрактного метода — реализуется в провайдере
         yield {}  # type: ignore[misc]
 
+    @abstractmethod
+    async def embed(self, text: str) -> list[float]:
+        """Возвращает embedding-вектор для заданного текста.
+
+        text: строка для векторизации.
+        Возвращает list[float] размерностью EMBEDDING_DIM (1536 для text-embedding-3-small).
+        """
+        ...
+
 
 def get_llm_client() -> AbstractLLMClient:
     """Фабрика: возвращает провайдер по значению ENV LLM_PROVIDER.
