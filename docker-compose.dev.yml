@@ -3,6 +3,10 @@
 #   docker compose -f docker-compose.yml up
 # (the explicit -f bypasses override loading).
 #
+# Phase 12: dev stack inherits production env (DATABASE_URL/ADMIN_DATABASE_URL/
+# BUDGET_APP_PASSWORD) from base + .env. DEV_MODE=true bypasses HMAC; runtime
+# role is still budget_app (RLS enforces in dev too — catches RLS bugs early).
+#
 # This file is committed to git so every developer starts with the same
 # defaults. Real secrets still live in `.env` (which IS gitignored) — this
 # file references them via ${VAR} just like the production compose.

@@ -13,6 +13,12 @@ class Settings(BaseSettings):
     DATABASE_URL: str = "postgresql+asyncpg://budget:budget@db:5432/budget_db"
     DATABASE_URL_SYNC: str = "postgresql://budget:budget@db:5432/budget_db"
 
+    # Phase 12 D-11-07-02: split runtime role from admin role.
+    # DATABASE_URL connects as budget_app (NOSUPERUSER NOBYPASSRLS) → RLS enforced.
+    # ADMIN_DATABASE_URL connects as `budget` (SUPERUSER) → used by alembic for DDL.
+    # Default mirrors DATABASE_URL для backward compat в setups до Plan 12-05.
+    ADMIN_DATABASE_URL: str = "postgresql+asyncpg://budget:budget@db:5432/budget_db"
+
     # Telegram
     BOT_TOKEN: str = "changeme"
     BOT_USERNAME: str = "tg_budget_planner_bot"
