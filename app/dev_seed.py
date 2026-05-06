@@ -40,6 +40,7 @@ from app.db.models import (
     Category,
     CategoryKind,
     PeriodStatus,
+    UserRole,
 )
 from app.db.session import AsyncSessionLocal
 
@@ -100,12 +101,20 @@ async def seed_dev_data(owner_tg_id: int) -> None:
                     tg_user_id=owner_tg_id,
                     cycle_start_day=5,
                     onboarded_at=datetime.now(timezone.utc),
+                    role=UserRole.owner,  # Phase 11 ROLE-01: dev seed создаёт owner
                 )
                 session.add(user)
                 await session.flush()
                 inserted["user"] = 1
-            elif user.onboarded_at is None:
-                user.onboarded_at = datetime.now(timezone.utc)
+            else:
+                # Идемпотентно подравниваем поля для existing OWNER:
+                if user.onboarded_at is None:
+                    user.onboarded_at = datetime.now(timezone.utc)
+                # Phase 11: гарантируем role=owner на DEV-seed (миграция backfill'ит
+                # тот же row, но если миграция запускалась раньше создания юзера —
+                # дополнительная страховка).
+                if user.role != UserRole.owner:
+                    user.role = UserRole.owner
 
             # 2. Active period — create one if none exists.
             today = date.today()
