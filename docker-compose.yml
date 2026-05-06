@@ -117,8 +117,12 @@ services:
     restart: unless-stopped
     environment:
       SERVICE: api
-      DATABASE_URL: postgresql+asyncpg://budget:${DB_PASSWORD}@db:5432/budget_db
-      DATABASE_URL_SYNC: postgresql://budget:${DB_PASSWORD}@db:5432/budget_db
+      # Phase 12 D-11-07-02: split runtime role from admin role.
+      # Runtime: budget_app (NOSUPERUSER NOBYPASSRLS) — RLS enforces at runtime.
+      DATABASE_URL: postgresql+asyncpg://budget_app:${BUDGET_APP_PASSWORD}@db:5432/budget_db
+      DATABASE_URL_SYNC: postgresql://budget_app:${BUDGET_APP_PASSWORD}@db:5432/budget_db
+      # Admin: budget (SUPERUSER) — used by alembic for DDL via entrypoint.sh.
+      ADMIN_DATABASE_URL: postgresql+asyncpg://budget:${DB_PASSWORD}@db:5432/budget_db
       BOT_TOKEN: ${BOT_TOKEN}
       OWNER_TG_ID: ${OWNER_TG_ID}
       INTERNAL_TOKEN: ${INTERNAL_TOKEN}
@@ -169,8 +173,12 @@ services:
     restart: unless-stopped
     environment:
       SERVICE: bot
-      DATABASE_URL: postgresql+asyncpg://budget:${DB_PASSWORD}@db:5432/budget_db
-      DATABASE_URL_SYNC: postgresql://budget:${DB_PASSWORD}@db:5432/budget_db
+      # Phase 12 D-11-07-02: split runtime role from admin role.
+      # Runtime: budget_app (NOSUPERUSER NOBYPASSRLS) — RLS enforces at runtime.
+      DATABASE_URL: postgresql+asyncpg://budget_app:${BUDGET_APP_PASSWORD}@db:5432/budget_db
+      DATABASE_URL_SYNC: postgresql://budget_app:${BUDGET_APP_PASSWORD}@db:5432/budget_db
+      # Admin: budget (SUPERUSER) — used by alembic for DDL via entrypoint.sh.
+      ADMIN_DATABASE_URL: postgresql+asyncpg://budget:${DB_PASSWORD}@db:5432/budget_db
       BOT_TOKEN: ${BOT_TOKEN}
       OWNER_TG_ID: ${OWNER_TG_ID}
       INTERNAL_TOKEN: ${INTERNAL_TOKEN}
@@ -202,8 +210,12 @@ services:
     restart: unless-stopped
     environment:
       SERVICE: worker
-      DATABASE_URL: postgresql+asyncpg://budget:${DB_PASSWORD}@db:5432/budget_db
-      DATABASE_URL_SYNC: postgresql://budget:${DB_PASSWORD}@db:5432/budget_db
+      # Phase 12 D-11-07-02: split runtime role from admin role.
+      # Runtime: budget_app (NOSUPERUSER NOBYPASSRLS) — RLS enforces at runtime.
+      DATABASE_URL: postgresql+asyncpg://budget_app:${BUDGET_APP_PASSWORD}@db:5432/budget_db
+      DATABASE_URL_SYNC: postgresql://budget_app:${BUDGET_APP_PASSWORD}@db:5432/budget_db
+      # Admin: budget (SUPERUSER) — used by alembic for DDL via entrypoint.sh.
+      ADMIN_DATABASE_URL: postgresql+asyncpg://budget:${DB_PASSWORD}@db:5432/budget_db
       # BOT_TOKEN + OWNER_TG_ID required by notify_subscriptions_job:
       # it instantiates aiogram Bot to push subscription reminders at 09:00
       # Europe/Moscow (SUB-03, D-81). Without these the worker started
