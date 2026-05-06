@@ -32,6 +32,12 @@ class Settings(BaseSettings):
     LOG_FORMAT: str = "json"
     APP_TZ: str = "Europe/Moscow"
 
+    # AI Assistant (Phase 9) — AI-08, AI-09
+    OPENAI_API_KEY: str = "changeme"
+    LLM_PROVIDER: str = "openai"
+    LLM_MODEL: str = "gpt-4.1-nano"
+    AI_MAX_CONTEXT_MESSAGES: int = 20
+
 
 settings = Settings()
 
@@ -53,6 +59,8 @@ def validate_production_settings(s: Settings = settings) -> None:
         insecure.append("INTERNAL_TOKEN")
     if s.OWNER_TG_ID == 0:
         insecure.append("OWNER_TG_ID")
+    if s.OPENAI_API_KEY in ("", "changeme"):
+        insecure.append("OPENAI_API_KEY")
 
     if insecure:
         raise RuntimeError(
