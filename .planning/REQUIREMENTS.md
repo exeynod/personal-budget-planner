@@ -90,39 +90,47 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| MUL-01 | TBD | Pending |
-| MUL-02 | TBD | Pending |
-| MUL-03 | TBD | Pending |
-| MUL-04 | TBD | Pending |
-| MUL-05 | TBD | Pending |
-| ROLE-01 | TBD | Pending |
-| ROLE-02 | TBD | Pending |
-| ROLE-03 | TBD | Pending |
-| ROLE-04 | TBD | Pending |
-| ROLE-05 | TBD | Pending |
-| ADM-01 | TBD | Pending |
-| ADM-02 | TBD | Pending |
-| ADM-03 | TBD | Pending |
-| ADM-04 | TBD | Pending |
-| ADM-05 | TBD | Pending |
-| ADM-06 | TBD | Pending |
-| AIUSE-01 | TBD | Pending |
-| AIUSE-02 | TBD | Pending |
-| AIUSE-03 | TBD | Pending |
-| MTONB-01 | TBD | Pending |
-| MTONB-02 | TBD | Pending |
-| MTONB-03 | TBD | Pending |
-| MTONB-04 | TBD | Pending |
-| AICAP-01 | TBD | Pending |
-| AICAP-02 | TBD | Pending |
-| AICAP-03 | TBD | Pending |
-| AICAP-04 | TBD | Pending |
-| AICAP-05 | TBD | Pending |
+| MUL-01 | Phase 11 | Pending |
+| MUL-02 | Phase 11 | Pending |
+| MUL-03 | Phase 11 | Pending |
+| MUL-04 | Phase 11 | Pending |
+| MUL-05 | Phase 11 | Pending |
+| ROLE-01 | Phase 11 | Pending |
+| ROLE-02 | Phase 12 | Pending |
+| ROLE-03 | Phase 12 | Pending |
+| ROLE-04 | Phase 12 | Pending |
+| ROLE-05 | Phase 12 | Pending |
+| ADM-01 | Phase 13 | Pending |
+| ADM-02 | Phase 13 | Pending |
+| ADM-03 | Phase 13 | Pending |
+| ADM-04 | Phase 13 | Pending |
+| ADM-05 | Phase 13 | Pending |
+| ADM-06 | Phase 13 | Pending |
+| AIUSE-01 | Phase 13 | Pending |
+| AIUSE-02 | Phase 13 | Pending |
+| AIUSE-03 | Phase 13 | Pending |
+| MTONB-01 | Phase 14 | Pending |
+| MTONB-02 | Phase 14 | Pending |
+| MTONB-03 | Phase 14 | Pending |
+| MTONB-04 | Phase 14 | Pending |
+| AICAP-01 | Phase 15 | Pending |
+| AICAP-02 | Phase 15 | Pending |
+| AICAP-03 | Phase 15 | Pending |
+| AICAP-04 | Phase 15 | Pending |
+| AICAP-05 | Phase 15 | Pending |
 
 **Coverage:**
 - v0.4 requirements: 28 total
-- Mapped to phases: 0 (filled by roadmapper)
-- Unmapped: 28
+- Mapped to phases: 28 (100%)
+- Unmapped: 0
+
+**Phase distribution:**
+- Phase 11 (Multi-Tenancy DB Migration & RLS): 6 reqs (MUL-01..05, ROLE-01)
+- Phase 12 (Role-Based Auth Refactor): 4 reqs (ROLE-02..05)
+- Phase 13 (Admin UI — Whitelist & AI Usage): 9 reqs (ADM-01..06, AIUSE-01..03)
+- Phase 14 (Multi-Tenant Onboarding): 4 reqs (MTONB-01..04)
+- Phase 15 (AI Cost Cap Per User): 5 reqs (AICAP-01..05)
 
 ---
 *Requirements defined: 2026-05-06 for milestone v0.4 Multi-Tenant & Admin*
+*Traceability filled: 2026-05-06 (roadmap created, Phases 11-15)*

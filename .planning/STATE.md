@@ -3,10 +3,10 @@ gsd_state_version: 1.0
 milestone: v0.4
 milestone_name: — Multi-Tenant & Admin
 status: planning
-last_updated: "2026-05-06T13:30:00.000Z"
-last_activity: 2026-05-06 -- v0.3 milestone closed
+last_updated: "2026-05-06T14:00:00.000Z"
+last_activity: 2026-05-06 -- v0.4 roadmap created (Phases 11-15)
 progress:
-  total_phases: 0
+  total_phases: 5
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -20,20 +20,20 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-06 after v0.3 milestone close)
 
 **Core value:** В один тап записать факт-трату и видеть актуальную дельту план/факт по категориям бюджета — быстрее, чем открывать Google-таблицу. После v0.3 — conversational AI-помощник + аналитика.
-**Current focus:** Planning v0.4 (Multi-Tenant & Admin) via `/gsd-new-milestone`
+**Current focus:** v0.4 (Multi-Tenant & Admin) — roadmap зафиксирован, готовы к `/gsd-plan-phase 11`
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: 11 — Multi-Tenancy DB Migration & RLS (not started)
 Plan: —
-Status: Defining requirements
-Last activity: 2026-05-06 — Milestone v0.4 started
+Status: Roadmap defined, ready to plan first phase
+Last activity: 2026-05-06 — ROADMAP.md создан с Phases 11-15, 28 требований замаплены
 
 Previous milestones:
 - v0.3 (Analytics & AI) — Complete 2026-05-06, 6 phases / 25 plans → archive `.planning/milestones/v0.3-*`
 - v0.2 (MVP) — Complete 2026-05-03, 6 phases / 38 plans → archived retroactively at v0.3 close
 
-Progress: [          ] 0% (milestone v0.4)
+Progress: [          ] 0% (milestone v0.4, 0/5 phases complete)
 
 ## Performance Metrics
 
@@ -69,6 +69,7 @@ Recent decisions affecting v0.4 planning:
 - v0.4 (2026-05-06): AI cost cap per user — `spending_cap_cents` (default $5/month) с enforcement → 429
 - v0.4 (2026-05-06): Onboarding для приглашённых юзеров — сам выбирает starting_balance + cycle_start_day; категории seed per-user
 - v0.4 (2026-05-06): Revoke = hard delete + purge всех данных юзера
+- v0.4 (2026-05-06): Phase structure 11-15 — DB foundation (11) → auth refactor (12) → Admin UI (13) → onboarding (14) → AI cap (15); ROLE-01 (role column добавление) включён в Phase 11 (часть DB-миграции), не в Phase 12
 
 ### Pending Todos
 
@@ -77,9 +78,9 @@ None yet.
 ### Blockers/Concerns
 
 - Q-9 (HLD): Стратегия выноса pg_dump (S3 vs локальный том) — открыто, отложено за scope v0.4.
-- Q-v0.4-1: pgvector embeddings при multi-tenant — добавить `user_id` к `category_embedding` или хранить unique по (user_id, name)? Решить в Phase 1 v0.4.
-- Q-v0.4-2: AI conversation persistence при revoke — purge `ai_conversation`/`ai_message` юзера? Yes, по политике hard delete.
-- Q-v0.4-3: Admin tab visibility — feature flag в UI или backend-driven (через `/me` response с role)? Backend-driven предпочтительнее (defense-in-depth).
+- Q-v0.4-1: pgvector embeddings при multi-tenant — добавить `user_id` к `category_embedding` или хранить unique по (user_id, name)? Решено: `user_id` FK добавляется в Phase 11, unique по `(user_id, category_id)`.
+- Q-v0.4-2: AI conversation persistence при revoke — purge `ai_conversation`/`ai_message` юзера? Yes, по политике hard delete (zafiksirano в Phase 13 success criteria 4).
+- Q-v0.4-3: Admin tab visibility — feature flag в UI или backend-driven (через `/me` response с role)? Решено: backend-driven через `/me` (Phase 12 ROLE-05).
 
 ## Deferred Items
 
@@ -101,6 +102,6 @@ Items acknowledged and deferred at v0.3 milestone close on 2026-05-06:
 
 ## Session Continuity
 
-Last session: 2026-05-06T04:27:14.334Z
-Stopped at: context exhaustion at 75% (2026-05-06)
+Last session: 2026-05-06T14:00:00.000Z
+Stopped at: roadmap creation complete
 Resume file: None
