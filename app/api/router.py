@@ -56,6 +56,7 @@ from app.api.routes.periods import periods_router
 from app.api.routes.planned import planned_router
 from app.api.routes.settings import settings_router
 from app.api.routes.ai import router as ai_router
+from app.api.routes.ai_suggest import router as ai_suggest_router
 from app.api.routes.analytics import router as analytics_router
 from app.api.routes.subscriptions import router as subscriptions_router
 from app.api.routes.templates import templates_router
@@ -128,6 +129,9 @@ public_router.include_router(analytics_router)
 
 # Phase 9 sub-router — AI chat endpoint (AI-03, AI-06, AI-10).
 public_router.include_router(ai_router)
+
+# Phase 10 sub-router — AI categorization suggest endpoint (AICAT-03).
+public_router.include_router(ai_suggest_router, prefix="/ai")
 
 
 # ---- Internal router (requires X-Internal-Token) ----
