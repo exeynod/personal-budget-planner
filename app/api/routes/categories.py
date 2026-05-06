@@ -61,6 +61,13 @@ async def create_category(
         sort_order=body.sort_order,
     )
     if settings.ENABLE_AI_CATEGORIZATION:
+        # Commit BEFORE registering the background task. FastAPI runs
+        # background tasks after the response is sent, but the dependency
+        # cleanup (get_db's session.commit()) is not strictly ordered
+        # before the background task acquires its own session — leading
+        # to ForeignKeyViolationError when _refresh_embedding's fresh
+        # session can't see the not-yet-committed category row.
+        await db.commit()
         background_tasks.add_task(_refresh_embedding, cat.id, cat.name)
     return CategoryRead.model_validate(cat)
 
@@ -78,6 +85,10 @@ async def _refresh_embedding(category_id: int, name: str) -> None:
         vector = await embedding_svc.embed_text(name)
         async with AsyncSessionLocal() as session:
             await embedding_svc.upsert_category_embedding(session, category_id, vector)
+            # AsyncSession's async-with does NOT auto-commit on exit
+            # (only closes the session) — without this, the upsert is
+            # silently rolled back even though the SQL was issued.
+            await session.commit()
         logger.info("category.embedding.refreshed", category_id=category_id)
     except Exception:
         logger.warning(
@@ -125,6 +136,9 @@ async def update_category(
         and body.name is not None
         and body.name != old_name
     ):
+        # Same rationale as create_category: commit before scheduling so
+        # the background task's fresh session sees the renamed row.
+        await db.commit()
         background_tasks.add_task(_refresh_embedding, cat.id, cat.name)
 
     return CategoryRead.model_validate(cat)

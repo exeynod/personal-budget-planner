@@ -12,6 +12,7 @@ Phase 10.1: in-process LRU cache on embed_text дедуплицирует оди
 from __future__ import annotations
 
 from collections import OrderedDict
+from functools import lru_cache
 from typing import TYPE_CHECKING
 
 from sqlalchemy import select, text
@@ -105,6 +106,11 @@ class EmbeddingService:
         # Phase 10.1: маршрутизируем через embed_text, чтобы повторные
         # описания обслуживались из LRU-кэша.
         query_vec = await self.embed_text(description)
+        # asyncpg не приводит Python list к pgvector через CAST(:p AS vector)
+        # — параметр должен быть строковым литералом '[0.1,0.2,...]'.
+        # SQLAlchemy 2.x ORM upsert (pg_insert.values) приводит list сам,
+        # но raw text() байпасит этот слой, поэтому форматируем вручную.
+        query_vec_literal = "[" + ",".join(repr(float(v)) for v in query_vec) + "]"
 
         # Cosine distance через pgvector <=> оператор
         # confidence = 1 - distance (чем меньше расстояние, тем выше уверенность)
@@ -121,7 +127,7 @@ class EmbeddingService:
             LIMIT 1
             """
         )
-        result = await db.execute(stmt, {"query_vec": query_vec})
+        result = await db.execute(stmt, {"query_vec": query_vec_literal})
         row = result.fetchone()
 
         if row is None:
@@ -138,8 +144,14 @@ class EmbeddingService:
         }
 
 
+@lru_cache(maxsize=1)
 def get_embedding_service() -> EmbeddingService:
-    """Фабрика: возвращает EmbeddingService с дефолтным LLM-провайдером."""
+    """Фабрика: возвращает singleton EmbeddingService с дефолтным LLM-клиентом.
+
+    Phase 10.1: singleton через lru_cache — иначе каждый запрос создавал
+    новый instance со своим пустым _embed_cache, и LRU never hit. Тесты
+    могут сбросить через get_embedding_service.cache_clear().
+    """
     from app.ai.llm_client import get_llm_client
 
     return EmbeddingService(llm_client=get_llm_client())
