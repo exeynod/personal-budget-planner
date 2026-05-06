@@ -23,7 +23,14 @@ router = APIRouter(
 
 @router.get("/suggest-category", response_model=SuggestCategoryResponse)
 async def suggest_category(
-    q: Annotated[str, Query(min_length=1, max_length=500, description="Описание транзакции")],
+    q: Annotated[
+        str,
+        Query(
+            min_length=3,
+            max_length=500,
+            description="Описание транзакции (≥3 символа — Phase 10.1 backend guard)",
+        ),
+    ],
     current_user: Annotated[dict, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> SuggestCategoryResponse:
