@@ -48,6 +48,7 @@ from app.core.period import period_for
 from app.db.models import (
     ActualSource,
     ActualTransaction,
+    AppUser,
     BudgetPeriod,
     Category,
     CategoryKind,
@@ -61,7 +62,6 @@ from app.services.planned import (
     PeriodNotFoundError,
 )
 from app.services.periods import _today_in_app_tz
-from app.services.settings import UserNotFoundError, get_cycle_start_day
 
 
 # ---------- Domain exceptions ----------
@@ -104,15 +104,20 @@ def _check_future_date(tx_date: date) -> None:
 async def _get_cycle_start_day(db: AsyncSession, *, user_id: int) -> int:
     """Resolve cycle_start_day for the given app_user.id with fallback to model default (5).
 
-    Phase 11: takes user_id (PK) instead of OWNER_TG_ID lookup. Settings service
-    accepts user_id as well после Plan 11-05 refactor.
+    Phase 11: reads AppUser.cycle_start_day напрямую через PK (user_id).
+    Не используем app.services.settings.get_cycle_start_day, который ожидает
+    tg_user_id (Plan 11-05 решил оставить settings.py untouched, так как он
+    оперирует только AppUser-таблицей; см. 11-05 SUMMARY).
 
-    Fallback to 5 if AppUser not yet created (edge case on fresh deploy).
+    Fallback to 5 if AppUser not yet created (edge case на fresh deploy —
+    при normal flow get_current_user_id уже отбросит запрос с 403).
     """
-    try:
-        return await get_cycle_start_day(db, user_id=user_id)
-    except UserNotFoundError:
+    cycle = await db.scalar(
+        select(AppUser.cycle_start_day).where(AppUser.id == user_id)
+    )
+    if cycle is None:
         return 5  # model default (AppUser.cycle_start_day = 5)
+    return cycle
 
 
 async def _ensure_category_active(

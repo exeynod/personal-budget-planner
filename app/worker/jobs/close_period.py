@@ -40,7 +40,6 @@ from app.db.models import (
 from app.db.session import AsyncSessionLocal, set_tenant_scope
 from app.services.actual import compute_balance
 from app.services.periods import _today_in_app_tz
-from app.services.settings import UserNotFoundError, get_cycle_start_day
 from app.services.subscriptions import add_subscription_to_period
 
 logger = structlog.get_logger(__name__)
@@ -52,11 +51,17 @@ ADVISORY_LOCK_KEY = 20250501
 
 
 async def _resolve_cycle_start_day(session, *, user_id: int) -> int:
-    """Resolve cycle_start_day for user_id with fallback to 5."""
-    try:
-        return await get_cycle_start_day(session, user_id=user_id)
-    except UserNotFoundError:
+    """Resolve cycle_start_day for user_id с fallback to 5.
+
+    Phase 11: читаем AppUser.cycle_start_day напрямую через PK (user_id).
+    app.services.settings.get_cycle_start_day оставлен на tg_user_id (Plan 11-05).
+    """
+    cycle = await session.scalar(
+        select(AppUser.cycle_start_day).where(AppUser.id == user_id)
+    )
+    if cycle is None:
         return 5
+    return cycle
 
 
 async def close_period_job() -> None:

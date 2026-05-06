@@ -52,14 +52,18 @@ async def suggest_category(
 
     Требует ENABLE_AI_CATEGORIZATION=True (ENV) и enable_ai_categorization=True (user setting).
     """
+    from sqlalchemy import select
+
     from app.core.settings import settings
-    from app.services import settings as settings_svc
+    from app.db.models import AppUser
 
     if not settings.ENABLE_AI_CATEGORIZATION:
         raise HTTPException(status_code=404, detail="AI categorization is disabled")
 
-    user_enabled = await settings_svc.get_enable_ai_categorization(
-        db, user_id=user_id
+    # Phase 11: читаем enable_ai_categorization напрямую через PK (user_id).
+    # Plan 11-05 оставил app.services.settings с tg_user_id-сигнатурой.
+    user_enabled = await db.scalar(
+        select(AppUser.enable_ai_categorization).where(AppUser.id == user_id)
     )
     if not user_enabled:
         raise HTTPException(status_code=404, detail="AI categorization is disabled")

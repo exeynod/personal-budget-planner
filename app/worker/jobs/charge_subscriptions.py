@@ -34,7 +34,6 @@ from sqlalchemy import select, text
 from app.db.models import AppUser, Subscription, UserRole
 from app.db.session import AsyncSessionLocal, set_tenant_scope
 from app.services.periods import _today_in_app_tz
-from app.services.settings import UserNotFoundError, get_cycle_start_day
 from app.services.subscriptions import AlreadyChargedError, charge_subscription
 
 logger = logging.getLogger(__name__)
@@ -103,11 +102,13 @@ async def charge_subscriptions_job() -> None:
         try:
             async with AsyncSessionLocal() as db_user:
                 await set_tenant_scope(db_user, user_id)
-                try:
-                    cycle_start = await get_cycle_start_day(
-                        db_user, user_id=user_id
-                    )
-                except UserNotFoundError:
+                # Phase 11: читаем AppUser.cycle_start_day напрямую через PK
+                # (app.services.settings.get_cycle_start_day всё ещё на
+                # tg_user_id-сигнатуре — Plan 11-05 решение).
+                cycle_start = await db_user.scalar(
+                    select(AppUser.cycle_start_day).where(AppUser.id == user_id)
+                )
+                if cycle_start is None:
                     cycle_start = 5  # AppUser.cycle_start_day default
 
                 ids = (

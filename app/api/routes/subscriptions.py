@@ -31,9 +31,8 @@ from app.api.schemas.subscriptions import (
     SubscriptionRead,
     SubscriptionUpdate,
 )
-from app.db.models import BudgetPeriod, PeriodStatus
+from app.db.models import AppUser, BudgetPeriod, PeriodStatus
 from app.services import subscriptions as sub_service
-from app.services.settings import UserNotFoundError, get_cycle_start_day
 
 router = APIRouter(
     prefix="/subscriptions",
@@ -170,13 +169,14 @@ async def charge_now(
         404: subscription not found
         409: already charged for this next_charge_date
     """
-    try:
-        cycle_start = await get_cycle_start_day(db, user_id=user_id)
-    except UserNotFoundError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(exc),
-        ) from exc
+    # Phase 11: AppUser.cycle_start_day читаем напрямую через user_id (PK).
+    # Plan 11-05 оставил settings.py с tg_user_id-сигнатурой; bypass через
+    # прямой read проще, чем дополнительный resolve tg_user_id.
+    cycle_start = await db.scalar(
+        select(AppUser.cycle_start_day).where(AppUser.id == user_id)
+    )
+    if cycle_start is None:
+        cycle_start = 5  # AppUser.cycle_start_day default
 
     try:
         planned, new_date = await sub_service.charge_subscription(
