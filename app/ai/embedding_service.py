@@ -4,9 +4,14 @@
 - Генерацию embeddings через AbstractLLMClient
 - Upsert в category_embedding таблицу
 - Cosine similarity suggest по описанию транзакции
+
+Phase 10.1: in-process LRU cache on embed_text дедуплицирует одинаковые
+запросы (повторные `/ai/suggest-category?q=...` от того же текста),
+снижая latency и расход на text-embedding-3-small.
 """
 from __future__ import annotations
 
+from collections import OrderedDict
 from typing import TYPE_CHECKING
 
 from sqlalchemy import select, text
@@ -22,20 +27,47 @@ if TYPE_CHECKING:
 EMBEDDING_DIM = 1536
 SUGGEST_THRESHOLD = 0.5
 
+_EMBED_CACHE_MAXSIZE = 128
+
 
 class EmbeddingService:
-    """Сервис управления embedding-векторами категорий."""
+    """Сервис управления embedding-векторами категорий.
+
+    Внутренний LRU-кэш (Phase 10.1) хранит до _EMBED_CACHE_MAXSIZE
+    последних embed_text-результатов. Ключ — нормализованный текст
+    (lowercased + strip), без TTL: на одной строке embedding-функция
+    детерминирована, инвалидация не нужна.
+    """
 
     def __init__(self, llm_client: AbstractLLMClient) -> None:
         self._llm_client = llm_client
+        self._embed_cache: OrderedDict[str, list[float]] = OrderedDict()
 
     async def embed_text(self, text: str) -> list[float]:
         """Генерирует embedding-вектор для строки через LLM-провайдер.
 
+        Phase 10.1: повторные одинаковые запросы (с точностью до
+        регистра/пробелов) обслуживаются из in-memory LRU-кэша,
+        чтобы не дёргать text-embedding-3-small повторно.
+
         text: строка для векторизации.
         Возвращает list[float] размерностью EMBEDDING_DIM.
         """
-        return await self._llm_client.embed(text)
+        key = text.strip().lower()
+        if not key:
+            return await self._llm_client.embed(text)
+
+        cached = self._embed_cache.get(key)
+        if cached is not None:
+            self._embed_cache.move_to_end(key)
+            return cached
+
+        vector = await self._llm_client.embed(text)
+        self._embed_cache[key] = vector
+        self._embed_cache.move_to_end(key)
+        if len(self._embed_cache) > _EMBED_CACHE_MAXSIZE:
+            self._embed_cache.popitem(last=False)
+        return vector
 
     async def upsert_category_embedding(
         self,
@@ -70,7 +102,9 @@ class EmbeddingService:
         Возвращает {category_id, name, confidence} если confidence >= SUGGEST_THRESHOLD,
         иначе None.
         """
-        query_vec = await self._llm_client.embed(description)
+        # Phase 10.1: маршрутизируем через embed_text, чтобы повторные
+        # описания обслуживались из LRU-кэша.
+        query_vec = await self.embed_text(description)
 
         # Cosine distance через pgvector <=> оператор
         # confidence = 1 - distance (чем меньше расстояние, тем выше уверенность)

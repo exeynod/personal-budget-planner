@@ -46,14 +46,22 @@ async def list_categories(
 async def create_category(
     body: CategoryCreate,
     db: Annotated[AsyncSession, Depends(get_db)],
+    background_tasks: BackgroundTasks,
 ) -> CategoryRead:
-    """POST /api/v1/categories — create a new category (CAT-01)."""
+    """POST /api/v1/categories — create a new category (CAT-01).
+
+    Phase 10.1: schedules embedding generation for the new category in
+    background so it becomes visible to /ai/suggest-category immediately
+    (without requiring a subsequent rename).
+    """
     cat = await cat_svc.create_category(
         db,
         name=body.name,
         kind=body.kind,
         sort_order=body.sort_order,
     )
+    if settings.ENABLE_AI_CATEGORIZATION:
+        background_tasks.add_task(_refresh_embedding, cat.id, cat.name)
     return CategoryRead.model_validate(cat)
 
 
@@ -92,6 +100,17 @@ async def update_category(
     When name changes and AI categorization is enabled, schedules an embedding
     refresh as a background task so the suggestion index stays up to date (AICAT-04).
     """
+    # Phase 10.1: capture old name BEFORE update so we can skip embedding
+    # regeneration when the patch doesn't actually change the name (avoids
+    # a wasted OpenAI API call on no-op renames).
+    old_name: str | None = None
+    if settings.ENABLE_AI_CATEGORIZATION and body.name is not None:
+        try:
+            existing = await cat_svc.get_or_404(db, category_id)
+            old_name = existing.name
+        except CategoryNotFoundError:
+            old_name = None
+
     try:
         cat = await cat_svc.update_category(db, category_id, body)
     except CategoryNotFoundError as exc:
@@ -100,8 +119,12 @@ async def update_category(
             detail=str(exc),
         ) from exc
 
-    # Schedule embedding refresh when category name changed and AI is enabled (AICAT-04).
-    if settings.ENABLE_AI_CATEGORIZATION and body.name is not None:
+    # Schedule embedding refresh ONLY when the name actually changed.
+    if (
+        settings.ENABLE_AI_CATEGORIZATION
+        and body.name is not None
+        and body.name != old_name
+    ):
         background_tasks.add_task(_refresh_embedding, cat.id, cat.name)
 
     return CategoryRead.model_validate(cat)
