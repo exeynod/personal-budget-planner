@@ -28,7 +28,11 @@ def _require_db():
 async def test_runtime_database_url_uses_nosuperuser_role():
     """DATABASE_URL должен подключать как budget_app NOSUPERUSER NOBYPASSRLS."""
     _require_db()
-    engine = create_async_engine(os.environ["DATABASE_URL"], echo=False)
+    # conftest.py promotes ADMIN_DATABASE_URL → DATABASE_URL for general tests;
+    # this test must verify the actual production runtime URL, so prefer
+    # RUNTIME_DATABASE_URL when present.
+    runtime_url = os.environ.get("RUNTIME_DATABASE_URL") or os.environ["DATABASE_URL"]
+    engine = create_async_engine(runtime_url, echo=False)
     try:
         async with engine.connect() as conn:
             result = await conn.execute(
@@ -81,7 +85,7 @@ async def test_admin_database_url_present_and_privileged():
 
 
 @pytest.mark.asyncio
-async def test_rls_enforces_at_runtime_without_test_role(two_tenants, db_session):
+async def test_rls_enforces_at_runtime_without_test_role(two_tenants):
     """RLS должна enforce'иться при использовании DATABASE_URL — без SET LOCAL ROLE.
 
     Phase 11 caveat: тесты использовали fixture _rls_test_role чтобы
@@ -89,16 +93,28 @@ async def test_rls_enforces_at_runtime_without_test_role(two_tenants, db_session
     После Plan 12-05 рантайм уже не super → workaround не нужен.
 
     Тест: открываем session БЕЗ SET LOCAL app.current_user_id
-    и БЕЗ SET LOCAL ROLE → SELECT FROM category должен вернуть 0 rows.
-    Под Phase 11 fixture db_session использует connection с superuser
-    ('budget') → видит все строки → тест RED.
+    и БЕЗ SET LOCAL ROLE через RUNTIME_DATABASE_URL (budget_app, NOSUPERUSER NOBYPASSRLS)
+    → SELECT FROM category должен вернуть 0 rows.
+    Если runtime role всё ещё superuser, RLS bypass'нется → тест RED.
+
+    NOTE: conftest.py promotes ADMIN_DATABASE_URL → DATABASE_URL globally for
+    test infra convenience. Этот тест specifically проверяет prod runtime, так
+    что использует RUNTIME_DATABASE_URL.
     """
-    # Чистая trx, без app.current_user_id, без ROLE switch.
-    await db_session.commit()
-    result = await db_session.execute(text("SELECT count(*) FROM category"))
-    count = result.scalar_one()
-    assert count == 0, (
-        f"RLS must enforce at runtime (after Plan 12-05 D-11-07-02 fix); "
-        f"expected 0 visible rows but got {count} — runtime role likely "
-        f"still bypasses RLS"
-    )
+    from sqlalchemy.ext.asyncio import async_sessionmaker
+
+    runtime_url = os.environ.get("RUNTIME_DATABASE_URL") or os.environ["DATABASE_URL"]
+    engine = create_async_engine(runtime_url, echo=False)
+    Session = async_sessionmaker(engine, expire_on_commit=False)
+    try:
+        async with Session() as sess:
+            # Чистая trx, без app.current_user_id, без ROLE switch.
+            result = await sess.execute(text("SELECT count(*) FROM category"))
+            count = result.scalar_one()
+        assert count == 0, (
+            f"RLS must enforce at runtime (after Plan 12-05 D-11-07-02 fix); "
+            f"expected 0 visible rows but got {count} — runtime role likely "
+            f"still bypasses RLS"
+        )
+    finally:
+        await engine.dispose()

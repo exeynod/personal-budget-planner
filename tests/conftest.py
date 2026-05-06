@@ -21,6 +21,24 @@ os.environ.setdefault("BOT_TOKEN", "1234567890:test_bot_token_for_testing_only")
 os.environ.setdefault("OWNER_TG_ID", "123456789")
 os.environ.setdefault("INTERNAL_TOKEN", "test_internal_secret_token")
 os.environ.setdefault("DEV_MODE", "false")
+
+# Phase 12 D-11-07-02: production runtime connects as `budget_app`
+# (NOSUPERUSER NOBYPASSRLS) so RLS enforces. Test fixtures seed and
+# teardown data outside of any per-tenant scope, which needs admin
+# privileges (TRUNCATE, RLS bypass during seeds). Promote ADMIN_DATABASE_URL
+# into DATABASE_URL — tests then run as `budget` (SUPERUSER) just like
+# Phase 11. Dedicated RLS coverage uses the `_rls_test_role` fixture
+# which switches role explicitly via SET LOCAL ROLE.
+if os.environ.get("ADMIN_DATABASE_URL"):
+    # Preserve the original runtime URL for tests that explicitly verify
+    # the budget_app role (e.g. tests/test_postgres_role_runtime.py).
+    if os.environ.get("DATABASE_URL"):
+        os.environ.setdefault("RUNTIME_DATABASE_URL", os.environ["DATABASE_URL"])
+    os.environ["DATABASE_URL"] = os.environ["ADMIN_DATABASE_URL"]
+    os.environ["DATABASE_URL_SYNC"] = os.environ["ADMIN_DATABASE_URL"].replace(
+        "+asyncpg", ""
+    )
+
 os.environ.setdefault(
     "DATABASE_URL",
     "postgresql+asyncpg://budget:budget@localhost:5432/budget_test",
