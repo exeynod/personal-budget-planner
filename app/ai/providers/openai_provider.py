@@ -1,10 +1,8 @@
-"""OpenAI провайдер с streaming и prompt caching (AI-07, AI-08).
+"""OpenAI провайдер с streaming, function-calling и usage tracking.
 
-Использует openai Python SDK (AsyncOpenAI).
-Streaming: stream=True → итерируем по чанкам через client.chat.completions.create().
-Prompt caching: системный промпт с cache_control {"type": "ephemeral"} —
-OpenAI автоматически кэширует при ≥1024 токенов (снижает input cost).
-Tool calls: обрабатываем через accumulate-and-dispatch паттерн.
+Use openai Python SDK (AsyncOpenAI). Stream=True for token-by-token UX.
+Tool calls accumulated across chunks. `stream_options.include_usage`
+makes OpenAI emit a final usage record (Phase 10.1 cost optimization).
 """
 from __future__ import annotations
 
@@ -17,6 +15,31 @@ from openai import AsyncOpenAI
 from app.ai.llm_client import AbstractLLMClient
 
 logger = logging.getLogger(__name__)
+
+
+# gpt-4.1-nano pricing (2026-01, USD per 1M tokens). Update when OpenAI
+# changes prices. Cached input gets a 75% discount when caching applies
+# (≥1024 prompt tokens — currently we don't hit this threshold).
+_PRICING_PER_M = {
+    "gpt-4.1-nano": {"input": 0.10, "cached_input": 0.025, "output": 0.40},
+    "gpt-4o-mini": {"input": 0.15, "cached_input": 0.075, "output": 0.60},
+}
+
+
+def _estimate_cost_usd(model: str, usage: dict) -> float:
+    """Estimate USD cost from usage counts. Returns 0.0 for unknown models."""
+    pricing = _PRICING_PER_M.get(model)
+    if not pricing:
+        return 0.0
+    prompt = usage.get("prompt_tokens", 0) or 0
+    cached = usage.get("cached_tokens", 0) or 0
+    completion = usage.get("completion_tokens", 0) or 0
+    uncached = max(prompt - cached, 0)
+    return (
+        uncached * pricing["input"]
+        + cached * pricing["cached_input"]
+        + completion * pricing["output"]
+    ) / 1_000_000
 
 
 def _humanize_provider_error(exc: Exception) -> str:
@@ -67,27 +90,47 @@ class OpenAIProvider(AbstractLLMClient):
                 "model": self._model,
                 "messages": messages,
                 "stream": True,
+                # Phase 10.1: ask OpenAI to include a final usage record
+                # in the stream so we can log token costs.
+                "stream_options": {"include_usage": True},
             }
             if tools:
                 kwargs["tools"] = tools
                 kwargs["tool_choice"] = "auto"
 
-            # Accumulate tool call delta для сборки полного вызова
             accumulated_tool_calls: dict[int, dict] = {}
 
             stream = await self._client.chat.completions.create(**kwargs)
             async for chunk in stream:
+                # Final usage record arrives in a chunk with no choices.
+                if getattr(chunk, "usage", None):
+                    u = chunk.usage
+                    cached = 0
+                    details = getattr(u, "prompt_tokens_details", None)
+                    if details is not None:
+                        cached = getattr(details, "cached_tokens", 0) or 0
+                    usage_data = {
+                        "model": self._model,
+                        "prompt_tokens": u.prompt_tokens,
+                        "completion_tokens": u.completion_tokens,
+                        "cached_tokens": cached,
+                        "total_tokens": u.total_tokens,
+                    }
+                    usage_data["est_cost_usd"] = _estimate_cost_usd(
+                        self._model, usage_data
+                    )
+                    yield {"type": "usage", "data": usage_data}
+                    continue
+
                 choice = chunk.choices[0] if chunk.choices else None
                 if choice is None:
                     continue
 
                 delta = choice.delta
 
-                # Токен текста
                 if delta.content:
                     yield {"type": "token", "data": delta.content}
 
-                # Накопление tool call дельт
                 if delta.tool_calls:
                     for tc in delta.tool_calls:
                         idx = tc.index
@@ -103,13 +146,10 @@ class OpenAIProvider(AbstractLLMClient):
                             if tc.function.arguments:
                                 accumulated_tool_calls[idx]["arguments"] += tc.function.arguments
 
-                # finish_reason tool_calls — сигнализировать tool_start
                 if choice.finish_reason == "tool_calls":
                     for idx in sorted(accumulated_tool_calls.keys()):
                         tc = accumulated_tool_calls[idx]
                         yield {"type": "tool_start", "data": tc["name"]}
-                        # Сохраняем полный вызов для возврата в messages
-                        # (используется в ai.py route для следующего шага)
                         yield {
                             "type": "tool_call_complete",
                             "data": json.dumps(tc),

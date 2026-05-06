@@ -4,16 +4,20 @@ Endpoints:
 - POST /ai/chat — SSE streaming chat с tool-use (AI-03)
 - GET /ai/history — история разговора (AI-06)
 - DELETE /ai/conversation — очистка истории (AI-06)
+- GET /ai/usage — token usage and estimated USD cost (Phase 10.1)
 
-Auth: router-level Depends(get_current_user) — все эндпоинты защищены.
-Rate limit: in-memory sliding window 30 req/мин (AI-10, per-process).
-OPENAI_API_KEY: только в backend ENV, никогда не в ответах (AI-09).
+Auth: router-level Depends(get_current_user).
+Rate limit: in-memory sliding window 10 req/мин (Phase 10.1, lowered
+from 30 for cost-control ceiling).
+OPENAI_API_KEY: только в backend ENV (AI-09).
 """
 from __future__ import annotations
 
 import json
+import logging
 import time
-from collections import defaultdict
+from collections import defaultdict, deque
+from datetime import datetime, timezone
 from typing import Annotated, AsyncGenerator
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -24,9 +28,16 @@ from app.ai.llm_client import get_llm_client
 from app.ai.system_prompt import build_messages
 from app.ai.tools import TOOL_FUNCTIONS, TOOLS_SCHEMA
 from app.api.dependencies import get_current_user, get_db
-from app.api.schemas.ai import ChatHistoryResponse, ChatMessageRead, ChatRequest
+from app.api.schemas.ai import (
+    ChatHistoryResponse,
+    ChatMessageRead,
+    ChatRequest,
+    UsageResponse,
+)
 from app.core.settings import settings
 from app.services import ai_conversation_service as conv_svc
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/ai",
@@ -34,10 +45,32 @@ router = APIRouter(
     dependencies=[Depends(get_current_user)],
 )
 
-# ---- Rate limiter (in-memory, per-process) — AI-10 ----
+# ---- Rate limiter (in-memory, per-process) — Phase 10.1: 30 → 10 ----
 _rate_buckets: dict[int, list[float]] = defaultdict(list)
-_RATE_LIMIT = 30  # запросов в минуту
-_RATE_WINDOW = 60.0  # секунд
+_RATE_LIMIT = 10
+_RATE_WINDOW = 60.0
+
+# ---- Usage ring buffer (in-memory, per-process) — Phase 10.1 ----
+# Stores last N usage records for the /ai/usage dashboard endpoint.
+# Per-process scope is acceptable for single-tenant pet app.
+_USAGE_BUFFER_MAX = 1000
+_usage_buffer: deque[dict] = deque(maxlen=_USAGE_BUFFER_MAX)
+
+
+def _record_usage(usage: dict) -> None:
+    """Append a usage record (with UTC timestamp) to the ring buffer
+    and emit a structured log line. Called from the SSE event loop."""
+    record = {**usage, "ts": datetime.now(timezone.utc).isoformat()}
+    _usage_buffer.append(record)
+    logger.info(
+        "ai.usage model=%s prompt=%d cached=%d completion=%d total=%d est_usd=%.6f",
+        usage.get("model"),
+        usage.get("prompt_tokens", 0),
+        usage.get("cached_tokens", 0),
+        usage.get("completion_tokens", 0),
+        usage.get("total_tokens", 0),
+        usage.get("est_cost_usd", 0.0),
+    )
 
 
 def _is_rate_limited(user_id: int) -> bool:
@@ -106,6 +139,10 @@ async def _event_stream(
                 assistant_content_parts.append(event["data"])
                 yield f"data: {json.dumps({'type': 'token', 'data': event['data']})}\n\n"
 
+            elif etype == "usage":
+                # Phase 10.1: log token cost and store in ring buffer.
+                _record_usage(event["data"])
+
             elif etype == "tool_start":
                 yield f"data: {json.dumps({'type': 'tool_start', 'data': event['data']})}\n\n"
 
@@ -155,6 +192,9 @@ async def _event_stream(
                         if etype2 == "token":
                             assistant_content_parts.append(event2["data"])
                             yield f"data: {json.dumps({'type': 'token', 'data': event2['data']})}\n\n"
+                        elif etype2 == "usage":
+                            # Phase 10.1: log second-round usage too.
+                            _record_usage(event2["data"])
                         elif etype2 == "done":
                             break
                         elif etype2 == "error":
@@ -242,3 +282,34 @@ async def clear_conversation(
     """DELETE /ai/conversation — очистить историю разговора (AI-06)."""
     conv = await conv_svc.get_or_create_conversation(db)
     await conv_svc.clear_conversation(db, conv.id)
+
+
+@router.get("/usage", response_model=UsageResponse)
+async def get_usage() -> UsageResponse:
+    """GET /ai/usage — token usage and estimated USD cost (Phase 10.1).
+
+    Aggregates the in-process ring buffer into today / total session totals.
+    Per-process scope: stats reset on api container restart. Acceptable for
+    a single-tenant pet app; promote to DB if cross-process visibility needed.
+    """
+    today = datetime.now(timezone.utc).date().isoformat()
+    today_records = [r for r in _usage_buffer if r["ts"][:10] == today]
+
+    def _agg(records: list[dict]) -> dict:
+        return {
+            "requests": len(records),
+            "prompt_tokens": sum(r.get("prompt_tokens", 0) for r in records),
+            "completion_tokens": sum(r.get("completion_tokens", 0) for r in records),
+            "cached_tokens": sum(r.get("cached_tokens", 0) for r in records),
+            "total_tokens": sum(r.get("total_tokens", 0) for r in records),
+            "est_cost_usd": round(
+                sum(r.get("est_cost_usd", 0.0) for r in records), 6
+            ),
+        }
+
+    return UsageResponse(
+        today=_agg(today_records),
+        session_total=_agg(list(_usage_buffer)),
+        buffer_size=len(_usage_buffer),
+        buffer_max=_USAGE_BUFFER_MAX,
+    )

@@ -46,3 +46,33 @@ class SuggestCategoryResponse(BaseModel):
     category_id: Optional[int] = None
     name: Optional[str] = None
     confidence: float
+
+
+class UsageBucket(BaseModel):
+    """Aggregated AI usage stats for a time bucket (Phase 10.1)."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    requests: int
+    prompt_tokens: int
+    completion_tokens: int
+    cached_tokens: int
+    total_tokens: int
+    est_cost_usd: float
+
+
+class UsageResponse(BaseModel):
+    """Ответ GET /ai/usage — token usage and estimated USD cost.
+
+    today: requests since midnight UTC (in-process ring buffer).
+    session_total: everything currently in the ring buffer.
+    buffer_size / buffer_max: the in-memory window we currently track.
+    Per-process scope — counters reset when api container restarts.
+    """
+
+    model_config = ConfigDict(from_attributes=True)
+
+    today: UsageBucket
+    session_total: UsageBucket
+    buffer_size: int
+    buffer_max: int
