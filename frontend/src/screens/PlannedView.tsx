@@ -25,6 +25,8 @@ export interface PlannedViewProps {
   onBack?: () => void;
   onNavigateToTemplate?: () => void;
   inTransactions?: boolean;
+  activeKind?: CategoryKind;
+  categoryFilter?: number | null;
 }
 
 export interface PlannedViewHandle {
@@ -47,7 +49,13 @@ declare global {
 }
 
 export const PlannedView = forwardRef<PlannedViewHandle, PlannedViewProps>(
-  function PlannedView({ onBack, onNavigateToTemplate: _onNavigateToTemplate, inTransactions }, ref) {
+  function PlannedView({
+    onBack,
+    onNavigateToTemplate: _onNavigateToTemplate,
+    inTransactions,
+    activeKind,
+    categoryFilter,
+  }, ref) {
     const { period, loading: perLoading, error: perError } = useCurrentPeriod();
     const {
       rows: realRows,
@@ -299,6 +307,8 @@ export const PlannedView = forwardRef<PlannedViewHandle, PlannedViewProps>(
 
         <PlanGroupView
           groups={groups}
+          activeKind={activeKind}
+          categoryFilter={categoryFilter ?? null}
           onAmountSave={handleAmountSave}
           onOpenEditor={openEdit}
           onAdd={openCreate}

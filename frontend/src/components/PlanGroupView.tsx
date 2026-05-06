@@ -10,34 +10,49 @@ export interface CategoryEntry {
 
 export interface PlanGroupViewProps {
   groups: { kind: CategoryKind; entries: CategoryEntry[] }[];
+  activeKind?: CategoryKind;
+  categoryFilter?: number | null;
   onAmountSave: (item: PlanRowItem, cents: number) => Promise<void>;
   onOpenEditor: (item: PlanRowItem) => void;
   onAdd: (categoryId: number) => void;
 }
 
-export function PlanGroupView({ groups, onAmountSave, onOpenEditor, onAdd }: PlanGroupViewProps) {
-  const [activeKind, setActiveKind] = useState<CategoryKind>('expense');
+export function PlanGroupView({
+  groups,
+  activeKind: activeKindProp,
+  categoryFilter,
+  onAmountSave,
+  onOpenEditor,
+  onAdd,
+}: PlanGroupViewProps) {
+  const [internalKind, setInternalKind] = useState<CategoryKind>('expense');
+  const activeKind = activeKindProp ?? internalKind;
   const activeGroup = groups.find((g) => g.kind === activeKind);
-  const filled = activeGroup?.entries.filter((e) => e.items.length > 0) ?? [];
+  let filled = activeGroup?.entries.filter((e) => e.items.length > 0) ?? [];
+  if (categoryFilter != null) {
+    filled = filled.filter((e) => e.category.id === categoryFilter);
+  }
 
   return (
     <>
-      <div className={styles.tabs}>
-        <button
-          type="button"
-          className={`${styles.tab} ${activeKind === 'expense' ? styles.tabActive : ''}`}
-          onClick={() => setActiveKind('expense')}
-        >
-          Расходы
-        </button>
-        <button
-          type="button"
-          className={`${styles.tab} ${activeKind === 'income' ? styles.tabActive : ''}`}
-          onClick={() => setActiveKind('income')}
-        >
-          Доходы
-        </button>
-      </div>
+      {activeKindProp === undefined && (
+        <div className={styles.tabs}>
+          <button
+            type="button"
+            className={`${styles.tab} ${activeKind === 'expense' ? styles.tabActive : ''}`}
+            onClick={() => setInternalKind('expense')}
+          >
+            Расходы
+          </button>
+          <button
+            type="button"
+            className={`${styles.tab} ${activeKind === 'income' ? styles.tabActive : ''}`}
+            onClick={() => setInternalKind('income')}
+          >
+            Доходы
+          </button>
+        </div>
+      )}
 
       {filled.length === 0 && (
         <div className={styles.empty}>Нет строк. Нажмите «Добавить».</div>

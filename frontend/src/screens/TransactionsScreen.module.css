@@ -1,8 +1,10 @@
+.wrap {
+  composes: fabWrap from '../styles/screen.module.css';
+}
 .root {
+  composes: fixed from '../styles/screen.module.css';
   display: flex;
   flex-direction: column;
-  height: 100%;
-  overflow: hidden;
 }
 
 .chips {

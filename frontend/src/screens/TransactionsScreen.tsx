@@ -1,17 +1,22 @@
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { SubTabBar } from '../components/SubTabBar';
 import { Fab } from '../components/Fab';
 import { useCategories } from '../hooks/useCategories';
+import type { CategoryKind } from '../api/types';
 import { HistoryView, type HistoryViewHandle } from './HistoryView';
 import { PlannedView, type PlannedViewHandle } from './PlannedView';
 import styles from './TransactionsScreen.module.css';
 
 type SubTab = 'history' | 'plan';
-type KindFilter = 'all' | 'expense' | 'income';
 
 const SUB_TABS = [
   { id: 'history' as SubTab, label: 'История' },
   { id: 'plan' as SubTab, label: 'План' },
+];
+
+const KIND_TABS = [
+  { id: 'expense' as CategoryKind, label: 'Расходы' },
+  { id: 'income' as CategoryKind, label: 'Доходы' },
 ];
 
 export interface TransactionsScreenProps {
@@ -21,10 +26,18 @@ export interface TransactionsScreenProps {
 
 export function TransactionsScreen({ categoryFilter, onClearFilter }: TransactionsScreenProps) {
   const [activeSubTab, setActiveSubTab] = useState<SubTab>('history');
-  const [kindFilter, setKindFilter] = useState<KindFilter>('all');
+  const [kindFilter, setKindFilter] = useState<CategoryKind>('expense');
+  const [localCategoryFilter, setLocalCategoryFilter] = useState<number | null>(null);
   const { categories } = useCategories(false);
   const historyRef = useRef<HistoryViewHandle>(null);
   const plannedRef = useRef<PlannedViewHandle>(null);
+
+  const visibleCategories = useMemo(
+    () => categories.filter((c) => c.kind === kindFilter),
+    [categories, kindFilter],
+  );
+
+  const effectiveCategoryFilter = categoryFilter ?? localCategoryFilter;
 
   const handleFab = () => {
     if (activeSubTab === 'history') {
@@ -36,44 +49,54 @@ export function TransactionsScreen({ categoryFilter, onClearFilter }: Transactio
 
   const handleSubTabChange = (tab: SubTab) => {
     setActiveSubTab(tab);
-    setKindFilter('all');
+    setLocalCategoryFilter(null);
+  };
+
+  const handleKindChange = (kind: CategoryKind) => {
+    setKindFilter(kind);
+    setLocalCategoryFilter(null);
+  };
+
+  const handleChipClick = (catId: number) => {
+    setLocalCategoryFilter((prev) => (prev === catId ? null : catId));
+    if (categoryFilter != null) onClearFilter?.();
   };
 
   return (
+    <div className={styles.wrap}>
     <div className={styles.root}>
       <SubTabBar active={activeSubTab} onChange={handleSubTabChange} tabs={SUB_TABS} />
+      <SubTabBar active={kindFilter} onChange={handleKindChange} tabs={KIND_TABS} />
 
-      {/* Filter chips */}
-      <div className={styles.chips}>
-        {(['all', 'expense', 'income'] as KindFilter[]).map((f) => (
-          <button
-            key={f}
-            type="button"
-            className={[styles.chip, kindFilter === f ? styles.chipActive : ''].filter(Boolean).join(' ')}
-            onClick={() => setKindFilter(f)}
-          >
-            {f === 'all' ? 'Все' : f === 'expense' ? 'Расходы' : 'Доходы'}
-          </button>
-        ))}
-        {categories.map((cat) => (
-          <button
-            key={cat.id}
-            type="button"
-            className={styles.chip}
-            onClick={() => {/* категориальная фильтрация — Phase 7 discretion */}}
-          >
-            {cat.name}
-          </button>
-        ))}
-      </div>
+      {visibleCategories.length > 0 && (
+        <div className={styles.chips}>
+          {visibleCategories.map((cat) => (
+            <button
+              key={cat.id}
+              type="button"
+              className={[
+                styles.chip,
+                effectiveCategoryFilter === cat.id ? styles.chipActive : '',
+              ]
+                .filter(Boolean)
+                .join(' ')}
+              onClick={() => handleChipClick(cat.id)}
+            >
+              {cat.name}
+            </button>
+          ))}
+        </div>
+      )}
 
-      {/* Screens */}
       {activeSubTab === 'history' && (
         <HistoryView
           ref={historyRef}
           inTransactions
-          categoryFilter={categoryFilter}
-          onClearFilter={onClearFilter}
+          categoryFilter={effectiveCategoryFilter}
+          onClearFilter={() => {
+            setLocalCategoryFilter(null);
+            onClearFilter?.();
+          }}
           activeKindFilter={kindFilter}
         />
       )}
@@ -81,8 +104,12 @@ export function TransactionsScreen({ categoryFilter, onClearFilter }: Transactio
         <PlannedView
           ref={plannedRef}
           inTransactions
+          activeKind={kindFilter}
+          categoryFilter={effectiveCategoryFilter}
         />
       )}
+
+    </div>
 
       <Fab
         onClick={handleFab}
