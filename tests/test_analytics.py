@@ -204,19 +204,41 @@ async def test_forecast_returns_200(db_client):
     )
     assert response.status_code == 200
     data = response.json()
-    assert "insufficient_data" in data
-    assert "current_balance_cents" in data
-    assert isinstance(data["insufficient_data"], bool)
+    # Schema changed in milestone v0.3 close: ForecastResponse is now
+    # polymorphic by `mode` ('forecast' | 'cashflow' | 'empty').
+    assert "mode" in data
+    assert data["mode"] in ("forecast", "cashflow", "empty")
 
 
 @pytest.mark.asyncio
-async def test_forecast_insufficient_data_null_fields(db_client):
+async def test_forecast_mode_forecast_has_breakdown(db_client):
+    """Default range=1M — forecast mode returns plan-based breakdown."""
     client, headers = db_client
     response = await client.get(
-        "/api/v1/analytics/forecast", headers=headers
+        "/api/v1/analytics/forecast?range=1M", headers=headers
     )
     assert response.status_code == 200
     data = response.json()
-    if data["insufficient_data"]:
-        assert data.get("projected_end_balance_cents") is None
-        assert data.get("will_burn_cents") is None
+    if data["mode"] == "forecast":
+        # Plan-based breakdown fields must be present (may be 0 in empty period)
+        assert "starting_balance_cents" in data
+        assert "planned_income_cents" in data
+        assert "planned_expense_cents" in data
+        assert "projected_end_balance_cents" in data
+
+
+@pytest.mark.asyncio
+async def test_forecast_mode_cashflow_for_3m(db_client):
+    """range=3M — cashflow mode aggregates over closed periods."""
+    client, headers = db_client
+    response = await client.get(
+        "/api/v1/analytics/forecast?range=3M", headers=headers
+    )
+    assert response.status_code == 200
+    data = response.json()
+    # Either cashflow with totals, or empty when no closed periods exist
+    assert data["mode"] in ("cashflow", "empty")
+    if data["mode"] == "cashflow":
+        assert "total_net_cents" in data
+        assert "monthly_avg_cents" in data
+        assert "periods_count" in data

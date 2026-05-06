@@ -263,7 +263,16 @@ async def test_create_archived_category_400(db_client, auth_headers, seed_catego
 
 @pytest.mark.asyncio
 async def test_subscriptions_auth_403(db_client):
-    """GET /subscriptions без X-Telegram-Init-Data → 403."""
+    """GET /subscriptions без X-Telegram-Init-Data → 403.
+
+    Skipped in DEV_MODE: dev override bypasses initData validation
+    (D-05 — see app/core/settings.py validate_production_settings),
+    so the endpoint legitimately returns 200 with the mock owner.
+    Auth path is covered by tests/test_auth.py against a non-DEV API.
+    """
+    import os
+    if os.environ.get("DEV_MODE", "").lower() == "true":
+        pytest.skip("DEV_MODE bypasses initData — auth path tested elsewhere")
     response = await db_client.get("/api/v1/subscriptions")
     assert response.status_code == 403
 

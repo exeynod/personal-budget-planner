@@ -59,7 +59,11 @@ async def test_get_forecast_returns_dict(db_session):
     from app.ai.tools import get_forecast
     result = await get_forecast(db_session)
     assert isinstance(result, dict)
-    assert "forecast_balance_cents" in result or "error" in result
+    # Tool возвращает один из трёх валидных вариантов:
+    #  - реальный прогноз (forecast_balance_cents)
+    #  - insufficient_data=True если период только начался (нет days_elapsed)
+    #  - error при сбое
+    assert any(k in result for k in ("forecast_balance_cents", "insufficient_data", "error"))
 
 
 @pytest.mark.asyncio
