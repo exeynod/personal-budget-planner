@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useUser } from './hooks/useUser';
+import { useAiConversation } from './hooks/useAiConversation';
 import { OnboardingScreen } from './screens/OnboardingScreen';
 import { HomeScreen } from './screens/HomeScreen';
 import { CategoriesScreen } from './screens/CategoriesScreen';
@@ -18,6 +19,9 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<TabId>('home');
   const [managementView, setManagementView] = useState<ManagementView | null>(null);
   const [historyFilter, setHistoryFilter] = useState<number | null>(null);
+  // Поднимаем состояние AI-чата на уровень App, чтобы оно переживало
+  // переключение нижних табов (AiScreen unmount-ится при смене вкладки).
+  const aiConversation = useAiConversation();
 
   if (loading && !user) {
     return (
@@ -105,7 +109,7 @@ export default function App() {
             />
           )}
           {!managementView && activeTab === 'analytics' && <AnalyticsScreen />}
-          {!managementView && activeTab === 'ai' && <AiScreen />}
+          {!managementView && activeTab === 'ai' && <AiScreen {...aiConversation} />}
           {!managementView && activeTab === 'management' && (
             <ManagementScreen onNavigate={(screen) => setManagementView(screen)} />
           )}

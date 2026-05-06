@@ -9,11 +9,31 @@ Tool calls: обрабатываем через accumulate-and-dispatch патт
 from __future__ import annotations
 
 import json
+import logging
 from typing import AsyncGenerator
 
 from openai import AsyncOpenAI
 
 from app.ai.llm_client import AbstractLLMClient
+
+logger = logging.getLogger(__name__)
+
+
+def _humanize_provider_error(exc: Exception) -> str:
+    """Преобразовать исключение OpenAI SDK в безопасное user-facing сообщение.
+
+    Никогда не возвращаем str(exc) наружу — могут протечь raw API ключи,
+    URL-ы и метаданные провайдера.
+    """
+    status = getattr(exc, "status_code", None)
+    raw = str(exc).lower()
+    if status == 401 or "401" in raw or "incorrect api key" in raw or "invalid_api_key" in raw:
+        return "AI не настроен на сервере (проверь OPENAI_API_KEY)."
+    if status == 429 or "429" in raw or "rate_limit" in raw:
+        return "Слишком много запросов. Подожди минуту и повтори."
+    if status and 500 <= status < 600:
+        return "AI-провайдер временно недоступен. Попробуй позже."
+    return "Не удалось получить ответ от AI. Попробуй позже."
 
 
 class OpenAIProvider(AbstractLLMClient):
@@ -100,7 +120,8 @@ class OpenAIProvider(AbstractLLMClient):
             yield {"type": "done", "data": ""}
 
         except Exception as exc:  # pragma: no cover
-            yield {"type": "error", "data": str(exc)}
+            logger.exception("OpenAI provider error during streaming")
+            yield {"type": "error", "data": _humanize_provider_error(exc)}
 
     async def embed(self, text: str) -> list[float]:
         """Генерирует embedding через OpenAI Embeddings API (text-embedding-3-small).

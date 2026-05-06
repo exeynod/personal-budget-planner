@@ -9,15 +9,15 @@
 
 .user {
   align-self: flex-end;
-  background: var(--tg-theme-button-color, #2481cc);
-  color: var(--tg-theme-button-text-color, #ffffff);
+  background: var(--color-primary);
+  color: #ffffff;
   border-bottom-right-radius: 4px;
 }
 
 .assistant {
   align-self: flex-start;
-  background: var(--tg-theme-secondary-bg-color, #f0f0f0);
-  color: var(--tg-theme-text-color, #000000);
+  background: var(--color-surface);
+  color: var(--color-text);
   border-bottom-left-radius: 4px;
 }
 

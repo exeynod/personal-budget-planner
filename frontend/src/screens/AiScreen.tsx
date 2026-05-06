@@ -13,9 +13,11 @@ import { Sparkle, Trash } from '@phosphor-icons/react';
 import { ChatMessage } from '../components/ChatMessage';
 import { PageTitle } from '../components/PageTitle';
 import { ToolUseIndicator } from '../components/ToolUseIndicator';
-import { useAiConversation } from '../hooks/useAiConversation';
+import type { UseAiConversationResult } from '../hooks/useAiConversation';
 import type { ChatMessageRead } from '../api/types';
 import styles from './AiScreen.module.css';
+
+export type AiScreenProps = UseAiConversationResult;
 
 /** 4 фиксированных suggestion chips (CONTEXT.md decision). */
 const SUGGESTION_CHIPS = [
@@ -25,17 +27,15 @@ const SUGGESTION_CHIPS = [
   'Сделай прогноз',
 ];
 
-export function AiScreen() {
-  const {
-    messages,
-    streaming,
-    toolName,
-    streamingText,
-    error,
-    sendMessage,
-    clearHistory,
-  } = useAiConversation();
-
+export function AiScreen({
+  messages,
+  streaming,
+  toolName,
+  streamingText,
+  error,
+  sendMessage,
+  clearHistory,
+}: AiScreenProps) {
   const [input, setInput] = useState('');
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -101,7 +101,7 @@ export function AiScreen() {
       </div>
 
       {/* Messages area */}
-      <div className={styles.messages}>
+      <div className={`${styles.messages} ${isEmpty ? styles.messagesEmpty : ''}`}>
         {/* Empty state с suggestion chips */}
         {isEmpty && (
           <div className={styles.emptyState}>
