@@ -172,7 +172,7 @@ async def _event_stream(
                         conv.id,
                         role="tool",
                         tool_name=tool_name,
-                        tool_result=json.dumps(tool_result, ensure_ascii=False),
+                        tool_result=json.dumps(tool_result, ensure_ascii=False, default=str),
                     )
 
                     # Второй LLM-запрос с tool result. OpenAI требует, чтобы
@@ -180,7 +180,7 @@ async def _event_stream(
                     # списком tool_calls, иначе API отвечает 400
                     # "messages with role 'tool' must be a response to a
                     # preceeding message with 'tool_calls'".
-                    tool_result_str = json.dumps(tool_result, ensure_ascii=False)
+                    tool_result_str = json.dumps(tool_result, ensure_ascii=False, default=str)
                     tool_call_id = pending_tool_call.get("id", "")
                     llm_messages_with_result = llm_messages + [
                         {

@@ -32,26 +32,28 @@ async def get_period_balance(db: AsyncSession) -> dict[str, Any]:
         if period is None:
             return {"error": "Активный период не найден"}
 
-        # Факт-расходы
+        # Факт-расходы. NB: SUM(BIGINT) в Postgres возвращает NUMERIC,
+        # asyncpg маршалит в Decimal — приводим к int здесь, чтобы tool
+        # result был JSON-сериализуем без Decimal handler.
         q_exp = select(func.sum(ActualTransaction.amount_cents)).where(
             ActualTransaction.period_id == period.id,
             ActualTransaction.kind == CategoryKind.expense,
         )
-        actual_expense_cents = (await db.execute(q_exp)).scalar() or 0
+        actual_expense_cents = int((await db.execute(q_exp)).scalar() or 0)
 
         # Факт-доходы
         q_inc = select(func.sum(ActualTransaction.amount_cents)).where(
             ActualTransaction.period_id == period.id,
             ActualTransaction.kind == CategoryKind.income,
         )
-        actual_income_cents = (await db.execute(q_inc)).scalar() or 0
+        actual_income_cents = int((await db.execute(q_inc)).scalar() or 0)
 
         # Плановые расходы
         q_plan = select(func.sum(PlannedTransaction.amount_cents)).where(
             PlannedTransaction.period_id == period.id,
             PlannedTransaction.kind == CategoryKind.expense,
         )
-        planned_expense_cents = (await db.execute(q_plan)).scalar() or 0
+        planned_expense_cents = int((await db.execute(q_plan)).scalar() or 0)
 
         balance_cents = period.starting_balance_cents + actual_income_cents - actual_expense_cents
         delta_cents = planned_expense_cents - actual_expense_cents  # положит. = хорошо
@@ -104,7 +106,7 @@ async def get_category_summary(
             .group_by(ActualTransaction.category_id)
         )
         actual_by_cat = {
-            r.category_id: r.total
+            r.category_id: int(r.total or 0)
             for r in (await db.execute(q_actual)).all()
         }
 
@@ -121,7 +123,7 @@ async def get_category_summary(
             .group_by(PlannedTransaction.category_id)
         )
         plan_by_cat = {
-            r.category_id: r.total
+            r.category_id: int(r.total or 0)
             for r in (await db.execute(q_plan)).all()
         }
 
@@ -219,19 +221,20 @@ async def get_forecast(db: AsyncSession) -> dict[str, Any]:
                 "period_end": period_end.isoformat(),
             }
 
-        # Факт-расходы за период
+        # Факт-расходы за период (см. примечание в get_period_balance —
+        # SUM(BIGINT) → Decimal → приводим к int).
         q_exp = select(func.sum(ActualTransaction.amount_cents)).where(
             ActualTransaction.period_id == period.id,
             ActualTransaction.kind == CategoryKind.expense,
         )
-        actual_expense_cents = (await db.execute(q_exp)).scalar() or 0
+        actual_expense_cents = int((await db.execute(q_exp)).scalar() or 0)
 
         # Факт-доходы за период
         q_inc = select(func.sum(ActualTransaction.amount_cents)).where(
             ActualTransaction.period_id == period.id,
             ActualTransaction.kind == CategoryKind.income,
         )
-        actual_income_cents = (await db.execute(q_inc)).scalar() or 0
+        actual_income_cents = int((await db.execute(q_inc)).scalar() or 0)
 
         current_balance_cents = (
             period.starting_balance_cents + actual_income_cents - actual_expense_cents
