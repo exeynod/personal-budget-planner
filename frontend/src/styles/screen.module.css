@@ -1,0 +1,34 @@
+/* Shared layout primitives for screens rendered inside App's .screenContainer.
+   Use via CSS Modules `composes:`, e.g.
+     .root {
+       composes: scrollable from '../styles/screen.module.css';
+       padding: ...;
+     }
+*/
+
+/* Default screen — full height of screenContainer, internal vertical scroll. */
+.scrollable {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* Screens with their own inner scroll containers (chat messages, tab bodies).
+   Same flex contract, but the root itself never scrolls — children do. */
+.fixed {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Wrap for screens that render a floating action button (Fab) outside the
+   scrollable area. The wrap stretches the full screenContainer space and
+   establishes a positioned ancestor for absolutely-placed Fab without
+   clipping it inside an overflow:auto root. */
+.fabWrap {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}

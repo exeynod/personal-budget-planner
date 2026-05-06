@@ -1,25 +1,11 @@
 .nav {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
+  flex-shrink: 0;
   height: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px));
   background: var(--color-bg-elevated);
   border-top: 1px solid var(--color-border);
   display: flex;
   padding-bottom: env(safe-area-inset-bottom, 0px);
-  z-index: 100;
   box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.3);
-}
-
-/* On desktop — center the nav within the column */
-@media (min-width: 540px) {
-  .nav {
-    left: 50%;
-    transform: translateX(-50%);
-    width: var(--col-width);
-    border-radius: 0 0 20px 20px;
-  }
 }
 
 .tab {

@@ -19,7 +19,7 @@
 
 /* Desktop wrapper — full-viewport gradient background */
 .appWrapper {
-  min-height: 100dvh;
+  height: 100dvh;
   background: var(--color-bg);
 }
 
@@ -27,12 +27,18 @@
 .appRoot {
   position: relative;
   width: 100%;
-  min-height: 100dvh;
+  height: 100%;
   background: var(--color-bg);
+  display: flex;
+  flex-direction: column;
 }
 
 .screenContainer {
-  padding-bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 
 /* Desktop enhancements */
@@ -48,7 +54,7 @@
 
   .appRoot {
     width: var(--col-width);
-    min-height: auto;
+    height: calc(100dvh - 72px);
     border-radius: 24px;
     box-shadow:
       0 0 0 1px rgba(255, 255, 255, 0.07),

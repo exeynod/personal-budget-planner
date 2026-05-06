@@ -1,6 +1,9 @@
 .fab {
-  position: fixed;
-  bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px) + 16px);
+  /* Должен рендериться внутри .fabWrap (см. styles/screen.module.css):
+     position: relative обёртка стоит ВНЕ scroll-контейнера, не клипится
+     overflow:auto, и сидит точно в зоне screenContainer над BottomNav. */
+  position: absolute;
+  bottom: 16px;
   right: 24px;
   width: 56px;
   height: 56px;
@@ -20,9 +23,3 @@
 }
 .fab:hover { transform: scale(1.05); box-shadow: 0 6px 28px rgba(78, 164, 255, 0.5); }
 .fab:active { transform: scale(0.95); }
-
-@media (min-width: 540px) {
-  .fab {
-    right: calc(50vw - calc(var(--col-width) / 2) + 24px);
-  }
-}

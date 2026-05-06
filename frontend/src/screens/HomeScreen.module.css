@@ -1,8 +1,9 @@
+.wrap {
+  composes: fabWrap from '../styles/screen.module.css';
+}
 .root {
-
-
-  padding: var(--space-4) var(--space-4) var(--space-12);
-  min-height: 100dvh;
+  composes: scrollable from '../styles/screen.module.css';
+  padding: var(--space-4) var(--space-4) var(--space-4);
   background: var(--color-bg);
   color: var(--color-text);
   font-family: var(--font-sans);

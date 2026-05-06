@@ -142,6 +142,7 @@ export function HomeScreen({ onNavigateToSub, onNavigateToHistory }: HomeScreenP
   }
 
   return (
+    <div className={styles.wrap}>
     <div className={`${styles.root} ${isClosed ? styles.rootClosed : ''}`}>
       {selectedPeriod && balance && (
         <div className={styles.heroWrap}>
@@ -232,18 +233,19 @@ export function HomeScreen({ onNavigateToSub, onNavigateToHistory }: HomeScreenP
 
       {toast && <div className={styles.toast}>{toast}</div>}
 
-      {isActiveCurrent && !isClosed && (
-        <Fab
-          onClick={() => setSheetOpen(true)}
-          ariaLabel="Добавить факт-трату"
-        />
-      )}
-
       {isClosed && (
         <MainButton
           text="Период закрыт"
           onClick={() => undefined}
           enabled={false}
+        />
+      )}
+    </div>
+
+      {isActiveCurrent && !isClosed && (
+        <Fab
+          onClick={() => setSheetOpen(true)}
+          ariaLabel="Добавить факт-трату"
         />
       )}
 

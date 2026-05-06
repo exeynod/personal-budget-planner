@@ -1,8 +1,6 @@
 .root {
-
-
-  min-height: 100vh;
-  padding: var(--space-4) var(--space-4) var(--space-12);
+  composes: scrollable from '../styles/screen.module.css';
+  padding: var(--space-4) var(--space-4) var(--space-4);
   background: var(--color-bg);
   color: var(--color-text);
   font-family: var(--font-sans);

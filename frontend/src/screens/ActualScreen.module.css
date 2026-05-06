@@ -1,7 +1,7 @@
 .root {
   padding: var(--space-3);
   padding-bottom: var(--space-12);
-  background: var(--color-bg-elevated);
+  background: var(--color-bg);
   min-height: 100dvh;
   color: var(--color-text);
   font-family: var(--font-sans);
