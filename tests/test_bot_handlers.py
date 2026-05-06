@@ -75,11 +75,13 @@ def test_handlers_module_exports_router() -> None:
 async def test_cmd_start_rejects_non_owner() -> None:
     """Non-OWNER user gets 'Бот приватный' and bind_chat_id is NOT called."""
     from app.bot import handlers
+    from app.db.models import UserRole
 
     message = _make_message(user_id=999_999_999)  # not OWNER
     command = _make_command(None)
 
-    with patch("app.bot.handlers.bind_chat_id", new=AsyncMock()) as mock_bind:
+    with patch("app.bot.handlers.bind_chat_id", new=AsyncMock()) as mock_bind, \
+         patch("app.bot.handlers.bot_resolve_user_role", new=AsyncMock(return_value=UserRole.revoked)):
         await handlers.cmd_start(message, command)
 
     message.answer.assert_awaited_once()
@@ -95,13 +97,16 @@ async def test_cmd_start_owner_calls_bind_and_replies_with_webapp_button() -> No
 
     from app.bot import handlers
     from app.core.settings import settings
+    from app.db.models import UserRole
 
     message = _make_message(user_id=settings.OWNER_TG_ID, chat_id=42)
     command = _make_command(None)
 
     with patch(
         "app.bot.handlers.bind_chat_id", new=AsyncMock(return_value=None)
-    ) as mock_bind:
+    ) as mock_bind, patch(
+        "app.bot.handlers.bot_resolve_user_role", new=AsyncMock(return_value=UserRole.owner)
+    ):
         await handlers.cmd_start(message, command)
 
     mock_bind.assert_awaited_once_with(
@@ -125,6 +130,7 @@ async def test_cmd_start_handles_internal_api_error_gracefully() -> None:
     from app.bot import handlers
     from app.bot.api_client import InternalApiError
     from app.core.settings import settings
+    from app.db.models import UserRole
 
     message = _make_message(user_id=settings.OWNER_TG_ID, chat_id=42)
     command = _make_command(None)
@@ -132,6 +138,9 @@ async def test_cmd_start_handles_internal_api_error_gracefully() -> None:
     with patch(
         "app.bot.handlers.bind_chat_id",
         new=AsyncMock(side_effect=InternalApiError("boom")),
+    ), patch(
+        "app.bot.handlers.bot_resolve_user_role",
+        new=AsyncMock(return_value=UserRole.owner),
     ):
         # Must NOT propagate the exception
         await handlers.cmd_start(message, command)
@@ -147,11 +156,13 @@ async def test_cmd_start_parses_onboard_payload() -> None:
     """`/start onboard` triggers the specialised greeting copy."""
     from app.bot import handlers
     from app.core.settings import settings
+    from app.db.models import UserRole
 
     message = _make_message(user_id=settings.OWNER_TG_ID, chat_id=42)
     command = _make_command("onboard")
 
-    with patch("app.bot.handlers.bind_chat_id", new=AsyncMock(return_value=None)):
+    with patch("app.bot.handlers.bind_chat_id", new=AsyncMock(return_value=None)), \
+         patch("app.bot.handlers.bot_resolve_user_role", new=AsyncMock(return_value=UserRole.owner)):
         await handlers.cmd_start(message, command)
 
     message.answer.assert_awaited_once()
