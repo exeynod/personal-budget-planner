@@ -20,6 +20,14 @@ D-46 disambiguation flow:
     0 candidates  → {status: not_found}
     >1 candidates → {status: ambiguous, candidates: [...]}
     1 candidate   → create_actual → compute category balance → {status: created}
+
+Phase 11 (Plan 11-06): bot endpoints используют X-Internal-Token, не Telegram
+initData. ``get_db_with_tenant_scope`` (route-level) недоступен — service сам
+резолвит ``user_id`` из ``tg_user_id`` через AppUser lookup и ставит
+``set_tenant_scope`` на текущей session ПЕРЕД доменными запросами.
+
+UserNotFoundForBot raises if AppUser row не найдена для данного tg_user_id —
+route → 404 (для bot client это маркер "юзер не зарегистрирован, нужен /start").
 """
 from datetime import date
 from typing import Optional
@@ -31,10 +39,12 @@ from app.api.schemas.actual import ActualRead
 from app.db.models import (
     ActualSource,
     ActualTransaction,
+    AppUser,
     Category,
     CategoryKind,
     PlannedTransaction,
 )
+from app.db.session import set_tenant_scope
 from app.services import actual as actual_svc
 from app.services import categories as cat_svc
 from app.services import periods as periods_svc
@@ -42,10 +52,51 @@ from app.services.planned import InvalidCategoryError, PeriodNotFoundError
 from app.services.periods import _today_in_app_tz
 
 
+class UserNotFoundForBot(Exception):
+    """Raised when bot endpoint receives tg_user_id с которым нет AppUser строки.
+
+    Phase 11: bot не может resolve tenant scope — route mapper → 404 (или 403).
+    Сценарий: user открыл бота до Mini App, app_user ещё не создан. До Phase 12
+    решается «через /start», в Phase 12 — onboarding flow.
+    """
+
+    def __init__(self, tg_user_id: int) -> None:
+        self.tg_user_id = tg_user_id
+        super().__init__(f"AppUser not found for tg_user_id={tg_user_id}")
+
+
+async def _resolve_user_id_and_set_scope(
+    db: AsyncSession, tg_user_id: int
+) -> int:
+    """Резолвит user_id (PK) из tg_user_id и устанавливает tenant scope.
+
+    Bot-pathway equivalent of FastAPI ``get_db_with_tenant_scope`` dep:
+    bot endpoints получают X-Internal-Token, не initData, поэтому
+    SET LOCAL делается ВНУТРИ service (Plan 11-06 contract).
+
+    Raises:
+        UserNotFoundForBot: если в app_user нет строки с заданным tg_user_id.
+    """
+    user_id = await db.scalar(
+        select(AppUser.id).where(AppUser.tg_user_id == tg_user_id)
+    )
+    if user_id is None:
+        raise UserNotFoundForBot(tg_user_id)
+    await set_tenant_scope(db, user_id)
+    return user_id
+
+
 async def _category_balance(
-    db: AsyncSession, period_id: int, category_id: int, kind: str
+    db: AsyncSession,
+    period_id: int,
+    category_id: int,
+    kind: str,
+    *,
+    user_id: int,
 ) -> int:
     """Compute remaining balance for a specific category in a period.
+
+    Phase 11: scoped по user_id.
 
     D-02 sign rule:
         expense: plan - act  (positive = under-budget)
@@ -54,6 +105,7 @@ async def _category_balance(
     planned_q = select(
         func.coalesce(func.sum(PlannedTransaction.amount_cents), 0)
     ).where(
+        PlannedTransaction.user_id == user_id,
         PlannedTransaction.period_id == period_id,
         PlannedTransaction.category_id == category_id,
         PlannedTransaction.kind == CategoryKind(kind),
@@ -61,6 +113,7 @@ async def _category_balance(
     actual_q = select(
         func.coalesce(func.sum(ActualTransaction.amount_cents), 0)
     ).where(
+        ActualTransaction.user_id == user_id,
         ActualTransaction.period_id == period_id,
         ActualTransaction.category_id == category_id,
         ActualTransaction.kind == CategoryKind(kind),
@@ -88,11 +141,14 @@ async def process_bot_actual(
 ) -> dict:
     """Dispatch a bot /add or /income command into actual transaction creation.
 
+    Phase 11: резолвит user_id из tg_user_id и ставит tenant scope; все
+    downstream queries фильтруются по user_id.
+
     Returns a dict matching BotActualResponse shape. Route layer constructs
     the Pydantic model from this dict.
 
     Args:
-        tg_user_id: ignored in single-tenant (OWNER_TG_ID handles auth at route).
+        tg_user_id: telegram user id; service резолвит app_user.id.
         kind: 'expense' | 'income'.
         amount_cents: positive integer (kopecks), validated upstream by Pydantic.
         category_query: fuzzy search string (mutually exclusive with category_id).
@@ -109,22 +165,27 @@ async def process_bot_actual(
         {"status": "not_found", "candidates": []}
 
     Raises:
+        UserNotFoundForBot: AppUser не найден для tg_user_id (route → 404).
         CategoryNotFoundError: explicit category_id not found (route → 404).
         InvalidCategoryError: explicit category_id is archived (route → 400).
         KindMismatchError: kind != category.kind for the 1-candidate branch (route → 400).
         FutureDateError: tx_date > today + 7 days (route → 400).
         PeriodNotFoundError: period auto-create failed (route → 404, very rare).
     """
-    # Step 1: resolve candidates.
+    user_id = await _resolve_user_id_and_set_scope(db, tg_user_id)
+
+    # Step 1: resolve candidates (scoped по user_id).
     if category_id is not None:
         # Explicit ID — bypass disambiguation; still validate active.
-        cat = await cat_svc.get_or_404(db, category_id)
+        cat = await cat_svc.get_or_404(db, category_id, user_id=user_id)
         if cat.is_archived:
             raise InvalidCategoryError(category_id, "Cannot use archived category")
         candidates = [cat]
     else:
         # Fuzzy search.
-        candidates = await actual_svc.find_categories_by_query(db, category_query or "")
+        candidates = await actual_svc.find_categories_by_query(
+            db, category_query or "", user_id=user_id
+        )
 
     # Step 2: branch by candidate count.
     if len(candidates) == 0:
@@ -145,6 +206,7 @@ async def process_bot_actual(
 
     actual_row = await actual_svc.create_actual(
         db,
+        user_id=user_id,
         kind=kind,
         amount_cents=amount_cents,
         description=description,
@@ -155,7 +217,7 @@ async def process_bot_actual(
 
     # Step 4: compute category-specific balance for the reply message.
     balance_after = await _category_balance(
-        db, actual_row.period_id, cat.id, kind
+        db, actual_row.period_id, cat.id, kind, user_id=user_id
     )
 
     # Step 5: return created response.
@@ -171,19 +233,22 @@ async def process_bot_actual(
 async def format_balance_for_bot(db: AsyncSession, *, tg_user_id: int) -> dict:
     """Compute balance for the active budget period in bot-friendly format.
 
-    tg_user_id is accepted for API symmetry (future multi-tenant compatibility)
-    but not used — single-tenant, OWNER_TG_ID is fixed.
+    Phase 11: резолвит user_id из tg_user_id, ставит tenant scope, и compute_balance
+    отрабатывает на per-user данных.
 
     Returns dict matching BotBalanceResponse (omits starting_balance_cents).
 
     Raises:
+        UserNotFoundForBot: AppUser не найден (route → 404).
         PeriodNotFoundError: no active period exists (route → 404).
     """
-    period = await periods_svc.get_current_active_period(db)
+    user_id = await _resolve_user_id_and_set_scope(db, tg_user_id)
+
+    period = await periods_svc.get_current_active_period(db, user_id=user_id)
     if period is None:
         raise PeriodNotFoundError(0)  # sentinel: "no active period"
 
-    bal = await actual_svc.compute_balance(db, period.id)
+    bal = await actual_svc.compute_balance(db, period.id, user_id=user_id)
 
     return {
         "period_id": bal["period_id"],
@@ -202,7 +267,7 @@ async def format_balance_for_bot(db: AsyncSession, *, tg_user_id: int) -> dict:
 async def format_today_for_bot(db: AsyncSession, *, tg_user_id: int) -> dict:
     """Return today's actual transactions with nested category names.
 
-    tg_user_id is accepted for API symmetry but not used (single-tenant).
+    Phase 11: резолвит user_id из tg_user_id и scope'ит запросы.
 
     Returns dict matching BotTodayResponse:
         {
@@ -210,15 +275,23 @@ async def format_today_for_bot(db: AsyncSession, *, tg_user_id: int) -> dict:
             "total_expense_cents": int,
             "total_income_cents": int,
         }
-    """
-    rows = await actual_svc.actuals_for_today(db)
 
-    # Bulk-fetch category names via IN query to avoid N+1.
+    Raises:
+        UserNotFoundForBot: AppUser не найден (route → 404).
+    """
+    user_id = await _resolve_user_id_and_set_scope(db, tg_user_id)
+
+    rows = await actual_svc.actuals_for_today(db, user_id=user_id)
+
+    # Bulk-fetch category names via IN query to avoid N+1, scoped по user_id.
     cat_ids = list({r.category_id for r in rows})
     cats: dict[int, Category] = {}
     if cat_ids:
         cats_result = await db.execute(
-            select(Category).where(Category.id.in_(cat_ids))
+            select(Category).where(
+                Category.user_id == user_id,
+                Category.id.in_(cat_ids),
+            )
         )
         cats = {c.id: c for c in cats_result.scalars().all()}
 

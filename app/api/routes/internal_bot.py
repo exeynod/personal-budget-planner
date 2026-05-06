@@ -15,6 +15,12 @@ Security model:
 - Caddy edge blocks ``/api/v1/internal/*`` from external traffic (Phase 1, INF-04)
   providing an additional layer of defence (T-04-22).
 
+Phase 11 (Plan 11-06): bot endpoints **не используют** ``get_db_with_tenant_scope``
+— у них нет initData. Service layer (``app/services/internal_bot.py``) сам
+резолвит ``user_id`` из ``tg_user_id`` через AppUser lookup и ставит
+``set_tenant_scope`` на текущей session ПЕРЕД доменными запросами. Routes
+здесь продолжают использовать обычный ``get_db``.
+
 POST /bot/actual response:
   Returns ``BotActualResponse`` with a ``status`` discriminator field:
   - ``"created"``   → ``actual`` + ``category`` + ``category_balance_cents`` populated
@@ -22,6 +28,7 @@ POST /bot/actual response:
   - ``"not_found"`` → all optional fields are None / []
 
 Exception → HTTP mapping:
+    UserNotFoundForBot      → 404 (Phase 11: AppUser строки нет для tg_user_id)
     CategoryNotFoundError   → 404
     FutureDateError         → 400
     InvalidCategoryError    → 400
@@ -45,6 +52,7 @@ from app.api.schemas.internal_bot import (
 from app.services import internal_bot as internal_bot_svc
 from app.services.actual import FutureDateError
 from app.services.categories import CategoryNotFoundError
+from app.services.internal_bot import UserNotFoundForBot
 from app.services.planned import (
     InvalidCategoryError,
     KindMismatchError,
@@ -79,10 +87,12 @@ async def bot_actual(
 
     ``source`` is forced to ``ActualSource.bot`` inside the service (D-53).
 
+    Phase 11: service сам резолвит user_id из tg_user_id и ставит tenant scope.
+
     Status codes:
         200: result (including ambiguous/not_found branches — not errors)
         400: FutureDateError / InvalidCategoryError / KindMismatchError
-        404: category_id supplied but category not found
+        404: UserNotFoundForBot / category_id supplied but category not found
     """
     try:
         result = await internal_bot_svc.process_bot_actual(
@@ -95,6 +105,10 @@ async def bot_actual(
             category_query=body.category_query,
             category_id=body.category_id,
         )
+    except UserNotFoundForBot as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
+        ) from exc
     except CategoryNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
@@ -128,14 +142,20 @@ async def bot_balance(
     ACT-04: returns the full plan/actual breakdown for the active period.
     Returns 404 when no active period exists (onboarding not complete).
 
+    Phase 11: service резолвит user_id из tg_user_id и ставит tenant scope.
+
     Status codes:
         200: balance data
-        404: no active budget period
+        404: UserNotFoundForBot / no active budget period
     """
     try:
         result = await internal_bot_svc.format_balance_for_bot(
             db, tg_user_id=body.tg_user_id
         )
+    except UserNotFoundForBot as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
+        ) from exc
     except PeriodNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -157,12 +177,20 @@ async def bot_today(
 
     ACT-04: returns list of actual transactions recorded today (Europe/Moscow TZ)
     along with expense/income totals.  Returns an empty ``actuals`` list if there
-    are no transactions today — never raises 404.
+    are no transactions today — never raises 404 (unless tg_user_id has no AppUser).
+
+    Phase 11: service резолвит user_id и ставит tenant scope.
 
     Status codes:
         200: today data (possibly empty actuals list)
+        404: UserNotFoundForBot
     """
-    result = await internal_bot_svc.format_today_for_bot(
-        db, tg_user_id=body.tg_user_id
-    )
+    try:
+        result = await internal_bot_svc.format_today_for_bot(
+            db, tg_user_id=body.tg_user_id
+        )
+    except UserNotFoundForBot as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
+        ) from exc
     return BotTodayResponse(**result)

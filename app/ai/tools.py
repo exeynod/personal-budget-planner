@@ -2,10 +2,16 @@
 
 Каждая tool-функция:
 - принимает db: AsyncSession (+ опциональные параметры)
+- принимает user_id: int (Phase 11 MUL-03) для tenant scoping
 - возвращает dict с данными или {"error": "сообщение"} при ошибке
 - никогда не бросает исключение (AI объясняет пользователю через error dict)
 
 Деньги: всегда BIGINT kopecks — никаких float/Decimal.
+
+Phase 11 (Plan 11-06): все tool-функции принимают ``user_id`` и фильтруют
+queries по user_id. Tools вызываются из routes/ai.py, где user_id уже
+зарезолвлен через get_current_user_id; route передаёт его в tool через
+TOOL_FUNCTIONS dispatch.
 """
 from __future__ import annotations
 
@@ -24,10 +30,22 @@ from app.db.models import (
 )
 
 
-async def get_period_balance(db: AsyncSession) -> dict[str, Any]:
-    """Tool: баланс (план/факт/дельта) активного периода (AI-05)."""
+async def get_period_balance(
+    db: AsyncSession, *, user_id: int
+) -> dict[str, Any]:
+    """Tool: баланс (план/факт/дельта) активного периода (AI-05).
+
+    Phase 11: scoped по user_id.
+    """
     try:
-        q = select(BudgetPeriod).where(BudgetPeriod.status == PeriodStatus.active).limit(1)
+        q = (
+            select(BudgetPeriod)
+            .where(
+                BudgetPeriod.user_id == user_id,
+                BudgetPeriod.status == PeriodStatus.active,
+            )
+            .limit(1)
+        )
         period = (await db.execute(q)).scalar_one_or_none()
         if period is None:
             return {"error": "Активный период не найден"}
@@ -36,6 +54,7 @@ async def get_period_balance(db: AsyncSession) -> dict[str, Any]:
         # asyncpg маршалит в Decimal — приводим к int здесь, чтобы tool
         # result был JSON-сериализуем без Decimal handler.
         q_exp = select(func.sum(ActualTransaction.amount_cents)).where(
+            ActualTransaction.user_id == user_id,
             ActualTransaction.period_id == period.id,
             ActualTransaction.kind == CategoryKind.expense,
         )
@@ -43,6 +62,7 @@ async def get_period_balance(db: AsyncSession) -> dict[str, Any]:
 
         # Факт-доходы
         q_inc = select(func.sum(ActualTransaction.amount_cents)).where(
+            ActualTransaction.user_id == user_id,
             ActualTransaction.period_id == period.id,
             ActualTransaction.kind == CategoryKind.income,
         )
@@ -50,6 +70,7 @@ async def get_period_balance(db: AsyncSession) -> dict[str, Any]:
 
         # Плановые расходы
         q_plan = select(func.sum(PlannedTransaction.amount_cents)).where(
+            PlannedTransaction.user_id == user_id,
             PlannedTransaction.period_id == period.id,
             PlannedTransaction.kind == CategoryKind.expense,
         )
@@ -73,17 +94,30 @@ async def get_period_balance(db: AsyncSession) -> dict[str, Any]:
 
 
 async def get_category_summary(
-    db: AsyncSession, category_id: int | None = None
+    db: AsyncSession, *, user_id: int, category_id: int | None = None
 ) -> dict[str, Any]:
-    """Tool: сводка по категориям (план/факт/остаток) (AI-05)."""
+    """Tool: сводка по категориям (план/факт/остаток) (AI-05).
+
+    Phase 11: scoped по user_id.
+    """
     try:
-        q = select(BudgetPeriod).where(BudgetPeriod.status == PeriodStatus.active).limit(1)
+        q = (
+            select(BudgetPeriod)
+            .where(
+                BudgetPeriod.user_id == user_id,
+                BudgetPeriod.status == PeriodStatus.active,
+            )
+            .limit(1)
+        )
         period = (await db.execute(q)).scalar_one_or_none()
         if period is None:
             return {"error": "Активный период не найден"}
 
-        # Получить категории
-        cat_q = select(Category).where(Category.is_archived.is_(False))
+        # Получить категории (scoped по user_id).
+        cat_q = select(Category).where(
+            Category.user_id == user_id,
+            Category.is_archived.is_(False),
+        )
         if category_id is not None:
             cat_q = cat_q.where(Category.id == category_id)
         categories = (await db.execute(cat_q)).scalars().all()
@@ -100,6 +134,7 @@ async def get_category_summary(
                 func.sum(ActualTransaction.amount_cents).label("total"),
             )
             .where(
+                ActualTransaction.user_id == user_id,
                 ActualTransaction.period_id == period.id,
                 ActualTransaction.category_id.in_(cat_ids),
             )
@@ -117,6 +152,7 @@ async def get_category_summary(
                 func.sum(PlannedTransaction.amount_cents).label("total"),
             )
             .where(
+                PlannedTransaction.user_id == user_id,
                 PlannedTransaction.period_id == period.id,
                 PlannedTransaction.category_id.in_(cat_ids),
             )
@@ -153,11 +189,16 @@ async def get_category_summary(
 
 async def query_transactions(
     db: AsyncSession,
+    *,
+    user_id: int,
     limit: int = 10,
     kind: str | None = None,
     category_id: int | None = None,
 ) -> dict[str, Any]:
-    """Tool: список факт-транзакций с фильтрацией (AI-05)."""
+    """Tool: список факт-транзакций с фильтрацией (AI-05).
+
+    Phase 11: scoped по user_id.
+    """
     try:
         q = (
             select(
@@ -169,6 +210,7 @@ async def query_transactions(
                 Category.name.label("category_name"),
             )
             .join(Category, ActualTransaction.category_id == Category.id, isouter=True)
+            .where(ActualTransaction.user_id == user_id)
             .order_by(ActualTransaction.tx_date.desc())
             .limit(min(limit, 50))
         )
@@ -196,12 +238,22 @@ async def query_transactions(
         return {"error": f"Ошибка получения транзакций: {exc}"}
 
 
-async def get_forecast(db: AsyncSession) -> dict[str, Any]:
-    """Tool: прогноз остатка к концу периода (linear extrapolation) (AI-05)."""
+async def get_forecast(db: AsyncSession, *, user_id: int) -> dict[str, Any]:
+    """Tool: прогноз остатка к концу периода (linear extrapolation) (AI-05).
+
+    Phase 11: scoped по user_id.
+    """
     try:
         from datetime import date as date_type
 
-        q = select(BudgetPeriod).where(BudgetPeriod.status == PeriodStatus.active).limit(1)
+        q = (
+            select(BudgetPeriod)
+            .where(
+                BudgetPeriod.user_id == user_id,
+                BudgetPeriod.status == PeriodStatus.active,
+            )
+            .limit(1)
+        )
         period = (await db.execute(q)).scalar_one_or_none()
         if period is None:
             return {"error": "Активный период не найден"}
@@ -224,6 +276,7 @@ async def get_forecast(db: AsyncSession) -> dict[str, Any]:
         # Факт-расходы за период (см. примечание в get_period_balance —
         # SUM(BIGINT) → Decimal → приводим к int).
         q_exp = select(func.sum(ActualTransaction.amount_cents)).where(
+            ActualTransaction.user_id == user_id,
             ActualTransaction.period_id == period.id,
             ActualTransaction.kind == CategoryKind.expense,
         )
@@ -231,6 +284,7 @@ async def get_forecast(db: AsyncSession) -> dict[str, Any]:
 
         # Факт-доходы за период
         q_inc = select(func.sum(ActualTransaction.amount_cents)).where(
+            ActualTransaction.user_id == user_id,
             ActualTransaction.period_id == period.id,
             ActualTransaction.kind == CategoryKind.income,
         )
@@ -289,8 +343,12 @@ async def get_forecast(db: AsyncSession) -> dict[str, Any]:
 async def _resolve_category(
     db: AsyncSession,
     description: str,
+    *,
+    user_id: int,
 ) -> tuple[int | None, str | None, float]:
     """Best-effort fuzzy category resolution via embeddings.
+
+    Phase 11: scoped по user_id — search только среди этого юзера embeddings.
 
     Resolves the category from the user-provided description ONLY —
     not from any hint the LLM might invent. gpt-4.1-nano frequently
@@ -307,7 +365,7 @@ async def _resolve_category(
         return None, None, 0.0
     try:
         svc = get_embedding_service()
-        res = await svc.suggest_category(db, query)
+        res = await svc.suggest_category(db, query, user_id=user_id)
     except Exception:
         return None, None, 0.0
     if not res:
@@ -318,6 +376,7 @@ async def _resolve_category(
 async def propose_actual_transaction(
     db: AsyncSession,
     *,
+    user_id: int,
     amount_rub: float,
     kind: str = "expense",
     description: str = "",
@@ -325,6 +384,8 @@ async def propose_actual_transaction(
     **_ignored: Any,
 ) -> dict[str, Any]:
     """Tool: подготовить факт-транзакцию для подтверждения пользователем.
+
+    Phase 11: scoped по user_id (передаётся в _resolve_category).
 
     Не пишет в БД. Возвращает proposal-объект; роут эмитит SSE
     'propose'-событие, фронт открывает bottom-sheet с pre-filled полями.
@@ -341,7 +402,9 @@ async def propose_actual_transaction(
     if kind not in ("expense", "income"):
         kind = "expense"
 
-    cat_id, cat_name, cat_conf = await _resolve_category(db, description)
+    cat_id, cat_name, cat_conf = await _resolve_category(
+        db, description, user_id=user_id
+    )
 
     today = date_type.today()
     if not tx_date:
@@ -368,7 +431,10 @@ async def propose_actual_transaction(
         "txn": {
             "amount_cents": amount_cents,
             "kind": kind,
-            "description": description or category_hint or "",
+            # Phase 11 [Rule 1 - Bug]: исправлен NameError — убрана ссылка
+            # на несуществующую переменную category_hint (legacy schema удалён
+            # в коммите d3ead29).
+            "description": description or "",
             "category_id": cat_id,
             "category_name": cat_name,
             "category_confidence": round(cat_conf, 3),
@@ -380,13 +446,17 @@ async def propose_actual_transaction(
 async def propose_planned_transaction(
     db: AsyncSession,
     *,
+    user_id: int,
     amount_rub: float,
     kind: str = "expense",
     description: str = "",
     day_of_period: int | None = None,
     **_ignored: Any,
 ) -> dict[str, Any]:
-    """Tool: подготовить плановую транзакцию для подтверждения пользователем."""
+    """Tool: подготовить плановую транзакцию для подтверждения пользователем.
+
+    Phase 11: scoped по user_id.
+    """
     try:
         amount_cents = int(round(float(amount_rub) * 100))
     except (TypeError, ValueError):
@@ -395,7 +465,9 @@ async def propose_planned_transaction(
     if kind not in ("expense", "income"):
         kind = "expense"
 
-    cat_id, cat_name, cat_conf = await _resolve_category(db, description)
+    cat_id, cat_name, cat_conf = await _resolve_category(
+        db, description, user_id=user_id
+    )
 
     if day_of_period is not None:
         try:
@@ -411,7 +483,9 @@ async def propose_planned_transaction(
         "txn": {
             "amount_cents": amount_cents,
             "kind": kind,
-            "description": description or category_hint or "",
+            # Phase 11 [Rule 1 - Bug]: убрана ссылка на несуществующий
+            # category_hint (см. propose_actual_transaction docstring).
+            "description": description or "",
             "category_id": cat_id,
             "category_name": cat_name,
             "category_confidence": round(cat_conf, 3),
@@ -569,7 +643,8 @@ TOOLS_SCHEMA: list[dict] = [
     },
 ]
 
-# Маппинг имя tool -> функция для вызова в route handler
+# Маппинг имя tool -> функция для вызова в route handler.
+# Phase 11: route ai.py пробрасывает user_id во все tool-функции через kwargs.
 TOOL_FUNCTIONS = {
     "get_period_balance": get_period_balance,
     "get_category_summary": get_category_summary,

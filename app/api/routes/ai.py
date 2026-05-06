@@ -10,6 +10,10 @@ Auth: router-level Depends(get_current_user).
 Rate limit: in-memory sliding window 10 req/мин (Phase 10.1, lowered
 from 30 for cost-control ceiling).
 OPENAI_API_KEY: только в backend ENV (AI-09).
+
+Phase 11 (Plan 11-06): handlers используют ``get_db_with_tenant_scope`` +
+``get_current_user_id``; AiConversation и AiMessage scoped по user_id;
+tool-функции получают user_id через kwargs из dispatch-цикла.
 """
 from __future__ import annotations
 
@@ -27,7 +31,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.ai.llm_client import get_llm_client
 from app.ai.system_prompt import build_messages
 from app.ai.tools import TOOL_FUNCTIONS, TOOLS_SCHEMA
-from app.api.dependencies import get_current_user, get_db
+from app.api.dependencies import (
+    get_current_user,
+    get_current_user_id,
+    get_db_with_tenant_scope,
+)
 from app.api.schemas.ai import (
     ChatHistoryResponse,
     ChatMessageRead,
@@ -73,15 +81,18 @@ def _record_usage(usage: dict) -> None:
     )
 
 
-def _is_rate_limited(user_id: int) -> bool:
-    """Sliding window rate limiter. Возвращает True если лимит превышен."""
+def _is_rate_limited(rate_key: int) -> bool:
+    """Sliding window rate limiter. Возвращает True если лимит превышен.
+
+    rate_key: целочисленный идентификатор для bucket (Phase 11: app_user.id).
+    """
     now = time.monotonic()
-    bucket = _rate_buckets[user_id]
+    bucket = _rate_buckets[rate_key]
     # Очистить устаревшие записи
-    _rate_buckets[user_id] = [t for t in bucket if now - t < _RATE_WINDOW]
-    if len(_rate_buckets[user_id]) >= _RATE_LIMIT:
+    _rate_buckets[rate_key] = [t for t in bucket if now - t < _RATE_WINDOW]
+    if len(_rate_buckets[rate_key]) >= _RATE_LIMIT:
         return True
-    _rate_buckets[user_id].append(now)
+    _rate_buckets[rate_key].append(now)
     return False
 
 
@@ -97,21 +108,26 @@ async def _event_stream(
 ) -> AsyncGenerator[str, None]:
     """Генератор SSE-событий для POST /ai/chat.
 
+    Phase 11: user_id — это app_user.id (PK) из get_current_user_id; используется
+    для conversation scope и для проброса в tool-функции.
+
     Протокол:
-    1. Получить/создать conversation
-    2. Сохранить user message в БД
+    1. Получить/создать conversation (per-user)
+    2. Сохранить user message в БД (с user_id)
     3. Получить историю (последние AI_MAX_CONTEXT_MESSAGES)
     4. Собрать messages с system prompt (cache_control)
     5. Стримить события от LLM
-    6. Обработать tool_call_complete → вызвать tool → добавить tool result
+    6. Обработать tool_call_complete → вызвать tool с user_id → добавить tool result
     7. Продолжить стриминг с tool result
     8. Сохранить assistant response в БД
     9. Отправить done
     """
     try:
-        # 1. Conversation persistence
-        conv = await conv_svc.get_or_create_conversation(db)
-        await conv_svc.append_message(db, conv.id, role="user", content=message)
+        # 1. Conversation persistence (scoped по user_id).
+        conv = await conv_svc.get_or_create_conversation(db, user_id=user_id)
+        await conv_svc.append_message(
+            db, conv.id, user_id=user_id, role="user", content=message
+        )
         await db.flush()
 
         # 2. История для LLM-контекста.
@@ -130,7 +146,7 @@ async def _event_stream(
         #   собственному предыдущему ответу ("242 630 рублей" → "у меня
         #   нет данных о вашем доходе").
         history_msgs = await conv_svc.get_recent_messages(
-            db, conv.id, limit=settings.AI_MAX_CONTEXT_MESSAGES
+            db, conv.id, user_id=user_id, limit=settings.AI_MAX_CONTEXT_MESSAGES
         )
         history_dicts: list[dict] = []
         synth_id = 0
@@ -241,7 +257,12 @@ async def _event_stream(
 
                 tool_fn = TOOL_FUNCTIONS.get(tool_name)
                 if tool_fn:
-                    tool_result = await tool_fn(db, **kwargs)
+                    # Phase 11: tool принимает user_id для tenant scoping.
+                    # Защита: kwargs из LLM может содержать user_id (LLM
+                    # не должна его выбирать, но schema это и не предлагает) —
+                    # stripping предотвращает override через TypeError.
+                    kwargs.pop("user_id", None)
+                    tool_result = await tool_fn(db, user_id=user_id, **kwargs)
                 else:
                     tool_result = {"error": f"Неизвестный инструмент: {tool_name}"}
 
@@ -269,6 +290,7 @@ async def _event_stream(
                 await conv_svc.append_message(
                     db,
                     conv.id,
+                    user_id=user_id,
                     role="tool",
                     tool_name=tool_name,
                     tool_result=tool_result_str,
@@ -288,7 +310,7 @@ async def _event_stream(
         full_response = "".join(assistant_content_parts)
         if full_response:
             await conv_svc.append_message(
-                db, conv.id, role="assistant", content=full_response
+                db, conv.id, user_id=user_id, role="assistant", content=full_response
             )
         await db.flush()
         yield f"data: {json.dumps({'type': 'done', 'data': ''})}\n\n"
@@ -300,15 +322,14 @@ async def _event_stream(
 @router.post("/chat")
 async def chat(
     body: ChatRequest,
-    current_user: Annotated[dict, Depends(get_current_user)],
-    db: AsyncSession = Depends(get_db),
+    db: Annotated[AsyncSession, Depends(get_db_with_tenant_scope)],
+    user_id: Annotated[int, Depends(get_current_user_id)],
 ) -> StreamingResponse:
     """POST /ai/chat — streaming SSE ответ (AI-03).
 
-    Rate limit: 30 req/мин → 429 + Retry-After (AI-10).
+    Phase 11: rate-limit bucket key — app_user.id (PK), не tg_user_id.
+    Rate limit: 10 req/мин → 429 + Retry-After (AI-10).
     """
-    user_id: int = current_user["id"]
-
     if _is_rate_limited(user_id):
         raise HTTPException(
             status_code=429,
@@ -328,18 +349,21 @@ async def chat(
 
 @router.get("/history", response_model=ChatHistoryResponse)
 async def get_history(
-    db: AsyncSession = Depends(get_db),
+    db: Annotated[AsyncSession, Depends(get_db_with_tenant_scope)],
+    user_id: Annotated[int, Depends(get_current_user_id)],
 ) -> ChatHistoryResponse:
     """GET /ai/history — история разговора (AI-06).
+
+    Phase 11: scoped по user_id — каждый user видит только свою историю.
 
     Возвращает только пользовательские и ассистент-сообщения с непустым
     текстом. Tool-сообщения и пустые assistant-плейсхолдеры (которые
     остаются в БД от tool-call round-trip) не показываются — иначе
     в UI рендерились бы пустые «bubble»-плашки.
     """
-    conv = await conv_svc.get_or_create_conversation(db)
+    conv = await conv_svc.get_or_create_conversation(db, user_id=user_id)
     msgs = await conv_svc.get_recent_messages(
-        db, conv.id, limit=settings.AI_MAX_CONTEXT_MESSAGES
+        db, conv.id, user_id=user_id, limit=settings.AI_MAX_CONTEXT_MESSAGES
     )
     return ChatHistoryResponse(
         messages=[
@@ -358,11 +382,15 @@ async def get_history(
 
 @router.delete("/conversation", status_code=204)
 async def clear_conversation(
-    db: AsyncSession = Depends(get_db),
+    db: Annotated[AsyncSession, Depends(get_db_with_tenant_scope)],
+    user_id: Annotated[int, Depends(get_current_user_id)],
 ) -> None:
-    """DELETE /ai/conversation — очистить историю разговора (AI-06)."""
-    conv = await conv_svc.get_or_create_conversation(db)
-    await conv_svc.clear_conversation(db, conv.id)
+    """DELETE /ai/conversation — очистить историю разговора (AI-06).
+
+    Phase 11: scoped по user_id.
+    """
+    conv = await conv_svc.get_or_create_conversation(db, user_id=user_id)
+    await conv_svc.clear_conversation(db, conv.id, user_id=user_id)
 
 
 @router.get("/usage", response_model=UsageResponse)

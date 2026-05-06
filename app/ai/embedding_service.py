@@ -8,6 +8,11 @@
 Phase 10.1: in-process LRU cache on embed_text дедуплицирует одинаковые
 запросы (повторные `/ai/suggest-category?q=...` от того же текста),
 снижая latency и расход на text-embedding-3-small.
+
+Phase 11 (Plan 11-06): upsert_category_embedding и suggest_category принимают
+``user_id`` keyword-only. CategoryEmbedding INSERT задаёт user_id явно
+(NOT NULL constraint в schema). suggest_category фильтрует embeddings по
+user_id (только свои категории влияют на suggestion).
 """
 from __future__ import annotations
 
@@ -73,6 +78,8 @@ class EmbeddingService:
     последних embed_text-результатов. Ключ — нормализованный текст
     (lowercased + strip), без TTL: на одной строке embedding-функция
     детерминирована, инвалидация не нужна.
+
+    Phase 11: upsert/suggest принимают user_id для tenant scoping.
     """
 
     def __init__(self, llm_client: AbstractLLMClient) -> None:
@@ -110,18 +117,33 @@ class EmbeddingService:
         db: AsyncSession,
         category_id: int,
         vector: list[float],
+        *,
+        user_id: int,
     ) -> None:
         """Сохраняет или обновляет embedding для категории.
+
+        Phase 11: user_id задаётся явно при INSERT и при ON CONFLICT UPDATE.
+        Caller отвечает за то, что category_id принадлежит user_id (PK на
+        category_id с CASCADE delete; user_id колонка на CategoryEmbedding —
+        NOT NULL после миграции 11-02).
 
         Использует INSERT ON CONFLICT UPDATE для идемпотентного upsert.
         updated_at автоматически обновляется триггером/server_default через NOW().
         """
         stmt = (
             pg_insert(CategoryEmbedding)
-            .values(category_id=category_id, embedding=vector)
+            .values(
+                category_id=category_id,
+                user_id=user_id,
+                embedding=vector,
+            )
             .on_conflict_do_update(
                 index_elements=["category_id"],
-                set_={"embedding": vector, "updated_at": text("now()")},
+                set_={
+                    "embedding": vector,
+                    "updated_at": text("now()"),
+                    "user_id": user_id,
+                },
             )
         )
         await db.execute(stmt)
@@ -130,8 +152,14 @@ class EmbeddingService:
         self,
         db: AsyncSession,
         description: str,
+        *,
+        user_id: int,
     ) -> dict | None:
         """Находит ближайшую категорию по cosine similarity.
+
+        Phase 11: scoped по user_id. Ищем только среди embeddings, принадлежащих
+        этому юзеру (CategoryEmbedding.user_id) и среди его активных категорий
+        (Category.user_id, is_archived = FALSE).
 
         Использует pgvector оператор <=> (cosine distance).
         confidence = 1 - cosine_distance.
@@ -148,7 +176,9 @@ class EmbeddingService:
         query_vec_literal = "[" + ",".join(repr(float(v)) for v in query_vec) + "]"
 
         # Cosine distance через pgvector <=> оператор
-        # confidence = 1 - distance (чем меньше расстояние, тем выше уверенность)
+        # confidence = 1 - distance (чем меньше расстояние, тем выше уверенность).
+        # Phase 11: фильтр по user_id — оба JOIN-партнёра имеют user_id колонку
+        # после Plan 11-02 / 11-03.
         stmt = text(
             """
             SELECT
@@ -158,11 +188,16 @@ class EmbeddingService:
             FROM category_embedding ce
             JOIN category c ON c.id = ce.category_id
             WHERE c.is_archived = FALSE
+              AND c.user_id = :user_id
+              AND ce.user_id = :user_id
             ORDER BY ce.embedding <=> CAST(:query_vec AS vector)
             LIMIT 1
             """
         )
-        result = await db.execute(stmt, {"query_vec": query_vec_literal})
+        result = await db.execute(
+            stmt,
+            {"query_vec": query_vec_literal, "user_id": user_id},
+        )
         row = result.fetchone()
 
         if row is None:

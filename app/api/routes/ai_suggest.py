@@ -2,6 +2,10 @@
 
 Использует EmbeddingService и cosine similarity через pgvector.
 Требует ENABLE_AI_CATEGORIZATION=True, иначе 404.
+
+Phase 11 (Plan 11-06): handler использует ``get_db_with_tenant_scope`` +
+``get_current_user_id``; embedding lookup scoped по user_id (только эмбеддинги
+текущего юзера учитываются при cosine similarity).
 """
 from __future__ import annotations
 
@@ -10,7 +14,11 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.dependencies import get_current_user, get_db
+from app.api.dependencies import (
+    get_current_user,
+    get_current_user_id,
+    get_db_with_tenant_scope,
+)
 from app.api.schemas.ai import SuggestCategoryResponse
 from app.ai.embedding_service import get_embedding_service
 
@@ -23,6 +31,8 @@ router = APIRouter(
 
 @router.get("/suggest-category", response_model=SuggestCategoryResponse)
 async def suggest_category(
+    db: Annotated[AsyncSession, Depends(get_db_with_tenant_scope)],
+    user_id: Annotated[int, Depends(get_current_user_id)],
     q: Annotated[
         str,
         Query(
@@ -31,10 +41,11 @@ async def suggest_category(
             description="Описание транзакции (≥3 символа — Phase 10.1 backend guard)",
         ),
     ],
-    current_user: Annotated[dict, Depends(get_current_user)],
-    db: Annotated[AsyncSession, Depends(get_db)],
 ) -> SuggestCategoryResponse:
     """Предлагает категорию для описания транзакции через AI cosine similarity.
+
+    Phase 11: scoped по user_id — embedding lookup только среди категорий
+    текущего юзера.
 
     Возвращает ближайшую категорию если confidence >= 0.5.
     Иначе возвращает {category_id: null, name: null, confidence: <value>}.
@@ -47,12 +58,14 @@ async def suggest_category(
     if not settings.ENABLE_AI_CATEGORIZATION:
         raise HTTPException(status_code=404, detail="AI categorization is disabled")
 
-    user_enabled = await settings_svc.get_enable_ai_categorization(db, current_user["id"])
+    user_enabled = await settings_svc.get_enable_ai_categorization(
+        db, user_id=user_id
+    )
     if not user_enabled:
         raise HTTPException(status_code=404, detail="AI categorization is disabled")
 
     service = get_embedding_service()
-    result = await service.suggest_category(db=db, description=q)
+    result = await service.suggest_category(db=db, description=q, user_id=user_id)
 
     if result is None:
         # Нет подходящей категории или низкая уверенность
