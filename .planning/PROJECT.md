@@ -38,18 +38,22 @@ Telegram Mini App для планирования и ведения месячн
 - AI cost cap не enforced (только observability через `GET /ai/usage`)
 - 11 deferred items (UAT/verification gaps, см. STATE.md)
 
-## Next Milestone Goals (v0.4 — Multi-Tenant & Admin)
+## Current Milestone: v0.4 Multi-Tenant & Admin
 
-Превратить single-tenant pet в multi-user приложение с whitelist-управлением через UI-админку. Owner управляет доступом сам, не через бот-команды.
+**Goal:** Превратить single-tenant pet в multi-user приложение с whitelist-управлением через UI-админку. Owner управляет доступом сам, не через бот-команды.
 
-**Scope:**
+**Target features:**
 - Multi-tenancy: `user_id` FK во всех доменных таблицах + Postgres RLS как defense-in-depth
-- Whitelist через `app_user.role` (owner / member / revoked); auth перестраивается с `OWNER_TG_ID`-eq на role-based
-- Admin-вкладка внутри «Управление» (видна только owner): UI по скетчам `010-admin-whitelist` + sub-tab «AI usage» с per-user breakdown
+- Role-based auth: `app_user.role` (owner / member / revoked); удаление `OWNER_TG_ID`-eq из dependencies; OWNER_TG_ID определяет owner-роль только при первом запуске
+- Admin UI tab в «Управление» (видна только owner): whitelist (по скетчам `010-admin-whitelist`) + AI usage sub-tab с per-user breakdown
 - Все админ-действия через UI (никаких `/invite` `/revoke` бот-команд)
-- Onboarding приглашённого: тот же scrollable-flow, юзер сам задаёт `starting_balance` и `cycle_start_day`; категории seed per-user
-- AI cost cap per user (`spending_cap_cents`, default $5/month) с enforcement и тестами
-- Revoke = hard delete + purge
+- Onboarding для приглашённых юзеров: scrollable-flow + per-user seed категорий; юзер сам задаёт `starting_balance` и `cycle_start_day`
+- AI cost cap per user (`spending_cap_cents`, default $5/month) с enforcement → 429 и тестами
+- Revoke = hard delete + purge всех данных юзера
+
+**Constraints:**
+- 5-50 пользователей, closed whitelist (без биллинга)
+- Phase numbering продолжается: v0.3 закончился на 10.2, v0.4 стартует с Phase 11
 
 ## Requirements
 
@@ -195,4 +199,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-06 after v0.3 milestone close*
+*Last updated: 2026-05-06 — v0.4 milestone started (Multi-Tenant & Admin)*

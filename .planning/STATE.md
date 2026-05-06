@@ -24,15 +24,16 @@ See: .planning/PROJECT.md (updated 2026-05-06 after v0.3 milestone close)
 
 ## Current Position
 
-Milestone: v0.4 (Planning) — Multi-Tenant & Admin
-Phase: TBD (run `/gsd-new-milestone v0.4` to create requirements + roadmap)
-Status: Planning
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-05-06 — Milestone v0.4 started
 
 Previous milestones:
 - v0.3 (Analytics & AI) — Complete 2026-05-06, 6 phases / 25 plans → archive `.planning/milestones/v0.3-*`
 - v0.2 (MVP) — Complete 2026-05-03, 6 phases / 38 plans → archived retroactively at v0.3 close
 
-Progress: [          ] 0% (milestone v0.4 not yet planned)
+Progress: [          ] 0% (milestone v0.4)
 
 ## Performance Metrics
 
