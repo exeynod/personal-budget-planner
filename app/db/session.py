@@ -25,3 +25,28 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
         except Exception:
             await session.rollback()
             raise
+
+
+async def set_tenant_scope(session: AsyncSession, user_id: int) -> None:
+    """Установить app.current_user_id GUC для текущей transaction (Phase 11 MUL-02).
+
+    Должно быть вызвано до любого query, который затрагивает доменные таблицы
+    (категории, периоды, транзакции, подписки, AI tables) — иначе RLS policy
+    coalesce(current_setting('app.current_user_id', true)::bigint, -1) даст -1
+    и query вернёт 0 строк.
+
+    SET LOCAL — transaction scope: при COMMIT/ROLLBACK значение сбрасывается.
+    Используется в:
+      - app/api/dependencies.py::get_db_with_tenant_scope (per-request).
+      - app/worker/jobs/* (per-tenant iteration через explicit set + commit per tenant).
+
+    Args:
+        session: AsyncSession в открытой transaction.
+        user_id: app_user.id (PK), не tg_user_id.
+    """
+    from sqlalchemy import text
+
+    await session.execute(
+        text("SET LOCAL app.current_user_id = :uid"),
+        {"uid": user_id},
+    )
