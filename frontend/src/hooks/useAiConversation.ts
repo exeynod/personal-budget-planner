@@ -7,7 +7,11 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { clearConversation, getChatHistory, streamChat } from '../api/ai';
-import type { AiStreamEvent, ChatMessageRead } from '../api/types';
+import type {
+  AiStreamEvent,
+  ChatMessageRead,
+  ProposalPayload,
+} from '../api/types';
 
 export interface UseAiConversationResult {
   messages: ChatMessageRead[];
@@ -15,8 +19,10 @@ export interface UseAiConversationResult {
   toolName: string | null;  // имя активного tool (для ToolUseIndicator)
   streamingText: string;    // частичный текст ответа AI во время стриминга
   error: string | null;
+  proposal: ProposalPayload | null; // pending bottom-sheet from AI
   sendMessage: (text: string) => void;
   clearHistory: () => Promise<void>;
+  dismissProposal: () => void;
 }
 
 export function useAiConversation(): UseAiConversationResult {
@@ -25,6 +31,7 @@ export function useAiConversation(): UseAiConversationResult {
   const [toolName, setToolName] = useState<string | null>(null);
   const [streamingText, setStreamingText] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [proposal, setProposal] = useState<ProposalPayload | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
   // Загрузить историю при монтировании (cancelled flag pattern)
@@ -72,6 +79,10 @@ export function useAiConversation(): UseAiConversationResult {
         setToolName(event.data);
       } else if (event.type === 'tool_end') {
         setToolName(null);
+      } else if (event.type === 'propose') {
+        // AI prepared an actual/planned txn — surface the bottom sheet
+        // for user review. Last one wins if AI proposes more in a row.
+        setProposal(event.data);
       } else if (event.type === 'error') {
         setError(event.data);
       }
@@ -105,7 +116,22 @@ export function useAiConversation(): UseAiConversationResult {
     setMessages([]);
     setStreamingText('');
     setError(null);
+    setProposal(null);
   }, []);
 
-  return { messages, streaming, toolName, streamingText, error, sendMessage, clearHistory };
+  const dismissProposal = useCallback(() => {
+    setProposal(null);
+  }, []);
+
+  return {
+    messages,
+    streaming,
+    toolName,
+    streamingText,
+    error,
+    proposal,
+    sendMessage,
+    clearHistory,
+    dismissProposal,
+  };
 }

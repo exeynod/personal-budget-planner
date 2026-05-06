@@ -259,6 +259,148 @@ async def get_forecast(db: AsyncSession) -> dict[str, Any]:
         return {"error": f"Ошибка прогноза: {exc}"}
 
 
+# ---------- Proposal tools (write intent, no DB writes) ----------
+#
+# These tools never touch the DB. They translate a natural-language
+# user intent ("занеси трату 500₽ в пятёрочке") into a structured
+# proposal payload that the route layer surfaces to the frontend
+# via a dedicated SSE 'propose' event. The user then reviews/edits
+# the prefilled form and confirms via the standard REST endpoints
+# (POST /actual or /planned). The AI never silently commits data —
+# user approval is the contract.
+
+
+async def _resolve_category(
+    db: AsyncSession,
+    description: str,
+    category_hint: str | None,
+) -> tuple[int | None, str | None, float]:
+    """Best-effort fuzzy category resolution via embeddings.
+
+    Combines description + category_hint into a single query string and
+    asks EmbeddingService.suggest_category — same pipeline used by the
+    UI suggest box. Returns (category_id, name, confidence). When nothing
+    is confident enough, all three are None/0.0 and the form will show
+    an empty select for the user to pick.
+    """
+    from app.ai.embedding_service import get_embedding_service
+
+    query = " ".join(part for part in (description, category_hint) if part).strip()
+    if not query:
+        return None, None, 0.0
+    try:
+        svc = get_embedding_service()
+        res = await svc.suggest_category(db, query)
+    except Exception:
+        return None, None, 0.0
+    if not res:
+        return None, None, 0.0
+    return res["category_id"], res["name"], float(res["confidence"])
+
+
+async def propose_actual_transaction(
+    db: AsyncSession,
+    *,
+    amount_rub: float,
+    kind: str = "expense",
+    description: str = "",
+    category_hint: str | None = None,
+    tx_date: str | None = None,
+) -> dict[str, Any]:
+    """Tool: подготовить факт-транзакцию для подтверждения пользователем.
+
+    Не пишет в БД. Возвращает proposal-объект; роут эмитит SSE
+    'propose'-событие, фронт открывает bottom-sheet с pre-filled полями.
+    """
+    from datetime import date as date_type
+
+    try:
+        amount_cents = int(round(float(amount_rub) * 100))
+    except (TypeError, ValueError):
+        return {"error": "Не удалось распознать сумму"}
+
+    if kind not in ("expense", "income"):
+        kind = "expense"
+
+    cat_id, cat_name, cat_conf = await _resolve_category(db, description, category_hint)
+
+    today = date_type.today()
+    if not tx_date:
+        parsed_date = today
+    else:
+        # Modèle gpt-4.1-nano нередко передаёт человеческие "сегодня" / "вчера"
+        # вместо ISO. Берём fallback — иначе backend POST /actual упадёт
+        # на parsing'е даты, и пользователь увидит сломанную форму.
+        lowered = tx_date.strip().lower()
+        if lowered in ("сегодня", "today"):
+            parsed_date = today
+        elif lowered in ("вчера", "yesterday"):
+            parsed_date = today - __import__("datetime").timedelta(days=1)
+        else:
+            try:
+                parsed_date = date_type.fromisoformat(tx_date)
+            except ValueError:
+                parsed_date = today
+    tx_date = parsed_date.isoformat()
+
+    return {
+        "_proposal": True,
+        "kind_of": "actual",
+        "txn": {
+            "amount_cents": amount_cents,
+            "kind": kind,
+            "description": description or category_hint or "",
+            "category_id": cat_id,
+            "category_name": cat_name,
+            "category_confidence": round(cat_conf, 3),
+            "tx_date": tx_date,
+        },
+    }
+
+
+async def propose_planned_transaction(
+    db: AsyncSession,
+    *,
+    amount_rub: float,
+    kind: str = "expense",
+    description: str = "",
+    category_hint: str | None = None,
+    day_of_period: int | None = None,
+) -> dict[str, Any]:
+    """Tool: подготовить плановую транзакцию для подтверждения пользователем."""
+    try:
+        amount_cents = int(round(float(amount_rub) * 100))
+    except (TypeError, ValueError):
+        return {"error": "Не удалось распознать сумму"}
+
+    if kind not in ("expense", "income"):
+        kind = "expense"
+
+    cat_id, cat_name, cat_conf = await _resolve_category(db, description, category_hint)
+
+    if day_of_period is not None:
+        try:
+            day_of_period = int(day_of_period)
+            if day_of_period < 1 or day_of_period > 31:
+                day_of_period = None
+        except (TypeError, ValueError):
+            day_of_period = None
+
+    return {
+        "_proposal": True,
+        "kind_of": "planned",
+        "txn": {
+            "amount_cents": amount_cents,
+            "kind": kind,
+            "description": description or category_hint or "",
+            "category_id": cat_id,
+            "category_name": cat_name,
+            "category_confidence": round(cat_conf, 3),
+            "day_of_period": day_of_period,
+        },
+    }
+
+
 # OpenAI function-calling schema for the 4 budget tools (AI-05).
 # Descriptions kept in English: Cyrillic tokenizes ~2.3× more tokens
 # in gpt-4.1-nano. Phase 10.1 cost optimization. The model still
@@ -324,6 +466,93 @@ TOOLS_SCHEMA: list[dict] = [
             "parameters": {"type": "object", "properties": {}, "required": []},
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "propose_actual_transaction",
+            "description": (
+                "Prepare an actual transaction for user confirmation when the user "
+                "asks to log/add/record an expense or income (занеси/добавь/запиши "
+                "трату или доход). Does NOT save — opens a prefilled form for the "
+                "user to review and approve."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "amount_rub": {
+                        "type": "number",
+                        "description": "Amount in rubles (e.g. 500 for 500 ₽).",
+                    },
+                    "kind": {
+                        "type": "string",
+                        "enum": ["expense", "income"],
+                        "description": "expense (default) or income.",
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": (
+                            "Free-form description from the user "
+                            "(e.g. 'Пятёрочка', 'обед в кафе')."
+                        ),
+                    },
+                    "category_hint": {
+                        "type": "string",
+                        "description": (
+                            "Optional category name hint from the user "
+                            "(e.g. 'Продукты'). Server resolves to closest match."
+                        ),
+                    },
+                    "tx_date": {
+                        "type": "string",
+                        "description": (
+                            "ISO date YYYY-MM-DD. Omit for today. "
+                            "Use 'сегодня' = today, 'вчера' = today minus 1."
+                        ),
+                    },
+                },
+                "required": ["amount_rub"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "propose_planned_transaction",
+            "description": (
+                "Prepare a PLANNED transaction (budget line item) for user "
+                "confirmation when the user asks to add to the monthly plan "
+                "(добавь в план / запланируй). Does NOT save — opens a prefilled "
+                "form for review."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "amount_rub": {
+                        "type": "number",
+                        "description": "Amount in rubles.",
+                    },
+                    "kind": {
+                        "type": "string",
+                        "enum": ["expense", "income"],
+                        "description": "expense (default) or income.",
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "Optional plan-line description.",
+                    },
+                    "category_hint": {
+                        "type": "string",
+                        "description": "Category name hint; resolved fuzzy.",
+                    },
+                    "day_of_period": {
+                        "type": "integer",
+                        "description": "Day-of-month 1..31 the line falls on. Omit if unspecified.",
+                    },
+                },
+                "required": ["amount_rub"],
+            },
+        },
+    },
 ]
 
 # Маппинг имя tool -> функция для вызова в route handler
@@ -332,4 +561,6 @@ TOOL_FUNCTIONS = {
     "get_category_summary": get_category_summary,
     "query_transactions": query_transactions,
     "get_forecast": get_forecast,
+    "propose_actual_transaction": propose_actual_transaction,
+    "propose_planned_transaction": propose_planned_transaction,
 }

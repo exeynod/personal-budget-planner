@@ -245,6 +245,23 @@ async def _event_stream(
                 else:
                     tool_result = {"error": f"Неизвестный инструмент: {tool_name}"}
 
+                # Proposal-tool: surface payload to frontend as a dedicated
+                # SSE event so it can open a prefilled bottom-sheet for the
+                # user to review/edit/approve. The same payload still goes
+                # back to the LLM as the tool result (so the model can
+                # acknowledge "подготовил, проверь форму") but with the
+                # internal _proposal flag stripped to keep its context tidy.
+                if isinstance(tool_result, dict) and tool_result.get("_proposal"):
+                    yield (
+                        "data: "
+                        + json.dumps(
+                            {"type": "propose", "data": tool_result},
+                            ensure_ascii=False,
+                            default=str,
+                        )
+                        + "\n\n"
+                    )
+
                 tool_result_str = json.dumps(
                     tool_result, ensure_ascii=False, default=str
                 )

@@ -13,6 +13,7 @@ import { Sparkle, Trash } from '@phosphor-icons/react';
 import { ChatMessage } from '../components/ChatMessage';
 import { PageTitle } from '../components/PageTitle';
 import { ToolUseIndicator } from '../components/ToolUseIndicator';
+import { AiProposalSheet } from '../components/AiProposalSheet';
 import type { UseAiConversationResult } from '../hooks/useAiConversation';
 import type { ChatMessageRead } from '../api/types';
 import styles from './AiScreen.module.css';
@@ -33,8 +34,10 @@ export function AiScreen({
   toolName,
   streamingText,
   error,
+  proposal,
   sendMessage,
   clearHistory,
+  dismissProposal,
 }: AiScreenProps) {
   const [input, setInput] = useState('');
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -199,6 +202,9 @@ export function AiScreen({
           <Sparkle size={20} weight="fill" color={streaming || !input.trim() ? '#999' : '#a78bfa'} />
         </button>
       </div>
+
+      {/* AI proposal review sheet — opens when SSE delivered a propose event. */}
+      <AiProposalSheet proposal={proposal} onClose={dismissProposal} />
     </div>
   );
 }

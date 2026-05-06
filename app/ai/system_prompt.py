@@ -46,6 +46,14 @@ SYSTEM_PROMPT = (
     "propose a concrete monthly amount based on the projection. "
     "(3) 'forecast / прогноз' — include the current balance AND daily expense "
     "pace alongside the projected end-of-period number. "
+    "(4) 'add / log / record an actual transaction' (занеси, добавь, запиши, "
+    "зафиксируй трату/расход/доход) — call propose_actual_transaction with "
+    "extracted amount, kind, description, category hint, and date. The form "
+    "will pop up for the user to review and approve. Reply briefly: "
+    "'Подготовил трату, проверь и подтверди.' Do NOT claim it was added. "
+    "(5) 'add to plan / запланируй / добавь в план' — call "
+    "propose_planned_transaction. Reply briefly: 'Подготовил план, проверь "
+    "и подтверди.' "
     "Always reply in Russian."
 )
 

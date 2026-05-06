@@ -323,9 +323,53 @@ export interface ChatHistoryResponse {
   messages: ChatMessageRead[];
 }
 
-export type AiEventType = 'token' | 'tool_start' | 'tool_end' | 'done' | 'error';
+export type AiEventType =
+  | 'token'
+  | 'tool_start'
+  | 'tool_end'
+  | 'propose'
+  | 'done'
+  | 'error';
 
-export interface AiStreamEvent {
-  type: AiEventType;
-  data: string;
+export interface ActualProposalTxn {
+  amount_cents: number;
+  kind: 'expense' | 'income';
+  description: string;
+  category_id: number | null;
+  category_name: string | null;
+  category_confidence: number;
+  tx_date: string; // ISO date
 }
+
+export interface PlannedProposalTxn {
+  amount_cents: number;
+  kind: 'expense' | 'income';
+  description: string;
+  category_id: number | null;
+  category_name: string | null;
+  category_confidence: number;
+  day_of_period: number | null;
+}
+
+export interface ActualProposalPayload {
+  _proposal: true;
+  kind_of: 'actual';
+  txn: ActualProposalTxn;
+}
+
+export interface PlannedProposalPayload {
+  _proposal: true;
+  kind_of: 'planned';
+  txn: PlannedProposalTxn;
+}
+
+export type ProposalPayload = ActualProposalPayload | PlannedProposalPayload;
+
+// Discriminated union: 'propose' carries an object, others a string.
+export type AiStreamEvent =
+  | { type: 'token'; data: string }
+  | { type: 'tool_start'; data: string }
+  | { type: 'tool_end'; data: string }
+  | { type: 'propose'; data: ProposalPayload }
+  | { type: 'done'; data: string }
+  | { type: 'error'; data: string };
