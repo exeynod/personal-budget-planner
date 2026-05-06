@@ -81,8 +81,12 @@ async def _refresh_embedding(category_id: int, name: str) -> None:
     from app.db.session import AsyncSessionLocal
 
     try:
+        from app.ai.embedding_service import augment_category_name_for_embedding
+
         embedding_svc = get_embedding_service()
-        vector = await embedding_svc.embed_text(name)
+        vector = await embedding_svc.embed_text(
+            augment_category_name_for_embedding(name)
+        )
         async with AsyncSessionLocal() as session:
             await embedding_svc.upsert_category_embedding(session, category_id, vector)
             # AsyncSession's async-with does NOT auto-commit on exit

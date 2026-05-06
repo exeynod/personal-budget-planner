@@ -22,6 +22,8 @@ logger = logging.getLogger(__name__)
 # (≥1024 prompt tokens — currently we don't hit this threshold).
 _PRICING_PER_M = {
     "gpt-4.1-nano": {"input": 0.10, "cached_input": 0.025, "output": 0.40},
+    "gpt-4.1-mini": {"input": 0.40, "cached_input": 0.10, "output": 1.60},
+    "gpt-4.1": {"input": 2.00, "cached_input": 0.50, "output": 8.00},
     "gpt-4o-mini": {"input": 0.15, "cached_input": 0.075, "output": 0.60},
 }
 

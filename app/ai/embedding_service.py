@@ -26,15 +26,42 @@ if TYPE_CHECKING:
     pass
 
 EMBEDDING_DIM = 1536
-# Cosine-similarity floor below which we don't surface a suggestion.
-# Calibrated empirically against text-embedding-3-small on Russian
-# single-word descriptions ("Хоккей"→Спорт=0.38, "такси"→Транспорт=0.37,
-# "лекарство"→Здоровье=0.35) — picked at 0.35 so common short probes
-# pass while pure gibberish ("qwertyuiop"=0.18, "asdfgh"=0.20) is
-# still rejected. Originally 0.5 in Phase 10 (too strict, killed
-# real suggestions). Tune downward only if we add synonym-augmented
-# embeddings to lift relevant short-text scores.
 SUGGEST_THRESHOLD = 0.35
+
+# Default synonym packs for seed-category names. Embedding the category
+# together with these short related terms ("Продукты: еда, магазин,
+# пятёрочка, перекрёсток…") lifts cosine similarity for short Russian
+# probes from ~0.30 (where the bare name barely beats noise) into
+# 0.45-0.65 territory, where SUGGEST_THRESHOLD=0.35 reliably fires.
+# Lookup is by lowercase name so it survives renames that only change
+# capitalization. Categories without a default pack just use the bare
+# name — no breakage, only suboptimal recall on short input.
+_CATEGORY_SYNONYMS: dict[str, str] = {
+    "продукты": "еда, магазин, пятёрочка, перекрёсток, лента, ашан, магнит, продуктовый",
+    "кафе и рестораны": "кафе, ресторан, кофе, обед, ужин, завтрак, бар, доставка еды",
+    "транспорт": "такси, бензин, метро, автобус, парковка, проезд, автобусный, поездка",
+    "развлечения": "кино, концерт, парк, аттракционы, шоу, ивент, билеты на мероприятие",
+    "здоровье": "аптека, врач, лекарства, анализы, стоматолог, клиника, медицина",
+    "спорт": "тренажёрный зал, абонемент, бассейн, тренировка, фитнес, йога, хоккей, футбол",
+    "книги": "литература, читалка, букмейт, литрес, kindle",
+    "подарки": "цветы, сувенир, презент, день рождения",
+    "зарплата": "оклад, премия, дивиденды, доход с работы",
+    "сервисы": "подписки, netflix, spotify, интернет, мобильная связь, hosting",
+}
+
+
+def augment_category_name_for_embedding(name: str) -> str:
+    """Return the embedding-source string for a category name.
+
+    Adds short synonym hints when the name matches a known seed category.
+    The result is what gets sent to text-embedding-3-small, NOT what's
+    shown to the user — display name (`category.name`) stays untouched.
+    """
+    key = (name or "").strip().lower()
+    syn = _CATEGORY_SYNONYMS.get(key)
+    if not syn:
+        return name
+    return f"{name}: {syn}"
 
 _EMBED_CACHE_MAXSIZE = 128
 

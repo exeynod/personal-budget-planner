@@ -50,7 +50,10 @@ async def _init_missing_embeddings() -> None:
         return
 
     try:
-        from app.ai.embedding_service import get_embedding_service
+        from app.ai.embedding_service import (
+            augment_category_name_for_embedding,
+            get_embedding_service,
+        )
 
         embedding_svc = get_embedding_service()
 
@@ -77,7 +80,9 @@ async def _init_missing_embeddings() -> None:
             generated = 0
             for cat in missing:
                 try:
-                    vector = await embedding_svc.embed_text(cat.name)
+                    vector = await embedding_svc.embed_text(
+                        augment_category_name_for_embedding(cat.name)
+                    )
                     await embedding_svc.upsert_category_embedding(session, cat.id, vector)
                     generated += 1
                 except Exception:

@@ -273,19 +273,20 @@ async def get_forecast(db: AsyncSession) -> dict[str, Any]:
 async def _resolve_category(
     db: AsyncSession,
     description: str,
-    category_hint: str | None,
 ) -> tuple[int | None, str | None, float]:
     """Best-effort fuzzy category resolution via embeddings.
 
-    Combines description + category_hint into a single query string and
-    asks EmbeddingService.suggest_category — same pipeline used by the
-    UI suggest box. Returns (category_id, name, confidence). When nothing
-    is confident enough, all three are None/0.0 and the form will show
-    an empty select for the user to pick.
+    Resolves the category from the user-provided description ONLY —
+    not from any hint the LLM might invent. gpt-4.1-nano frequently
+    hallucinates a wrong category name (e.g. 'Здоровье' for 'Кофе на
+    работе') because category names appear in the system prompt and
+    bleed through attention. Letting the model influence the embedding
+    query poisoned the resolver. The form falls back to an empty
+    select if confidence is below threshold — user picks manually.
     """
     from app.ai.embedding_service import get_embedding_service
 
-    query = " ".join(part for part in (description, category_hint) if part).strip()
+    query = (description or "").strip()
     if not query:
         return None, None, 0.0
     try:
@@ -304,13 +305,15 @@ async def propose_actual_transaction(
     amount_rub: float,
     kind: str = "expense",
     description: str = "",
-    category_hint: str | None = None,
     tx_date: str | None = None,
+    **_ignored: Any,
 ) -> dict[str, Any]:
     """Tool: подготовить факт-транзакцию для подтверждения пользователем.
 
     Не пишет в БД. Возвращает proposal-объект; роут эмитит SSE
     'propose'-событие, фронт открывает bottom-sheet с pre-filled полями.
+    Дополнительные kwargs (например устаревший category_hint от старого
+    schema) игнорируются.
     """
     from datetime import date as date_type
 
@@ -322,7 +325,7 @@ async def propose_actual_transaction(
     if kind not in ("expense", "income"):
         kind = "expense"
 
-    cat_id, cat_name, cat_conf = await _resolve_category(db, description, category_hint)
+    cat_id, cat_name, cat_conf = await _resolve_category(db, description)
 
     today = date_type.today()
     if not tx_date:
@@ -364,8 +367,8 @@ async def propose_planned_transaction(
     amount_rub: float,
     kind: str = "expense",
     description: str = "",
-    category_hint: str | None = None,
     day_of_period: int | None = None,
+    **_ignored: Any,
 ) -> dict[str, Any]:
     """Tool: подготовить плановую транзакцию для подтверждения пользователем."""
     try:
@@ -376,7 +379,7 @@ async def propose_planned_transaction(
     if kind not in ("expense", "income"):
         kind = "expense"
 
-    cat_id, cat_name, cat_conf = await _resolve_category(db, description, category_hint)
+    cat_id, cat_name, cat_conf = await _resolve_category(db, description)
 
     if day_of_period is not None:
         try:
@@ -492,14 +495,9 @@ TOOLS_SCHEMA: list[dict] = [
                         "type": "string",
                         "description": (
                             "Free-form description from the user "
-                            "(e.g. 'Пятёрочка', 'обед в кафе')."
-                        ),
-                    },
-                    "category_hint": {
-                        "type": "string",
-                        "description": (
-                            "Optional category name hint from the user "
-                            "(e.g. 'Продукты'). Server resolves to closest match."
+                            "(e.g. 'Пятёрочка', 'обед в кафе'). The server "
+                            "resolves the category from this string — "
+                            "do NOT pass a category name yourself."
                         ),
                     },
                     "tx_date": {
@@ -538,11 +536,11 @@ TOOLS_SCHEMA: list[dict] = [
                     },
                     "description": {
                         "type": "string",
-                        "description": "Optional plan-line description.",
-                    },
-                    "category_hint": {
-                        "type": "string",
-                        "description": "Category name hint; resolved fuzzy.",
+                        "description": (
+                            "Free-form description (e.g. 'абонемент в зал'). "
+                            "Server resolves the category from this string — "
+                            "do NOT pass a category name yourself."
+                        ),
                     },
                     "day_of_period": {
                         "type": "integer",
