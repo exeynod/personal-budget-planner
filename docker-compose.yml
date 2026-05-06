@@ -123,6 +123,8 @@ services:
       DATABASE_URL_SYNC: postgresql://budget_app:${BUDGET_APP_PASSWORD}@db:5432/budget_db
       # Admin: budget (SUPERUSER) — used by alembic for DDL via entrypoint.sh.
       ADMIN_DATABASE_URL: postgresql+asyncpg://budget:${DB_PASSWORD}@db:5432/budget_db
+      # Passed through for alembic 0007 ALTER ROLE ... PASSWORD step.
+      BUDGET_APP_PASSWORD: ${BUDGET_APP_PASSWORD}
       BOT_TOKEN: ${BOT_TOKEN}
       OWNER_TG_ID: ${OWNER_TG_ID}
       INTERNAL_TOKEN: ${INTERNAL_TOKEN}
@@ -179,6 +181,8 @@ services:
       DATABASE_URL_SYNC: postgresql://budget_app:${BUDGET_APP_PASSWORD}@db:5432/budget_db
       # Admin: budget (SUPERUSER) — used by alembic for DDL via entrypoint.sh.
       ADMIN_DATABASE_URL: postgresql+asyncpg://budget:${DB_PASSWORD}@db:5432/budget_db
+      # Passed through for alembic 0007 ALTER ROLE ... PASSWORD step.
+      BUDGET_APP_PASSWORD: ${BUDGET_APP_PASSWORD}
       BOT_TOKEN: ${BOT_TOKEN}
       OWNER_TG_ID: ${OWNER_TG_ID}
       INTERNAL_TOKEN: ${INTERNAL_TOKEN}
@@ -216,6 +220,8 @@ services:
       DATABASE_URL_SYNC: postgresql://budget_app:${BUDGET_APP_PASSWORD}@db:5432/budget_db
       # Admin: budget (SUPERUSER) — used by alembic for DDL via entrypoint.sh.
       ADMIN_DATABASE_URL: postgresql+asyncpg://budget:${DB_PASSWORD}@db:5432/budget_db
+      # Passed through for alembic 0007 ALTER ROLE ... PASSWORD step.
+      BUDGET_APP_PASSWORD: ${BUDGET_APP_PASSWORD}
       # BOT_TOKEN + OWNER_TG_ID required by notify_subscriptions_job:
       # it instantiates aiogram Bot to push subscription reminders at 09:00
       # Europe/Moscow (SUB-03, D-81). Without these the worker started
