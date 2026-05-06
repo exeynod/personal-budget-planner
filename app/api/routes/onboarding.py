@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_current_user, get_db
+from app.db.models import AppUser
 from app.api.schemas.onboarding import (
     OnboardingCompleteRequest,
     OnboardingCompleteResponse,
@@ -40,7 +41,7 @@ onboarding_router = APIRouter(
 )
 async def complete_onboarding(
     body: OnboardingCompleteRequest,
-    current_user: Annotated[dict, Depends(get_current_user)],
+    current_user: Annotated[AppUser, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> OnboardingCompleteResponse:
     """POST /api/v1/onboarding/complete — atomic seed + first period + flag user.
@@ -55,7 +56,7 @@ async def complete_onboarding(
     try:
         result = await onb_svc.complete_onboarding(
             db,
-            tg_user_id=current_user["id"],
+            tg_user_id=current_user.tg_user_id,
             starting_balance_cents=body.starting_balance_cents,
             cycle_start_day=body.cycle_start_day,
             seed_default_categories=body.seed_default_categories,
