@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v0.4
 milestone_name: — Multi-Tenant & Admin
 status: executing
-last_updated: "2026-05-06T17:05:00.000Z"
-last_activity: 2026-05-06 -- Phase 11 Plan 06 completed (services+routes PART B — actuals/subs/analytics/AI/internal_bot scoped + worker per-tenant iteration)
+last_updated: "2026-05-06T20:18:00.000Z"
+last_activity: 2026-05-06 -- Phase 11 Plan 07 completed (verification: 14 integration tests passing + 11-VERIFICATION.md status=human_needed)
 progress:
   total_phases: 5
   completed_phases: 0
   total_plans: 7
-  completed_plans: 5
-  percent: 14
+  completed_plans: 7
+  percent: 20
 ---
 
 # Project State
@@ -24,35 +24,35 @@ See: .planning/PROJECT.md (updated 2026-05-06 after v0.3 milestone close)
 
 ## Current Position
 
-Phase: 11 — Multi-Tenancy DB Migration & RLS (in progress, 5/7 plans done)
-Plan: 11-06 (services+routes PART B + worker per-tenant) — completed 2026-05-06
-Status: Plans 11-02, 11-03, 11-04, 11-05, 11-06 done. Plan 11-01 (RED tests + 2-tenant fixture) and 11-07 (integration verify) pending.
-Last activity: 2026-05-06 — app/services/{actual,subscriptions,analytics,ai_conversation_service,internal_bot}.py + 6 routes + 2 AI helpers + 3 worker jobs scoped by user_id (MUL-03/MUL-04)
+Phase: 11 — Multi-Tenancy DB Migration & RLS (functionally complete; verification status=human_needed)
+Plan: 11-07 (integration verify + 11-VERIFICATION.md) — completed 2026-05-06
+Status: All 7 plans of Phase 11 done. 14 new integration tests passing; alembic upgrade/downgrade/upgrade cycle verified on dev DB; 11-VERIFICATION.md awaits live TG MiniApp smoke sign-off (status=human_needed). Phase 11 ready for Phase 12 hand-off (with D-11-07-01 + D-11-07-02 as Phase 12 prerequisites).
+Last activity: 2026-05-06 — tests/conftest.py + 3 test files filled with real assertions; three Rule-1 production bugs fixed (alembic version-num length, set_tenant_scope SQL bind, RLS NULLIF); 11-VERIFICATION.md created.
 
 Previous milestones:
 - v0.3 (Analytics & AI) — Complete 2026-05-06, 6 phases / 25 plans → archive `.planning/milestones/v0.3-*`
 - v0.2 (MVP) — Complete 2026-05-03, 6 phases / 38 plans → archived retroactively at v0.3 close
 
-Progress: [##        ] 14% (milestone v0.4, 0/5 phases complete; 5/7 plans of Phase 11 done)
+Progress: [##        ] 20% (milestone v0.4, 0/5 phases complete; 7/7 plans of Phase 11 done — verification human_needed)
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 5
+- Total plans completed: 7
 - Average duration: ~12 min
-- Total execution time: ~1 hour
+- Total execution time: ~1.5 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 11 | 5 | ~59 min | ~12 min |
+| 11 | 7 | ~84 min | ~12 min |
 
 **Recent Trend:**
 
-- Last 5 plans: 11-06 (~19 min, 16 files, 4 commits), 11-05 (~30 min, 9 files, 3 commits), 11-04 (~3 min, 3 files, 3 commits), 11-03 (~3 min, 1 file, 1 commit), 11-02 (~5 min, 1 file, 3 commits)
-- Trend: Phase 11 Wave 4 in progress; 11-05 PART A + 11-06 PART B done in parallel; 11-07 integration verify next
+- Last 5 plans: 11-07 (~25 min, 7 files, 5 commits, 14 integration tests + VERIFICATION.md), 11-06 (~19 min, 16 files, 4 commits), 11-05 (~30 min, 9 files, 3 commits), 11-04 (~3 min, 3 files, 3 commits), 11-03 (~3 min, 1 file, 1 commit)
+- Trend: Phase 11 functionally complete; 14/14 new integration tests pass; verification status=human_needed (live TG smoke pending)
 
 *Updated after each plan completion*
 
@@ -74,6 +74,7 @@ Recent decisions affecting v0.4 planning:
 - 11-03 (2026-05-06): ORM models mirror migration 0006 exactly — UserRole(str, Enum) lowercase values; PgEnum(create_type=False) для reuse migration-created type; user_id placed last (preserves column order); BudgetPeriod.period_start unique перенесён в __table_args__; AppUser→domain back-refs не добавлены (one-way, по discretion); AppHealth не модифицирован (system table)
 - 11-05 (2026-05-06): Service signatures `*, user_id: int` keyword-only — caller cannot accidentally swap with another int positional; mypy/Pylance flag missing kwarg loudly. App-side filtering primary, RLS backstop. settings.py + routes/onboarding.py NOT changed (AppUser-only / Phase 14 future redesign). Cross-tenant ID access returns 404 (no existence leak). Bug fixes: snapshot_from_period DELETE was unscoped (would have wiped all tenants) — fixed; templates+planned `db.get(Model, id)` replaced with select+where for explicit scope.
 - 11-06 (2026-05-06): Worker per-tenant pattern — outer session for active-users enumeration → per-user inner session with set_tenant_scope → scoped logic; advisory lock global per job (NOT per user). Internal-bot routes keep get_db (X-Internal-Token, no initData); service resolves user_id from tg_user_id INSIDE service then set_tenant_scope. AI conversation per-user (AiConversation row per app_user.id). AI tool dispatch strips user_id from LLM kwargs (defence: LLM cannot override). Settings bypass via direct AppUser column read (Plan 11-05 left settings.py with tg_user_id signature — direct PK read in my files is cleanest fix). Bug fix: ai/tools.py propose_actual/planned_transaction had NameError reference to deleted `category_hint` — replaced with `description or ""`.
+- 11-07 (2026-05-06): Integration verification flushed three production Rule-1 bugs: (1) alembic revision_id 0006_multitenancy_user_id_rls_role (34 chars) > version_num VARCHAR(32) → renamed to 0006_multitenancy; (2) set_tenant_scope used parameterised SET LOCAL (not allowed) → switched to SELECT set_config('app.current_user_id', :uid, true); (3) RLS policy cast '' to bigint when GUC unset → wrapped with NULLIF(..., '')::bigint. Test infra: dev/prod DB role 'budget' is SUPERUSER (bypasses RLS); _rls_test_role conftest fixture provisions NOSUPERUSER NOBYPASSRLS role used via SET LOCAL ROLE so RLS-enforcement tests verify policies actually fire. D-11-04-01 RESOLVED. D-11-07-01 (legacy fixture sweep, ~63 tests) + D-11-07-02 (move runtime off superuser) deferred to Phase 12 prerequisites.
 
 ### Pending Todos
 
@@ -106,6 +107,6 @@ Items acknowledged and deferred at v0.3 milestone close on 2026-05-06:
 
 ## Session Continuity
 
-Last session: 2026-05-06T17:05:00.000Z
-Stopped at: Plan 11-06 complete (services+routes PART B — actuals, subs, analytics, AI, internal_bot scoped + 3 worker jobs per-tenant)
-Resume file: .planning/phases/11-multi-tenancy-db-migration/11-07-PLAN.md (integration verify) or 11-01-PLAN.md (RED tests + 2-tenant fixture, can run in parallel)
+Last session: 2026-05-06T20:18:00.000Z
+Stopped at: Plan 11-07 complete (integration verification — 14 tests passing, 11-VERIFICATION.md status=human_needed pending live TG MiniApp smoke)
+Resume file: Phase 12 (auth refactor) entry plan — but first address D-11-07-01 (legacy fixture sweep) and D-11-07-02 (non-superuser app role) as prerequisites; or sign off live TG smoke and flip 11-VERIFICATION.md status=passed.

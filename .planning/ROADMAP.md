@@ -38,7 +38,7 @@
 
 ### 🚧 v0.4 Multi-Tenant & Admin (Active)
 
-- [ ] **Phase 11: Multi-Tenancy DB Migration & RLS** — `user_id` FK во всех доменных таблицах + Postgres RLS + `app_user.role` колонка с backfill для существующего owner
+- [~] **Phase 11: Multi-Tenancy DB Migration & RLS** — `user_id` FK во всех доменных таблицах + Postgres RLS + `app_user.role` колонка с backfill для существующего owner — 7/7 plans complete; verification status=human_needed (live TG MiniApp smoke pending)
 - [ ] **Phase 12: Role-Based Auth Refactor** — auth-dependencies переключены с `OWNER_TG_ID`-eq на `app_user.role`; `/me` отдаёт role; `require_owner` для admin endpoints
 - [ ] **Phase 13: Admin UI — Whitelist & AI Usage** — вкладка «Доступ» в «Управление» (только owner): список юзеров + invite/revoke + AI usage sub-tab с per-user breakdown
 - [ ] **Phase 14: Multi-Tenant Onboarding** — invite-flow для `role=member` юзеров: bot bind → starting_balance → cycle_start_day → seed 14 категорий per-user + автогенерация embeddings
@@ -57,13 +57,13 @@
   4. `app_user` имеет колонку `role` (enum `owner` / `member` / `revoked`, default `member`); миграция установила `role=owner` для существующего OWNER_TG_ID-юзера.
   5. Все Python-слой queries фильтруют по `user_id` явно; интеграционный тест с двумя seed-юзерами подтверждает: юзер A не видит данных юзера B (даже при попытке обхода через прямой ID).
 **Plans:** 7 plans
-- [ ] 11-01-PLAN.md — RED tests + 2-tenant fixture skeleton (Wave 1, parallel with 11-02)
+- [x] 11-01-PLAN.md — RED tests + 2-tenant fixture skeleton (Wave 1, parallel with 11-02) — completed 2026-05-06
 - [x] 11-02-PLAN.md — Alembic single revision: enum + role + user_id + backfill + RLS + uniques + indexes (Wave 1, parallel with 11-01) — completed 2026-05-06
 - [x] 11-03-PLAN.md — ORM models update (Mapped[user_id] + UserRole enum) (Wave 2) — completed 2026-05-06
 - [x] 11-04-PLAN.md — Dependencies refactor (get_current_user_id + SET LOCAL) + dev_seed role=owner (Wave 3) — completed 2026-05-06
 - [x] 11-05-PLAN.md — Service+route refactor part A (categories, periods, templates, planned, onboarding, settings) (Wave 4, parallel with 11-06) — completed 2026-05-06
 - [x] 11-06-PLAN.md — Service+route refactor part B (actuals, subs, analytics, AI, internal_bot, worker) (Wave 4, parallel with 11-05) — completed 2026-05-06
-- [ ] 11-07-PLAN.md — Verification: fill RED tests + manual UAT + 11-VERIFICATION.md (Wave 5, has human checkpoint)
+- [x] 11-07-PLAN.md — Verification: fill RED tests + manual UAT + 11-VERIFICATION.md (Wave 5, has human checkpoint) — completed 2026-05-06; status=human_needed (live TG smoke pending)
 **UI hint**: no
 
 ### Phase 12: Role-Based Auth Refactor

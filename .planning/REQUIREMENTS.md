@@ -7,15 +7,15 @@
 
 ### Multi-Tenancy Core
 
-- [ ] **MUL-01**: Все доменные таблицы (`category`, `budget_period`, `plan_template_item`, `planned_transaction`, `actual_transaction`, `subscription`, `category_embedding`, `ai_conversation`, `ai_message`) имеют `user_id BIGINT NOT NULL FK → app_user.id`
-- [ ] **MUL-02**: Postgres Row-Level Security (RLS) policies на всех доменных таблицах — `user_id = current_setting('app.current_user_id')::bigint` (defense-in-depth)
-- [x] **MUL-03**: Все API queries фильтруют по `user_id` пользователя в Python-слое; RLS как backup (никогда не полагаемся только на RLS) — Plan 11-05 PART A (categories, periods, templates, planned, onboarding) + Plan 11-06 PART B (actuals/subs/analytics/AI/internal_bot/worker) complete
-- [x] **MUL-04**: Уникальные constraints с `user_id`: `category(user_id, name)`, `subscription(user_id, name)`, `plan_template_item(user_id, category_id, ...)` — вместо глобальных — established in 11-02 alembic 0006, services use scoped queries since 11-05/11-06
-- [ ] **MUL-05**: Alembic-миграция выполняет backfill `user_id = (SELECT id FROM app_user WHERE tg_user_id = OWNER_TG_ID)` на существующих данных, потом устанавливает NOT NULL constraints
+- [x] **MUL-01**: Все доменные таблицы (`category`, `budget_period`, `plan_template_item`, `planned_transaction`, `actual_transaction`, `subscription`, `category_embedding`, `ai_conversation`, `ai_message`) имеют `user_id BIGINT NOT NULL FK → app_user.id` — alembic 0006 + ORM models; verified by test_user_id_backfilled_to_owner (Plan 11-07)
+- [x] **MUL-02**: Postgres Row-Level Security (RLS) policies на всех доменных таблицах — `user_id = current_setting('app.current_user_id')::bigint` (defense-in-depth) — alembic 0006 ENABLE/FORCE ROW LEVEL SECURITY + 9 POLICY rows; verified by test_rls_* (Plan 11-07). Caveat: runtime postgres role is currently superuser → bypasses RLS at runtime; tracked as D-11-07-02 for Phase 12. Policies enforce correctly under non-superuser context (verified).
+- [x] **MUL-03**: Все API queries фильтруют по `user_id` пользователя в Python-слое; RLS как backup (никогда не полагаемся только на RLS) — Plan 11-05 PART A (categories, periods, templates, planned, onboarding) + Plan 11-06 PART B (actuals/subs/analytics/AI/internal_bot/worker) complete; verified by test_user_a_* in test_multitenancy_isolation.py (Plan 11-07)
+- [x] **MUL-04**: Уникальные constraints с `user_id`: `category(user_id, name)`, `subscription(user_id, name)`, `plan_template_item(user_id, category_id, ...)` — вместо глобальных — established in 11-02 alembic 0006, services use scoped queries since 11-05/11-06; verified by test_unique_category_name_scoped_per_user + test_category_unique_scoped_per_user (Plan 11-07)
+- [x] **MUL-05**: Alembic-миграция выполняет backfill `user_id = (SELECT id FROM app_user WHERE tg_user_id = OWNER_TG_ID)` на существующих данных, потом устанавливает NOT NULL constraints — Plan 11-02 + verified by test_user_id_backfilled_to_owner (Plan 11-07) + manual upgrade/downgrade/upgrade cycle on dev DB
 
 ### Role-Based Auth
 
-- [ ] **ROLE-01**: `app_user` имеет колонку `role` (enum: `owner` / `member` / `revoked`), default = `member` для новых юзеров; миграция устанавливает `role=owner` для существующего OWNER_TG_ID-юзера
+- [x] **ROLE-01**: `app_user` имеет колонку `role` (enum: `owner` / `member` / `revoked`), default = `member` для новых юзеров; миграция устанавливает `role=owner` для существующего OWNER_TG_ID-юзера — alembic 0006 (CREATE TYPE + ALTER TABLE + UPDATE) + ORM models (UserRole) + dev_seed; verified by test_user_role_enum_type_exists + test_role_owner_assigned_to_owner_tg_id (Plan 11-07)
 - [ ] **ROLE-02**: При первом запуске юзер с `tg_user_id == OWNER_TG_ID` получает `role = owner`; OWNER_TG_ID больше не используется в auth-проверках на каждом запросе
 - [ ] **ROLE-03**: Auth-dependency `get_current_user` пропускает только юзеров с `role IN ('owner', 'member')`; `revoked` → 403; неизвестный `tg_user_id` → 403
 - [ ] **ROLE-04**: Admin-only endpoints защищены дополнительной dependency `require_owner` → 403 для юзеров с `role != 'owner'`
