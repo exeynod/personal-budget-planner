@@ -38,6 +38,11 @@ class Settings(BaseSettings):
     LLM_MODEL: str = "gpt-4.1-nano"
     AI_MAX_CONTEXT_MESSAGES: int = 20
 
+    # AI Categorization (Phase 10) — AICAT-01..06
+    # Включить embedding-based category suggestion (text-embedding-3-small + pgvector)
+    ENABLE_AI_CATEGORIZATION: bool = True
+    EMBEDDING_MODEL: str = "text-embedding-3-small"
+
 
 settings = Settings()
 
