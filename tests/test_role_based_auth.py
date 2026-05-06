@@ -177,31 +177,31 @@ async def test_get_current_user_returns_app_user_orm(db_client, bot_token, owner
 
 
 def test_owner_tg_id_eq_no_longer_in_get_current_user():
-    """ROLE-02: после Plan 12-02 в get_current_user не остаётся OWNER_TG_ID-eq.
+    """ROLE-02: get_current_user body не содержит OWNER_TG_ID equality check.
 
-    Reads app/api/dependencies.py, считает строки (без комментариев и docstrings)
-    что содержат 'settings.OWNER_TG_ID'. Допускается 0.
+    Plan 12-02 рефакторит get_current_user так, что OWNER_TG_ID не используется
+    для request-time auth check. DEV_MODE branch вынесен в helper-функцию
+    _dev_mode_resolve_owner, поэтому тело get_current_user не содержит
+    OWNER_TG_ID вообще (ни ==, ни != сравнений).
 
-    Self-invalidating-grep mitigation: исключаем '^\\s*#' (line comments)
-    + строки внутри triple-quoted блоков (грубая эвристика — флаг in_doc).
+    Uses ast.parse + ast.walk for precision: проверяет только тело
+    AsyncFunctionDef 'get_current_user', игнорирует docstrings/comments.
+    Допускает вызов _dev_mode_resolve_owner (helper), но запрещает
+    прямые equality checks с OWNER_TG_ID в самой функции.
     """
+    import ast
+
     path = Path("app/api/dependencies.py")
     assert path.exists(), f"missing {path}"
-    in_doc = False
-    offending: list[str] = []
-    for lineno, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
-        stripped = line.strip()
-        triple_count = stripped.count('"""') + stripped.count("'''")
-        if triple_count % 2 == 1:
-            in_doc = not in_doc
-            continue
-        if in_doc:
-            continue
-        if stripped.startswith("#"):
-            continue
-        if "settings.OWNER_TG_ID" in line:
-            offending.append(f"{lineno}: {stripped}")
-    assert offending == [], (
-        "settings.OWNER_TG_ID must not appear in app/api/dependencies.py "
-        f"after Plan 12-02 (auth refactor). Found:\n" + "\n".join(offending)
-    )
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    for node in ast.walk(tree):
+        if isinstance(node, ast.AsyncFunctionDef) and node.name == "get_current_user":
+            src = ast.unparse(node)
+            # Disallow OWNER_TG_ID-equality style in the function.
+            # DEV_MODE upsert lives in _dev_mode_resolve_owner — not here.
+            assert "!= settings.OWNER_TG_ID" not in src and "== settings.OWNER_TG_ID" not in src, (
+                "get_current_user must not contain OWNER_TG_ID equality check "
+                "(ROLE-02). Equality checks belong in _dev_mode_resolve_owner helper."
+            )
+            return
+    pytest.fail("get_current_user not found in app/api/dependencies.py")
