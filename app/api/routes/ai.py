@@ -169,118 +169,112 @@ async def _event_stream(
         # 3. Собрать messages с system prompt
         llm_messages = build_messages(history_dicts, message)
 
-        # 4. Стримить события
+        # 4. Agent loop. На каждом раунде LLM может либо вернуть текст
+        # (финал), либо запросить один-несколько tool-вызовов; во втором
+        # случае выполняем их все, добавляем результаты в payload и
+        # повторяем до текстового ответа или MAX_ROUNDS.
         client = _get_llm_client()
         assistant_content_parts: list[str] = []
-        pending_tool_call: dict | None = None
+        max_rounds = 5
 
-        async for event in client.chat(llm_messages, tools=TOOLS_SCHEMA):
-            etype = event.get("type", "")
+        for _round in range(max_rounds):
+            tool_calls_this_round: list[dict] = []
+            text_this_round: list[str] = []
+            errored = False
 
-            if etype == "token":
-                assistant_content_parts.append(event["data"])
-                yield f"data: {json.dumps({'type': 'token', 'data': event['data']})}\n\n"
+            async for event in client.chat(llm_messages, tools=TOOLS_SCHEMA):
+                etype = event.get("type", "")
+                if etype == "token":
+                    text_this_round.append(event["data"])
+                    yield f"data: {json.dumps({'type': 'token', 'data': event['data']})}\n\n"
+                elif etype == "usage":
+                    _record_usage(event["data"])
+                elif etype == "tool_start":
+                    yield f"data: {json.dumps({'type': 'tool_start', 'data': event['data']})}\n\n"
+                elif etype == "tool_call_complete":
+                    # Накапливаем ВСЕ tool calls этого раунда — модель
+                    # может запросить несколько параллельно.
+                    tool_calls_this_round.append(json.loads(event["data"]))
+                elif etype == "done":
+                    break
+                elif etype == "error":
+                    yield f"data: {json.dumps({'type': 'error', 'data': event['data']})}\n\n"
+                    errored = True
+                    break
 
-            elif etype == "usage":
-                # Phase 10.1: log token cost and store in ring buffer.
-                _record_usage(event["data"])
-
-            elif etype == "tool_start":
-                yield f"data: {json.dumps({'type': 'tool_start', 'data': event['data']})}\n\n"
-
-            elif etype == "tool_call_complete":
-                # Internal event — не экспортируем в SSE
-                pending_tool_call = json.loads(event["data"])
-
-            elif etype == "tool_end":
-                # Вызвать tool и продолжить стриминг
-                if pending_tool_call:
-                    tool_name = pending_tool_call.get("name", "")
-                    raw_args = pending_tool_call.get("arguments", "{}")
-                    try:
-                        kwargs = json.loads(raw_args) if raw_args else {}
-                    except json.JSONDecodeError:
-                        kwargs = {}
-
-                    tool_fn = TOOL_FUNCTIONS.get(tool_name)
-                    if tool_fn:
-                        tool_result = await tool_fn(db, **kwargs)
-                    else:
-                        tool_result = {"error": f"Неизвестный инструмент: {tool_name}"}
-
-                    # Сохранить tool result в БД
-                    await conv_svc.append_message(
-                        db,
-                        conv.id,
-                        role="tool",
-                        tool_name=tool_name,
-                        tool_result=json.dumps(tool_result, ensure_ascii=False, default=str),
-                    )
-
-                    # Второй LLM-запрос с tool result. OpenAI требует, чтобы
-                    # перед message с role=tool шло assistant-message со
-                    # списком tool_calls, иначе API отвечает 400
-                    # "messages with role 'tool' must be a response to a
-                    # preceeding message with 'tool_calls'".
-                    tool_result_str = json.dumps(tool_result, ensure_ascii=False, default=str)
-                    tool_call_id = pending_tool_call.get("id", "")
-                    llm_messages_with_result = llm_messages + [
-                        {
-                            "role": "assistant",
-                            "content": None,
-                            "tool_calls": [
-                                {
-                                    "id": tool_call_id,
-                                    "type": "function",
-                                    "function": {
-                                        "name": pending_tool_call.get("name", ""),
-                                        "arguments": pending_tool_call.get(
-                                            "arguments", "{}"
-                                        ),
-                                    },
-                                }
-                            ],
-                        },
-                        {
-                            "role": "tool",
-                            "tool_call_id": tool_call_id,
-                            "content": tool_result_str,
-                        },
-                    ]
-
-                    async for event2 in client.chat(
-                        llm_messages_with_result, tools=None
-                    ):
-                        etype2 = event2.get("type", "")
-                        if etype2 == "token":
-                            assistant_content_parts.append(event2["data"])
-                            yield f"data: {json.dumps({'type': 'token', 'data': event2['data']})}\n\n"
-                        elif etype2 == "usage":
-                            # Phase 10.1: log second-round usage too.
-                            _record_usage(event2["data"])
-                        elif etype2 == "done":
-                            break
-                        elif etype2 == "error":
-                            yield f"data: {json.dumps({'type': 'error', 'data': event2['data']})}\n\n"
-                            return
-
-                yield f"data: {json.dumps({'type': 'tool_end', 'data': ''})}\n\n"
-                pending_tool_call = None
-
-            elif etype == "done":
-                # Сохранить полный assistant ответ в БД
-                full_response = "".join(assistant_content_parts)
-                if full_response:
-                    await conv_svc.append_message(
-                        db, conv.id, role="assistant", content=full_response
-                    )
-                await db.flush()
-                yield f"data: {json.dumps({'type': 'done', 'data': ''})}\n\n"
+            if errored:
                 return
 
-            elif etype == "error":
-                yield f"data: {json.dumps({'type': 'error', 'data': event['data']})}\n\n"
-                return
+            assistant_content_parts.extend(text_this_round)
+
+            # Нет вызовов инструментов — это финальный ответ модели.
+            if not tool_calls_this_round:
+                break
+
+            # Иначе: добавить assistant.tool_calls в context, выполнить
+            # каждый tool, добавить tool-result для каждого, ещё раунд.
+            llm_messages.append(
+                {
+                    "role": "assistant",
+                    "content": "".join(text_this_round) or None,
+                    "tool_calls": [
+                        {
+                            "id": tc.get("id", ""),
+                            "type": "function",
+                            "function": {
+                                "name": tc.get("name", ""),
+                                "arguments": tc.get("arguments", "{}") or "{}",
+                            },
+                        }
+                        for tc in tool_calls_this_round
+                    ],
+                }
+            )
+
+            for tc in tool_calls_this_round:
+                tool_name = tc.get("name", "")
+                raw_args = tc.get("arguments", "{}") or "{}"
+                try:
+                    kwargs = json.loads(raw_args)
+                except json.JSONDecodeError:
+                    kwargs = {}
+
+                tool_fn = TOOL_FUNCTIONS.get(tool_name)
+                if tool_fn:
+                    tool_result = await tool_fn(db, **kwargs)
+                else:
+                    tool_result = {"error": f"Неизвестный инструмент: {tool_name}"}
+
+                tool_result_str = json.dumps(
+                    tool_result, ensure_ascii=False, default=str
+                )
+
+                await conv_svc.append_message(
+                    db,
+                    conv.id,
+                    role="tool",
+                    tool_name=tool_name,
+                    tool_result=tool_result_str,
+                )
+
+                llm_messages.append(
+                    {
+                        "role": "tool",
+                        "tool_call_id": tc.get("id", ""),
+                        "content": tool_result_str,
+                    }
+                )
+
+            yield f"data: {json.dumps({'type': 'tool_end', 'data': ''})}\n\n"
+
+        # 5. Persist финального assistant-ответа.
+        full_response = "".join(assistant_content_parts)
+        if full_response:
+            await conv_svc.append_message(
+                db, conv.id, role="assistant", content=full_response
+            )
+        await db.flush()
+        yield f"data: {json.dumps({'type': 'done', 'data': ''})}\n\n"
 
     except Exception as exc:
         yield f"data: {json.dumps({'type': 'error', 'data': str(exc)})}\n\n"
