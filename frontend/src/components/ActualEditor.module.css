@@ -115,29 +115,20 @@
   font-size: 14px;
   font-weight: 500;
   flex: 1;
-}
-
-.aiConfidenceBar {
-  height: 4px;
-  background: #e5e7eb;
-  border-radius: 2px;
-  width: 80px;
-  overflow: hidden;
-}
-
-.aiConfidenceBar > div {
-  background: #a78bfa;
-  height: 100%;
-  border-radius: 2px;
+  color: var(--color-text);
 }
 
 .aiSwitchBtn {
-  font-size: 12px;
-  color: #6b7280;
+  font-size: 13px;
+  color: #a78bfa;
   background: none;
   border: none;
   cursor: pointer;
-  padding: 2px 6px;
+  padding: 2px 8px;
+  border-radius: 6px;
+}
+.aiSwitchBtn:hover {
+  background: rgba(167, 139, 250, 0.12);
 }
 
 .kindToggle { display: flex; gap: 8px; margin-bottom: var(--space-3); }

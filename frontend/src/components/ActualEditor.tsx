@@ -211,9 +211,6 @@ export function ActualEditor({
           <span className={styles.label}>Категория</span>
           <div className={styles.aiSuggestion}>
             <span className={styles.aiSuggestionLabel}>AI: {suggestion.name}</span>
-            <div className={styles.aiConfidenceBar}>
-              <div style={{ width: `${Math.round(suggestion.confidence * 100)}%` }} />
-            </div>
             <button
               type="button"
               onClick={() => setShowAiSuggestion(false)}
