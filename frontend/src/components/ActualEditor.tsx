@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { CategoryKind, CategoryRead } from '../api/types';
 import { useDateInput } from '../hooks/useDateInput';
+import { useAiCategorize } from '../hooks/useAiCategorize';
 import styles from './ActualEditor.module.css';
 
 export interface ActualEditorInitial {
@@ -29,6 +30,8 @@ export interface ActualEditorProps {
   onCancel: () => void;
   /** Optional max date (default = today + 7d in local TZ). */
   maxTxDate?: string;
+  /** Enable AI category suggestion. Default false (safe fallback). */
+  aiEnabled?: boolean;
 }
 
 /** Returns today's date in Europe/Moscow (UTC+3) as ISO string (YYYY-MM-DD). */
@@ -69,6 +72,7 @@ export function ActualEditor({
   onDelete,
   onCancel,
   maxTxDate: _maxTxDate,
+  aiEnabled = false,
 }: ActualEditorProps) {
   const isEdit = onDelete !== undefined;
 
@@ -82,6 +86,9 @@ export function ActualEditor({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [showAiSuggestion, setShowAiSuggestion] = useState(true);
+
+  const { suggestion } = useAiCategorize(description, aiEnabled);
 
   // If kind changes and current category belongs to the other kind, reset selection.
   useEffect(() => {
@@ -91,6 +98,27 @@ export function ActualEditor({
       setCategoryId('');
     }
   }, [kind, categoryId, categories]);
+
+  // Reset AI suggestion panel when description changes (new suggestion incoming).
+  useEffect(() => {
+    setShowAiSuggestion(true);
+  }, [description]);
+
+  // Auto-set category when AI suggestion arrives (only if no category selected yet).
+  useEffect(() => {
+    if (
+      aiEnabled &&
+      suggestion &&
+      suggestion.category_id !== null &&
+      showAiSuggestion &&
+      categoryId === ''
+    ) {
+      const cat = categories.find((c) => c.id === suggestion.category_id && c.kind === kind);
+      if (cat) {
+        setCategoryId(suggestion.category_id);
+      }
+    }
+  }, [suggestion, aiEnabled, showAiSuggestion, kind, categories, categoryId]);
 
   const filteredCats = useMemo(
     () => categories.filter((c) => c.kind === kind && !c.is_archived),
@@ -178,24 +206,43 @@ export function ActualEditor({
         />
       </label>
 
-      <label className={styles.field}>
-        <span className={styles.label}>Категория</span>
-        <select
-          value={categoryId}
-          onChange={(e) =>
-            setCategoryId(e.target.value === '' ? '' : Number(e.target.value))
-          }
-          className={styles.select}
-          disabled={submitting}
-        >
-          <option value="">— выберите —</option>
-          {filteredCats.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
-          ))}
-        </select>
-      </label>
+      {aiEnabled && suggestion && suggestion.category_id !== null && showAiSuggestion ? (
+        <div className={styles.field}>
+          <span className={styles.label}>Категория</span>
+          <div className={styles.aiSuggestion}>
+            <span className={styles.aiSuggestionLabel}>AI: {suggestion.name}</span>
+            <div className={styles.aiConfidenceBar}>
+              <div style={{ width: `${Math.round(suggestion.confidence * 100)}%` }} />
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowAiSuggestion(false)}
+              className={styles.aiSwitchBtn}
+            >
+              Сменить
+            </button>
+          </div>
+        </div>
+      ) : (
+        <label className={styles.field}>
+          <span className={styles.label}>Категория</span>
+          <select
+            value={categoryId}
+            onChange={(e) =>
+              setCategoryId(e.target.value === '' ? '' : Number(e.target.value))
+            }
+            className={styles.select}
+            disabled={submitting}
+          >
+            <option value="">— выберите —</option>
+            {filteredCats.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
 
       <label className={styles.field}>
         <span className={styles.label}>Описание</span>
