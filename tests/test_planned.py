@@ -395,15 +395,23 @@ async def test_list_filter_by_kind(
 
 @pytest.mark.asyncio
 async def test_list_filter_by_category(
-    db_client, auth_headers, seed_categories, seed_period, db_setup
+    db_client, auth_headers, seed_categories, seed_period, db_setup, owner_tg_id
 ):
     """2 plans for cat A + 1 for cat B, GET ?category_id=A returns 2."""
     _, SessionLocal = db_setup
+    from sqlalchemy import text as _text
     from app.db.models import Category, CategoryKind
 
     # Create a second expense category for filter discrimination.
     async with SessionLocal() as session:
+        result = await session.execute(
+            _text("SELECT id FROM app_user WHERE tg_user_id = :tg"),
+            {"tg": owner_tg_id},
+        )
+        _user_id = result.scalar_one()
+
         cat_b = Category(
+            user_id=_user_id,
             name="Кафе", kind=CategoryKind.expense, is_archived=False, sort_order=15
         )
         session.add(cat_b)

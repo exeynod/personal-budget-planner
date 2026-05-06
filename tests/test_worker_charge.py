@@ -72,7 +72,7 @@ async def db_setup(async_client):
 # ────────────────────────────────────────────────────────────────
 
 async def _seed_user_and_category(SessionLocal, *, tg_chat_id: int = 999):
-    """Insert AppUser and a Category; return (tg_user_id, cat_id)."""
+    """Insert AppUser and a Category; return (tg_user_id, cat_id, user_pk_id)."""
     from app.db.models import AppUser, Category, CategoryKind
 
     async with SessionLocal() as session:
@@ -81,26 +81,30 @@ async def _seed_user_and_category(SessionLocal, *, tg_chat_id: int = 999):
             tg_chat_id=tg_chat_id,
             notify_days_before=2,
         )
+        session.add(user)
+        await session.flush()
         cat = Category(
+            user_id=user.id,
             name="Подписки",
             kind=CategoryKind.expense,
             is_archived=False,
             sort_order=1,
         )
-        session.add_all([user, cat])
+        session.add(cat)
         await session.commit()
         await session.refresh(user)
         await session.refresh(cat)
-        return user.tg_user_id, cat.id
+        return user.tg_user_id, cat.id, user.id
 
 
-async def _seed_subscription(SessionLocal, *, cat_id: int, cycle: str, charge_date: date, is_active: bool = True):
+async def _seed_subscription(SessionLocal, *, cat_id: int, cycle: str, charge_date: date, is_active: bool = True, user_id: int):
     """Insert a Subscription; return subscription id."""
     from app.db.models import SubCycle, Subscription
 
     cycle_enum = SubCycle.monthly if cycle == "monthly" else SubCycle.yearly
     async with SessionLocal() as session:
         sub = Subscription(
+            user_id=user_id,
             name="Netflix Test",
             amount_cents=149900,
             cycle=cycle_enum,
@@ -144,9 +148,9 @@ async def test_charge_monthly_advance(db_setup, monkeypatch):
     monkeypatch.setattr("app.services.periods._today_in_app_tz", lambda: fake_today)
     monkeypatch.setattr("app.worker.jobs.charge_subscriptions._today_in_app_tz", lambda: fake_today, raising=False)
 
-    tg_user_id, cat_id = await _seed_user_and_category(SessionLocal)
+    tg_user_id, cat_id, user_pk_id = await _seed_user_and_category(SessionLocal)
     sub_id = await _seed_subscription(
-        SessionLocal, cat_id=cat_id, cycle="monthly", charge_date=fake_today
+        SessionLocal, cat_id=cat_id, cycle="monthly", charge_date=fake_today, user_id=user_pk_id
     )
 
     import app.worker.jobs.charge_subscriptions as charge_module
@@ -182,9 +186,9 @@ async def test_charge_yearly_advance(db_setup, monkeypatch):
     monkeypatch.setattr("app.services.periods._today_in_app_tz", lambda: fake_today)
     monkeypatch.setattr("app.worker.jobs.charge_subscriptions._today_in_app_tz", lambda: fake_today, raising=False)
 
-    tg_user_id, cat_id = await _seed_user_and_category(SessionLocal)
+    tg_user_id, cat_id, user_pk_id = await _seed_user_and_category(SessionLocal)
     sub_id = await _seed_subscription(
-        SessionLocal, cat_id=cat_id, cycle="yearly", charge_date=fake_today
+        SessionLocal, cat_id=cat_id, cycle="yearly", charge_date=fake_today, user_id=user_pk_id
     )
 
     import app.worker.jobs.charge_subscriptions as charge_module
@@ -220,9 +224,9 @@ async def test_charge_idempotency(db_setup, monkeypatch):
     monkeypatch.setattr("app.services.periods._today_in_app_tz", lambda: fake_today)
     monkeypatch.setattr("app.worker.jobs.charge_subscriptions._today_in_app_tz", lambda: fake_today, raising=False)
 
-    tg_user_id, cat_id = await _seed_user_and_category(SessionLocal)
+    tg_user_id, cat_id, user_pk_id = await _seed_user_and_category(SessionLocal)
     sub_id = await _seed_subscription(
-        SessionLocal, cat_id=cat_id, cycle="monthly", charge_date=fake_today
+        SessionLocal, cat_id=cat_id, cycle="monthly", charge_date=fake_today, user_id=user_pk_id
     )
 
     import app.worker.jobs.charge_subscriptions as charge_module
@@ -265,9 +269,9 @@ async def test_charge_inactive_skipped(db_setup, monkeypatch):
     monkeypatch.setattr("app.services.periods._today_in_app_tz", lambda: fake_today)
     monkeypatch.setattr("app.worker.jobs.charge_subscriptions._today_in_app_tz", lambda: fake_today, raising=False)
 
-    tg_user_id, cat_id = await _seed_user_and_category(SessionLocal)
+    tg_user_id, cat_id, user_pk_id = await _seed_user_and_category(SessionLocal)
     sub_id = await _seed_subscription(
-        SessionLocal, cat_id=cat_id, cycle="monthly", charge_date=fake_today, is_active=False,
+        SessionLocal, cat_id=cat_id, cycle="monthly", charge_date=fake_today, is_active=False, user_id=user_pk_id
     )
 
     import app.worker.jobs.charge_subscriptions as charge_module
@@ -301,10 +305,10 @@ async def test_notify_send_called(db_setup, monkeypatch):
     monkeypatch.setattr("app.services.periods._today_in_app_tz", lambda: fake_today)
     monkeypatch.setattr("app.worker.jobs.notify_subscriptions._today_in_app_tz", lambda: fake_today, raising=False)
 
-    tg_user_id, cat_id = await _seed_user_and_category(SessionLocal, tg_chat_id=555123)
+    tg_user_id, cat_id, user_pk_id = await _seed_user_and_category(SessionLocal, tg_chat_id=555123)
     charge_date = date(2026, 5, 12)
     sub_id = await _seed_subscription(
-        SessionLocal, cat_id=cat_id, cycle="monthly", charge_date=charge_date
+        SessionLocal, cat_id=cat_id, cycle="monthly", charge_date=charge_date, user_id=user_pk_id
     )
 
     sent_calls = []
@@ -347,14 +351,18 @@ async def test_notify_no_chat_id_skip(db_setup, monkeypatch):
     from app.db.models import AppUser, Category, CategoryKind
     async with SessionLocal() as session:
         user = AppUser(tg_user_id=123456789, tg_chat_id=None, notify_days_before=2)
-        cat = Category(name="Сервисы", kind=CategoryKind.expense, is_archived=False, sort_order=1)
-        session.add_all([user, cat])
+        session.add(user)
+        await session.flush()
+        cat = Category(user_id=user.id, name="Сервисы", kind=CategoryKind.expense, is_archived=False, sort_order=1)
+        session.add(cat)
         await session.commit()
+        await session.refresh(user)
         await session.refresh(cat)
         cat_id = cat.id
+        user_pk_id = user.id
 
     charge_date = date(2026, 5, 12)
-    await _seed_subscription(SessionLocal, cat_id=cat_id, cycle="monthly", charge_date=charge_date)
+    await _seed_subscription(SessionLocal, cat_id=cat_id, cycle="monthly", charge_date=charge_date, user_id=user_pk_id)
 
     mock_bot = MagicMock()
     mock_bot.send_message = AsyncMock()

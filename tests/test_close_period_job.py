@@ -34,6 +34,7 @@ async def db_setup(async_client, monkeypatch):
     from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
     from app.api.dependencies import get_db
+    from app.db.models import AppUser, UserRole
     from app.main_api import app
 
     db_url = os.environ["DATABASE_URL"]
@@ -42,6 +43,14 @@ async def db_setup(async_client, monkeypatch):
 
     from tests.helpers.seed import truncate_db
     await truncate_db()
+
+    # Seed AppUser so domain rows have a valid user_id FK.
+    async with SessionLocal() as session:
+        user = AppUser(tg_user_id=123456789, role=UserRole.owner, cycle_start_day=5)
+        session.add(user)
+        await session.commit()
+        await session.refresh(user)
+        owner_user_id = user.id
 
     async def real_get_db():
         async with SessionLocal() as session:
@@ -60,7 +69,7 @@ async def db_setup(async_client, monkeypatch):
     monkeypatch.setattr(db_session_module, "AsyncSessionLocal", SessionLocal)
     monkeypatch.setattr(close_period_module, "AsyncSessionLocal", SessionLocal)
 
-    yield async_client, SessionLocal
+    yield async_client, SessionLocal, owner_user_id
     await engine.dispose()
 
 
@@ -81,7 +90,7 @@ def _patch_today(monkeypatch, fake_today: date):
 async def test_close_period_noop_when_no_active_period(db_setup, monkeypatch):
     """Empty DB: close_period_job runs without error, DB stays empty."""
     _require_db()
-    _, SessionLocal = db_setup
+    _, SessionLocal, owner_user_id = db_setup
     fake_today = date(2026, 5, 5)
     _patch_today(monkeypatch, fake_today)
 
@@ -99,13 +108,14 @@ async def test_close_period_noop_when_no_active_period(db_setup, monkeypatch):
 async def test_close_period_noop_when_active_not_expired(db_setup, monkeypatch):
     """Active period with period_end >= today: job is a no-op."""
     _require_db()
-    _, SessionLocal = db_setup
+    _, SessionLocal, owner_user_id = db_setup
     fake_today = date(2026, 5, 5)
     _patch_today(monkeypatch, fake_today)
 
     from app.db.models import BudgetPeriod, PeriodStatus
     async with SessionLocal() as session:
         p = BudgetPeriod(
+            user_id=owner_user_id,
             period_start=date(2026, 4, 5),
             period_end=date(2026, 5, 10),  # still active — not expired
             starting_balance_cents=100_000,
@@ -129,13 +139,14 @@ async def test_close_period_noop_when_active_not_expired(db_setup, monkeypatch):
 async def test_close_period_closes_expired_period(db_setup, monkeypatch):
     """Expired active period (period_end < today): job closes it with correct balance."""
     _require_db()
-    _, SessionLocal = db_setup
+    _, SessionLocal, owner_user_id = db_setup
     fake_today = date(2026, 5, 5)
     _patch_today(monkeypatch, fake_today)
 
     from app.db.models import BudgetPeriod, PeriodStatus
     async with SessionLocal() as session:
         p = BudgetPeriod(
+            user_id=owner_user_id,
             period_start=date(2026, 4, 5),
             period_end=date(2026, 5, 4),  # yesterday — expired
             starting_balance_cents=100_000,
@@ -159,7 +170,7 @@ async def test_close_period_closes_expired_period(db_setup, monkeypatch):
 async def test_close_period_balance_with_transactions(db_setup, monkeypatch):
     """ending_balance = starting + income - expense."""
     _require_db()
-    _, SessionLocal = db_setup
+    _, SessionLocal, owner_user_id = db_setup
     fake_today = date(2026, 5, 5)
     _patch_today(monkeypatch, fake_today)
 
@@ -168,12 +179,13 @@ async def test_close_period_balance_with_transactions(db_setup, monkeypatch):
         Category, CategoryKind, PeriodStatus,
     )
     async with SessionLocal() as session:
-        exp_cat = Category(name="Еда", kind=CategoryKind.expense, is_archived=False, sort_order=1)
-        inc_cat = Category(name="Зарплата", kind=CategoryKind.income, is_archived=False, sort_order=2)
+        exp_cat = Category(user_id=owner_user_id, name="Еда", kind=CategoryKind.expense, is_archived=False, sort_order=1)
+        inc_cat = Category(user_id=owner_user_id, name="Зарплата", kind=CategoryKind.income, is_archived=False, sort_order=2)
         session.add_all([exp_cat, inc_cat])
         await session.flush()
 
         p = BudgetPeriod(
+            user_id=owner_user_id,
             period_start=date(2026, 4, 5),
             period_end=date(2026, 5, 4),
             starting_balance_cents=100_000,
@@ -184,11 +196,13 @@ async def test_close_period_balance_with_transactions(db_setup, monkeypatch):
 
         # income +50000, expense +30000 => balance = 100000 + 50000 - 30000 = 120000
         session.add(ActualTransaction(
+            user_id=owner_user_id,
             period_id=p.id, kind=CategoryKind.income,
             amount_cents=50_000, category_id=inc_cat.id,
             tx_date=date(2026, 4, 20), source=ActualSource.mini_app,
         ))
         session.add(ActualTransaction(
+            user_id=owner_user_id,
             period_id=p.id, kind=CategoryKind.expense,
             amount_cents=30_000, category_id=exp_cat.id,
             tx_date=date(2026, 4, 22), source=ActualSource.mini_app,
@@ -209,13 +223,14 @@ async def test_close_period_balance_with_transactions(db_setup, monkeypatch):
 async def test_close_period_creates_next_period_with_inherited_balance(db_setup, monkeypatch):
     """After closing expired period, a new active period is created with starting_balance_cents == ending_balance (PER-03)."""
     _require_db()
-    _, SessionLocal = db_setup
+    _, SessionLocal, owner_user_id = db_setup
     fake_today = date(2026, 5, 5)
     _patch_today(monkeypatch, fake_today)
 
     from app.db.models import BudgetPeriod, PeriodStatus
     async with SessionLocal() as session:
         p = BudgetPeriod(
+            user_id=owner_user_id,
             period_start=date(2026, 4, 5),
             period_end=date(2026, 5, 4),
             starting_balance_cents=120_000,
@@ -244,13 +259,14 @@ async def test_close_period_creates_next_period_with_inherited_balance(db_setup,
 async def test_close_period_idempotent_second_run(db_setup, monkeypatch):
     """Running close_period_job twice is safe: second run is a no-op."""
     _require_db()
-    _, SessionLocal = db_setup
+    _, SessionLocal, owner_user_id = db_setup
     fake_today = date(2026, 5, 5)
     _patch_today(monkeypatch, fake_today)
 
     from app.db.models import BudgetPeriod, PeriodStatus
     async with SessionLocal() as session:
         p = BudgetPeriod(
+            user_id=owner_user_id,
             period_start=date(2026, 4, 5),
             period_end=date(2026, 5, 4),
             starting_balance_cents=50_000,
@@ -279,7 +295,7 @@ async def test_close_period_idempotent_second_run(db_setup, monkeypatch):
 async def test_close_period_advisory_lock_prevents_concurrent(db_setup, monkeypatch):
     """If advisory lock is already held, job exits without modifying DB."""
     _require_db()
-    _, SessionLocal = db_setup
+    _, SessionLocal, owner_user_id = db_setup
     fake_today = date(2026, 5, 5)
     _patch_today(monkeypatch, fake_today)
 
@@ -289,6 +305,7 @@ async def test_close_period_advisory_lock_prevents_concurrent(db_setup, monkeypa
 
     async with SessionLocal() as session:
         p = BudgetPeriod(
+            user_id=owner_user_id,
             period_start=date(2026, 4, 5),
             period_end=date(2026, 5, 4),
             starting_balance_cents=77_000,
@@ -329,13 +346,14 @@ async def test_close_period_advisory_lock_prevents_concurrent(db_setup, monkeypa
 async def test_close_period_rollback_on_error(db_setup, monkeypatch):
     """If an error occurs mid-job, the transaction is rolled back entirely."""
     _require_db()
-    _, SessionLocal = db_setup
+    _, SessionLocal, owner_user_id = db_setup
     fake_today = date(2026, 5, 5)
     _patch_today(monkeypatch, fake_today)
 
     from app.db.models import BudgetPeriod, PeriodStatus
     async with SessionLocal() as session:
         p = BudgetPeriod(
+            user_id=owner_user_id,
             period_start=date(2026, 4, 5),
             period_end=date(2026, 5, 4),
             starting_balance_cents=88_000,

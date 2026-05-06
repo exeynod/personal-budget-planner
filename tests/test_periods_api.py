@@ -180,7 +180,7 @@ async def test_get_period_balance_requires_init_data(async_client):
 
 @pytest.mark.asyncio
 async def test_get_period_balance_returns_balance_for_existing_period(
-    db_setup, auth_headers
+    db_setup, auth_headers, owner_tg_id
 ):
     """Create period + planned + actual → GET /periods/{id}/balance returns 200 + BalanceResponse."""
     client, SessionLocal = db_setup
@@ -196,13 +196,22 @@ async def test_get_period_balance_returns_balance_for_existing_period(
     )
 
     async with SessionLocal() as session:
+        from sqlalchemy import text as _text
+        result = await session.execute(
+            _text("SELECT id FROM app_user WHERE tg_user_id = :tg"),
+            {"tg": owner_tg_id},
+        )
+        _user_id = result.scalar_one()
+
         cat = Category(
+            user_id=_user_id,
             name="Тест", kind=CategoryKind.expense, is_archived=False, sort_order=1
         )
         session.add(cat)
         await session.flush()
 
         period = BudgetPeriod(
+            user_id=_user_id,
             period_start=date(2026, 5, 5),
             period_end=date(2026, 6, 4),
             starting_balance_cents=50000,
@@ -212,6 +221,7 @@ async def test_get_period_balance_returns_balance_for_existing_period(
         await session.flush()
 
         planned = PlannedTransaction(
+            user_id=_user_id,
             period_id=period.id,
             kind=CategoryKind.expense,
             amount_cents=10000,
@@ -219,6 +229,7 @@ async def test_get_period_balance_returns_balance_for_existing_period(
             source=PlanSource.manual,
         )
         actual = ActualTransaction(
+            user_id=_user_id,
             period_id=period.id,
             kind=CategoryKind.expense,
             amount_cents=5000,
@@ -253,13 +264,21 @@ async def test_get_period_balance_404_when_period_missing(db_setup, auth_headers
 
 
 @pytest.mark.asyncio
-async def test_get_period_balance_works_for_closed_period(db_setup, auth_headers):
+async def test_get_period_balance_works_for_closed_period(db_setup, auth_headers, owner_tg_id):
     """Closed period → GET /periods/{id}/balance returns 200 (not blocked)."""
     client, SessionLocal = db_setup
+    from sqlalchemy import text as _text
     from app.db.models import BudgetPeriod, PeriodStatus
 
     async with SessionLocal() as session:
+        result = await session.execute(
+            _text("SELECT id FROM app_user WHERE tg_user_id = :tg"),
+            {"tg": owner_tg_id},
+        )
+        _user_id = result.scalar_one()
+
         closed_period = BudgetPeriod(
+            user_id=_user_id,
             period_start=date(2026, 4, 5),
             period_end=date(2026, 5, 4),
             starting_balance_cents=20000,

@@ -86,12 +86,8 @@ async def get_period_balance(
         200: balance data
         404: period does not exist
     """
-    # Phase 11 note: compute_balance signature is refactored in Plan 11-06
-    # (actuals scope). For now it reads via RLS-backed session — cross-tenant
-    # access already produces empty results / PeriodNotFoundError. Once 11-06
-    # lands, this call will be updated to pass ``user_id=user_id`` explicitly.
     try:
-        bal = await actual_svc.compute_balance(db, period_id)
+        bal = await actual_svc.compute_balance(db, period_id, user_id=user_id)
     except PeriodNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)

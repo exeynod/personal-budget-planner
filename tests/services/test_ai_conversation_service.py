@@ -13,6 +13,16 @@ def _require_db():
         pytest.skip("DATABASE_URL not set")
 
 
+async def _seed_test_user(session):
+    """Truncate DB, seed AppUser, return its PK id."""
+    from tests.helpers.seed import seed_user, truncate_db
+    await truncate_db()
+    user = await seed_user(session, tg_user_id=999888777)
+    await session.commit()
+    await session.refresh(user)
+    return user.id
+
+
 def test_service_importable():
     """Сервис должен быть импортируемым."""
     from app.services import ai_conversation_service  # noqa: F401
@@ -32,8 +42,9 @@ async def test_get_or_create_conversation_idempotent(db_session):
     """get_or_create_conversation вызванный дважды возвращает одну запись."""
     _require_db()
     from app.services.ai_conversation_service import get_or_create_conversation
-    conv1 = await get_or_create_conversation(db_session)
-    conv2 = await get_or_create_conversation(db_session)
+    user_id = await _seed_test_user(db_session)
+    conv1 = await get_or_create_conversation(db_session, user_id=user_id)
+    conv2 = await get_or_create_conversation(db_session, user_id=user_id)
     assert conv1.id == conv2.id
 
 
@@ -46,9 +57,10 @@ async def test_append_and_get_messages(db_session):
         get_or_create_conversation,
         get_recent_messages,
     )
-    conv = await get_or_create_conversation(db_session)
-    await append_message(db_session, conv.id, "user", "Тест сообщение")
-    msgs = await get_recent_messages(db_session, conv.id, limit=20)
+    user_id = await _seed_test_user(db_session)
+    conv = await get_or_create_conversation(db_session, user_id=user_id)
+    await append_message(db_session, conv.id, user_id=user_id, role="user", content="Тест сообщение")
+    msgs = await get_recent_messages(db_session, conv.id, user_id=user_id, limit=20)
     assert len(msgs) == 1
     assert msgs[0].role == "user"
     assert msgs[0].content == "Тест сообщение"
@@ -64,9 +76,10 @@ async def test_clear_conversation_removes_messages(db_session):
         get_or_create_conversation,
         get_recent_messages,
     )
-    conv = await get_or_create_conversation(db_session)
-    await append_message(db_session, conv.id, "user", "msg1")
-    await append_message(db_session, conv.id, "assistant", "resp1")
-    await clear_conversation(db_session, conv.id)
-    msgs = await get_recent_messages(db_session, conv.id, limit=20)
+    user_id = await _seed_test_user(db_session)
+    conv = await get_or_create_conversation(db_session, user_id=user_id)
+    await append_message(db_session, conv.id, user_id=user_id, role="user", content="msg1")
+    await append_message(db_session, conv.id, user_id=user_id, role="assistant", content="resp1")
+    await clear_conversation(db_session, conv.id, user_id=user_id)
+    msgs = await get_recent_messages(db_session, conv.id, user_id=user_id, limit=20)
     assert len(msgs) == 0

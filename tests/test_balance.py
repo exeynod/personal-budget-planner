@@ -191,14 +191,22 @@ async def test_balance_values_correct(db_client, auth_headers, full_balance_setu
 
 
 @pytest.mark.asyncio
-async def test_balance_empty_period(db_client, auth_headers, db_setup):
+async def test_balance_empty_period(db_client, auth_headers, db_setup, owner_tg_id):
     """Empty period: all totals 0, by_category empty."""
     _, SessionLocal = db_setup
     from app.db.models import BudgetPeriod, PeriodStatus
 
     today = date.today()
     async with SessionLocal() as session:
+        from sqlalchemy import text as _text
+        result = await session.execute(
+            _text("SELECT id FROM app_user WHERE tg_user_id = :tg"),
+            {"tg": owner_tg_id},
+        )
+        _user_id = result.scalar_one()
+
         period = BudgetPeriod(
+            user_id=_user_id,
             period_start=today - timedelta(days=5),
             period_end=today + timedelta(days=25),
             starting_balance_cents=0,
