@@ -61,11 +61,20 @@ async def test_user_a_cannot_get_user_b_category_by_id(two_tenants, db_session):
         await get_or_404(db_session, foreign_cat_id, user_id=user_a["id"])
 
 
-async def test_user_a_cannot_get_user_b_subscription_by_id(two_tenants, db_session):
-    """MUL-03: subscription с чужим user_id невидим (RLS + app-side filter)."""
+async def test_user_a_cannot_get_user_b_subscription_by_id(
+    two_tenants, db_session, _rls_test_role
+):
+    """MUL-03: subscription с чужим user_id невидим (RLS + app-side filter).
+
+    Использует не-superuser ролью _rls_test_role, чтобы FORCE ROW LEVEL
+    SECURITY реально применялась (см. test_rls_policy.py docstring caveat).
+    """
     user_a = two_tenants["user_a"]
     user_b = two_tenants["user_b"]
 
+    # Закрыть seed-trx и переключиться на не-superuser роль.
+    await db_session.commit()
+    await db_session.execute(text(f"SET LOCAL ROLE {_rls_test_role}"))
     await set_tenant_scope(db_session, user_a["id"])
 
     # Direct ORM query (test isolation at the lowest layer — RLS).
@@ -80,7 +89,9 @@ async def test_user_a_cannot_get_user_b_subscription_by_id(two_tenants, db_sessi
     )
 
 
-async def test_user_a_cannot_see_user_b_planned_transactions(two_tenants, db_session):
+async def test_user_a_cannot_see_user_b_planned_transactions(
+    two_tenants, db_session, _rls_test_role
+):
     """MUL-03: select(PlannedTransaction) под user_a scope не видит rows user_b.
 
     Note: two_tenants fixture не seed'ит planned транзакции. Тест проверяет
@@ -90,6 +101,8 @@ async def test_user_a_cannot_see_user_b_planned_transactions(two_tenants, db_ses
     from app.db.models import PlannedTransaction
 
     user_a = two_tenants["user_a"]
+    await db_session.commit()
+    await db_session.execute(text(f"SET LOCAL ROLE {_rls_test_role}"))
     await set_tenant_scope(db_session, user_a["id"])
 
     result = await db_session.execute(select(PlannedTransaction))
@@ -100,11 +113,15 @@ async def test_user_a_cannot_see_user_b_planned_transactions(two_tenants, db_ses
         )
 
 
-async def test_user_a_cannot_see_user_b_actual_transactions(two_tenants, db_session):
+async def test_user_a_cannot_see_user_b_actual_transactions(
+    two_tenants, db_session, _rls_test_role
+):
     """MUL-03: то же для actual_transaction."""
     from app.db.models import ActualTransaction
 
     user_a = two_tenants["user_a"]
+    await db_session.commit()
+    await db_session.execute(text(f"SET LOCAL ROLE {_rls_test_role}"))
     await set_tenant_scope(db_session, user_a["id"])
 
     result = await db_session.execute(select(ActualTransaction))

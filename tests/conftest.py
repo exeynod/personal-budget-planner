@@ -140,6 +140,69 @@ def internal_token() -> str:
 
 
 @pytest_asyncio.fixture
+async def _rls_test_role():
+    """Ensure a non-superuser DB role 'budget_rls_test' exists for RLS tests.
+
+    Phase 11 Plan 11-07: Postgres RLS only enforces against table owners when
+    FORCE ROW LEVEL SECURITY is set, but **superusers always bypass RLS**.
+    The dev/test stack runs as ``budget`` which is a superuser (created by
+    the postgres entrypoint with POSTGRES_USER). To verify RLS actually
+    enforces the policies (MUL-02), tests must temporarily switch role
+    via ``SET LOCAL ROLE budget_rls_test`` (a NOSUPERUSER NOBYPASSRLS role).
+
+    This is a TEST-ONLY artefact: production runtime currently uses the
+    superuser ``budget`` role too — refactoring to a non-superuser app role
+    is Phase 12 prerequisite (tracked in deferred-items).
+
+    Yields the role name (str). Teardown is best-effort — role is left in
+    place across tests (cheap, idempotent).
+    """
+    db_url = os.environ.get("DATABASE_URL", "")
+    if not db_url:
+        pytest.skip("DATABASE_URL not set — integration test requires DB")
+
+    from sqlalchemy.ext.asyncio import create_async_engine
+    from sqlalchemy import text
+
+    role_name = "budget_rls_test"
+    engine = create_async_engine(db_url, echo=False, pool_pre_ping=True)
+    try:
+        async with engine.connect() as conn:
+            # Idempotent role create: drop & recreate to ensure clean state.
+            await conn.execute(
+                text(
+                    "DO $$ BEGIN "
+                    f"IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='{role_name}') THEN "
+                    f"  CREATE ROLE {role_name} NOSUPERUSER NOBYPASSRLS; "
+                    "END IF; END $$;"
+                )
+            )
+            # Grants: read+write on all current and future tables in public.
+            # Required so SET LOCAL ROLE doesn't break with permission denied.
+            await conn.execute(
+                text(f"GRANT USAGE ON SCHEMA public TO {role_name}")
+            )
+            await conn.execute(
+                text(
+                    "GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES "
+                    f"IN SCHEMA public TO {role_name}"
+                )
+            )
+            await conn.execute(
+                text(
+                    "GRANT USAGE, SELECT ON ALL SEQUENCES "
+                    f"IN SCHEMA public TO {role_name}"
+                )
+            )
+            await conn.commit()
+    except Exception as exc:
+        await engine.dispose()
+        pytest.skip(f"Could not provision RLS test role: {exc}")
+    await engine.dispose()
+    yield role_name
+
+
+@pytest_asyncio.fixture
 async def db_session():
     """Real async DB session for integration tests that need real Postgres.
 
@@ -265,6 +328,10 @@ async def two_tenants(db_session):
     tg_a, tg_b = 9_000_000_001, 9_000_000_002
 
     async def _cleanup():
+        # На случай если предыдущий тест переключил session_role на не-superuser
+        # (через SET LOCAL ROLE budget_rls_test) — вернуть superuser, иначе
+        # RLS блокирует cleanup DELETE'ы (нечего показывать → нечего удалять).
+        await db_session.execute(text("RESET ROLE"))
         # Bypass RLS для administrative cleanup.
         await db_session.execute(text("SET LOCAL row_security = off"))
         # Получить id-ы юзеров если есть.

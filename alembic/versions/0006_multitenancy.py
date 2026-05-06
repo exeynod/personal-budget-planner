@@ -1,6 +1,6 @@
 """multitenancy: user_id FK + RLS + app_user.role + backfill
 
-Revision ID: 0006_multitenancy_user_id_rls_role
+Revision ID: 0006_multitenancy
 Revises: 0005_enable_ai_categorization
 Create Date: 2026-05-07
 
@@ -31,7 +31,7 @@ import sqlalchemy as sa
 from alembic import op
 
 
-revision: str = "0006_multitenancy_user_id_rls_role"
+revision: str = "0006_multitenancy"
 down_revision: Union[str, None] = "0005_enable_ai_categorization"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -173,8 +173,10 @@ def upgrade() -> None:
 
     # ─── Phase 8: RLS — ENABLE + FORCE + POLICY на каждой из 9 таблиц ───
     # Policy: разрешает row если user_id == app.current_user_id (GUC).
-    # Без выставленного GUC current_setting('app.current_user_id', true) → NULL,
-    # coalesce → -1, не матчит ни одну строку — query возвращает 0 rows
+    # Без выставленного GUC current_setting('app.current_user_id', true) → ''
+    # (пустая строка, НЕ NULL — особенность функции). NULLIF превращает её
+    # в NULL, потом coalesce → -1, не матчит ни одну строку — query возвращает
+    # 0 rows. Без NULLIF cast '' к bigint падает с InvalidTextRepresentationError.
     # (defense-in-depth: app-side filter + RLS backstop).
     # FORCE ROW LEVEL SECURITY — table owner тоже подчиняется policy
     # (в production app-user не su; миграции через alembic_user могут получить
@@ -184,8 +186,8 @@ def upgrade() -> None:
         op.execute(f"ALTER TABLE {table} FORCE ROW LEVEL SECURITY")
         op.execute(
             f"CREATE POLICY {table}_user_isolation ON {table} "
-            f"USING (user_id = coalesce(current_setting('app.current_user_id', true)::bigint, -1)) "
-            f"WITH CHECK (user_id = coalesce(current_setting('app.current_user_id', true)::bigint, -1))"
+            f"USING (user_id = coalesce(NULLIF(current_setting('app.current_user_id', true), '')::bigint, -1)) "
+            f"WITH CHECK (user_id = coalesce(NULLIF(current_setting('app.current_user_id', true), '')::bigint, -1))"
         )
 
 

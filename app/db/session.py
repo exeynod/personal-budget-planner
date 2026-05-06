@@ -40,13 +40,26 @@ async def set_tenant_scope(session: AsyncSession, user_id: int) -> None:
       - app/api/dependencies.py::get_db_with_tenant_scope (per-request).
       - app/worker/jobs/* (per-tenant iteration через explicit set + commit per tenant).
 
+    Implementation note: PostgreSQL `SET LOCAL` does NOT accept bind parameters
+    ($N placeholders), so we use `set_config(setting, value, is_local)` which
+    is a regular function call and accepts parameters safely. We coerce
+    ``user_id`` to int and stringify it before passing — preventing any
+    injection regardless of SQL layer assumptions.
+
     Args:
         session: AsyncSession в открытой transaction.
         user_id: app_user.id (PK), не tg_user_id.
     """
     from sqlalchemy import text
 
+    # Defense-in-depth: hard-validate that user_id is a non-negative int —
+    # paranoia against future call sites passing untrusted input.
+    if not isinstance(user_id, int) or user_id < 0:
+        raise ValueError(f"set_tenant_scope: invalid user_id={user_id!r}")
+
+    # set_config(name, value, is_local=true) — функция Postgres, безопасно
+    # принимает параметры (в отличие от SET LOCAL).
     await session.execute(
-        text("SET LOCAL app.current_user_id = :uid"),
-        {"uid": user_id},
+        text("SELECT set_config('app.current_user_id', :uid, true)"),
+        {"uid": str(user_id)},
     )

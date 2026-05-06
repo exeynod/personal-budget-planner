@@ -6,6 +6,16 @@ where alembic 0006 has applied:
   - CREATE POLICY user_isolation USING (user_id =
         coalesce(current_setting('app.current_user_id', true)::bigint, -1))
 
+⚠ Phase-11 caveat: dev/test docker stack uses the ``budget`` postgres role
+which is a SUPERUSER (POSTGRES_USER). Postgres bypasses RLS for superusers
+unconditionally — even FORCE ROW LEVEL SECURITY does not apply. To verify
+the policies *actually enforce*, RLS-enforcement tests temporarily switch
+to a non-superuser role via ``SET LOCAL ROLE budget_rls_test`` (provisioned
+by the ``_rls_test_role`` fixture in conftest). This is **test-only** —
+the production runtime continues to use the superuser ``budget`` role
+until Phase 12 introduces a dedicated app role (tracked in
+deferred-items.md as a Phase-12 prerequisite).
+
 Tests:
   1. test_rls_blocks_query_without_setting — без SET LOCAL → coalesce -1 → 0 rows
   2. test_rls_filters_by_app_current_user_id — SET LOCAL → видим только user_a
@@ -23,12 +33,17 @@ from app.db.session import set_tenant_scope
 pytestmark = pytest.mark.asyncio
 
 
-async def test_rls_blocks_query_without_setting(two_tenants, db_session):
-    """MUL-02: SELECT без app.current_user_id → 0 rows (coalesce -1 не матчит)."""
-    # Закрываем текущую trx (после fixture seed); SET LOCAL of fixture сброшен.
-    await db_session.commit()
+async def test_rls_blocks_query_without_setting(two_tenants, db_session, _rls_test_role):
+    """MUL-02: SELECT без app.current_user_id → 0 rows (coalesce -1 не матчит).
 
-    # Without SET LOCAL — RLS coalesce → -1 → blocks all rows.
+    Под non-superuser ролью budget_rls_test, чтобы FORCE ROW LEVEL SECURITY
+    реально применялась.
+    """
+    # Закрываем seed transaction и стартуем чистую с не-superuser ролью.
+    await db_session.commit()
+    await db_session.execute(text(f"SET LOCAL ROLE {_rls_test_role}"))
+
+    # Без SET LOCAL app.current_user_id — RLS coalesce → -1 → blocks all rows.
     result = await db_session.execute(text("SELECT count(*) FROM category"))
     count = result.scalar_one()
     assert count == 0, (
@@ -36,11 +51,16 @@ async def test_rls_blocks_query_without_setting(two_tenants, db_session):
     )
 
 
-async def test_rls_filters_by_app_current_user_id(two_tenants, db_session):
+async def test_rls_filters_by_app_current_user_id(
+    two_tenants, db_session, _rls_test_role
+):
     """MUL-02: SET LOCAL → видим только данные конкретного юзера."""
     user_a = two_tenants["user_a"]
     user_b = two_tenants["user_b"]
 
+    # Свежая trx + не-superuser роль.
+    await db_session.commit()
+    await db_session.execute(text(f"SET LOCAL ROLE {_rls_test_role}"))
     await set_tenant_scope(db_session, user_a["id"])
 
     result = await db_session.execute(text("SELECT user_id FROM category"))
@@ -52,13 +72,21 @@ async def test_rls_filters_by_app_current_user_id(two_tenants, db_session):
     assert user_b["id"] not in user_ids
 
 
-async def test_rls_setting_resets_after_commit(two_tenants, db_session):
+async def test_rls_setting_resets_after_commit(
+    two_tenants, db_session, _rls_test_role
+):
     """MUL-02: SET LOCAL — transaction scope, на COMMIT сбрасывается."""
     user_a = two_tenants["user_a"]
-    await set_tenant_scope(db_session, user_a["id"])
-    await db_session.commit()  # SET LOCAL должен сброситься
 
-    # Новая transaction (implicit при следующем execute) — без setting'а.
+    # Trx 1: с не-superuser ролью + tenant scope.
+    await db_session.commit()
+    await db_session.execute(text(f"SET LOCAL ROLE {_rls_test_role}"))
+    await set_tenant_scope(db_session, user_a["id"])
+    await db_session.commit()  # SET LOCAL должен сброситься (включая ROLE)
+
+    # Trx 2: новая, без setting'а — но нужна та же не-superuser роль чтобы
+    # RLS применялась (без неё superuser bypassит политику).
+    await db_session.execute(text(f"SET LOCAL ROLE {_rls_test_role}"))
     result = await db_session.execute(text("SELECT count(*) FROM category"))
     count = result.scalar_one()
     assert count == 0, (
@@ -67,7 +95,10 @@ async def test_rls_setting_resets_after_commit(two_tenants, db_session):
 
 
 async def test_rls_enabled_on_all_nine_tables(db_session):
-    """MUL-02: pg_class.relrowsecurity = true на всех 9 доменных таблицах."""
+    """MUL-02: pg_class.relrowsecurity = true на всех 9 доменных таблицах.
+
+    Schema-level check — superuser/role context не влияет.
+    """
     domain_tables = (
         "category",
         "budget_period",
