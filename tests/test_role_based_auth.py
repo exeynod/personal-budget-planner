@@ -21,6 +21,16 @@ def _require_db():
         pytest.skip("DATABASE_URL not set — integration test requires DB")
 
 
+@pytest.fixture(autouse=True)
+def _disable_dev_mode(monkeypatch):
+    # docker-compose.dev.yml sets DEV_MODE=true on the api container, which
+    # makes get_current_user inject a mock OWNER and skip role-based checks.
+    # These tests exercise the real role-based path, so patch the cached
+    # settings.DEV_MODE flag for the duration of each test.
+    from app.core.settings import settings
+    monkeypatch.setattr(settings, "DEV_MODE", False)
+
+
 @pytest_asyncio.fixture
 async def db_client(async_client):
     _require_db()

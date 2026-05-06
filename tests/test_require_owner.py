@@ -19,6 +19,12 @@ def _require_db():
         pytest.skip("DATABASE_URL not set")
 
 
+@pytest.fixture(autouse=True)
+def _disable_dev_mode(monkeypatch):
+    from app.core.settings import settings
+    monkeypatch.setattr(settings, "DEV_MODE", False)
+
+
 @pytest_asyncio.fixture
 async def db_client(async_client):
     _require_db()
