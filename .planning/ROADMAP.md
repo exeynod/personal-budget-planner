@@ -29,6 +29,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 8: Analytics Screen** — экран Аналитики с трендом расходов по месяцам, топом перерасходов, топом категорий и прогнозом остатка; новые API endpoints `/api/v1/analytics/*` (completed 2026-05-05)
 - [x] **Phase 9: AI Assistant** — conversational AI с tool-use над данными бюджета (OpenAI gpt-4.1-nano), streaming SSE, prompt caching, persistence в БД, абстрактный provider-agnostic LLM-клиент
 - [x] **Phase 10: AI Categorization** — AI-предложение категории в форме новой транзакции через embeddings (text-embedding-3-small + pgvector cosine similarity) (completed 2026-05-06)
+- [x] **Phase 10.1: AI Cost Optimization (INSERTED)** — pre-ПСИ cost-review fixes: english system-prompt + tool schemas, history 20→8, rate-limit 30→10, embedding-on-create, embed_text LRU cache, `GET /ai/usage` observability endpoint (completed 2026-05-06)
 
 ## Phase Details
 
@@ -212,6 +213,20 @@ Plans:
 **Plans**: TBD
 **UI hint**: yes — sketch 011-A
 
+### Phase 10.1: AI Cost Optimization (INSERTED)
+**Goal**: Снизить input-стоимость AI-вызовов на ~50–60% и добавить наблюдаемость токенов/USD без изменений UX. Inserted после Phase 10 по итогам pre-ПСИ cost-аудита v0.3.
+**Depends on**: Phase 9 (chat infra), Phase 10 (embedding infra)
+**Requirements**: derived from cost audit — no new BRD/HLD requirements; backend-only optimization
+**Success Criteria** (what must be TRUE):
+  1. На фиксированной chat-пробе `prompt_tokens` падает ≥50% относительно pre-10.1 baseline (русский SYSTEM_PROMPT + history=20)
+  2. На каждый chat-вызов пишется структурный лог `ai.usage` с `prompt/completion/cached_tokens` и `est_cost_usd` (gpt-4.1-nano pricing)
+  3. `GET /api/v1/ai/usage` возвращает агрегаты `today` и `session_total` (in-process ring buffer, 1000 records)
+  4. Все интеграционные тесты проходят (`./scripts/run-integration-tests.sh tests/`) — 245+ pass
+  5. Никаких изменений во frontend / в пользовательском поведении: LLM по-прежнему отвечает на русском, тот же chat UI и suggestion box
+  6. Новая категория сразу видна в `/ai/suggest-category` без переименования (фикс T-4.1)
+**Plans**: completed inline (no separate XX-NN plan files; 11 фиксов сгруппированы в 4 wave-коммита — `e7589dc`, `7205c4a`, `01544bd`, `2224d15`)
+**UI hint**: no — backend-only optimization phase
+
 ## Progress
 
 **Execution Order:**
@@ -236,6 +251,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 8. Analytics Screen | 5/5 | Complete   | 2026-05-05 |
 | 9. AI Assistant | 0/0 | Pending plan | - |
 | 10. AI Categorization | 5/5 | Complete   | 2026-05-06 |
+| 10.1. AI Cost Optimization (INSERTED) | inline | Complete | 2026-05-06 |
 
 ---
 *Roadmap created: 2026-05-01*
