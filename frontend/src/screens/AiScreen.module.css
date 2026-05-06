@@ -155,9 +155,12 @@
   resize: none;
   outline: none;
   min-height: 40px;
-  /* Растём вверх до 60% видимой высоты, потом включается scroll
-     внутри textarea. dvh учитывает мобильную клавиатуру. */
-  max-height: 60dvh;
+  /* Растём вверх примерно до половины экрана чата, потом включается
+     scroll внутри textarea. 40dvh, потому что у нас сверху header
+     "Budget AI" и снизу bottom nav забирают ~30% — на чистом 60dvh
+     input визуально занимал ~85% доступной области. dvh учитывает
+     мобильную клавиатуру. */
+  max-height: 40dvh;
   overflow-y: auto;
   line-height: 1.4;
   font-family: inherit;
