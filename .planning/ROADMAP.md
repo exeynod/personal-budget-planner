@@ -30,6 +30,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 9: AI Assistant** — conversational AI с tool-use над данными бюджета (OpenAI gpt-4.1-nano), streaming SSE, prompt caching, persistence в БД, абстрактный provider-agnostic LLM-клиент
 - [x] **Phase 10: AI Categorization** — AI-предложение категории в форме новой транзакции через embeddings (text-embedding-3-small + pgvector cosine similarity) (completed 2026-05-06)
 - [x] **Phase 10.1: AI Cost Optimization (INSERTED)** — pre-ПСИ cost-review fixes: english system-prompt + tool schemas, history 20→8, rate-limit 30→10, embedding-on-create, embed_text LRU cache, `GET /ai/usage` observability endpoint (completed 2026-05-06)
+- [x] **Phase 10.2: AI Hardening + Write-Flow (INSERTED)** — live-UAT нашёл 6 latent Phase 9/10 багов (OPENAI_API_KEY никогда не пробрасывался в api контейнер); закрыты + добавлен propose-and-approve write-flow для AI-чата; synonym-augmented embeddings; switch на gpt-4.1-mini; precomputed savings capacity; auto-seed для DEV_MODE (completed 2026-05-06)
 
 ## Phase Details
 
@@ -213,6 +214,21 @@ Plans:
 **Plans**: TBD
 **UI hint**: yes — sketch 011-A
 
+### Phase 10.2: AI Hardening + Write-Flow (INSERTED)
+**Goal**: Сделать AI-surface действительно работающим в проде (закрыть latent баги Phase 9/10 раскрывшиеся при первом живом OpenAI-вызове), добавить write-flow «AI proposes, user approves» для чата и переехать на gpt-4.1-mini для нормальной аналитики.
+**Depends on**: Phase 9 (chat infra), Phase 10 (embedding infra), Phase 10.1 (cost obs)
+**Requirements**: derived from live UAT findings; no new BRD items
+**Success Criteria** (what must be TRUE):
+  1. api отказывается стартовать без валидного `OPENAI_API_KEY` (fail-fast независимо от DEV_MODE)
+  2. Live `/ai/chat` с tool-вызовом возвращает связный текст без OpenAI 400 / Decimal-падений
+  3. `/ai/suggest-category` корректно резолвит ≥7/8 типичных коротких русских описаний (Пятёрочка→Продукты, бензин→Транспорт, Хоккей→Спорт, аптека→Здоровье и т.д.); gibberish (qwertyuiop) → null
+  4. На «Занеси трату 500₽ в пятёрочке сегодня» открывается prefilled bottom-sheet с pre-filled полями; AI **никогда не пишет в БД молча**
+  5. Follow-up математика согласована между turn'ами («сколько откладывать», «в месяц», «в день» — все из одного `get_forecast` результата)
+  6. AI-чат не упоминает имена функций / tool_calls / JSON в ответах пользователю
+  7. `docker compose up` поднимает рабочий стек одной командой через DEV-only auto-seed (9 категорий, период, 7 sample транзакций)
+**Plans**: completed inline (17 wave-коммитов от `79edf38` до `ce2a3f9`; no separate XX-NN plan files)
+**UI hint**: yes — AiProposalSheet поверх существующего ActualEditor / PlanItemEditor
+
 ### Phase 10.1: AI Cost Optimization (INSERTED)
 **Goal**: Снизить input-стоимость AI-вызовов на ~50–60% и добавить наблюдаемость токенов/USD без изменений UX. Inserted после Phase 10 по итогам pre-ПСИ cost-аудита v0.3.
 **Depends on**: Phase 9 (chat infra), Phase 10 (embedding infra)
@@ -252,6 +268,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 9. AI Assistant | 0/0 | Pending plan | - |
 | 10. AI Categorization | 5/5 | Complete   | 2026-05-06 |
 | 10.1. AI Cost Optimization (INSERTED) | inline | Complete | 2026-05-06 |
+| 10.2. AI Hardening + Write-Flow (INSERTED) | inline | Complete | 2026-05-06 |
 
 ---
 *Roadmap created: 2026-05-01*
