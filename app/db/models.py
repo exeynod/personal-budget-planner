@@ -231,3 +231,43 @@ class AppHealth(Base):
     last_heartbeat_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True), nullable=False
     )
+
+
+# ---- Phase 9: AI Assistant ----
+
+
+class AiConversation(Base):
+    """Одна глобальная conversation на пользователя (single-tenant, AI-06)."""
+
+    __tablename__ = "ai_conversation"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    created_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    messages: Mapped[list["AiMessage"]] = relationship(
+        back_populates="conversation", order_by="AiMessage.id"
+    )
+
+
+class AiMessage(Base):
+    """Одно сообщение в AI-разговоре. role: 'user'|'assistant'|'tool' (AI-06)."""
+
+    __tablename__ = "ai_message"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    conversation_id: Mapped[int] = mapped_column(
+        ForeignKey("ai_conversation.id"), nullable=False
+    )
+    role: Mapped[str] = mapped_column(String(20), nullable=False)
+    content: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    tool_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    tool_result: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    conversation: Mapped["AiConversation"] = relationship(back_populates="messages")
+
+    __table_args__ = (Index("ix_ai_message_conversation", "conversation_id"),)
