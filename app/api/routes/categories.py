@@ -4,6 +4,12 @@ Thin handlers over ``app.services.categories``: routes do request/response
 shape mapping (Pydantic <-> ORM) and exception → HTTP status mapping. All
 business logic — including the soft-archive semantics, default seed list, and
 ordering — lives in the service layer.
+
+Phase 11 (Plan 11-05): handlers use ``get_db_with_tenant_scope`` (which sets
+``SET LOCAL app.current_user_id`` за one transaction) plus
+``get_current_user_id`` (resolves ``app_user.id`` PK from the validated
+Telegram user). Both are passed through to the service layer where queries
+explicitly filter by ``user_id``.
 """
 import structlog
 from typing import Annotated
@@ -12,7 +18,11 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.ai.embedding_service import get_embedding_service
-from app.api.dependencies import get_current_user, get_db
+from app.api.dependencies import (
+    get_current_user,
+    get_current_user_id,
+    get_db_with_tenant_scope,
+)
 from app.api.schemas.categories import CategoryCreate, CategoryRead, CategoryUpdate
 from app.core.settings import settings
 from app.services import categories as cat_svc
@@ -30,7 +40,8 @@ categories_router = APIRouter(
 
 @categories_router.get("", response_model=list[CategoryRead])
 async def list_categories(
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Annotated[AsyncSession, Depends(get_db_with_tenant_scope)],
+    user_id: Annotated[int, Depends(get_current_user_id)],
     include_archived: bool = False,
 ) -> list[CategoryRead]:
     """GET /api/v1/categories?include_archived=<bool>
@@ -38,14 +49,17 @@ async def list_categories(
     Default: returns only active categories (CAT-02). Pass ``include_archived=true``
     to include archived rows (for the archive-management UI).
     """
-    cats = await cat_svc.list_categories(db, include_archived=include_archived)
+    cats = await cat_svc.list_categories(
+        db, user_id=user_id, include_archived=include_archived
+    )
     return [CategoryRead.model_validate(c) for c in cats]
 
 
 @categories_router.post("", response_model=CategoryRead, status_code=status.HTTP_200_OK)
 async def create_category(
     body: CategoryCreate,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Annotated[AsyncSession, Depends(get_db_with_tenant_scope)],
+    user_id: Annotated[int, Depends(get_current_user_id)],
     background_tasks: BackgroundTasks,
 ) -> CategoryRead:
     """POST /api/v1/categories — create a new category (CAT-01).
@@ -56,6 +70,7 @@ async def create_category(
     """
     cat = await cat_svc.create_category(
         db,
+        user_id=user_id,
         name=body.name,
         kind=body.kind,
         sort_order=body.sort_order,
@@ -106,7 +121,8 @@ async def _refresh_embedding(category_id: int, name: str) -> None:
 async def update_category(
     category_id: int,
     body: CategoryUpdate,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Annotated[AsyncSession, Depends(get_db_with_tenant_scope)],
+    user_id: Annotated[int, Depends(get_current_user_id)],
     background_tasks: BackgroundTasks,
 ) -> CategoryRead:
     """PATCH /api/v1/categories/{id} — partial update including is_archived toggle.
@@ -121,13 +137,13 @@ async def update_category(
     old_name: str | None = None
     if settings.ENABLE_AI_CATEGORIZATION and body.name is not None:
         try:
-            existing = await cat_svc.get_or_404(db, category_id)
+            existing = await cat_svc.get_or_404(db, category_id, user_id=user_id)
             old_name = existing.name
         except CategoryNotFoundError:
             old_name = None
 
     try:
-        cat = await cat_svc.update_category(db, category_id, body)
+        cat = await cat_svc.update_category(db, category_id, body, user_id=user_id)
     except CategoryNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -151,7 +167,8 @@ async def update_category(
 @categories_router.delete("/{category_id}", response_model=CategoryRead)
 async def archive_category(
     category_id: int,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Annotated[AsyncSession, Depends(get_db_with_tenant_scope)],
+    user_id: Annotated[int, Depends(get_current_user_id)],
 ) -> CategoryRead:
     """DELETE /api/v1/categories/{id} — soft-archive (D-14, CAT-02).
 
@@ -160,7 +177,7 @@ async def archive_category(
     ``is_archived=false`` to unarchive. Returns 404 if missing.
     """
     try:
-        cat = await cat_svc.archive_category(db, category_id)
+        cat = await cat_svc.archive_category(db, category_id, user_id=user_id)
     except CategoryNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
