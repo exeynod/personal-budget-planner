@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v0.4
 milestone_name: — Multi-Tenant & Admin
 status: executing
-last_updated: "2026-05-06T16:20:00.000Z"
-last_activity: 2026-05-06 -- Phase 11 Plan 02 completed (alembic 0006 multitenancy revision)
+last_updated: "2026-05-06T16:27:19.000Z"
+last_activity: 2026-05-06 -- Phase 11 Plan 03 completed (ORM models multi-tenant update)
 progress:
   total_phases: 5
   completed_phases: 0
   total_plans: 7
-  completed_plans: 1
-  percent: 3
+  completed_plans: 2
+  percent: 6
 ---
 
 # Project State
@@ -24,35 +24,35 @@ See: .planning/PROJECT.md (updated 2026-05-06 after v0.3 milestone close)
 
 ## Current Position
 
-Phase: 11 — Multi-Tenancy DB Migration & RLS (in progress, 1/7 plans done)
-Plan: 11-02 (alembic 0006 revision) — completed 2026-05-06
-Status: Wave 1 plan 11-02 done. Wave 1 plan 11-01 (RED tests + 2-tenant fixture) pending.
-Last activity: 2026-05-06 — alembic revision 0006_multitenancy_user_id_rls_role.py created
+Phase: 11 — Multi-Tenancy DB Migration & RLS (in progress, 2/7 plans done)
+Plan: 11-03 (ORM models multi-tenant update) — completed 2026-05-06
+Status: Wave 1 plan 11-02 done; Wave 2 plan 11-03 done. Wave 1 plan 11-01 (RED tests + 2-tenant fixture) pending.
+Last activity: 2026-05-06 — app/db/models.py: UserRole enum + AppUser.role + user_id FK on 9 domain models
 
 Previous milestones:
 - v0.3 (Analytics & AI) — Complete 2026-05-06, 6 phases / 25 plans → archive `.planning/milestones/v0.3-*`
 - v0.2 (MVP) — Complete 2026-05-03, 6 phases / 38 plans → archived retroactively at v0.3 close
 
-Progress: [          ] 3% (milestone v0.4, 0/5 phases complete; 1/7 plans of Phase 11 done)
+Progress: [#         ] 6% (milestone v0.4, 0/5 phases complete; 2/7 plans of Phase 11 done)
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 1
-- Average duration: ~5 min
-- Total execution time: ~0.1 hours
+- Total plans completed: 2
+- Average duration: ~4 min
+- Total execution time: ~0.13 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 11 | 1 | ~5 min | ~5 min |
+| 11 | 2 | ~8 min | ~4 min |
 
 **Recent Trend:**
 
-- Last 5 plans: 11-02 (~5 min, 1 file, 3 commits)
-- Trend: Phase 11 Wave 1 in progress
+- Last 5 plans: 11-03 (~3 min, 1 file, 1 commit), 11-02 (~5 min, 1 file, 3 commits)
+- Trend: Phase 11 Waves 1-2 progressing
 
 *Updated after each plan completion*
 
@@ -71,6 +71,7 @@ Recent decisions affecting v0.4 planning:
 - v0.4 (2026-05-06): Revoke = hard delete + purge всех данных юзера
 - v0.4 (2026-05-06): Phase structure 11-15 — DB foundation (11) → auth refactor (12) → Admin UI (13) → onboarding (14) → AI cap (15); ROLE-01 (role column добавление) включён в Phase 11 (часть DB-миграции), не в Phase 12
 - 11-02 (2026-05-06): Single atomic Alembic revision (rollback атомарный); coalesce(...,-1) trick в RLS policy для migration-friendly default; FK ON DELETE RESTRICT (не CASCADE — Phase 13 service-layer purge); FORCE ROW LEVEL SECURITY для defense-in-depth
+- 11-03 (2026-05-06): ORM models mirror migration 0006 exactly — UserRole(str, Enum) lowercase values; PgEnum(create_type=False) для reuse migration-created type; user_id placed last (preserves column order); BudgetPeriod.period_start unique перенесён в __table_args__; AppUser→domain back-refs не добавлены (one-way, по discretion); AppHealth не модифицирован (system table)
 
 ### Pending Todos
 
@@ -103,6 +104,6 @@ Items acknowledged and deferred at v0.3 milestone close on 2026-05-06:
 
 ## Session Continuity
 
-Last session: 2026-05-06T16:20:00.000Z
-Stopped at: Plan 11-02 complete (alembic 0006 revision created); Wave 1 plan 11-01 still pending
+Last session: 2026-05-06T16:27:19.000Z
+Stopped at: Plan 11-03 complete (ORM models mirror migration 0006 — UserRole + role + 9 user_id FKs)
 Resume file: .planning/phases/11-multi-tenancy-db-migration/11-01-PLAN.md

@@ -59,7 +59,7 @@
 **Plans:** 7 plans
 - [ ] 11-01-PLAN.md — RED tests + 2-tenant fixture skeleton (Wave 1, parallel with 11-02)
 - [x] 11-02-PLAN.md — Alembic single revision: enum + role + user_id + backfill + RLS + uniques + indexes (Wave 1, parallel with 11-01) — completed 2026-05-06
-- [ ] 11-03-PLAN.md — ORM models update (Mapped[user_id] + UserRole enum) (Wave 2)
+- [x] 11-03-PLAN.md — ORM models update (Mapped[user_id] + UserRole enum) (Wave 2) — completed 2026-05-06
 - [ ] 11-04-PLAN.md — Dependencies refactor (get_current_user_id + SET LOCAL) + dev_seed role=owner (Wave 3)
 - [ ] 11-05-PLAN.md — Service+route refactor part A (categories, periods, templates, planned, onboarding, settings) (Wave 4, parallel with 11-06)
 - [ ] 11-06-PLAN.md — Service+route refactor part B (actuals, subs, analytics, AI, internal_bot, worker) (Wave 4, parallel with 11-05)
@@ -146,7 +146,7 @@
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 11. Multi-Tenancy DB Migration & RLS | 1/7 | In progress | — |
+| 11. Multi-Tenancy DB Migration & RLS | 2/7 | In progress | — |
 | 12. Role-Based Auth Refactor | 0/? | Not started | — |
 | 13. Admin UI — Whitelist & AI Usage | 0/? | Not started | — |
 | 14. Multi-Tenant Onboarding | 0/? | Not started | — |
