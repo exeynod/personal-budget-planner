@@ -30,6 +30,11 @@ D-02 sign rule in compute_balance:
 
 Cross-import: reuses PeriodNotFoundError, InvalidCategoryError, KindMismatchError
 from app.services.planned.
+
+Phase 11 (Plan 11-06, MUL-03): every public function takes ``user_id: int``
+keyword-only and scopes its queries / inserts по ``ActualTransaction.user_id``,
+``BudgetPeriod.user_id``, ``Category.user_id``. RLS (``SET LOCAL
+app.current_user_id``) — defense-in-depth; app-side filtering — primary defense.
 """
 from datetime import date, timedelta
 from typing import Optional
@@ -40,7 +45,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.schemas.actual import ActualUpdate
 from app.core.period import period_for
-from app.core.settings import settings as app_settings
 from app.db.models import (
     ActualSource,
     ActualTransaction,
@@ -97,43 +101,51 @@ def _check_future_date(tx_date: date) -> None:
         raise FutureDateError(tx_date, max_date)
 
 
-async def _get_cycle_start_day(db: AsyncSession) -> int:
-    """Resolve cycle_start_day for OWNER_TG_ID with fallback to model default (5).
+async def _get_cycle_start_day(db: AsyncSession, *, user_id: int) -> int:
+    """Resolve cycle_start_day for the given app_user.id with fallback to model default (5).
 
-    Single-tenant: always uses OWNER_TG_ID from settings.
+    Phase 11: takes user_id (PK) instead of OWNER_TG_ID lookup. Settings service
+    accepts user_id as well после Plan 11-05 refactor.
+
     Fallback to 5 if AppUser not yet created (edge case on fresh deploy).
     """
     try:
-        return await get_cycle_start_day(db, app_settings.OWNER_TG_ID)
+        return await get_cycle_start_day(db, user_id=user_id)
     except UserNotFoundError:
         return 5  # model default (AppUser.cycle_start_day = 5)
 
 
-async def _ensure_category_active(db: AsyncSession, category_id: int) -> Category:
-    """Validate category exists and is_archived=False (D-36 / D-58).
+async def _ensure_category_active(
+    db: AsyncSession, category_id: int, *, user_id: int
+) -> Category:
+    """Validate category exists, is_archived=False, and belongs to user_id (D-36 / D-58).
 
     Raises:
-        CategoryNotFoundError: category does not exist (→ 404).
+        CategoryNotFoundError: category does not exist OR belongs to other tenant (→ 404).
         InvalidCategoryError: category is archived (→ 400).
     """
-    cat = await cat_svc.get_or_404(db, category_id)
+    cat = await cat_svc.get_or_404(db, category_id, user_id=user_id)
     if cat.is_archived:
         raise InvalidCategoryError(category_id, "Cannot use archived category")
     return cat
 
 
 async def _resolve_period_for_date(
-    db: AsyncSession, tx_date: date, *, cycle_start_day: int
+    db: AsyncSession,
+    tx_date: date,
+    *,
+    cycle_start_day: int,
+    user_id: int,
 ) -> int:
-    """Lookup or create BudgetPeriod containing tx_date (D-52).
+    """Lookup or create BudgetPeriod containing tx_date scoped by user_id (D-52).
 
     Algorithm:
-        1. SELECT id FROM budget_period WHERE period_start <= tx_date <= period_end
-           ORDER BY period_start DESC LIMIT 1.
+        1. SELECT id FROM budget_period WHERE user_id = :uid AND
+           period_start <= tx_date <= period_end ORDER BY period_start DESC LIMIT 1.
         2. If found — return id.
         3. Else: compute (period_start, period_end) = period_for(tx_date, cycle_start_day).
-           Insert BudgetPeriod with status=active if today within bounds, else closed
-           (closed_at=NULL because this period was never user-closed).
+           Insert BudgetPeriod(user_id=user_id, ...) with status=active if today
+           within bounds, else closed (closed_at=NULL because this period was never user-closed).
            Return new id.
 
     Note: auto-creation may produce "shadow" periods for historical dates without
@@ -142,6 +154,7 @@ async def _resolve_period_for_date(
     stmt = (
         select(BudgetPeriod.id)
         .where(
+            BudgetPeriod.user_id == user_id,
             BudgetPeriod.period_start <= tx_date,
             BudgetPeriod.period_end >= tx_date,
         )
@@ -158,6 +171,7 @@ async def _resolve_period_for_date(
         PeriodStatus.active if p_start <= today <= p_end else PeriodStatus.closed
     )
     period = BudgetPeriod(
+        user_id=user_id,
         period_start=p_start,
         period_end=p_end,
         starting_balance_cents=0,  # unknown for retroactive periods
@@ -173,6 +187,7 @@ async def _resolve_period_for_date(
         await db.rollback()
         existing = await db.scalar(
             select(BudgetPeriod.id).where(
+                BudgetPeriod.user_id == user_id,
                 BudgetPeriod.period_start <= tx_date,
                 BudgetPeriod.period_end >= tx_date,
             )
@@ -187,15 +202,23 @@ async def list_actual_for_period(
     db: AsyncSession,
     period_id: int,
     *,
+    user_id: int,
     kind: Optional[str] = None,
     category_id: Optional[int] = None,
 ) -> list[ActualTransaction]:
     """List actual transactions for a period, optionally filtered by kind/category.
 
-    Returns empty list if period has no actuals (does not validate period existence).
+    Phase 11: scoped by ``ActualTransaction.user_id == user_id``. Returns empty
+    list if period has no actuals OR period belongs to a different tenant
+    (does not validate period existence — RLS + filter make cross-tenant
+    period_id безопасным: 0 rows, no leak).
+
     Order: tx_date DESC, id DESC — freshest entries first.
     """
-    stmt = select(ActualTransaction).where(ActualTransaction.period_id == period_id)
+    stmt = select(ActualTransaction).where(
+        ActualTransaction.user_id == user_id,
+        ActualTransaction.period_id == period_id,
+    )
     if kind is not None:
         stmt = stmt.where(ActualTransaction.kind == CategoryKind(kind))
     if category_id is not None:
@@ -205,9 +228,19 @@ async def list_actual_for_period(
     return list(result.scalars().all())
 
 
-async def get_or_404(db: AsyncSession, actual_id: int) -> ActualTransaction:
-    """Fetch an actual transaction or raise ActualNotFoundError (→ 404)."""
-    row = await db.get(ActualTransaction, actual_id)
+async def get_or_404(
+    db: AsyncSession, actual_id: int, *, user_id: int
+) -> ActualTransaction:
+    """Fetch an actual transaction or raise ActualNotFoundError (→ 404).
+
+    Phase 11: scoped by user_id — cross-tenant id обращения дают 404, не 200
+    с чужими данными.
+    """
+    stmt = select(ActualTransaction).where(
+        ActualTransaction.id == actual_id,
+        ActualTransaction.user_id == user_id,
+    )
+    row = await db.scalar(stmt)
     if row is None:
         raise ActualNotFoundError(actual_id)
     return row
@@ -216,6 +249,7 @@ async def get_or_404(db: AsyncSession, actual_id: int) -> ActualTransaction:
 async def create_actual(
     db: AsyncSession,
     *,
+    user_id: int,
     kind: str,
     amount_cents: int,
     description: Optional[str],
@@ -226,24 +260,28 @@ async def create_actual(
     """Create an actual transaction with automatic period resolution.
 
     Validation order:
-        1. category active → CategoryNotFoundError / InvalidCategoryError.
+        1. category active (scoped by user_id) → CategoryNotFoundError / InvalidCategoryError.
         2. kind matches category.kind → KindMismatchError.
         3. tx_date <= today + 7 days → FutureDateError.
-        4. period_id resolved via _resolve_period_for_date (D-52).
-        5. INSERT + flush + refresh.
+        4. period_id resolved via _resolve_period_for_date (D-52, scoped by user_id).
+        5. INSERT (with user_id) + flush + refresh.
 
     Args:
+        user_id: app_user.id (PK) — owner of the new ActualTransaction row.
         source: must be ActualSource.mini_app or ActualSource.bot.
                 Route layer is responsible for setting the correct source (D-53).
     """
-    cat = await _ensure_category_active(db, category_id)
+    cat = await _ensure_category_active(db, category_id, user_id=user_id)
     if cat.kind.value != kind:
         raise KindMismatchError(kind, cat.kind.value)
     _check_future_date(tx_date)
-    cycle_start_day = await _get_cycle_start_day(db)
-    period_id = await _resolve_period_for_date(db, tx_date, cycle_start_day=cycle_start_day)
+    cycle_start_day = await _get_cycle_start_day(db, user_id=user_id)
+    period_id = await _resolve_period_for_date(
+        db, tx_date, cycle_start_day=cycle_start_day, user_id=user_id
+    )
 
     row = ActualTransaction(
+        user_id=user_id,
         period_id=period_id,
         kind=CategoryKind(kind),
         amount_cents=amount_cents,
@@ -259,21 +297,28 @@ async def create_actual(
 
 
 async def update_actual(
-    db: AsyncSession, actual_id: int, patch: ActualUpdate
+    db: AsyncSession,
+    actual_id: int,
+    patch: ActualUpdate,
+    *,
+    user_id: int,
 ) -> ActualTransaction:
     """Partial update of an actual transaction.
+
+    Phase 11: row + новый category lookup + period re-resolve все scoped по user_id.
 
     Category/kind consistency is validated if either field changes.
     period_id is recomputed ONLY when tx_date is in the patch AND differs
     from the current value (ACT-05, D-52).
     """
-    row = await get_or_404(db, actual_id)
+    row = await get_or_404(db, actual_id, user_id=user_id)
     data = patch.model_dump(exclude_unset=True)
 
-    # Category change validation: ensure new category active + kind compatibility.
+    # Category change validation: ensure new category active + kind compatibility
+    # + same tenant (cat_svc.get_or_404 scoped by user_id).
     new_cat: Optional[Category] = None
     if "category_id" in data and data["category_id"] != row.category_id:
-        new_cat = await _ensure_category_active(db, data["category_id"])
+        new_cat = await _ensure_category_active(db, data["category_id"], user_id=user_id)
 
     effective_kind = data.get(
         "kind", row.kind.value if isinstance(row.kind, CategoryKind) else row.kind
@@ -282,16 +327,16 @@ async def update_actual(
 
     if "kind" in data or "category_id" in data:
         if new_cat is None:
-            new_cat = await cat_svc.get_or_404(db, effective_cat_id)
+            new_cat = await cat_svc.get_or_404(db, effective_cat_id, user_id=user_id)
         if new_cat.kind.value != effective_kind:
             raise KindMismatchError(effective_kind, new_cat.kind.value)
 
     # period_id recompute when tx_date changes (ACT-05, D-52).
     if "tx_date" in data and data["tx_date"] != row.tx_date:
         _check_future_date(data["tx_date"])
-        cycle_start_day = await _get_cycle_start_day(db)
+        cycle_start_day = await _get_cycle_start_day(db, user_id=user_id)
         new_period_id = await _resolve_period_for_date(
-            db, data["tx_date"], cycle_start_day=cycle_start_day
+            db, data["tx_date"], cycle_start_day=cycle_start_day, user_id=user_id
         )
         row.period_id = new_period_id
 
@@ -306,12 +351,16 @@ async def update_actual(
     return row
 
 
-async def delete_actual(db: AsyncSession, actual_id: int) -> ActualTransaction:
+async def delete_actual(
+    db: AsyncSession, actual_id: int, *, user_id: int
+) -> ActualTransaction:
     """Hard delete an actual transaction (CLAUDE.md: soft delete only for Category).
+
+    Phase 11: scoped by user_id — cross-tenant id обращения дают 404.
 
     Returns the deleted row for response serialization.
     """
-    row = await get_or_404(db, actual_id)
+    row = await get_or_404(db, actual_id, user_id=user_id)
     await db.delete(row)
     await db.flush()
     return row
@@ -320,8 +369,13 @@ async def delete_actual(db: AsyncSession, actual_id: int) -> ActualTransaction:
 # ---------- Balance aggregation ----------
 
 
-async def compute_balance(db: AsyncSession, period_id: int) -> dict:
+async def compute_balance(
+    db: AsyncSession, period_id: int, *, user_id: int
+) -> dict:
     """Aggregate planned/actual per category + totals for a budget period.
+
+    Phase 11: BudgetPeriod / PlannedTransaction / ActualTransaction / Category
+    queries scoped по user_id. period_id from cross-tenant вернёт PeriodNotFoundError.
 
     D-02 sign rule:
         expense delta = plan - act  (positive = under-budget = good)
@@ -342,34 +396,49 @@ async def compute_balance(db: AsyncSession, period_id: int) -> dict:
         by_category: [{category_id, name, kind, planned_cents, actual_cents, delta_cents}]
 
     Raises:
-        PeriodNotFoundError: if BudgetPeriod with given id does not exist.
+        PeriodNotFoundError: if BudgetPeriod with given id does not exist
+            (or belongs to different tenant — same effect).
     """
-    period = await db.get(BudgetPeriod, period_id)
+    period = await db.scalar(
+        select(BudgetPeriod).where(
+            BudgetPeriod.id == period_id,
+            BudgetPeriod.user_id == user_id,
+        )
+    )
     if period is None:
         raise PeriodNotFoundError(period_id)
 
-    # Aggregate planned by (category_id, kind).
+    # Aggregate planned by (category_id, kind), scoped by user_id.
     planned_q = (
         select(
             PlannedTransaction.category_id,
             PlannedTransaction.kind,
             func.sum(PlannedTransaction.amount_cents).label("planned_cents"),
         )
-        .where(PlannedTransaction.period_id == period_id)
+        .where(
+            PlannedTransaction.user_id == user_id,
+            PlannedTransaction.period_id == period_id,
+        )
         .group_by(PlannedTransaction.category_id, PlannedTransaction.kind)
     )
-    # Aggregate actual by (category_id, kind).
+    # Aggregate actual by (category_id, kind), scoped by user_id.
     actual_q = (
         select(
             ActualTransaction.category_id,
             ActualTransaction.kind,
             func.sum(ActualTransaction.amount_cents).label("actual_cents"),
         )
-        .where(ActualTransaction.period_id == period_id)
+        .where(
+            ActualTransaction.user_id == user_id,
+            ActualTransaction.period_id == period_id,
+        )
         .group_by(ActualTransaction.category_id, ActualTransaction.kind)
     )
-    # Active categories only for by_category display.
-    cats_q = select(Category).where(Category.is_archived.is_(False))
+    # Active categories only for by_category display (scoped by user_id).
+    cats_q = select(Category).where(
+        Category.user_id == user_id,
+        Category.is_archived.is_(False),
+    )
 
     planned_rows = (await db.execute(planned_q)).all()
     actual_rows = (await db.execute(actual_q)).all()
@@ -441,15 +510,20 @@ async def compute_balance(db: AsyncSession, period_id: int) -> dict:
 # ---------- Bot helpers ----------
 
 
-async def actuals_for_today(db: AsyncSession) -> list[ActualTransaction]:
+async def actuals_for_today(
+    db: AsyncSession, *, user_id: int
+) -> list[ActualTransaction]:
     """Return today's actual transactions (Europe/Moscow TZ), freshest first.
 
-    Used by format_today_for_bot and GET /today helpers.
+    Phase 11: scoped по user_id. Used by format_today_for_bot and GET /today helpers.
     """
     today = _today_in_app_tz()
     stmt = (
         select(ActualTransaction)
-        .where(ActualTransaction.tx_date == today)
+        .where(
+            ActualTransaction.user_id == user_id,
+            ActualTransaction.tx_date == today,
+        )
         .order_by(ActualTransaction.id.desc())
     )
     result = await db.execute(stmt)
@@ -457,22 +531,25 @@ async def actuals_for_today(db: AsyncSession) -> list[ActualTransaction]:
 
 
 async def find_categories_by_query(
-    db: AsyncSession, query: str, *, limit: int = 10
+    db: AsyncSession, query: str, *, user_id: int, limit: int = 10
 ) -> list[Category]:
-    """ILIKE substring search among active categories (D-51).
+    """ILIKE substring search among active categories (D-51), scoped by user_id.
 
     Args:
         query: search string; empty string returns [].
+        user_id: tenant scope; only this user's categories считаются.
         limit: max results (default 10; Telegram inline keyboard fits ~8 rows).
 
     Returns:
-        Categories matching '%query%', is_archived=False, ordered alphabetically.
+        Categories matching '%query%', is_archived=False, ordered alphabetically,
+        принадлежащие user_id.
     """
     if not query.strip():
         return []
     stmt = (
         select(Category)
         .where(
+            Category.user_id == user_id,
             Category.is_archived.is_(False),
             Category.name.ilike(f"%{query.strip()}%"),
         )

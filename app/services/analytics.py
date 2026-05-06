@@ -1,6 +1,10 @@
 """Analytics service — aggregate SQL queries for Phase 8 (ANL-07, ANL-08).
 
 All functions are read-only (no db.commit). Period resolution is done internally.
+
+Phase 11 (Plan 11-06, MUL-03): each public function takes ``user_id: int``
+keyword-only and scopes BudgetPeriod / PlannedTransaction / ActualTransaction /
+Category queries по user_id. RLS — defense-in-depth.
 """
 from __future__ import annotations
 
@@ -22,12 +26,16 @@ from app.db.models import (
 async def get_recent_periods(
     db: AsyncSession,
     *,
+    user_id: int,
     n: int,
 ) -> list[BudgetPeriod]:
-    """Return up to N most recent budget_periods (active + closed), ordered DESC."""
+    """Return up to N most recent budget_periods (active + closed) for user_id, ordered DESC."""
     q = (
         select(BudgetPeriod)
-        .where(BudgetPeriod.status.in_([PeriodStatus.active, PeriodStatus.closed]))
+        .where(
+            BudgetPeriod.user_id == user_id,
+            BudgetPeriod.status.in_([PeriodStatus.active, PeriodStatus.closed]),
+        )
         .order_by(BudgetPeriod.period_start.desc())
         .limit(n)
     )
@@ -51,19 +59,22 @@ def _period_label(bp: BudgetPeriod) -> str:
 async def get_trend(
     db: AsyncSession,
     *,
+    user_id: int,
     range_: str,
 ) -> dict:
     """SUM expense and income by period for N periods, ordered by period_start ASC.
+
+    Phase 11: scoped по user_id (BudgetPeriod + ActualTransaction).
 
     Special case: range='1M' aggregates by tx_date within the active period
     so the chart still shows a meaningful daily trend (one period = one point
     is useless visually).
     """
     if range_ == "1M":
-        return await _get_trend_daily(db)
+        return await _get_trend_daily(db, user_id=user_id)
 
     n = _range_to_n(range_)
-    periods = await get_recent_periods(db, n=n)
+    periods = await get_recent_periods(db, user_id=user_id, n=n)
     if not periods:
         return {"points": []}
 
@@ -76,6 +87,7 @@ async def get_trend(
             func.sum(ActualTransaction.amount_cents).label("total_cents"),
         )
         .where(
+            ActualTransaction.user_id == user_id,
             ActualTransaction.period_id.in_(period_ids),
             ActualTransaction.kind == CategoryKind.expense,
         )
@@ -87,6 +99,7 @@ async def get_trend(
             func.sum(ActualTransaction.amount_cents).label("total_cents"),
         )
         .where(
+            ActualTransaction.user_id == user_id,
             ActualTransaction.period_id.in_(period_ids),
             ActualTransaction.kind == CategoryKind.income,
         )
@@ -108,14 +121,16 @@ async def get_trend(
     return {"points": points}
 
 
-async def _get_trend_daily(db: AsyncSession) -> dict:
+async def _get_trend_daily(db: AsyncSession, *, user_id: int) -> dict:
     """Daily aggregation across the active period (range='1M').
+
+    Phase 11: scoped по user_id.
 
     Returns one point per day from period_start to period_end with cumulative
     or per-day totals — here per-day, since the chart visualises trend.
     Empty days are omitted (chart smoothly connects existing points).
     """
-    periods = await get_recent_periods(db, n=1)
+    periods = await get_recent_periods(db, user_id=user_id, n=1)
     if not periods:
         return {"points": []}
     period = periods[0]
@@ -126,6 +141,7 @@ async def _get_trend_daily(db: AsyncSession) -> dict:
             func.sum(ActualTransaction.amount_cents).label("total_cents"),
         )
         .where(
+            ActualTransaction.user_id == user_id,
             ActualTransaction.period_id == period.id,
             ActualTransaction.kind == CategoryKind.expense,
         )
@@ -137,6 +153,7 @@ async def _get_trend_daily(db: AsyncSession) -> dict:
             func.sum(ActualTransaction.amount_cents).label("total_cents"),
         )
         .where(
+            ActualTransaction.user_id == user_id,
             ActualTransaction.period_id == period.id,
             ActualTransaction.kind == CategoryKind.income,
         )
@@ -166,11 +183,15 @@ async def _get_trend_daily(db: AsyncSession) -> dict:
 async def get_top_overspend(
     db: AsyncSession,
     *,
+    user_id: int,
     range_: str,
 ) -> dict:
-    """Top-5 expense categories by overspend_pct = actual/planned*100, DESC."""
+    """Top-5 expense categories by overspend_pct = actual/planned*100, DESC.
+
+    Phase 11: все запросы scoped по user_id.
+    """
     n = _range_to_n(range_)
-    periods = await get_recent_periods(db, n=n)
+    periods = await get_recent_periods(db, user_id=user_id, n=n)
     if not periods:
         return {"items": []}
 
@@ -182,6 +203,7 @@ async def get_top_overspend(
             func.sum(PlannedTransaction.amount_cents).label("planned_cents"),
         )
         .where(
+            PlannedTransaction.user_id == user_id,
             PlannedTransaction.period_id.in_(period_ids),
             PlannedTransaction.kind == CategoryKind.expense,
         )
@@ -193,6 +215,7 @@ async def get_top_overspend(
             func.sum(ActualTransaction.amount_cents).label("actual_cents"),
         )
         .where(
+            ActualTransaction.user_id == user_id,
             ActualTransaction.period_id.in_(period_ids),
             ActualTransaction.kind == CategoryKind.expense,
         )
@@ -207,8 +230,12 @@ async def get_top_overspend(
     if not category_ids:
         return {"items": []}
 
-    # Load category names
-    cat_q = select(Category).where(Category.id.in_(category_ids))
+    # Load category names — scoped по user_id для consistency (cross-tenant id из
+    # actual_rows не должен сюда попадать, но defense-in-depth).
+    cat_q = select(Category).where(
+        Category.user_id == user_id,
+        Category.id.in_(category_ids),
+    )
     cats = {c.id: c for c in (await db.execute(cat_q)).scalars().all()}
 
     items = []
@@ -245,11 +272,15 @@ async def get_top_overspend(
 async def get_top_categories(
     db: AsyncSession,
     *,
+    user_id: int,
     range_: str,
 ) -> dict:
-    """Top-5 expense categories by total actual_cents DESC."""
+    """Top-5 expense categories by total actual_cents DESC.
+
+    Phase 11: все запросы scoped по user_id.
+    """
     n = _range_to_n(range_)
-    periods = await get_recent_periods(db, n=n)
+    periods = await get_recent_periods(db, user_id=user_id, n=n)
     if not periods:
         return {"items": []}
 
@@ -261,6 +292,7 @@ async def get_top_categories(
             func.sum(ActualTransaction.amount_cents).label("actual_cents"),
         )
         .where(
+            ActualTransaction.user_id == user_id,
             ActualTransaction.period_id.in_(period_ids),
             ActualTransaction.kind == CategoryKind.expense,
         )
@@ -274,6 +306,7 @@ async def get_top_categories(
             func.sum(PlannedTransaction.amount_cents).label("planned_cents"),
         )
         .where(
+            PlannedTransaction.user_id == user_id,
             PlannedTransaction.period_id.in_(period_ids),
             PlannedTransaction.kind == CategoryKind.expense,
         )
@@ -286,7 +319,10 @@ async def get_top_categories(
         return {"items": []}
 
     top_cat_ids = [r.category_id for r in actual_rows]
-    cat_q = select(Category).where(Category.id.in_(top_cat_ids))
+    cat_q = select(Category).where(
+        Category.user_id == user_id,
+        Category.id.in_(top_cat_ids),
+    )
     cats = {c.id: c for c in (await db.execute(cat_q)).scalars().all()}
 
     items = [
@@ -304,30 +340,38 @@ async def get_top_categories(
 async def get_forecast(
     db: AsyncSession,
     *,
+    user_id: int,
     range_: str = "1M",
 ) -> dict:
     """Polymorphic analytics top-card.
+
+    Phase 11: все запросы scoped по user_id.
 
     range='1M'  → forecast active period via plan:
                   projected = starting_balance + planned_income − planned_expense
     range>=3M   → cashflow over N CLOSED periods (active period excluded).
     """
     if range_ == "1M":
-        return await _get_forecast_active(db)
-    return await _get_cashflow(db, n=_range_to_n(range_))
+        return await _get_forecast_active(db, user_id=user_id)
+    return await _get_cashflow(db, user_id=user_id, n=_range_to_n(range_))
 
 
-async def _get_forecast_active(db: AsyncSession) -> dict:
-    active_q = select(BudgetPeriod).where(BudgetPeriod.status == PeriodStatus.active)
+async def _get_forecast_active(db: AsyncSession, *, user_id: int) -> dict:
+    active_q = select(BudgetPeriod).where(
+        BudgetPeriod.user_id == user_id,
+        BudgetPeriod.status == PeriodStatus.active,
+    )
     active = (await db.execute(active_q)).scalar_one_or_none()
     if active is None:
         return {"mode": "empty"}
 
     income_q = select(func.coalesce(func.sum(PlannedTransaction.amount_cents), 0)).where(
+        PlannedTransaction.user_id == user_id,
         PlannedTransaction.period_id == active.id,
         PlannedTransaction.kind == CategoryKind.income,
     )
     expense_q = select(func.coalesce(func.sum(PlannedTransaction.amount_cents), 0)).where(
+        PlannedTransaction.user_id == user_id,
         PlannedTransaction.period_id == active.id,
         PlannedTransaction.kind == CategoryKind.expense,
     )
@@ -346,11 +390,14 @@ async def _get_forecast_active(db: AsyncSession) -> dict:
     }
 
 
-async def _get_cashflow(db: AsyncSession, *, n: int) -> dict:
+async def _get_cashflow(db: AsyncSession, *, user_id: int, n: int) -> dict:
     """Sum of (income − expense) per closed period over the latest N closed periods."""
     closed_q = (
         select(BudgetPeriod)
-        .where(BudgetPeriod.status == PeriodStatus.closed)
+        .where(
+            BudgetPeriod.user_id == user_id,
+            BudgetPeriod.status == PeriodStatus.closed,
+        )
         .order_by(BudgetPeriod.period_start.desc())
         .limit(n)
     )
@@ -363,6 +410,7 @@ async def _get_cashflow(db: AsyncSession, *, n: int) -> dict:
         ActualTransaction.period_id,
         func.coalesce(func.sum(ActualTransaction.amount_cents), 0).label("total"),
     ).where(
+        ActualTransaction.user_id == user_id,
         ActualTransaction.period_id.in_(period_ids),
         ActualTransaction.kind == CategoryKind.income,
     ).group_by(ActualTransaction.period_id)
@@ -370,6 +418,7 @@ async def _get_cashflow(db: AsyncSession, *, n: int) -> dict:
         ActualTransaction.period_id,
         func.coalesce(func.sum(ActualTransaction.amount_cents), 0).label("total"),
     ).where(
+        ActualTransaction.user_id == user_id,
         ActualTransaction.period_id.in_(period_ids),
         ActualTransaction.kind == CategoryKind.expense,
     ).group_by(ActualTransaction.period_id)

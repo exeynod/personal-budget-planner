@@ -29,13 +29,20 @@ Status codes:
     403: missing / invalid X-Telegram-Init-Data (router-level dep)
     404: ActualNotFound / CategoryNotFound / PeriodNotFound / no active period
     422: Pydantic validation (gt=0, max_length, wrong types)
+
+Phase 11 (Plan 11-06): все handlers используют ``get_db_with_tenant_scope`` +
+``get_current_user_id``; service вызовы передают ``user_id=user_id``.
 """
 from typing import Annotated, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.dependencies import get_current_user, get_db
+from app.api.dependencies import (
+    get_current_user,
+    get_current_user_id,
+    get_db_with_tenant_scope,
+)
 from app.api.schemas.actual import (
     ActualCreate,
     ActualRead,
@@ -69,7 +76,8 @@ actual_router = APIRouter(
 )
 async def list_actual(
     period_id: int,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Annotated[AsyncSession, Depends(get_db_with_tenant_scope)],
+    user_id: Annotated[int, Depends(get_current_user_id)],
     kind: Optional[KindStr] = Query(default=None),
     category_id: Optional[int] = Query(default=None, gt=0),
 ) -> list[ActualRead]:
@@ -80,7 +88,7 @@ async def list_actual(
     with planned.py behaviour; UI detects onboarding state via /periods/current).
     """
     rows = await actual_svc.list_actual_for_period(
-        db, period_id, kind=kind, category_id=category_id,
+        db, period_id, user_id=user_id, kind=kind, category_id=category_id,
     )
     return [ActualRead.model_validate(r) for r in rows]
 
@@ -95,7 +103,8 @@ async def list_actual(
 )
 async def create_actual(
     body: ActualCreate,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Annotated[AsyncSession, Depends(get_db_with_tenant_scope)],
+    user_id: Annotated[int, Depends(get_current_user_id)],
 ) -> ActualRead:
     """POST /api/v1/actual — create a new actual transaction.
 
@@ -104,7 +113,7 @@ async def create_actual(
     cannot override it. Bot transactions go through ``POST /internal/bot/actual``
     and receive ``source=ActualSource.bot`` there.
 
-    D-52: if no BudgetPeriod covers ``tx_date``, one is auto-created.
+    D-52: if no BudgetPeriod covers ``tx_date``, one is auto-created (scoped by user_id).
 
     Status codes:
         200: created
@@ -115,6 +124,7 @@ async def create_actual(
     try:
         row = await actual_svc.create_actual(
             db,
+            user_id=user_id,
             kind=body.kind,
             amount_cents=body.amount_cents,
             description=body.description,
@@ -146,7 +156,8 @@ async def create_actual(
     response_model=BalanceResponse,
 )
 async def get_balance(
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Annotated[AsyncSession, Depends(get_db_with_tenant_scope)],
+    user_id: Annotated[int, Depends(get_current_user_id)],
 ) -> BalanceResponse:
     """GET /api/v1/actual/balance — balance for the currently active period.
 
@@ -160,13 +171,13 @@ async def get_balance(
         200: balance data
         404: no active budget period (onboarding incomplete)
     """
-    period = await periods_svc.get_current_active_period(db)
+    period = await periods_svc.get_current_active_period(db, user_id=user_id)
     if period is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="No active budget period — complete onboarding first",
         )
-    bal = await actual_svc.compute_balance(db, period.id)
+    bal = await actual_svc.compute_balance(db, period.id, user_id=user_id)
     return BalanceResponse(**bal)
 
 
@@ -177,7 +188,8 @@ async def get_balance(
 async def update_actual(
     actual_id: int,
     body: ActualUpdate,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Annotated[AsyncSession, Depends(get_db_with_tenant_scope)],
+    user_id: Annotated[int, Depends(get_current_user_id)],
 ) -> ActualRead:
     """PATCH /api/v1/actual/{actual_id} — partial update.
 
@@ -191,7 +203,7 @@ async def update_actual(
         422: Pydantic validation
     """
     try:
-        row = await actual_svc.update_actual(db, actual_id, body)
+        row = await actual_svc.update_actual(db, actual_id, body, user_id=user_id)
     except ActualNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
@@ -221,7 +233,8 @@ async def update_actual(
 )
 async def delete_actual(
     actual_id: int,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Annotated[AsyncSession, Depends(get_db_with_tenant_scope)],
+    user_id: Annotated[int, Depends(get_current_user_id)],
 ) -> ActualRead:
     """DELETE /api/v1/actual/{actual_id} — hard delete.
 
@@ -232,7 +245,7 @@ async def delete_actual(
         404: actual row does not exist
     """
     try:
-        row = await actual_svc.delete_actual(db, actual_id)
+        row = await actual_svc.delete_actual(db, actual_id, user_id=user_id)
     except ActualNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)

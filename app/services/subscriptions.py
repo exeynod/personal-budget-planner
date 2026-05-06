@@ -9,6 +9,12 @@ Domain exceptions:
 
 Threat mitigations (CLAUDE.md + threat_model):
 - T-06-02: create_subscription validates category_id exists and is not archived
+- T-11-06-08: все мутации Subscription / PlannedTransaction явно задают user_id
+  (insert path) и фильтруют запросы по user_id (read/update/delete path).
+
+Phase 11 (Plan 11-06, MUL-03): все public функции принимают ``user_id: int``
+keyword-only и фильтруют ``Subscription.user_id`` / ``PlannedTransaction.user_id``.
+RLS — defense-in-depth backstop.
 """
 from __future__ import annotations
 
@@ -49,7 +55,7 @@ class AlreadyChargedError(Exception):
 
 
 class CategoryNotFoundOrArchived(Exception):
-    """Raised when category_id does not exist or is archived (T-06-02)."""
+    """Raised when category_id does not exist, is archived, or belongs to other tenant (T-06-02)."""
 
 
 def _advance_charge_date(sub: Subscription) -> date:
@@ -64,10 +70,13 @@ def _advance_charge_date(sub: Subscription) -> date:
     return sub.next_charge_date + relativedelta(years=1)
 
 
-async def list_subscriptions(db: AsyncSession) -> list[Subscription]:
-    """Return all subscriptions (active + inactive), joined with category, sorted by next_charge_date ASC."""
+async def list_subscriptions(
+    db: AsyncSession, *, user_id: int
+) -> list[Subscription]:
+    """Return user's subscriptions (active + inactive), joined with category, sorted by next_charge_date ASC."""
     result = await db.execute(
         select(Subscription)
+        .where(Subscription.user_id == user_id)
         .options(selectinload(Subscription.category))
         .order_by(Subscription.next_charge_date.asc())
     )
@@ -77,7 +86,7 @@ async def list_subscriptions(db: AsyncSession) -> list[Subscription]:
 async def create_subscription(
     db: AsyncSession,
     *,
-    tg_user_id: int,
+    user_id: int,
     name: str,
     amount_cents: int,
     cycle: SubCycle,
@@ -86,23 +95,31 @@ async def create_subscription(
     notify_days_before: Optional[int] = None,
     is_active: bool = True,
 ) -> Subscription:
-    """Create and persist a new subscription.
+    """Create and persist a new subscription owned by user_id.
 
-    notify_days_before defaults to AppUser.notify_days_before if not supplied (D-73).
-    Raises CategoryNotFoundOrArchived if category_id is invalid or archived (T-06-02).
+    Phase 11: category_id validated в scope user_id (cross-tenant attempts ловятся
+    как CategoryNotFoundOrArchived). notify_days_before defaults to
+    AppUser.notify_days_before если не передан (D-73).
+
+    Raises CategoryNotFoundOrArchived if category_id is invalid, archived, or
+    belongs to a different tenant (T-06-02 + T-11-06-08).
     """
-    cat = await db.scalar(select(Category).where(Category.id == category_id))
+    cat = await db.scalar(
+        select(Category).where(
+            Category.id == category_id,
+            Category.user_id == user_id,
+        )
+    )
     if cat is None or cat.is_archived:
         raise CategoryNotFoundOrArchived(
             f"Category {category_id} not found or archived"
         )
     if notify_days_before is None:
-        user = await db.scalar(
-            select(AppUser).where(AppUser.tg_user_id == tg_user_id)
-        )
+        user = await db.scalar(select(AppUser).where(AppUser.id == user_id))
         notify_days_before = user.notify_days_before if user else 2
 
     sub = Subscription(
+        user_id=user_id,
         name=name,
         amount_cents=amount_cents,
         cycle=cycle,
@@ -121,16 +138,23 @@ async def update_subscription(
     db: AsyncSession,
     sub_id: int,
     patch: dict,
+    *,
+    user_id: int,
 ) -> Subscription:
     """Partial-update a subscription by id.
 
-    Raises LookupError if sub_id not found.
+    Phase 11: scoped по user_id — cross-tenant id обращения дают LookupError (→ 404).
+
+    Raises LookupError if sub_id not found (or принадлежит другому tenant).
     patch already contains only explicitly-set fields (model_dump(exclude_unset=True)
     in the route layer), so every field in patch is applied unconditionally.
     """
     sub = await db.scalar(
         select(Subscription)
-        .where(Subscription.id == sub_id)
+        .where(
+            Subscription.id == sub_id,
+            Subscription.user_id == user_id,
+        )
         .options(selectinload(Subscription.category))
     )
     if sub is None:
@@ -141,18 +165,30 @@ async def update_subscription(
     return sub
 
 
-async def delete_subscription(db: AsyncSession, sub_id: int) -> None:
+async def delete_subscription(
+    db: AsyncSession, sub_id: int, *, user_id: int
+) -> None:
     """Hard-delete a subscription by id (CLAUDE.md convention: subscriptions hard delete).
 
-    Also removes subscription_auto planned rows referencing this subscription
-    to satisfy the FK constraint.
+    Phase 11: scoped по user_id — cross-tenant id обращения дают LookupError (→ 404).
 
-    Raises LookupError if sub_id not found (rowcount == 0).
+    Also removes subscription_auto planned rows referencing this subscription
+    (within the same tenant) to satisfy the FK constraint.
+
+    Raises LookupError if sub_id not found.
     """
     await db.execute(
-        delete(PlannedTransaction).where(PlannedTransaction.subscription_id == sub_id)
+        delete(PlannedTransaction).where(
+            PlannedTransaction.user_id == user_id,
+            PlannedTransaction.subscription_id == sub_id,
+        )
     )
-    result = await db.execute(delete(Subscription).where(Subscription.id == sub_id))
+    result = await db.execute(
+        delete(Subscription).where(
+            Subscription.id == sub_id,
+            Subscription.user_id == user_id,
+        )
+    )
     if result.rowcount == 0:
         raise LookupError(f"Subscription {sub_id} not found")
 
@@ -161,14 +197,21 @@ async def add_subscription_to_period(
     db: AsyncSession,
     sub: Subscription,
     period_id: int,
+    *,
+    user_id: int,
 ) -> PlannedTransaction | None:
     """Create a PlannedTransaction for sub in period without advancing next_charge_date.
+
+    Phase 11: PlannedTransaction INSERT задаёт user_id явно. Caller отвечает за
+    то, чтобы sub.user_id == user_id и period с period_id принадлежит user_id
+    (worker и routes это гарантируют до вызова).
 
     Called when a new period is created or when a subscription is added mid-period.
     Idempotent via SAVEPOINT: returns None if (subscription_id, original_charge_date)
     already exists.
     """
     planned = PlannedTransaction(
+        user_id=user_id,
         period_id=period_id,
         category_id=sub.category_id,
         kind=sub.category.kind,
@@ -190,15 +233,19 @@ async def charge_subscription(
     db: AsyncSession,
     sub_id: int,
     *,
+    user_id: int,
     cycle_start_day: int,
 ) -> tuple[PlannedTransaction, date]:
     """Create a PlannedTransaction for the subscription's next_charge_date and advance the date.
+
+    Phase 11: subscription lookup + period resolve + PlannedTransaction INSERT
+    все scoped по user_id.
 
     This is the shared logic for both POST /subscriptions/{id}/charge-now (D-71)
     and the charge_subscriptions worker job (D-80).
 
     Raises:
-        LookupError: subscription not found
+        LookupError: subscription not found (или принадлежит другому tenant)
         AlreadyChargedError: IntegrityError on uq_planned_sub_charge_date (SUB-05 idempotency)
 
     Returns:
@@ -209,7 +256,10 @@ async def charge_subscription(
 
     sub = await db.scalar(
         select(Subscription)
-        .where(Subscription.id == sub_id)
+        .where(
+            Subscription.id == sub_id,
+            Subscription.user_id == user_id,
+        )
         .options(selectinload(Subscription.category))
     )
     if sub is None:
@@ -217,10 +267,11 @@ async def charge_subscription(
 
     original_date = sub.next_charge_date
     period_id = await _resolve_period_for_date(
-        db, original_date, cycle_start_day=cycle_start_day
+        db, original_date, cycle_start_day=cycle_start_day, user_id=user_id
     )
 
     planned = PlannedTransaction(
+        user_id=user_id,
         period_id=period_id,
         category_id=sub.category_id,
         kind=sub.category.kind,
