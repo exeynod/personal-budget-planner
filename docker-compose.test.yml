@@ -13,6 +13,13 @@
 
 services:
   api:
+    environment:
+      # Phase 10.1: validate_production_settings demands a non-placeholder
+      # OPENAI_API_KEY whenever AI is on (independent of DEV_MODE). The
+      # integration suite never makes real OpenAI calls — they're either
+      # mocked or skipped — so a fake test token satisfies the boot guard
+      # without leaking the real one into the test environment.
+      OPENAI_API_KEY: "sk-test-fake-key-for-integration-tests-only"
     volumes:
       - ./tests:/app/tests:ro
       - ./pyproject.toml:/app/pyproject.toml:ro

@@ -30,6 +30,11 @@ os.environ.setdefault(
     "postgresql://budget:budget@localhost:5432/budget_test",
 )
 os.environ.setdefault("PUBLIC_DOMAIN", "localhost")
+# Phase 10.1: validate_production_settings now requires a non-placeholder
+# OPENAI_API_KEY whenever AI is enabled (independent of DEV_MODE). Tests
+# don't make real OpenAI calls — those are mocked or skipped — so a fake
+# token is enough to satisfy the boot-time validator.
+os.environ.setdefault("OPENAI_API_KEY", "sk-test-fake-key-for-pytest-only")
 
 
 def pytest_collection_modifyitems(config, items):

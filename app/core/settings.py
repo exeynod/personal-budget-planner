@@ -32,6 +32,11 @@ class Settings(BaseSettings):
     LOG_FORMAT: str = "json"
     APP_TZ: str = "Europe/Moscow"
 
+    # Entry-point identifier — one of "api" | "bot" | "worker" | "" (tests).
+    # Set by docker-compose so validate_production_settings can demand
+    # AI secrets only from the api container (Phase 10.1).
+    SERVICE: str = ""
+
     # AI Assistant (Phase 9) — AI-08, AI-09
     OPENAI_API_KEY: str = "changeme"
     LLM_PROVIDER: str = "openai"
@@ -50,29 +55,47 @@ class Settings(BaseSettings):
 settings = Settings()
 
 
+_PLACEHOLDER_TOKENS = ("", "changeme")
+
+
 def validate_production_settings(s: Settings = settings) -> None:
-    """Refuse to start when production-mode config has insecure defaults.
+    """Refuse to start when configuration has insecure / missing values.
 
     Called from each entry point's startup (main_api lifespan, main_bot main(),
-    main_worker main()). When ``DEV_MODE=True`` validation is skipped — local
-    dev and tests can run with placeholder values.
-    """
-    if s.DEV_MODE:
-        return
+    main_worker main()). Two tiers:
 
-    insecure = []
-    if s.BOT_TOKEN in ("", "changeme"):
-        insecure.append("BOT_TOKEN")
-    if s.INTERNAL_TOKEN in ("", "changeme"):
-        insecure.append("INTERNAL_TOKEN")
-    if s.OWNER_TG_ID == 0:
-        insecure.append("OWNER_TG_ID")
-    if s.OPENAI_API_KEY in ("", "changeme"):
+    1. **Production-only** (skipped when ``DEV_MODE=True``): BOT_TOKEN,
+       INTERNAL_TOKEN, OWNER_TG_ID. Local dev / tests can run with
+       placeholders here.
+    2. **Always-on for the api entry point** (regardless of DEV_MODE):
+       when ``LLM_PROVIDER=openai`` a real ``OPENAI_API_KEY`` must be
+       present, and when ``ENABLE_AI_CATEGORIZATION=true`` the same
+       applies. Without it the AI surface degrades silently — we refuse
+       to start instead so the miswire is caught at boot, not at first
+       chat call (Phase 10.1). bot / worker entry points don't make AI
+       calls and skip this check so the secret stays scoped to api.
+    """
+    insecure: list[str] = []
+
+    if not s.DEV_MODE:
+        if s.BOT_TOKEN in _PLACEHOLDER_TOKENS:
+            insecure.append("BOT_TOKEN")
+        if s.INTERNAL_TOKEN in _PLACEHOLDER_TOKENS:
+            insecure.append("INTERNAL_TOKEN")
+        if s.OWNER_TG_ID == 0:
+            insecure.append("OWNER_TG_ID")
+
+    needs_ai_key = s.SERVICE in ("", "api") and (
+        s.LLM_PROVIDER.lower() == "openai" or s.ENABLE_AI_CATEGORIZATION
+    )
+    if needs_ai_key and s.OPENAI_API_KEY in _PLACEHOLDER_TOKENS:
         insecure.append("OPENAI_API_KEY")
 
     if insecure:
         raise RuntimeError(
-            "Refusing to start: insecure default values for "
-            f"{', '.join(insecure)} with DEV_MODE=False. "
-            "Set real secrets in .env or DEV_MODE=true for local development."
+            "Refusing to start: missing or placeholder values for "
+            f"{', '.join(insecure)}. "
+            "Set real secrets in .env (DEV_MODE only relaxes BOT_TOKEN / "
+            "INTERNAL_TOKEN / OWNER_TG_ID — OPENAI_API_KEY is required "
+            "whenever AI features are enabled)."
         )

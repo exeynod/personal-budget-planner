@@ -128,6 +128,17 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       LOG_FORMAT: "json"
       APP_TZ: "Europe/Moscow"
+      # AI surface (Phase 9 chat + Phase 10 categorization + Phase 10.1
+      # cost observability). validate_production_settings refuses to start
+      # when OPENAI_API_KEY is missing/placeholder — failure mode is
+      # "container restart loop" rather than "AI silently degrades at
+      # first chat call". Required even with DEV_MODE=true whenever
+      # LLM_PROVIDER=openai or ENABLE_AI_CATEGORIZATION=true.
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      LLM_PROVIDER: ${LLM_PROVIDER:-openai}
+      LLM_MODEL: ${LLM_MODEL:-gpt-4.1-nano}
+      AI_MAX_CONTEXT_MESSAGES: ${AI_MAX_CONTEXT_MESSAGES:-8}
+      ENABLE_AI_CATEGORIZATION: ${ENABLE_AI_CATEGORIZATION:-true}
     labels:
       monitoring.alerts: "true"   # picked up by /home/exy/dockerlog2tg sidecar
     networks:
