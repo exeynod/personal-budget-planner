@@ -27,7 +27,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 7: Nav Refactor** — функциональный bottom nav (Главная / Транзакции / Аналитика / AI / Управление), объединение History+Plan под «Транзакциями» с под-табами, переименование More→Управление, placeholder-табы «Аналитика» и «AI» (completed 2026-05-05)
 - [x] **Phase 8: Analytics Screen** — экран Аналитики с трендом расходов по месяцам, топом перерасходов, топом категорий и прогнозом остатка; новые API endpoints `/api/v1/analytics/*` (completed 2026-05-05)
-- [ ] **Phase 9: AI Assistant** — conversational AI с tool-use над данными бюджета (OpenAI gpt-4.1-nano), streaming SSE, prompt caching, persistence в БД, абстрактный provider-agnostic LLM-клиент
+- [x] **Phase 9: AI Assistant** — conversational AI с tool-use над данными бюджета (OpenAI gpt-4.1-nano), streaming SSE, prompt caching, persistence в БД, абстрактный provider-agnostic LLM-клиент
 - [ ] **Phase 10: AI Categorization** — AI-предложение категории в форме новой транзакции через embeddings (text-embedding-3-small + pgvector cosine similarity)
 
 ## Phase Details
@@ -189,13 +189,13 @@ Plans:
 **Plans**: 7 планов
 
 Plans:
-- [ ] 09-01-PLAN.md — Wave 0: RED тесты AI-слоя (test_llm_client, test_tools, test_ai_chat, test_ai_conversation_service)
-- [ ] 09-02-PLAN.md — Wave 1: DB схема + Alembic 0003 (AiConversation, AiMessage) + settings LLM
-- [ ] 09-03-PLAN.md — Wave 2: AbstractLLMClient + OpenAI провайдер (streaming, prompt caching)
-- [ ] 09-04-PLAN.md — Wave 2: Tools registry (4 tools) + system prompt builder + conversation service + Pydantic схемы
-- [ ] 09-05-PLAN.md — Wave 3: API endpoints POST /ai/chat (SSE) + GET /ai/history + DELETE /ai/conversation + rate limiter
-- [ ] 09-06-PLAN.md — Wave 4: Frontend data layer (types.ts, api/ai.ts, useAiConversation, ChatMessage, ToolUseIndicator)
-- [ ] 09-07-PLAN.md — Wave 5: AiScreen integration (replace placeholder, suggestion chips, streaming render, auto-scroll)
+- [x] 09-00.md — Wave 0: RED тесты AI-слоя (test_llm_client, test_tools, test_ai_chat, test_ai_conversation_service)
+- [x] 09-00.md — Wave 1: DB схема + Alembic 0003 (AiConversation, AiMessage) + settings LLM
+- [x] 09-00.md — Wave 2: AbstractLLMClient + OpenAI провайдер (streaming, prompt caching)
+- [x] 09-00.md — Wave 2: Tools registry (4 tools) + system prompt builder + conversation service + Pydantic схемы
+- [x] 09-00.md — Wave 3: API endpoints POST /ai/chat (SSE) + GET /ai/history + DELETE /ai/conversation + rate limiter
+- [x] 09-00.md — Wave 4: Frontend data layer (types.ts, api/ai.ts, useAiConversation, ChatMessage, ToolUseIndicator)
+- [x] 09-00.md — Wave 5: AiScreen integration (replace placeholder, suggestion chips, streaming render, auto-scroll)
 **UI hint**: yes — sketch 009-A
 
 ### Phase 10: AI Categorization
