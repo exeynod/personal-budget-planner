@@ -1,16 +1,17 @@
 ---
 gsd_state_version: 1.0
 milestone: v0.4
-milestone_name: — Multi-Tenant & Admin
+milestone_name: Multi-Tenant & Admin
 status: executing
-last_updated: "2026-05-06T20:18:00.000Z"
-last_activity: 2026-05-06 -- Phase 11 Plan 07 completed (verification: 14 integration tests passing + 11-VERIFICATION.md status=human_needed)
+stopped_at: Plan 11-07 complete (integration verification — 14 tests passing, 11-VERIFICATION.md status=human_needed pending live TG MiniApp smoke)
+last_updated: "2026-05-06T18:48:38.638Z"
+last_activity: 2026-05-06 -- Phase 12 execution started
 progress:
   total_phases: 5
   completed_phases: 1
-  total_plans: 7
+  total_plans: 14
   completed_plans: 7
-  percent: 20
+  percent: 50
 ---
 
 # Project State
@@ -20,16 +21,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-06 after v0.3 milestone close)
 
 **Core value:** В один тап записать факт-трату и видеть актуальную дельту план/факт по категориям бюджета — быстрее, чем открывать Google-таблицу. После v0.3 — conversational AI-помощник + аналитика.
-**Current focus:** v0.4 (Multi-Tenant & Admin) — roadmap зафиксирован, готовы к `/gsd-plan-phase 11`
+**Current focus:** Phase 12 — role-based-auth-refactor
 
 ## Current Position
 
-Phase: 11 — Multi-Tenancy DB Migration & RLS (functionally complete; verification status=human_needed)
-Plan: 11-07 (integration verify + 11-VERIFICATION.md) — completed 2026-05-06
-Status: All 7 plans of Phase 11 done. 14 new integration tests passing; alembic upgrade/downgrade/upgrade cycle verified on dev DB; 11-VERIFICATION.md awaits live TG MiniApp smoke sign-off (status=human_needed). Phase 11 ready for Phase 12 hand-off (with D-11-07-01 + D-11-07-02 as Phase 12 prerequisites).
-Last activity: 2026-05-06 — tests/conftest.py + 3 test files filled with real assertions; three Rule-1 production bugs fixed (alembic version-num length, set_tenant_scope SQL bind, RLS NULLIF); 11-VERIFICATION.md created.
+Phase: 12 (role-based-auth-refactor) — EXECUTING
+Plan: 1 of 7
+Status: Executing Phase 12
+Last activity: 2026-05-06 -- Phase 12 execution started
 
 Previous milestones:
+
 - v0.3 (Analytics & AI) — Complete 2026-05-06, 6 phases / 25 plans → archive `.planning/milestones/v0.3-*`
 - v0.2 (MVP) — Complete 2026-05-03, 6 phases / 38 plans → archived retroactively at v0.3 close
 
@@ -63,6 +65,7 @@ Progress: [##        ] 20% (milestone v0.4, 0/5 phases complete; 7/7 plans of Ph
 Full decision log is in PROJECT.md Key Decisions table.
 
 Recent decisions affecting v0.4 planning:
+
 - v0.4 (2026-05-06): Multi-tenant — shared schema + `user_id` FK + Postgres RLS как defense-in-depth
 - v0.4 (2026-05-06): Whitelist через role enum (owner / member / revoked); удаление `OWNER_TG_ID`-eq из dependencies; OWNER_TG_ID определяет owner-роль только при первом запуске
 - v0.4 (2026-05-06): Admin-вкладка в «Управление» (видна только owner); все действия через UI, не бот-команды
