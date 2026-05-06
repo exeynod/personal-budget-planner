@@ -443,3 +443,42 @@ async def two_tenants(db_session):
         }
     finally:
         await _cleanup()
+
+
+@pytest_asyncio.fixture
+async def single_user(db_session, owner_tg_id):
+    """Single AppUser fixture для простых legacy tests (Phase 12 D-11-07-01).
+
+    Создаёт AppUser(tg_user_id=owner_tg_id, role=owner) после полного
+    TRUNCATE доменных таблиц. Используется legacy tests (test_subscriptions,
+    test_planned etc.) которые ранее seed'или Category/Subscription без user_id.
+
+    Yields dict {'id': PK, 'tg_user_id': owner_tg_id} — first для seed
+    helper'ов (`user_id=single_user['id']`), второй для initData
+    (`make_init_data(single_user['tg_user_id'], bot_token)`).
+    """
+    from sqlalchemy import text
+    from app.db.models import AppUser, UserRole
+
+    # Cleanup pre-test: bypass RLS для admin operations.
+    await db_session.execute(text("RESET ROLE"))
+    await db_session.execute(text("SET LOCAL row_security = off"))
+    for tbl in (
+        "ai_message", "ai_conversation", "category_embedding",
+        "actual_transaction", "planned_transaction", "subscription",
+        "plan_template_item", "budget_period", "category",
+    ):
+        await db_session.execute(text(f"DELETE FROM {tbl}"))
+    await db_session.execute(text("DELETE FROM app_user"))
+    await db_session.commit()
+
+    user = AppUser(
+        tg_user_id=owner_tg_id,
+        role=UserRole.owner,
+        cycle_start_day=5,
+    )
+    db_session.add(user)
+    await db_session.commit()
+    await db_session.refresh(user)
+
+    yield {"id": user.id, "tg_user_id": owner_tg_id}
