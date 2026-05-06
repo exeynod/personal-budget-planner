@@ -36,7 +36,10 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: str = "changeme"
     LLM_PROVIDER: str = "openai"
     LLM_MODEL: str = "gpt-4.1-nano"
-    AI_MAX_CONTEXT_MESSAGES: int = 20
+    # Sliding window of recent messages sent to the LLM on each chat turn.
+    # 8 = ~3-4 user/assistant pairs, sufficient for budget Q&A continuity.
+    # Lowered from 20 in Phase 10.1 cost optimization (see audit).
+    AI_MAX_CONTEXT_MESSAGES: int = 8
 
     # AI Categorization (Phase 10) — AICAT-01..06
     # Включить embedding-based category suggestion (text-embedding-3-small + pgvector)

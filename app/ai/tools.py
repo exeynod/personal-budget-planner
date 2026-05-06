@@ -256,13 +256,16 @@ async def get_forecast(db: AsyncSession) -> dict[str, Any]:
         return {"error": f"Ошибка прогноза: {exc}"}
 
 
-# OpenAI function calling schema для 4 инструментов (AI-05)
+# OpenAI function-calling schema for the 4 budget tools (AI-05).
+# Descriptions kept in English: Cyrillic tokenizes ~2.3× more tokens
+# in gpt-4.1-nano. Phase 10.1 cost optimization. The model still
+# answers the user in Russian per the system prompt instruction.
 TOOLS_SCHEMA: list[dict] = [
     {
         "type": "function",
         "function": {
             "name": "get_period_balance",
-            "description": "Получить баланс (план/факт/дельта) активного бюджетного периода",
+            "description": "Active period balance: plan, actual, delta.",
             "parameters": {"type": "object", "properties": {}, "required": []},
         },
     },
@@ -270,13 +273,13 @@ TOOLS_SCHEMA: list[dict] = [
         "type": "function",
         "function": {
             "name": "get_category_summary",
-            "description": "Получить сводку по категориям бюджета (план/факт/остаток по каждой)",
+            "description": "Per-category budget summary (plan/actual/remaining).",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "category_id": {
                         "type": "integer",
-                        "description": "ID конкретной категории. Без него — все категории.",
+                        "description": "Single category id; omit for all.",
                     }
                 },
                 "required": [],
@@ -287,23 +290,23 @@ TOOLS_SCHEMA: list[dict] = [
         "type": "function",
         "function": {
             "name": "query_transactions",
-            "description": "Получить список факт-транзакций с фильтрацией по типу и категории",
+            "description": "List actual transactions with optional kind/category filter.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "limit": {
                         "type": "integer",
-                        "description": "Максимальное количество транзакций (не более 50)",
+                        "description": "Max rows (cap 50).",
                         "default": 10,
                     },
                     "kind": {
                         "type": "string",
                         "enum": ["expense", "income"],
-                        "description": "Тип транзакции: expense (расход) или income (доход)",
+                        "description": "Filter by kind.",
                     },
                     "category_id": {
                         "type": "integer",
-                        "description": "Фильтр по ID категории",
+                        "description": "Filter by category id.",
                     },
                 },
                 "required": [],
@@ -314,7 +317,7 @@ TOOLS_SCHEMA: list[dict] = [
         "type": "function",
         "function": {
             "name": "get_forecast",
-            "description": "Получить прогноз остатка бюджета к концу текущего периода",
+            "description": "End-of-period balance forecast (linear extrapolation).",
             "parameters": {"type": "object", "properties": {}, "required": []},
         },
     },

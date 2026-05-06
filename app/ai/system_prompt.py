@@ -1,21 +1,27 @@
-"""Системный промпт и сборщик messages для OpenAI API (AI-07).
+"""System prompt and message builder for OpenAI Chat API.
 
-build_messages() включает:
-1. Системный промпт с cache_control (prompt caching) — роль + правила
-2. История из БД (последние AI_MAX_CONTEXT_MESSAGES)
-3. Новое сообщение пользователя
+System prompt is intentionally in English: Cyrillic tokenizes ~2.3× more
+tokens than Latin in gpt-4.1-nano. The "Reply in Russian" instruction
+keeps user-facing output unchanged. Phase 10.1 cost optimization.
 
-Промпт на русском (по решению Claude's Discretion из CONTEXT.md).
+build_messages() composes:
+1. System prompt — role + rules (English, ~50 tokens)
+2. History from DB (last AI_MAX_CONTEXT_MESSAGES, default 8)
+3. New user message
 """
 from __future__ import annotations
 
+# Note on prompt caching: OpenAI caches inputs ≥1024 tokens automatically.
+# Our system prompt is far under that threshold, so cache_control here
+# would be a no-op. Keeping the prompt short is cheaper than padding it
+# to 1024 tokens just to hit the 75% cache discount.
 SYSTEM_PROMPT = (
-    "Ты — персональный бюджетный помощник в Telegram Mini App. "
-    "Отвечаешь только на вопросы о бюджете пользователя: расходы, доходы, баланс, "
-    "категории, прогнозы. Используй инструменты (functions) для получения актуальных "
-    "данных из базы данных. Если данных недостаточно — скажи об этом честно. "
-    "Отвечай кратко и по делу. Суммы всегда в рублях (данные хранятся в копейках — "
-    "делить на 100 перед выводом). Положительная дельта означает, что бюджет в норме."
+    "You are a personal budget assistant inside a Telegram Mini App. "
+    "Answer only budget questions: expenses, income, balance, categories, forecasts. "
+    "Use the provided functions to fetch live data; if data is insufficient, say so honestly. "
+    "Be brief and concrete. Amounts are in rubles (DB stores kopecks — divide by 100 before output). "
+    "Positive delta means the budget is on track. "
+    "Always reply in Russian."
 )
 
 
@@ -23,30 +29,19 @@ def build_messages(
     history: list[dict],
     user_message: str,
 ) -> list[dict]:
-    """Собрать messages list для OpenAI API с cache_control на системном промпте.
+    """Compose OpenAI Chat Completion messages list.
 
-    history: список dict {role, content} из БД (уже обрезан до 20 сообщений).
-    user_message: новое сообщение пользователя.
+    history: list of {role, content} dicts already truncated by the service
+    to AI_MAX_CONTEXT_MESSAGES (default 8 — Phase 10.1).
+    user_message: the new user input.
 
-    Возвращает список в формате OpenAI messages с structured content
-    для системного промпта (prompt caching через cache_control).
+    Returns plain {role, content} dicts (no structured content / no
+    cache_control — see module docstring on caching).
     """
     messages: list[dict] = [
-        {
-            "role": "system",
-            "content": [
-                {
-                    "type": "text",
-                    "text": SYSTEM_PROMPT,
-                    # Сигнал для prompt caching (AI-07).
-                    # OpenAI автоматически кэширует при >= 1024 токенов.
-                    "cache_control": {"type": "ephemeral"},
-                }
-            ],
-        }
+        {"role": "system", "content": SYSTEM_PROMPT}
     ]
 
-    # История разговора из БД (уже отфильтрована сервисом до 20 сообщений)
     for msg in history:
         role = msg.get("role", "user")
         content = msg.get("content") or ""
@@ -56,7 +51,6 @@ def build_messages(
         else:
             messages.append({"role": role, "content": content})
 
-    # Новое сообщение пользователя
     messages.append({"role": "user", "content": user_message})
 
     return messages
