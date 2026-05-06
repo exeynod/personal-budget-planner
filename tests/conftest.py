@@ -236,27 +236,112 @@ async def async_client(bot_token, owner_tg_id, internal_token):
 
 
 @pytest_asyncio.fixture
-async def two_tenants(db_session) -> tuple[int, int]:
-    """Two-tenant fixture — возвращает (user_a_id, user_b_id).
+async def two_tenants(db_session):
+    """Создаёт двух юзеров (user_a, user_b) с собственными seed-данными.
 
-    На момент Phase 11-01 (RED): возвращает фиктивные id-ы (1, 2) и НЕ создаёт
-    реальные AppUser строки — миграция ещё не применена и user_id колонок
-    в доменных таблицах нет, seed бессмысленен.
+    Returns dict:
+        {
+            'user_a': {'id': int, 'tg_user_id': int,
+                       'category_ids': list[int], 'sub_id': int},
+            'user_b': {'id': int, 'tg_user_id': int,
+                       'category_ids': list[int], 'sub_id': int},
+        }
 
-    В Plan 11-07 (verification) этот fixture будет расширен: реально INSERT
-    двух AppUser строк + seed по 2-3 категории и транзакции для каждого
-    (категории с одинаковыми именами в обоих tenant — для проверки unique
-    scoped по user_id), потом возвращает их PK id-ы. Тесты multitenancy
-    опираются на это.
+    Использует tg_user_id-ы 9_000_000_001 / 9_000_000_002 — не пересекаются
+    с OWNER_TG_ID test default (123456789) и production диапазонами.
 
-    В 11-01 — placeholder: pytest.skip с reason="multitenancy fixture not
-    yet implemented — filled in Plan 11-07" чтобы все тесты, использующие
-    этот fixture, явно skip'ались а не passing-by-accident.
+    Cleanup: до и после теста удаляет тестовых юзеров с RLS bypass'ом через
+    SET LOCAL row_security = off (требует database role с привилегиями;
+    в test env обычно есть). Сначала domain data (FK RESTRICT), потом app_user.
     """
-    import pytest as _pytest
-    _pytest.skip(
-        "two_tenants fixture is a Plan 11-01 RED placeholder — "
-        "real implementation lands in Plan 11-07"
+    from datetime import date
+    from sqlalchemy import text
+
+    from app.db.models import (
+        AppUser, UserRole, Category, CategoryKind,
+        Subscription, SubCycle,
     )
-    # Unreachable, но Python требует return-path для type hint:
-    return (1, 2)
+
+    tg_a, tg_b = 9_000_000_001, 9_000_000_002
+
+    async def _cleanup():
+        # Bypass RLS для administrative cleanup.
+        await db_session.execute(text("SET LOCAL row_security = off"))
+        # Получить id-ы юзеров если есть.
+        result = await db_session.execute(
+            text("SELECT id FROM app_user WHERE tg_user_id = ANY(:tgs)"),
+            {"tgs": [tg_a, tg_b]},
+        )
+        user_ids = [row[0] for row in result.all()]
+        if user_ids:
+            # Сначала domain rows (FK RESTRICT) — order соответствует FK depth.
+            for tbl in (
+                "ai_message",
+                "ai_conversation",
+                "category_embedding",
+                "actual_transaction",
+                "planned_transaction",
+                "subscription",
+                "plan_template_item",
+                "budget_period",
+                "category",
+            ):
+                await db_session.execute(
+                    text(f"DELETE FROM {tbl} WHERE user_id = ANY(:uids)"),
+                    {"uids": user_ids},
+                )
+            await db_session.execute(
+                text("DELETE FROM app_user WHERE id = ANY(:uids)"),
+                {"uids": user_ids},
+            )
+        await db_session.commit()
+
+    # Pre-test cleanup
+    await _cleanup()
+
+    # Create users
+    user_a = AppUser(tg_user_id=tg_a, role=UserRole.member, cycle_start_day=5)
+    user_b = AppUser(tg_user_id=tg_b, role=UserRole.member, cycle_start_day=5)
+    db_session.add_all([user_a, user_b])
+    await db_session.flush()
+
+    # Categories — обе с одинаковыми именами (тест scoped unique)
+    cat_a1 = Category(user_id=user_a.id, name="Продукты", kind=CategoryKind.expense, sort_order=10)
+    cat_a2 = Category(user_id=user_a.id, name="Транспорт", kind=CategoryKind.expense, sort_order=20)
+    cat_b1 = Category(user_id=user_b.id, name="Продукты", kind=CategoryKind.expense, sort_order=10)
+    cat_b2 = Category(user_id=user_b.id, name="Транспорт", kind=CategoryKind.expense, sort_order=20)
+    db_session.add_all([cat_a1, cat_a2, cat_b1, cat_b2])
+    await db_session.flush()
+
+    # Subscriptions — обе с одинаковыми именами (test scoped unique)
+    sub_a = Subscription(
+        user_id=user_a.id, name="Netflix",
+        amount_cents=99900, cycle=SubCycle.monthly,
+        next_charge_date=date(2026, 6, 1),
+        category_id=cat_a1.id, notify_days_before=2, is_active=True,
+    )
+    sub_b = Subscription(
+        user_id=user_b.id, name="Netflix",
+        amount_cents=149900, cycle=SubCycle.monthly,
+        next_charge_date=date(2026, 6, 1),
+        category_id=cat_b1.id, notify_days_before=2, is_active=True,
+    )
+    db_session.add_all([sub_a, sub_b])
+    await db_session.flush()
+    await db_session.commit()
+
+    try:
+        yield {
+            "user_a": {
+                "id": user_a.id, "tg_user_id": tg_a,
+                "category_ids": [cat_a1.id, cat_a2.id],
+                "sub_id": sub_a.id,
+            },
+            "user_b": {
+                "id": user_b.id, "tg_user_id": tg_b,
+                "category_ids": [cat_b1.id, cat_b2.id],
+                "sub_id": sub_b.id,
+            },
+        }
+    finally:
+        await _cleanup()
