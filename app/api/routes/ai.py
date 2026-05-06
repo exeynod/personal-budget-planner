@@ -175,14 +175,35 @@ async def _event_stream(
                         tool_result=json.dumps(tool_result, ensure_ascii=False),
                     )
 
-                    # Второй LLM-запрос с tool result
+                    # Второй LLM-запрос с tool result. OpenAI требует, чтобы
+                    # перед message с role=tool шло assistant-message со
+                    # списком tool_calls, иначе API отвечает 400
+                    # "messages with role 'tool' must be a response to a
+                    # preceeding message with 'tool_calls'".
                     tool_result_str = json.dumps(tool_result, ensure_ascii=False)
+                    tool_call_id = pending_tool_call.get("id", "")
                     llm_messages_with_result = llm_messages + [
                         {
+                            "role": "assistant",
+                            "content": None,
+                            "tool_calls": [
+                                {
+                                    "id": tool_call_id,
+                                    "type": "function",
+                                    "function": {
+                                        "name": pending_tool_call.get("name", ""),
+                                        "arguments": pending_tool_call.get(
+                                            "arguments", "{}"
+                                        ),
+                                    },
+                                }
+                            ],
+                        },
+                        {
                             "role": "tool",
-                            "tool_call_id": pending_tool_call.get("id", ""),
+                            "tool_call_id": tool_call_id,
                             "content": tool_result_str,
-                        }
+                        },
                     ]
 
                     async for event2 in client.chat(
