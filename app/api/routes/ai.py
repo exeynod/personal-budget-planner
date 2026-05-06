@@ -118,10 +118,15 @@ async def _event_stream(
         history_msgs = await conv_svc.get_recent_messages(
             db, conv.id, limit=settings.AI_MAX_CONTEXT_MESSAGES
         )
-        # Преобразовать ORM → dict для build_messages (исключить только что добавленный user msg)
+        # Преобразовать ORM → dict для build_messages (исключить только что
+        # добавленный user msg). Фильтруем role='tool' и пустых assistant'ов:
+        # они нужны были только для текущего turn'а; в дальнейшем history
+        # tool-сообщение без preceding assistant.tool_calls вызвало бы
+        # OpenAI 400, а пустые assistant дают модель пустыми реверберациями.
         history_dicts = [
             {"role": m.role, "content": m.content or ""}
             for m in history_msgs[:-1]
+            if m.role in ("user", "assistant") and (m.content or "").strip()
         ]
 
         # 3. Собрать messages с cache_control
@@ -277,7 +282,13 @@ async def chat(
 async def get_history(
     db: AsyncSession = Depends(get_db),
 ) -> ChatHistoryResponse:
-    """GET /ai/history — история разговора (AI-06)."""
+    """GET /ai/history — история разговора (AI-06).
+
+    Возвращает только пользовательские и ассистент-сообщения с непустым
+    текстом. Tool-сообщения и пустые assistant-плейсхолдеры (которые
+    остаются в БД от tool-call round-trip) не показываются — иначе
+    в UI рендерились бы пустые «bubble»-плашки.
+    """
     conv = await conv_svc.get_or_create_conversation(db)
     msgs = await conv_svc.get_recent_messages(
         db, conv.id, limit=settings.AI_MAX_CONTEXT_MESSAGES
@@ -292,6 +303,7 @@ async def get_history(
                 created_at=m.created_at.isoformat(),
             )
             for m in msgs
+            if m.role in ("user", "assistant") and (m.content or "").strip()
         ]
     )
 

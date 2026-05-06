@@ -121,10 +121,19 @@ export function AiScreen({
           </div>
         )}
 
-        {/* История сообщений */}
-        {messages.map((msg) => (
-          <ChatMessage key={msg.id} message={msg} />
-        ))}
+        {/* История сообщений. Defence-in-depth: backend уже фильтрует
+            tool/empty assistant в /ai/history, но и тут отрезаем на случай
+            десинхронизации схем — иначе пустой content рисуется как
+            «пустой bubble» рядом с реальным сообщением. */}
+        {messages
+          .filter(
+            (msg) =>
+              (msg.role === 'user' || msg.role === 'assistant') &&
+              (msg.content ?? '').trim() !== '',
+          )
+          .map((msg) => (
+            <ChatMessage key={msg.id} message={msg} />
+          ))}
 
         {/* Tool indicator — между user msg и AI response */}
         {streaming && toolName && (
