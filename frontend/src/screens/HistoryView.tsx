@@ -6,6 +6,7 @@ import { BottomSheet } from '../components/BottomSheet';
 import { useActual } from '../hooks/useActual';
 import { useCategories } from '../hooks/useCategories';
 import { useCurrentPeriod } from '../hooks/useCurrentPeriod';
+import { useSettings } from '../hooks/useSettings';
 import styles from './HistoryView.module.css';
 
 export interface HistoryViewProps {
@@ -59,6 +60,7 @@ export const HistoryView = forwardRef<HistoryViewHandle, HistoryViewProps>(
     const { period, loading: perLoading, error: perError } = useCurrentPeriod();
     const { rows, loading, error, refetch } = useActual(period?.id ?? null);
     const { categories } = useCategories(false);
+    const { settings } = useSettings();
     const [sheet, setSheet] = useState<SheetState>(CLOSED_SHEET);
     const [toast, setToast] = useState<string | null>(null);
     const [mutationError, setMutationError] = useState<string | null>(null);
@@ -226,6 +228,7 @@ export const HistoryView = forwardRef<HistoryViewHandle, HistoryViewProps>(
             onDelete={sheet.mode === 'edit' ? handleDelete : undefined}
             onCancel={() => setSheet(CLOSED_SHEET)}
             maxTxDate={maxTxDate}
+            aiEnabled={settings?.enable_ai_categorization ?? false}
           />
         </BottomSheet>
       </div>

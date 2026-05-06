@@ -78,6 +78,9 @@ class AppUser(Base):
     notify_days_before: Mapped[int] = mapped_column(
         Integer, default=2, nullable=False, server_default="2"
     )
+    enable_ai_categorization: Mapped[bool] = mapped_column(
+        Boolean, default=True, nullable=False, server_default="true"
+    )
     onboarded_at: Mapped[Optional[datetime]] = mapped_column(
         TIMESTAMP(timezone=True), nullable=True
     )

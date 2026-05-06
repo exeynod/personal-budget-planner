@@ -7,6 +7,7 @@ import { Fab } from '../components/Fab';
 import { useActual } from '../hooks/useActual';
 import { useCategories } from '../hooks/useCategories';
 import { useCurrentPeriod } from '../hooks/useCurrentPeriod';
+import { useSettings } from '../hooks/useSettings';
 import styles from './ActualScreen.module.css';
 
 export interface ActualScreenProps {
@@ -45,6 +46,7 @@ export function ActualScreen({ onBack, categoryFilter, onClearFilter }: ActualSc
   const { period, loading: perLoading, error: perError } = useCurrentPeriod();
   const { rows, loading, error, refetch } = useActual(period?.id ?? null);
   const { categories } = useCategories(false);
+  const { settings } = useSettings();
   const [sheet, setSheet] = useState<SheetState>(CLOSED_SHEET);
   const [toast, setToast] = useState<string | null>(null);
   const [mutationError, setMutationError] = useState<string | null>(null);
@@ -197,6 +199,7 @@ export function ActualScreen({ onBack, categoryFilter, onClearFilter }: ActualSc
           onDelete={sheet.mode === 'edit' ? handleDelete : undefined}
           onCancel={() => setSheet(CLOSED_SHEET)}
           maxTxDate={maxTxDate}
+          aiEnabled={settings?.enable_ai_categorization ?? false}
         />
       </BottomSheet>
     </div>

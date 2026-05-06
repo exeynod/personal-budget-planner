@@ -99,3 +99,21 @@ async def get_is_bot_bound(db: AsyncSession, tg_user_id: int) -> bool:
     """
     user = await _get_user_or_404(db, tg_user_id)
     return user.tg_chat_id is not None
+
+
+async def get_enable_ai_categorization(db: AsyncSession, tg_user_id: int) -> bool:
+    """Return enable_ai_categorization setting for the given user (AICAT-05, SET-03)."""
+    user = await _get_user_or_404(db, tg_user_id)
+    return user.enable_ai_categorization
+
+
+async def update_enable_ai_categorization(
+    db: AsyncSession,
+    tg_user_id: int,
+    value: bool,
+) -> bool:
+    """Persist the new enable_ai_categorization on the user row (AICAT-05, SET-03)."""
+    user = await _get_user_or_404(db, tg_user_id)
+    user.enable_ai_categorization = value
+    await db.flush()
+    return user.enable_ai_categorization

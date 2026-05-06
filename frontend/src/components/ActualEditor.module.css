@@ -98,6 +98,48 @@
   cursor: not-allowed;
 }
 
+/* AI suggestion box (AICAT-02) */
+
+.aiSuggestion {
+  border-left: 3px solid #a78bfa;
+  background: rgba(167, 139, 250, 0.08);
+  padding: 8px 12px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.aiSuggestionLabel {
+  font-size: 14px;
+  font-weight: 500;
+  flex: 1;
+}
+
+.aiConfidenceBar {
+  height: 4px;
+  background: #e5e7eb;
+  border-radius: 2px;
+  width: 80px;
+  overflow: hidden;
+}
+
+.aiConfidenceBar > div {
+  background: #a78bfa;
+  height: 100%;
+  border-radius: 2px;
+}
+
+.aiSwitchBtn {
+  font-size: 12px;
+  color: #6b7280;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px 6px;
+}
+
 .kindToggle { display: flex; gap: 8px; margin-bottom: var(--space-3); }
 .kindBtn { flex: 1; padding: 10px; cursor: pointer; background: var(--color-surface-2); color: var(--color-text-muted); border: 1px solid var(--color-border); border-radius: var(--radius-md); font-size: var(--text-sm); transition: background 100ms, color 100ms; }
 .kindBtn:disabled { opacity: 0.5; cursor: not-allowed; }

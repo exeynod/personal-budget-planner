@@ -29,6 +29,8 @@ export function SettingsScreen({ onBack }: SettingsScreenProps) {
   const [draft, setDraft] = useState<number>(5);
   const [currentNotifyDays, setCurrentNotifyDays] = useState<number | null>(null);
   const [notifyDays, setNotifyDays] = useState<number>(2);
+  const [currentEnableAiCat, setCurrentEnableAiCat] = useState<boolean | null>(null);
+  const [enableAiCat, setEnableAiCat] = useState<boolean>(true);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [savedFlash, setSavedFlash] = useState(false);
@@ -54,6 +56,8 @@ export function SettingsScreen({ onBack }: SettingsScreenProps) {
         setDraft(s.cycle_start_day);
         setCurrentNotifyDays(s.notify_days_before);
         setNotifyDays(s.notify_days_before);
+        setCurrentEnableAiCat(s.enable_ai_categorization);
+        setEnableAiCat(s.enable_ai_categorization);
         setError(null);
       })
       .catch((e: unknown) => {
@@ -70,7 +74,8 @@ export function SettingsScreen({ onBack }: SettingsScreenProps) {
 
   const dirty =
     (current !== null && draft !== current) ||
-    (currentNotifyDays !== null && notifyDays !== currentNotifyDays);
+    (currentNotifyDays !== null && notifyDays !== currentNotifyDays) ||
+    (currentEnableAiCat !== null && enableAiCat !== currentEnableAiCat);
 
   const handleSave = useCallback(async () => {
     if (!dirty || saving) return;
@@ -80,11 +85,14 @@ export function SettingsScreen({ onBack }: SettingsScreenProps) {
       const updated = await updateSettings({
         cycle_start_day: draft,
         notify_days_before: notifyDays,
+        enable_ai_categorization: enableAiCat,
       });
       setCurrent(updated.cycle_start_day);
       setDraft(updated.cycle_start_day);
       setCurrentNotifyDays(updated.notify_days_before);
       setNotifyDays(updated.notify_days_before);
+      setCurrentEnableAiCat(updated.enable_ai_categorization);
+      setEnableAiCat(updated.enable_ai_categorization);
       setSavedFlash(true);
       if (flashTimerRef.current !== null) {
         clearTimeout(flashTimerRef.current);
@@ -95,7 +103,7 @@ export function SettingsScreen({ onBack }: SettingsScreenProps) {
     } finally {
       setSaving(false);
     }
-  }, [dirty, draft, notifyDays, saving]);
+  }, [dirty, draft, notifyDays, enableAiCat, saving]);
 
   return (
     <div className={styles.root}>
@@ -134,6 +142,23 @@ export function SettingsScreen({ onBack }: SettingsScreenProps) {
           <div className={styles.disclaimer}>
             ⓘ Применяется только к новым подпискам. Существующие имеют свой настроенный
             override.
+          </div>
+        </section>
+      )}
+
+      {!loading && currentEnableAiCat !== null && (
+        <section className={styles.card}>
+          <div className={styles.cardTitle}>AI-функции</div>
+          <label className={styles.toggleField}>
+            <span>AI-категоризация транзакций</span>
+            <input
+              type="checkbox"
+              checked={enableAiCat}
+              onChange={(e) => setEnableAiCat(e.target.checked)}
+            />
+          </label>
+          <div className={styles.disclaimer}>
+            ⓘ При вводе описания транзакции AI предложит категорию автоматически.
           </div>
         </section>
       )}

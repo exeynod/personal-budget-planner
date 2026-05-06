@@ -14,6 +14,7 @@ import { useCategories } from '../hooks/useCategories';
 import { useCurrentPeriod } from '../hooks/useCurrentPeriod';
 import { useDashboard } from '../hooks/useDashboard';
 import { usePeriods } from '../hooks/usePeriods';
+import { useSettings } from '../hooks/useSettings';
 import styles from './HomeScreen.module.css';
 
 type SubScreen = 'categories' | 'template' | 'planned' | 'settings';
@@ -27,6 +28,7 @@ export function HomeScreen({ onNavigateToSub, onNavigateToHistory }: HomeScreenP
   const { period: currentPeriod, loading: curLoading } = useCurrentPeriod();
   const { periods } = usePeriods();
   const { categories } = useCategories(false);
+  const { settings } = useSettings();
 
   const [selectedPeriodId, setSelectedPeriodId] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState<CategoryKind>('expense');
@@ -255,6 +257,7 @@ export function HomeScreen({ onNavigateToSub, onNavigateToHistory }: HomeScreenP
           onSave={handleSaveActual}
           onCancel={() => setSheetOpen(false)}
           maxTxDate={maxTxDate}
+          aiEnabled={settings?.enable_ai_categorization ?? false}
         />
       </BottomSheet>
     </div>

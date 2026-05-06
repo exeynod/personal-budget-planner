@@ -5,7 +5,17 @@
  * для поддержки custom headers X-Telegram-Init-Data (AI-09).
  */
 import { apiFetch, getInitDataRaw } from './client';
-import type { AiStreamEvent, ChatHistoryResponse } from './types';
+import type { AiStreamEvent, AiSuggestResponse, ChatHistoryResponse } from './types';
+
+/**
+ * Предложить категорию по описанию транзакции (AICAT-02).
+ *
+ * GET /api/v1/ai/suggest-category?q=<text>
+ * Возвращает category_id, name, confidence — наиболее похожую категорию.
+ */
+export async function suggestCategory(q: string): Promise<AiSuggestResponse> {
+  return apiFetch<AiSuggestResponse>('/ai/suggest-category?q=' + encodeURIComponent(q));
+}
 
 /**
  * Получить историю AI разговора (AI-06).

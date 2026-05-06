@@ -62,11 +62,20 @@ export interface SettingsRead {
   cycle_start_day: number;
   notify_days_before: number;
   is_bot_bound: boolean;
+  enable_ai_categorization: boolean;
 }
 
 export interface SettingsUpdatePayload {
   cycle_start_day?: number;
   notify_days_before?: number;
+  enable_ai_categorization?: boolean;
+}
+
+/** Mirrors `SuggestCategoryResponse` from app/api/schemas/ai.py (AICAT-02). */
+export interface AiSuggestResponse {
+  category_id: number | null;
+  name: string | null;
+  confidence: number;
 }
 
 // ---------- Phase 3: Plan Template & Planned Transactions ----------
