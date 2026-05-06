@@ -35,15 +35,8 @@ async def db_client(async_client):
 
     engine = create_async_engine(os.environ["DATABASE_URL"], echo=False)
     SessionLocal = async_sessionmaker(engine, expire_on_commit=False)
-    async with engine.begin() as conn:
-        await conn.execute(
-            text(
-                "TRUNCATE TABLE category, planned_transaction, "
-                "actual_transaction, plan_template_item, subscription, "
-                "budget_period, ai_message, ai_conversation, "
-                "category_embedding, app_user RESTART IDENTITY CASCADE"
-            )
-        )
+    from tests.helpers.seed import truncate_db
+    await truncate_db()
 
     async def real_get_db():
         async with SessionLocal() as session:

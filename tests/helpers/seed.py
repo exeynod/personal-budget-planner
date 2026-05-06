@@ -176,3 +176,34 @@ async def seed_actual_transaction(
     session.add(a)
     await session.flush()
     return a
+
+
+_DEFAULT_TRUNCATE_TABLES = (
+    "category, planned_transaction, actual_transaction, plan_template_item, "
+    "subscription, budget_period, ai_message, ai_conversation, "
+    "category_embedding, app_user"
+)
+
+
+async def truncate_db(*, tables: str = _DEFAULT_TRUNCATE_TABLES) -> None:
+    """Truncate domain tables for test isolation using the privileged role.
+
+    Phase 12 split runtime (budget_app, NOSUPERUSER NOBYPASSRLS) from admin
+    (budget). budget_app is granted only SELECT/INSERT/UPDATE/DELETE — TRUNCATE
+    requires admin. Tests call this helper for cleanup; it builds a temporary
+    engine on ADMIN_DATABASE_URL, runs the TRUNCATE, and disposes the engine.
+    Falls back to DATABASE_URL when ADMIN_DATABASE_URL is unset (dev shells
+    that have not configured the role split).
+    """
+    import os
+
+    from sqlalchemy import text
+    from sqlalchemy.ext.asyncio import create_async_engine
+
+    admin_url = os.environ.get("ADMIN_DATABASE_URL") or os.environ["DATABASE_URL"]
+    engine = create_async_engine(admin_url, echo=False)
+    try:
+        async with engine.begin() as conn:
+            await conn.execute(text(f"TRUNCATE TABLE {tables} RESTART IDENTITY CASCADE"))
+    finally:
+        await engine.dispose()

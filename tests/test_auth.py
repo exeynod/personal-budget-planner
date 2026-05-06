@@ -34,15 +34,8 @@ async def db_client(async_client, owner_tg_id):
     engine = create_async_engine(os.environ["DATABASE_URL"], echo=False)
     SessionLocal = async_sessionmaker(engine, expire_on_commit=False)
 
-    async with engine.begin() as conn:
-        await conn.execute(
-            text(
-                "TRUNCATE TABLE category, planned_transaction, actual_transaction, "
-                "plan_template_item, subscription, budget_period, ai_message, "
-                "ai_conversation, category_embedding, app_user "
-                "RESTART IDENTITY CASCADE"
-            )
-        )
+    from tests.helpers.seed import truncate_db
+    await truncate_db()
 
     # Seed owner AppUser so /me can resolve it (Phase 12: no more upsert in handler).
     async with SessionLocal() as session:
