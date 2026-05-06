@@ -85,6 +85,16 @@
   text-align: center;
 }
 
+.toggleField {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: var(--text-sm);
+  color: var(--color-text);
+  cursor: pointer;
+  gap: 8px;
+}
+
 .savedToast {
   position: fixed;
   left: 50%;
