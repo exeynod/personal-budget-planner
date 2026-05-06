@@ -1,40 +1,38 @@
 ---
 gsd_state_version: 1.0
-milestone: v0.3
-milestone_name: — Analytics & AI
-status: executing
-stopped_at: context exhaustion at 75% (2026-05-06)
-last_updated: "2026-05-06T05:11:29.313Z"
-last_activity: 2026-05-06 -- Phase 10 execution started
+milestone: v0.4
+milestone_name: — Multi-Tenant & Admin
+status: planning
+last_updated: "2026-05-06T13:30:00.000Z"
+last_activity: 2026-05-06 -- v0.3 milestone closed
 progress:
-  total_phases: 10
-  completed_phases: 9
-  total_plans: 61
-  completed_plans: 56
-  percent: 92
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-05-05 for milestone v0.3)
+See: .planning/PROJECT.md (updated 2026-05-06 after v0.3 milestone close)
 
-**Core value:** В один тап записать факт-трату и видеть актуальную дельту план/факт по категориям бюджета — быстрее, чем открывать Google-таблицу.
-**Current focus:** Phase 10 — AI Categorization
+**Core value:** В один тап записать факт-трату и видеть актуальную дельту план/факт по категориям бюджета — быстрее, чем открывать Google-таблицу. После v0.3 — conversational AI-помощник + аналитика.
+**Current focus:** Planning v0.4 (Multi-Tenant & Admin) via `/gsd-new-milestone`
 
 ## Current Position
 
-Milestone: v0.3 (Active) — Analytics & AI
-Phase: 10 (AI Categorization) — EXECUTING
-Plan: 1 of 5
-Plans: 7 (09-01 through 09-07), waves 1–5
-Status: Executing Phase 10
-Last activity: 2026-05-06 -- Phase 10 execution started
+Milestone: v0.4 (Planning) — Multi-Tenant & Admin
+Phase: TBD (run `/gsd-new-milestone v0.4` to create requirements + roadmap)
+Status: Planning
 
-Previous milestone v0.2 (MVP) — Complete 2026-05-03, 6 phases / 38 plans.
+Previous milestones:
+- v0.3 (Analytics & AI) — Complete 2026-05-06, 6 phases / 25 plans → archive `.planning/milestones/v0.3-*`
+- v0.2 (MVP) — Complete 2026-05-03, 6 phases / 38 plans → archived retroactively at v0.3 close
 
-Progress: [          ] 0% (milestone v0.3)
+Progress: [          ] 0% (milestone v0.4 not yet planned)
 
 ## Performance Metrics
 
@@ -61,33 +59,15 @@ Progress: [          ] 0% (milestone v0.3)
 
 ### Decisions
 
-Decisions are logged in PROJECT.md Key Decisions table.
-Recent decisions affecting current work:
+Full decision log is in PROJECT.md Key Decisions table.
 
-- v0.3 (2026-05-05): Bottom nav реорганизуется в функциональную: Главная / Транзакции / Аналитика / AI / Управление. Заменяет MVP-nav (История/План/Подписки/Ещё) — История+План объединяются в «Транзакции» с под-табами, Подписки+Шаблон+Категории+Настройки в «Управление»
-- v0.3 (2026-05-05): LLM provider = OpenAI (gpt-4.1-nano для chat, text-embedding-3-small для эмбеддингов); абстрактный LLM-клиент с `LLM_PROVIDER` ENV для возможности переключения
-- v0.3 (2026-05-05): AI Categorization (Phase 10) через embeddings + cosine similarity, без LLM-вызова на каждой транзакции — pgvector в Postgres
-- v0.3 (2026-05-05): Аналитика повышена из v2 в v1 — агрегаты считаются на backend, SVG-чарты самописные без chart-libs
-- Init: Single-tenant без `user_id` в FK — упрощение для pet
-- Init: `cycle_start_day` настраиваемый, default = 5 — payroll-цикл заказчика
-- Init: Дельта расходов = `План−Факт`, доходов = `Факт−План` — единое правило «положительная = хорошо»
-- Init: Деньги в копейках (BIGINT) — избежать ошибок округления float
-- Init: Worker как отдельный контейнер — чистое разделение API и cron-задач
-- Init: Frontend = React 18 + Vite + `@telegram-apps/sdk-react`
-- 04-01: Untracked test files (58 тестов) проверены и приняты как соответствующие RED-gate требованиям
-- 04-01: parse_amount caps at 10^12 копеек (10 млрд рублей) — overflow guard
-- 04-01: In-memory disambiguation cache (D-47) — dict + TTL 5 мин, без aiogram FSM
-- 04-02: _ensure_category_active private copy в actual.py (не импортируем private из planned.py)
-- 04-02: _category_balance inline helper в internal_bot.py (не полный compute_balance — оптимизация)
-- 04-02: ActualRead.model_validate(actual_row).model_dump() в process_bot_actual — route re-creates BotActualResponse
-- 04-03: /actual/balance объявлен до /actual/{actual_id} — FastAPI first-match routing prevents 422 (T-04-25)
-- 04-03: internal_bot_router без dependencies — наследует verify_internal_token от parent (D-54, избегает double-execution)
-- 04-04: commands.py — отдельный Router; app/bot/handlers.py (Phase 2) не модифицирован; два роутера в main_bot.py
-- 04-04: `router` переименован в `start_router` в main_bot.py — test_main_bot_entry.py обновлён соответственно
-- 04-04: _post_internal helper в api_client.py — DRY для Phase 4 bot→api; bind_chat_id без изменений
-- 04-05: ActualEditorInitial и ActualEditorSavePayload — именованные интерфейсы (не inline типы) для Plan 04-06 reuse
-- 04-05: isEdit guard в JSX используется один (не isEdit && onDelete) — TS2774 prevention
-- 04-05: maxTxDateDefault() — fallback today+7d всегда активен (T-04-45 client guard)
+Recent decisions affecting v0.4 planning:
+- v0.4 (2026-05-06): Multi-tenant — shared schema + `user_id` FK + Postgres RLS как defense-in-depth
+- v0.4 (2026-05-06): Whitelist через role enum (owner / member / revoked); удаление `OWNER_TG_ID`-eq из dependencies; OWNER_TG_ID определяет owner-роль только при первом запуске
+- v0.4 (2026-05-06): Admin-вкладка в «Управление» (видна только owner); все действия через UI, не бот-команды
+- v0.4 (2026-05-06): AI cost cap per user — `spending_cap_cents` (default $5/month) с enforcement → 429
+- v0.4 (2026-05-06): Onboarding для приглашённых юзеров — сам выбирает starting_balance + cycle_start_day; категории seed per-user
+- v0.4 (2026-05-06): Revoke = hard delete + purge всех данных юзера
 
 ### Pending Todos
 
@@ -95,18 +75,28 @@ None yet.
 
 ### Blockers/Concerns
 
-- Q-7 (HLD): UI-kit Mini App ещё не выбран (`@telegram-apps/telegram-ui` vs shadcn vs кастом). Нужно решить в Phase 2 при первой UI-задаче.
-- Q-9 (HLD): Стратегия выноса pg_dump (S3 vs локальный том) — открыто, можно отложить до production-deploy.
-- Q-v0.3-1 (Phase 9): Под какую модель кэшируем системный промпт? OpenAI Cached Input включён по умолчанию — нужно убедиться, что `gpt-4.1-nano` его поддерживает (большинство моделей семейства поддерживают). Решить при создании плана Phase 9.
-- Q-v0.3-2 (Phase 10): pgvector index — HNSW vs IVFFlat? Для 14 категорий любой ок; HNSW проще, IVFFlat легче бэкапить. Решить в плане Phase 10.
+- Q-9 (HLD): Стратегия выноса pg_dump (S3 vs локальный том) — открыто, отложено за scope v0.4.
+- Q-v0.4-1: pgvector embeddings при multi-tenant — добавить `user_id` к `category_embedding` или хранить unique по (user_id, name)? Решить в Phase 1 v0.4.
+- Q-v0.4-2: AI conversation persistence при revoke — purge `ai_conversation`/`ai_message` юзера? Yes, по политике hard delete.
+- Q-v0.4-3: Admin tab visibility — feature flag в UI или backend-driven (через `/me` response с role)? Backend-driven предпочтительнее (defense-in-depth).
 
 ## Deferred Items
 
-Items acknowledged and carried forward from previous milestone close:
+Items acknowledged and deferred at v0.3 milestone close on 2026-05-06:
 
 | Category | Item | Status | Deferred At |
 |----------|------|--------|-------------|
-| *(none)* | | | |
+| uat_gap | Phase 04 — 04-HUMAN-UAT.md (5 pending scenarios) | partial | 2026-05-06 (v0.3 close) |
+| uat_gap | Phase 10 — 10-HUMAN-UAT.md (6 pending scenarios) | partial | 2026-05-06 (v0.3 close) |
+| verification_gap | Phase 01 — 01-VERIFICATION.md | human_needed | 2026-05-06 (v0.3 close) |
+| verification_gap | Phase 02 — 02-VERIFICATION.md | human_needed | 2026-05-06 (v0.3 close) |
+| verification_gap | Phase 03 — 03-VERIFICATION.md | human_needed | 2026-05-06 (v0.3 close) |
+| verification_gap | Phase 04 — 04-VERIFICATION.md | human_needed | 2026-05-06 (v0.3 close) |
+| verification_gap | Phase 05 — 05-VERIFICATION.md | human_needed | 2026-05-06 (v0.3 close) |
+| verification_gap | Phase 09 — 09-VERIFICATION.md | human_needed | 2026-05-06 (v0.3 close) |
+| verification_gap | Phase 10 — 10-VERIFICATION.md | human_needed | 2026-05-06 (v0.3 close) |
+| quick_task | deploy-fixes (20260504) | missing | 2026-05-06 (v0.3 close) |
+| quick_task | ux-fixes (20260506) | unknown | 2026-05-06 (v0.3 close) |
 
 ## Session Continuity
 

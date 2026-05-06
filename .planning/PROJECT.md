@@ -2,186 +2,180 @@
 
 ## What This Is
 
-Личный Telegram Mini App для планирования и ведения месячного бюджета — перенос функционала Google-таблицы заказчика (план/факт по категориям, шаблон плана, подписки с напоминаниями) в TG-приложение с быстрым вводом трат через Mini App или бот-команды. Single-tenant: один пользователь, авторизация по `tg_user_id` через `OWNER_TG_ID`.
+Telegram Mini App для планирования и ведения месячного бюджета — перенос функционала Google-таблицы (план/факт по категориям, шаблон плана, подписки с напоминаниями) в TG-приложение с быстрым вводом трат через Mini App или бот-команды. После v0.3 включает экран Аналитики с трендами/прогнозом, conversational AI-помощника с tool-use над данными бюджета и AI-категоризацию через эмбеддинги. **Текущая версия — single-tenant** (один пользователь через `OWNER_TG_ID`); v0.4 переводит на multi-tenant с whitelist-подходом.
 
 ## Core Value
 
-В один тап записать факт-трату и видеть актуальную дельту план/факт по категориям бюджета — быстрее, чем открывать Google-таблицу.
+В один тап записать факт-трату и видеть актуальную дельту план/факт по категориям бюджета — быстрее, чем открывать Google-таблицу. После v0.3 дополнительно: получать факты о бюджете в режиме разговора («сколько на еду в марте?», «где можно сэкономить?») без необходимости копаться в дашборде.
+
+## Current State
+
+**Shipped:** v0.3 (2026-05-06) — Analytics & AI
+
+**Active milestone:** v0.4 — Multi-Tenant & Admin (planning)
+
+**Codebase:**
+- Backend: Python 3.12 / FastAPI / SQLAlchemy 2.x async / Pydantic v2
+- Bot: aiogram 3.x
+- Frontend: React 18 + Vite + TypeScript + `@telegram-apps/sdk-react`
+- DB: PostgreSQL 16 + pgvector + Alembic
+- AI: OpenAI gpt-4.1-mini + text-embedding-3-small (через провайдер-агностичный LLM-клиент)
+- 5 docker-контейнеров: caddy / api / bot / worker / db
+- Hosting: VPS + Cloudflare Tunnel (см. memory `infra-deploy.md`)
+
+**Что работает:**
+- Bottom nav 5 табов (Главная / Транзакции / Аналитика / AI / Управление)
+- Дашборд Summary с edge-states (empty / warn / overspend / closed)
+- CRUD категорий, плана, факт-транзакций, подписок
+- Бот-команды `/add`, `/income`, `/balance`, `/today`, `/app`
+- 3 cron-джобы (notify_subscriptions 09:00, charge_subscriptions 00:05, close_period 00:01)
+- Аналитика: trend / top-overspend / top-categories / forecast
+- AI чат с 6 tools, streaming SSE, propose-and-approve write-flow
+- AI категоризация при вводе транзакции через embeddings (cosine similarity)
+
+**Текущие ограничения:**
+- Single-tenant: только `OWNER_TG_ID` имеет доступ; все доменные таблицы без `user_id` FK
+- AI cost cap не enforced (только observability через `GET /ai/usage`)
+- 11 deferred items (UAT/verification gaps, см. STATE.md)
+
+## Next Milestone Goals (v0.4 — Multi-Tenant & Admin)
+
+Превратить single-tenant pet в multi-user приложение с whitelist-управлением через UI-админку. Owner управляет доступом сам, не через бот-команды.
+
+**Scope:**
+- Multi-tenancy: `user_id` FK во всех доменных таблицах + Postgres RLS как defense-in-depth
+- Whitelist через `app_user.role` (owner / member / revoked); auth перестраивается с `OWNER_TG_ID`-eq на role-based
+- Admin-вкладка внутри «Управление» (видна только owner): UI по скетчам `010-admin-whitelist` + sub-tab «AI usage» с per-user breakdown
+- Все админ-действия через UI (никаких `/invite` `/revoke` бот-команд)
+- Onboarding приглашённого: тот же scrollable-flow, юзер сам задаёт `starting_balance` и `cycle_start_day`; категории seed per-user
+- AI cost cap per user (`spending_cap_cents`, default $5/month) с enforcement и тестами
+- Revoke = hard delete + purge
 
 ## Requirements
 
-### Validated
+### Validated (v0.2 + v0.3)
 
-(None yet — ship to validate)
+#### Auth & Onboarding (v0.2)
+- ✓ AUTH-01 — Telegram initData HMAC-SHA256 валидация — v0.2 (Phase 1)
+- ✓ AUTH-02 — `OWNER_TG_ID` whitelist — v0.2 (Phase 1) — *будет переработано в v0.4 на role-based*
+- ✓ ONB-01..03 — onboarding scrollable-page + bot bind + chat_id capture — v0.2 (Phase 2)
 
-### Active
+#### Domain (v0.2)
+- ✓ CAT-01..03 — категории CRUD + soft archive + 14 seed — v0.2 (Phase 2)
+- ✓ PER-01..05 — period engine (cycle_start_day, starting_balance inheritance, auto-close, template apply) — v0.2 (Phases 2/3/5)
+- ✓ TPL-01..04 — plan template CRUD + apply (idempotent) + snapshot — v0.2 (Phase 3)
+- ✓ PLN-01..03 — planned transactions CRUD + source enum + subscription marker — v0.2 (Phase 3)
+- ✓ ACT-01..05 — actual transactions Mini App + бот-команды + disambiguation — v0.2 (Phase 4)
+- ✓ DSH-01..06 — dashboard tabs Расходы/Доходы + hero + edge-states + period switcher — v0.2 (Phase 5)
+- ✓ SUB-01..05 — subscriptions CRUD + timeline + 2 cron-джобы + dedup unique constraint — v0.2 (Phase 6)
+- ✓ SET-01, SET-02 — cycle_start_day, notify_days_before — v0.2 (Phases 2/6)
+- ✓ INF-01..05 — docker-compose, Postgres, Caddy TLS, internal token, healthchecks — v0.2 (Phase 1)
 
-#### Auth & Onboarding
-- [ ] **AUTH-01**: Telegram `initData` валидируется HMAC-SHA256 с `bot_token`, `auth_date` ≤ 24ч
-- [ ] **AUTH-02**: Whitelist через ENV `OWNER_TG_ID`, всё остальное → 403
-- [ ] **ONB-01**: При первом запуске пользователь видит scrollable-page с нумерованными секциями: bot bind → стартовый баланс → cycle_start_day → seed категорий
-- [ ] **ONB-02**: Если `chat_id` неизвестен — секция bot bind активна с кнопкой `tg.openTelegramLink(...?start=onboard)`
-- [ ] **ONB-03**: Бот при `/start` сохраняет `tg_chat_id` для push-уведомлений
+#### v0.3 — Analytics & AI
+- ✓ NAV-01..04, TXN-01..05, MGT-01..04 — bottom nav refactor + transactions tab + management tab — v0.3 (Phase 7)
+- ✓ ANL-01..08 — analytics screen + 4 backend endpoints + SVG charts — v0.3 (Phase 8)
+- ✓ AI-01..10 — AI chat: streaming SSE + 6 tools + persistence + prompt caching + provider-agnostic client + rate limit — v0.3 (Phase 9)
+- ✓ AICAT-01..06 — AI категоризация через embeddings + pgvector + toggle — v0.3 (Phase 10)
+- ✓ SET-03 — `enable_ai_categorization` toggle — v0.3 (Phase 10)
 
-#### Категории
-- [ ] **CAT-01**: CRUD категорий (kind expense/income, name, sort_order, is_archived)
-- [ ] **CAT-02**: Мягкая архивация — архивированная категория исчезает из выпадающих списков, исторические записи остаются
-- [ ] **CAT-03**: Дефолтный seed-набор из 14 категорий (как в исходной xlsx) предлагается в onboarding
+> **Adjustments during execution** (см. v0.3-REQUIREMENTS.md → Notes):
+> - AI-08 default model: `gpt-4.1-nano` → `gpt-4.1-mini` (Phase 10.2)
+> - AI-10 rate limit: 30 → 10 req/мин (Phase 10.1)
+> - AICAT-04 confidence threshold: 0.5 → 0.35 (Phase 10.2)
 
-#### Период бюджета
-- [ ] **PER-01**: Период определяется глобальной настройкой `cycle_start_day` (default = 5), редактируется в Settings
-- [ ] **PER-02**: При первом периоде пользователь вводит `starting_balance` вручную
-- [ ] **PER-03**: Каждый последующий период автоматически наследует `starting_balance` = `ending_balance` предыдущего
-- [ ] **PER-04**: Шедулер автоматически закрывает период в день `cycle_start_day` 00:01 МСК и создаёт следующий
-- [ ] **PER-05**: При создании нового периода развёртывается `PlanTemplate`
+### Active (v0.4 — Multi-Tenant & Admin)
 
-#### Шаблон плана
-- [ ] **TPL-01**: Один `PlanTemplate` на пользователя, состоит из `PlanTemplateItem` (category, amount, description, day_of_period опц.)
-- [ ] **TPL-02**: CRUD строк шаблона (Grouped by category UI с inline-редактированием суммы + bottom-sheet для полного редактора)
-- [ ] **TPL-03**: Кнопка «Перенести текущий план в шаблон» (snapshot)
-- [ ] **TPL-04**: Кнопка «Применить шаблон» (idempotent, безопасный повтор)
+> Detailed requirements будут зафиксированы в новом REQUIREMENTS.md через `/gsd-new-milestone`. Below — high-level intent.
 
-#### Плановые транзакции
-- [ ] **PLN-01**: CRUD строк плана текущего периода (group by category + inline edit + sheet)
-- [ ] **PLN-02**: Источник создания: template-разворот / manual / subscription_auto
-- [ ] **PLN-03**: Строка от подписки маркируется визуально («🔁 from subscription»)
+- [ ] Multi-tenancy core: `user_id` FK во всех доменных таблицах, Postgres RLS, refactor всех queries
+- [ ] Role-based auth: `app_user.role` enum (owner / member / revoked), удаление `OWNER_TG_ID`-eq из dependencies
+- [ ] Owner bootstrapping: `OWNER_TG_ID` определяет owner-роль только при первом запуске
+- [ ] Admin UI: вкладка внутри «Управление», видна только owner; список юзеров + invite-sheet + revoke-confirm (по скетчам 010-A/B/C)
+- [ ] AI usage admin sub-tab: per-user breakdown через расширенный `GET /ai/usage`
+- [ ] Onboarding для приглашённых: scrollable-flow с своими starting_balance + cycle_start_day; seed категорий per-user
+- [ ] AI cost cap per user: `spending_cap_cents` (default $5/month), enforcement → 429, отображение в Settings, тесты
+- [ ] Revoke = hard delete + purge всех данных юзера
 
-#### Фактические транзакции
-- [ ] **ACT-01**: Bottom-sheet форма добавления факт-транзакции (Mini App): сумма, kind, категория, описание, дата (default — сегодня)
-- [ ] **ACT-02**: Период факт-транзакции вычисляется по `tx_date` + `cycle_start_day`
-- [ ] **ACT-03**: Бот-команды `/add <сумма> <категория>` и `/income <сумма> <категория>` создают факт-транзакции
-- [ ] **ACT-04**: Бот-команды `/balance`, `/today`, `/app` выводят соответствующие данные
-- [ ] **ACT-05**: При неоднозначном category-query бот показывает inline-кнопки выбора
+### Out of Scope (post v0.3)
 
-#### Дашборд (Summary)
-- [ ] **DSH-01**: Главный экран Mini App с tabs «Расходы / Доходы», hero-карточкой баланса, aggr-блоком План/Факт/Δ, плотным списком категорий с прогресс-барами
-- [ ] **DSH-02**: Знак дельты — «положительная = хорошо»: расходы `План−Факт`, доходы `Факт−План`
-- [ ] **DSH-03**: Состояния дашборда: empty (нет плана), in-progress, overspend (>100% = красный border + бейдж), warn (≥80% = жёлтый)
-- [ ] **DSH-04**: Closed-период: read-only, MainButton дизейблен, бейдж «Закрыт»
-- [ ] **DSH-05**: Переключатель периодов (← / →), архивные периоды доступны только для просмотра
+| Feature | Reason |
+|---------|--------|
+| Семейный учёт / роли пользователей | «Здоровье Наташи» и т.п. — обычные категории, не отдельные сущности |
+| Мультивалютность | Только RUB; курс-снапшоты усложнят без пользы |
+| Импорт CSV/выписок банка | Ручной ввод и бот-команды покрывают daily-use |
+| Импорт исходного xlsx | Старт с нуля, исторические данные не нужны |
+| Push-алерты перерасхода | Только визуальная индикация в UI, без push |
+| Веб-версия вне TG | Только Mini App |
+| Backup через xlsx-выгрузку | pg_dump покрывает |
+| Привязка ActualTransaction к строке плана | Агрегация на уровне категории достаточна |
+| Дедупликация подписок | Маркер «🔁» + ручное удаление дубля; автологика хрупкая |
+| Оффлайн-режим / локальный кэш | Серверная БД, online-only |
+| Биллинг / тарифы | v0.4 — closed whitelist (5-50 юзеров), денег не берём |
+| Бэкапы R2 / Sentry / UptimeRobot / rate limiting Cloudflare | Отложено: scope v0.4 узкий — только multi-tenant + admin |
 
-#### Подписки
-- [ ] **SUB-01**: CRUD подписок (name, amount, cycle mo/yr, next_charge_date, category, notify_days_before)
-- [ ] **SUB-02**: Список подписок с горизонтальным таймлайном на месяц (today-line, цветовая логика: ≤2 дня = красный, ≤7 = жёлтый)
-- [ ] **SUB-03**: Шедулер ежедневно 09:00 МСК отправляет push за `notify_days_before` дней до списания
-- [ ] **SUB-04**: Шедулер ежедневно 00:05 МСК создаёт `PlannedTransaction` (source=subscription_auto) и сдвигает `next_charge_date`
-- [ ] **SUB-05**: Unique `(subscription_id, original_charge_date)` в `planned_transaction` для защиты от дублей
-
-#### Settings
-- [ ] **SET-01**: Настройка `cycle_start_day` (1..28), применяется только к будущим периодам
-- [ ] **SET-02**: Настройка `notify_days_before` для подписок (default = 2)
-- [ ] **SET-03** (v0.3): Toggle `enable_ai_categorization` (default = on) — отключает AI-предложение категории в форме новой транзакции
-
-#### Navigation v0.3 (Phase 7)
-- [ ] **NAV-01**: Bottom nav содержит ровно 5 функциональных табов: Главная / Транзакции / Аналитика / AI / Управление
-- [ ] **NAV-02**: Активный таб «AI» окрашен в фиолетовый (`#a78bfa`); остальные активные табы — primary blue
-- [ ] **NAV-03**: Phosphor line-icons: House / ArrowsLeftRight / ChartBar / Sparkle / SquaresFour
-- [ ] **NAV-04**: Существующие топ-уровневые экраны (HistoryScreen, PlannedScreen, SubscriptionsScreen, MoreScreen) реорганизуются под новую nav без потери функциональности
-
-#### Transactions tab v0.3 (Phase 7)
-- [ ] **TXN-01**: Таб «Транзакции» содержит 2 под-таба (underline sticky TabBar): История / План
-- [ ] **TXN-02**: Под-таб «История» — факт-транзакции сгруппированы по дням, в day-header — total за день
-- [ ] **TXN-03**: Под-таб «План» — плановые строки сгруппированы по категориям, у каждой строки source-badge (template / manual / subscription)
-- [ ] **TXN-04**: Фильтр-чипы над списком (Все / Расходы / Доходы / По категории)
-- [ ] **TXN-05**: FAB добавляет факт-транзакцию (под-таб История) или плановую строку (под-таб План)
-
-#### Management tab v0.3 (Phase 7)
-- [ ] **MGT-01**: Таб «Управление» = меню-список из 4 пунктов: Подписки / Шаблон / Категории / Настройки
-- [ ] **MGT-02**: Каждый пункт меню — surface card с иконкой 36×36, title + контекстная desc + chevron
-- [ ] **MGT-03**: Контекстные desc: «3 активные · 1 097 ₽/мес», «14 активных категорий», «cycle_start_day = 5», и т.п.
-- [ ] **MGT-04**: Саб-скрины (SubscriptionsScreen, TemplateScreen, CategoriesScreen, SettingsScreen) переиспользуются как есть; меняется только entry point из новой nav
-
-#### Analytics v0.3 (Phase 8)
-- [ ] **ANL-01**: Экран Аналитика — top-level таб с PageTitle (без back-button)
-- [ ] **ANL-02**: Period chips (1 мес / 3 мес / 6 мес / Год)
-- [ ] **ANL-03**: Топ перерасходов текущего периода — карточки с лево-бордером danger/warn, факт vs план
-- [ ] **ANL-04**: Тренд расходов по месяцам — SVG line chart за последние N месяцев
-- [ ] **ANL-05**: Топ категорий по расходам — горизонтальные bars с цветами из chart-палитры
-- [ ] **ANL-06**: Прогноз остатка к концу текущего периода (linear extrapolation по дневному темпу)
-- [ ] **ANL-07**: API endpoints `GET /api/v1/analytics/trend`, `/top-overspend`, `/top-categories`, `/forecast`
-- [ ] **ANL-08**: Все агрегаты считаются на backend (не frontend); потенциально позже migrating в materialized views
-
-#### AI Assistant v0.3 (Phase 9)
-- [ ] **AI-01**: Экран AI — top-level таб с PageTitle «Budget AI» + аватар
-- [ ] **AI-02**: Empty-state с suggestion chips (Топ расходов / Сравни месяцы / Где экономить?)
-- [ ] **AI-03**: Streaming через SSE: `POST /api/v1/ai/chat` инициирует, frontend получает chunks через EventSource
-- [ ] **AI-04**: Tool-use indicator в bubble во время вызова tool («Смотрю март...» с pulse-точкой)
-- [ ] **AI-05**: Tools (function calling): `query_transactions`, `get_period_balance`, `get_category_summary`, `compare_periods`, `get_subscriptions`, `get_forecast` — финал в Phase 9 plan
-- [ ] **AI-06**: Conversation persistence в БД (новые таблицы `ai_conversation`, `ai_message`) — одна активная conversation на пользователя, можно очистить
-- [ ] **AI-07**: Prompt caching системного промпта + контекста бюджета — снижает input cost при последовательных вопросах
-- [ ] **AI-08**: Provider-agnostic LLM client (`app/ai/llm_client.py`), дефолт `openai/gpt-4.1-nano`, переключение через ENV `LLM_PROVIDER`/`LLM_MODEL`
-- [ ] **AI-09**: `OPENAI_API_KEY` только в backend ENV; frontend никогда не получает ключ
-- [ ] **AI-10**: Rate limit ≤30 req/мин на пользователя для защиты от случайных infinite-loops
-
-#### AI Categorization v0.3 (Phase 10)
-- [ ] **AICAT-01**: При вводе описания в форме «Новая транзакция» AI автоматически предлагает категорию через cosine similarity description-эмбеддинга и эмбеддингов категорий
-- [ ] **AICAT-02**: AI-suggestion box заменяет `<select>` категории — показывает имя + confidence-bar; кнопка «Сменить» возвращает стандартный select
-- [ ] **AICAT-03**: Эмбеддинги категорий хранятся в `category_embedding(category_id PK, vector(1536), updated_at)`; перегенерируются при изменении имени или создании
-- [ ] **AICAT-04**: Если top-1 cosine similarity < 0.5 — показывать обычный select (не навязывать)
-- [ ] **AICAT-05**: Embedding для description вычисляется через `text-embedding-3-small` (cost ~$0.02/M ≈ копейки)
-- [ ] **AICAT-06**: Toggle `enable_ai_categorization` в Settings отключает feature (см. SET-03)
-
-### Out of Scope
-
-- Multi-tenant / SaaS — это личный pet
-- Семейный учёт / роли пользователей — категории «Здоровье Наташи» и т.п. трактуются как обычные категории
-- Мультивалютность — только RUB
-- Импорт CSV/выписок банка — ручной ввод и бот-команды покрывают MVP
-- Импорт исходного xlsx — старт с нуля
-- Алерты перерасхода в push — только визуальные (warn/danger в UI), без push
-- Веб-версия вне TG — только Mini App
-- Backup/restore через xlsx-выгрузку — отложено
-- Привязка ActualTransaction к конкретной строке плана — агрегация только на уровне категории
-- Дедупликация подписок при ручном вводе — пользователь сам удаляет дубль
-- Оффлайн-режим / локальный кэш — серверная БД, online-only
+> **Removed from Out of Scope at v0.3 close:**
+> - «Multi-tenant / SaaS» → promoted to v0.4 milestone
+> - «Графики трендов» → реализованы в Phase 8 (Analytics)
 
 ## Context
 
 **Источник продукта:** Google-таблица `Google Monthly Budget 2026.02.xlsx` с 5 листами: Summary, Plan, Transactions, Мои подписки + рабочий черновик. Все ключевые поля и связи задокументированы в `docs/BRD.md` v0.2.
 
-**Дизайн:** banking-premium dark TG Mini App. Hero-карточки с градиентом + glow, tabular-числа, цветовая логика дельты (зелёный = хорошо). Полный набор экранов проработан в `.planning/sketches/` (winners 001-B, 002-B, 003 all states, 004-A, 005-B, 006-B; v0.3-скетчи 007-A, 008-A, 009-A, 013-A). Дизайн-система зафиксирована в `.planning/sketches/themes/default.css` и `.planning/sketches/STYLE-GUIDE.md`.
+**Дизайн:** banking-premium dark TG Mini App. Hero-карточки с градиентом + glow, tabular-числа, цветовая логика дельты (зелёный = хорошо). Полный набор экранов проработан в `.planning/sketches/` (winners 001-B, 002-B, 003 all states, 004-A, 005-B, 006-B; v0.3-скетчи 007-A, 008-A, 009-A, 013-A; v0.4-скетчи `010-admin-whitelist` A/B/C — winners ещё не выбраны). Дизайн-система зафиксирована в `.planning/sketches/themes/default.css` и `.planning/sketches/STYLE-GUIDE.md`.
 
-**Bottom nav v0.3:** Главная / Транзакции / Аналитика / AI / Управление — функциональная навигация, заменяет MVP-nav (Главная / История / План / Подписки / Ещё) после Phase 7.
+**Bottom nav v0.3:** Главная / Транзакции / Аналитика / AI / Управление — функциональная навигация, заменяет MVP-nav после Phase 7.
 
 **Архитектура:** 5 docker-контейнеров (caddy / api / bot / worker / db). Все сервисы шарят один Python-codebase, точки входа разные. Подробно в `docs/HLD.md` v0.1.
 
 **Шедулер:** APScheduler в отдельном процессе с PostgreSQL advisory locks для координации с API. 3 cron-джобы: уведомления о подписках (09:00), автогенерация плана от подписок (00:05), автозакрытие периода (00:01).
 
+**AI infrastructure (с v0.3):** `app/ai/llm_client.py` с провайдер-агностичным контрактом `chat()` / `embed()`. По умолчанию `openai/gpt-4.1-mini` (chat) + `text-embedding-3-small` (embeddings). Conversation persistence в `ai_conversation` / `ai_message`. Pgvector HNSW для категорий. AI usage в in-process ring buffer (1000 records). Propose-and-approve write-flow: AI никогда не пишет в БД молча.
+
+**Deferred (post v0.3):** 11 items в STATE.md → Deferred Items (UAT/verification gaps, требуют человеческой валидации в реальном TG).
+
 ## Constraints
 
-- **Tech stack — backend**: Python 3.12 + FastAPI + SQLAlchemy 2.x (async) + Pydantic v2. Зафиксировано опросом.
-- **Tech stack — bot**: aiogram 3.x. Один процесс, отдельный контейнер.
-- **Tech stack — frontend**: React 18 + Vite + TypeScript + `@telegram-apps/sdk-react`. UI-kit ещё открыт (Q-7).
-- **Tech stack — DB**: PostgreSQL 16 + `pgvector` extension для эмбеддингов категорий (с v0.3 / Phase 10). Деньги хранятся как `BIGINT` копейки.
+- **Tech stack — backend**: Python 3.12 + FastAPI + SQLAlchemy 2.x (async) + Pydantic v2.
+- **Tech stack — bot**: aiogram 3.x.
+- **Tech stack — frontend**: React 18 + Vite + TypeScript + `@telegram-apps/sdk-react`.
+- **Tech stack — DB**: PostgreSQL 16 + `pgvector` extension. Деньги хранятся как `BIGINT` копейки.
 - **Tech stack — scheduler**: APScheduler с PostgreSQL jobstore.
-- **Tech stack — AI/LLM** (с v0.3): OpenAI API (`openai` Python SDK). Chat-модель `gpt-4.1-nano` по умолчанию (cheapest), `gpt-4o-mini` как fallback через ENV. Эмбеддинги `text-embedding-3-small`. Абстрактный LLM-клиент `app/ai/llm_client.py` с провайдер-агностичным контрактом → провайдер сменяется через `LLM_PROVIDER` ENV.
-- **Hosting**: VPS (Hetzner / Timeweb / Yandex Cloud), docker-compose, Caddy для TLS.
+- **Tech stack — AI/LLM**: OpenAI API. По умолчанию `gpt-4.1-mini` (chat) + `text-embedding-3-small` (embeddings). Абстрактный LLM-клиент `app/ai/llm_client.py` → провайдер сменяется через `LLM_PROVIDER` ENV.
+- **Hosting**: VPS, docker-compose, Cloudflare Tunnel + Caddy для TLS.
 - **Timezone**: расчёты периодов и шедулер в `Europe/Moscow`, БД в UTC.
-- **Security**: Telegram `initData` HMAC-SHA256 валидация, `OWNER_TG_ID` whitelist, internal token для bot↔api.
+- **Security**: Telegram `initData` HMAC-SHA256 валидация на каждом запросе, internal token для bot↔api. **v0.4: переход с `OWNER_TG_ID`-eq на role-based + Postgres RLS.**
 - **Performance**: < 300 мс TTFB при < 1000 транзакций/период.
 - **Backup**: pg_dump nightly, RPO ≤ 24ч, RTO best-effort.
-- **No multi-tenant in DB schema**: упрощение для pet, миграция на multi-tenant потребует добавления `user_id` во все таблицы.
+- **Multi-tenant в v0.4**: Closed whitelist (5-50 юзеров), без биллинга. Изоляция через `user_id` FK + Postgres RLS.
 
 ## Key Decisions
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Single-tenant без `user_id` в FK | Упрощение для pet; миграция возможна позже | — Pending |
-| `cycle_start_day` настраиваемый, default = 5 | Соответствует payroll-циклу заказчика | — Pending |
-| Дельта расходов = `План−Факт`, доходов = `Факт−План` | Единое правило «положительная = хорошо», зелёный = всегда хорошо | — Pending |
-| Деньги в копейках (BIGINT) | Избежать ошибок округления float | — Pending |
-| Bottom-sheet как универсальный edit-pattern | Sketch 002-B winner, переиспользуется в 005-B | — Pending |
-| Tabs Расходы/Доходы вместо stacked sections | Sketch 001-B winner, лучше в 375px | — Pending |
-| Подписки: горизонтальный timeline + список | Sketch 004-A winner | — Pending |
-| Onboarding: scrollable-page с нумерованными секциями | Sketch 006-B winner | — Pending |
-| Категории — мягкая архивация, без удаления | Сохраняет историческую целостность | — Pending |
-| Дубли подписок — без автоматической дедупликации | Маркер «🔁 from subscription», пользователь удаляет вручную | — Pending |
-| Worker как отдельный контейнер | Чистое разделение API и cron-задач | — Pending |
-| Frontend = React 18 + Vite + `@telegram-apps/sdk-react` | Самая большая экосистема, быстрый старт | — Pending |
-| **v0.3 Bottom nav: функциональная 5-табов (Главная / Транзакции / Аналитика / AI / Управление)** | Группировка по частоте использования, без свалки «Ещё». «Транзакции» = объединение History + Plan под-табами; «Управление» = бывший More с переименованием | — v0.3 |
-| **v0.3 LLM provider = OpenAI (gpt-4.1-nano + text-embedding-3-small)** | Самое дёшево ($0.36-1.20/мес), один провайдер для chat и embeddings, отличный tool-use, иностранная карта уже есть | — v0.3 |
-| **v0.3 Abstract LLM client** | Контракт `chat()` / `embed()` через `LLM_PROVIDER` ENV — позволяет сменить на DeepSeek / Anthropic за 1 строку без переписывания бизнес-логики | — v0.3 |
-| **v0.3 AI-категоризация через embeddings** (Phase 10) | `text-embedding-3-small` для категорий + cosine similarity → не платим за LLM-вызов на каждой транзакции, отвечаем мгновенно | — v0.3 |
+| Single-tenant без `user_id` в FK (v0.2) | Упрощение для pet; миграция возможна позже | ⚠️ Revisit — переработано в v0.4 |
+| `cycle_start_day` настраиваемый, default = 5 | Соответствует payroll-циклу заказчика | ✓ Good |
+| Дельта расходов = `План−Факт`, доходов = `Факт−План` | Единое правило «положительная = хорошо», зелёный = всегда хорошо | ✓ Good |
+| Деньги в копейках (BIGINT) | Избежать ошибок округления float | ✓ Good |
+| Bottom-sheet как универсальный edit-pattern | Sketch 002-B winner | ✓ Good — переиспользуется в 005-B и 010.2 |
+| Tabs Расходы/Доходы вместо stacked sections | Sketch 001-B winner, лучше в 375px | ✓ Good |
+| Подписки: горизонтальный timeline + список | Sketch 004-A winner | ✓ Good |
+| Onboarding: scrollable-page с нумерованными секциями | Sketch 006-B winner | ✓ Good — переиспользуется в v0.4 invite flow |
+| Категории — мягкая архивация, без удаления | Сохраняет историческую целостность | ✓ Good |
+| Дубли подписок — без автоматической дедупликации | Маркер «🔁», пользователь удаляет вручную | ✓ Good |
+| Worker как отдельный контейнер | Чистое разделение API и cron-задач | ✓ Good |
+| Frontend = React 18 + Vite + `@telegram-apps/sdk-react` | Самая большая экосистема, быстрый старт | ✓ Good |
+| **v0.3 Bottom nav: функциональная 5-табов** | Группировка по частоте использования, без свалки «Ещё» | ✓ Good — UAT прошёл |
+| **v0.3 LLM provider = OpenAI (gpt-4.1-mini)** | Cheapest reliable; nano не справился с аналитикой (Phase 10.2 fix) | ✓ Good — после upgrade в 10.2 |
+| **v0.3 Abstract LLM client** | Контракт `chat()` / `embed()` через `LLM_PROVIDER` ENV | ✓ Good |
+| **v0.3 AI-категоризация через embeddings** | Не платим за LLM-вызов на каждой транзакции, мгновенный ответ | ✓ Good — после synonym augmentation в 10.2 |
+| **v0.3 AI write-flow: propose-and-approve** | AI **никогда не пишет в БД молча** — bottom-sheet с pre-filled полями | ✓ Good |
+| **v0.3 English system prompts** | ~2.3× token compaction на Cyrillic vs Latin | ✓ Good |
+| **v0.3 pgvector HNSW index** | Для 14 категорий любой ок, HNSW проще | ✓ Good |
+| **v0.4 Multi-tenant: shared schema + user_id FK + Postgres RLS** | Defense-in-depth: app-level фильтрация + DB-level enforcement | — Pending |
+| **v0.4 Whitelist через role enum** (owner / member / revoked) | Гибче чем ENV-список, позволяет revoke с purge | — Pending |
+| **v0.4 Admin через UI, не бот-команды** | UI по скетчам 010-admin-whitelist | — Pending |
+| **v0.4 AI cost cap per user** ($5/month default) | Защита от случайного infinite-loop в чате | — Pending |
+| **v0.4 Onboarding для приглашённых: сам выбирает starting_balance + cycle_start_day** | Бюджет — личный, не управляется owner'ом | — Pending |
 
 ## Evolution
 
@@ -201,4 +195,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-01 after initialization (synthesized from docs/BRD.md v0.2, docs/HLD.md v0.1, .planning/sketches/)*
+*Last updated: 2026-05-06 after v0.3 milestone close*
