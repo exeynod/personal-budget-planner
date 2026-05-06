@@ -103,7 +103,75 @@ def upgrade() -> None:
             sa.Column("user_id", sa.BigInteger(), nullable=True),
         )
 
-    # Phases 3-8 добавятся в Tasks 2-3 (backfill, NOT NULL, FK, uniques, indexes, RLS).
+    # ─── Phase 3: backfill user_id = id юзера с tg_user_id == OWNER_TG_ID ───
+    for table in DOMAIN_TABLES:
+        op.execute(
+            sa.text(
+                f"UPDATE {table} SET user_id = "
+                f"(SELECT id FROM app_user WHERE tg_user_id = :owner_tg_id) "
+                f"WHERE user_id IS NULL"
+            ).bindparams(owner_tg_id=owner_tg_id)
+        )
+
+    # ─── Phase 3.5: sanity check — никаких NULL user_id остаться не должно ───
+    conn = op.get_bind()
+    for table in DOMAIN_TABLES:
+        count = conn.execute(
+            sa.text(f"SELECT count(*) FROM {table} WHERE user_id IS NULL")
+        ).scalar_one()
+        if count and count > 0:
+            raise RuntimeError(
+                f"0006_multitenancy: backfill failed for {table}: "
+                f"{count} rows still have user_id IS NULL. Check that "
+                f"app_user has a row with tg_user_id={owner_tg_id}."
+            )
+
+    # ─── Phase 4: ALTER COLUMN user_id SET NOT NULL на 9 таблицах ───
+    for table in DOMAIN_TABLES:
+        op.alter_column(table, "user_id", nullable=False)
+
+    # ─── Phase 5: FK constraints user_id → app_user.id ON DELETE RESTRICT ───
+    for table in DOMAIN_TABLES:
+        op.create_foreign_key(
+            f"fk_{table}_user_id_app_user",
+            source_table=table,
+            referent_table="app_user",
+            local_cols=["user_id"],
+            remote_cols=["id"],
+            ondelete="RESTRICT",
+        )
+
+    # ─── Phase 6: unique constraints scoped по user_id ───
+    # 6a) budget_period: drop старого глобального unique(period_start),
+    #     create scoped(user_id, period_start)
+    op.drop_constraint("uq_budget_period_start", "budget_period", type_="unique")
+    op.create_unique_constraint(
+        "uq_budget_period_user_id_period_start",
+        "budget_period",
+        ["user_id", "period_start"],
+    )
+    # 6b) category: новый unique(user_id, name)
+    op.create_unique_constraint(
+        "uq_category_user_id_name",
+        "category",
+        ["user_id", "name"],
+    )
+    # 6c) subscription: новый unique(user_id, name)
+    op.create_unique_constraint(
+        "uq_subscription_user_id_name",
+        "subscription",
+        ["user_id", "name"],
+    )
+
+    # ─── Phase 7: индексы (user_id) на 9 таблицах ───
+    for table in DOMAIN_TABLES:
+        op.create_index(
+            f"ix_{table}_user_id",
+            table,
+            ["user_id"],
+        )
+
+    # Phase 8 (RLS) добавится в Task 3.
 
 
 def downgrade() -> None:
