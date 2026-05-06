@@ -171,9 +171,66 @@ def upgrade() -> None:
             ["user_id"],
         )
 
-    # Phase 8 (RLS) добавится в Task 3.
+    # ─── Phase 8: RLS — ENABLE + FORCE + POLICY на каждой из 9 таблиц ───
+    # Policy: разрешает row если user_id == app.current_user_id (GUC).
+    # Без выставленного GUC current_setting('app.current_user_id', true) → NULL,
+    # coalesce → -1, не матчит ни одну строку — query возвращает 0 rows
+    # (defense-in-depth: app-side filter + RLS backstop).
+    # FORCE ROW LEVEL SECURITY — table owner тоже подчиняется policy
+    # (в production app-user не su; миграции через alembic_user могут получить
+    # BYPASSRLS отдельно).
+    for table in DOMAIN_TABLES:
+        op.execute(f"ALTER TABLE {table} ENABLE ROW LEVEL SECURITY")
+        op.execute(f"ALTER TABLE {table} FORCE ROW LEVEL SECURITY")
+        op.execute(
+            f"CREATE POLICY {table}_user_isolation ON {table} "
+            f"USING (user_id = coalesce(current_setting('app.current_user_id', true)::bigint, -1)) "
+            f"WITH CHECK (user_id = coalesce(current_setting('app.current_user_id', true)::bigint, -1))"
+        )
 
 
 def downgrade() -> None:
-    # Заполнится в Task 3 целиком (симметричный teardown).
-    pass
+    # Симметрия upgrade — откат в обратном порядке.
+
+    # ─── Drop RLS policies + disable RLS ───
+    for table in DOMAIN_TABLES:
+        op.execute(f"DROP POLICY IF EXISTS {table}_user_isolation ON {table}")
+        op.execute(f"ALTER TABLE {table} NO FORCE ROW LEVEL SECURITY")
+        op.execute(f"ALTER TABLE {table} DISABLE ROW LEVEL SECURITY")
+
+    # ─── Drop indexes ix_<table>_user_id ───
+    for table in DOMAIN_TABLES:
+        op.drop_index(f"ix_{table}_user_id", table_name=table)
+
+    # ─── Drop scoped unique constraints ───
+    op.drop_constraint(
+        "uq_subscription_user_id_name", "subscription", type_="unique"
+    )
+    op.drop_constraint(
+        "uq_category_user_id_name", "category", type_="unique"
+    )
+    op.drop_constraint(
+        "uq_budget_period_user_id_period_start",
+        "budget_period",
+        type_="unique",
+    )
+    # Restore старого глобального unique(period_start)
+    op.create_unique_constraint(
+        "uq_budget_period_start",
+        "budget_period",
+        ["period_start"],
+    )
+
+    # ─── Drop FK constraints ───
+    for table in DOMAIN_TABLES:
+        op.drop_constraint(
+            f"fk_{table}_user_id_app_user", table, type_="foreignkey"
+        )
+
+    # ─── Drop user_id columns ───
+    for table in DOMAIN_TABLES:
+        op.drop_column(table, "user_id")
+
+    # ─── Drop app_user.role + user_role enum ───
+    op.drop_column("app_user", "role")
+    op.execute("DROP TYPE user_role")
