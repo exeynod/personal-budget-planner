@@ -32,3 +32,17 @@ class ChatHistoryResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     messages: list[ChatMessageRead]
+
+
+class SuggestCategoryResponse(BaseModel):
+    """Ответ GET /ai/suggest-category.
+
+    category_id и name — None если уверенность ниже порога (0.5).
+    confidence — cosine similarity от 0.0 до 1.0.
+    """
+
+    model_config = ConfigDict(from_attributes=True)
+
+    category_id: Optional[int] = None
+    name: Optional[str] = None
+    confidence: float
