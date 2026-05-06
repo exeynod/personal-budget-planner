@@ -1,3 +1,6 @@
+/** Mirrors Python `UserRole` enum (app/db/models.py). Phase 12 ROLE-05. */
+export type UserRole = 'owner' | 'member' | 'revoked';
+
 /** Mirrors `MeResponse` from app/api/router.py. */
 export interface MeResponse {
   tg_user_id: number;
@@ -5,6 +8,8 @@ export interface MeResponse {
   cycle_start_day: number;
   onboarded_at: string | null; // ISO datetime
   chat_id_known: boolean;
+  /** Phase 12 ROLE-05: backend-driven role for admin-tab visibility (Phase 13). */
+  role: UserRole;
 }
 
 export type CategoryKind = 'expense' | 'income';
