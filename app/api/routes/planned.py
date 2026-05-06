@@ -15,6 +15,9 @@ The split mirrors HLD §4.4 + §4.5 (period actions vs single-row CRUD).
 Both URL groups live in one APIRouter (no ``prefix=``) so a single
 router-level dependency covers them all.
 
+Phase 11 (Plan 11-05): handlers use ``get_db_with_tenant_scope`` +
+``get_current_user_id`` and forward ``user_id`` to all service calls.
+
 Exception → HTTP mapping:
     PlannedNotFoundError              → 404
     PeriodNotFoundError               → 404
@@ -28,7 +31,11 @@ from typing import Annotated, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.dependencies import get_current_user, get_db
+from app.api.dependencies import (
+    get_current_user,
+    get_current_user_id,
+    get_db_with_tenant_scope,
+)
 from app.api.schemas.planned import (
     ApplyTemplateResponse,
     KindStr,
@@ -62,7 +69,8 @@ planned_router = APIRouter(
 )
 async def list_planned(
     period_id: int,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Annotated[AsyncSession, Depends(get_db_with_tenant_scope)],
+    user_id: Annotated[int, Depends(get_current_user_id)],
     kind: Optional[KindStr] = Query(default=None),
     category_id: Optional[int] = Query(default=None, gt=0),
 ) -> list[PlannedRead]:
@@ -73,7 +81,7 @@ async def list_planned(
     GET /periods/current separately to detect onboarding state).
     """
     rows = await plan_svc.list_planned_for_period(
-        db, period_id, kind=kind, category_id=category_id,
+        db, period_id, user_id=user_id, kind=kind, category_id=category_id,
     )
     return [PlannedRead.model_validate(r) for r in rows]
 
@@ -86,7 +94,8 @@ async def list_planned(
 async def create_manual_planned(
     period_id: int,
     body: PlannedCreate,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Annotated[AsyncSession, Depends(get_db_with_tenant_scope)],
+    user_id: Annotated[int, Depends(get_current_user_id)],
 ) -> PlannedRead:
     """POST /api/v1/periods/{period_id}/planned — create with source=manual.
 
@@ -97,7 +106,9 @@ async def create_manual_planned(
         400: category archived OR kind mismatch with category
     """
     try:
-        row = await plan_svc.create_manual_planned(db, period_id, body)
+        row = await plan_svc.create_manual_planned(
+            db, period_id, body, user_id=user_id
+        )
     except PeriodNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
@@ -124,7 +135,8 @@ async def create_manual_planned(
 )
 async def apply_template(
     period_id: int,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Annotated[AsyncSession, Depends(get_db_with_tenant_scope)],
+    user_id: Annotated[int, Depends(get_current_user_id)],
 ) -> ApplyTemplateResponse:
     """POST /api/v1/periods/{period_id}/apply-template — TPL-04, PER-05.
 
@@ -137,7 +149,9 @@ async def apply_template(
         404: period does not exist
     """
     try:
-        result = await plan_svc.apply_template_to_period(db, period_id=period_id)
+        result = await plan_svc.apply_template_to_period(
+            db, user_id=user_id, period_id=period_id
+        )
     except PeriodNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
@@ -156,7 +170,8 @@ async def apply_template(
 async def update_planned(
     planned_id: int,
     body: PlannedUpdate,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Annotated[AsyncSession, Depends(get_db_with_tenant_scope)],
+    user_id: Annotated[int, Depends(get_current_user_id)],
 ) -> PlannedRead:
     """PATCH /api/v1/planned/{id} — partial update.
 
@@ -167,7 +182,7 @@ async def update_planned(
         400: new category archived OR kind mismatch OR row is subscription_auto (D-37)
     """
     try:
-        row = await plan_svc.update_planned(db, planned_id, body)
+        row = await plan_svc.update_planned(db, planned_id, body, user_id=user_id)
     except PlannedNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
@@ -194,7 +209,8 @@ async def update_planned(
 @planned_router.delete("/planned/{planned_id}", response_model=PlannedRead)
 async def delete_planned(
     planned_id: int,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Annotated[AsyncSession, Depends(get_db_with_tenant_scope)],
+    user_id: Annotated[int, Depends(get_current_user_id)],
 ) -> PlannedRead:
     """DELETE /api/v1/planned/{id} — hard delete.
 
@@ -204,7 +220,7 @@ async def delete_planned(
         400: row is subscription_auto (managed by worker, not user — D-37)
     """
     try:
-        row = await plan_svc.delete_planned(db, planned_id)
+        row = await plan_svc.delete_planned(db, planned_id, user_id=user_id)
     except PlannedNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)

@@ -15,6 +15,14 @@ This covers the T-onboarding-atomicity threat from 02-VALIDATION.md.
 Service layer is HTTP-framework-agnostic: raises domain exceptions
 (``AlreadyOnboardedError``, ``OnboardingUserNotFoundError``) which the
 route layer (Plan 02-04) maps to 409 / 404 respectively.
+
+Phase 11 (Plan 11-05): the *external* signature still accepts
+``tg_user_id: int`` (legacy contract for the route layer — the OWNER_TG_ID
+flow has not been replaced by role-based auth yet, that's Phase 12).
+INTERNALLY we resolve ``app_user.id`` PK from the tg_user_id lookup and
+forward it to the per-tenant service calls (``seed_default_categories``,
+``create_first_period``) so newly-created Category / BudgetPeriod rows
+get the correct ``user_id`` (T-11-05-04).
 """
 from datetime import datetime, timezone
 from typing import Any
@@ -86,7 +94,7 @@ async def complete_onboarding(
         OnboardingUserNotFoundError: when no AppUser exists for tg_user_id
             (caller must trigger ``GET /me`` first per Phase 1 D-11).
     """
-    # 1. Locate user
+    # 1. Locate user (resolve PK for downstream tenant-scoped calls).
     result = await db.execute(
         select(AppUser).where(AppUser.tg_user_id == tg_user_id)
     )
@@ -98,14 +106,19 @@ async def complete_onboarding(
     if user.onboarded_at is not None:
         raise AlreadyOnboardedError(tg_user_id, user.onboarded_at)
 
-    # 2. Optional seed (idempotent inside service)
+    # Phase 11: resolve PK once and forward to per-tenant service calls so
+    # newly-created Category / BudgetPeriod rows get the correct user_id.
+    user_pk: int = user.id
+
+    # 2. Optional seed (idempotent inside service, scoped by user_id).
     seeded: list = []
     if seed_default_categories:
-        seeded = await cat_svc.seed_default_categories(db)
+        seeded = await cat_svc.seed_default_categories(db, user_id=user_pk)
 
-    # 3. Create first period (uses period_for + today_msk inside the service)
+    # 3. Create first period (uses period_for + today_msk inside the service).
     period = await period_svc.create_first_period(
         db,
+        user_id=user_pk,
         starting_balance_cents=starting_balance_cents,
         cycle_start_day=cycle_start_day,
     )

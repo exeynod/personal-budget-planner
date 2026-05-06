@@ -14,6 +14,12 @@ Idempotency contract for apply_template_to_period (D-31):
 - If ANY planned row with ``source=template`` already exists for the period,
   return existing rows without creating new ones (``created=0``). This means
   Phase 5 worker can safely call this endpoint on every period creation.
+
+Phase 11 (Plan 11-05, MUL-03): every public function takes ``user_id: int``
+keyword-only and scopes its queries / inserts by ``user_id``. Cross-tenant
+ID access yields ``PlannedNotFoundError``/``PeriodNotFoundError`` → 404
+(T-11-05-05). Apply-template propagates ``user_id`` into every new
+PlannedTransaction row (T-11-05-04).
 """
 from datetime import date, timedelta
 from typing import Optional
@@ -38,7 +44,11 @@ from app.services import categories as cat_svc
 
 
 class PlannedNotFoundError(Exception):
-    """Raised when a planned-transaction lookup by id returns no row."""
+    """Raised when a planned-transaction lookup by id returns no row.
+
+    Phase 11: also raised when row exists but ``user_id`` does not match the
+    caller — same 404 (T-11-05-05).
+    """
 
     def __init__(self, planned_id: int) -> None:
         self.planned_id = planned_id
@@ -53,6 +63,8 @@ class PeriodNotFoundError(Exception):
     validation in apply-template / snapshot-from-period flows. Phase 2
     periods service uses a different pattern (`get_current_active_period`
     returns Optional, no by-id lookup).
+
+    Phase 11: also raised when period exists but belongs to another tenant.
     """
 
     def __init__(self, period_id: int) -> None:
@@ -116,29 +128,49 @@ def _clamp_planned_date(
     return candidate
 
 
-async def _ensure_category_active(db: AsyncSession, category_id: int) -> Category:
-    """Validate category exists and is_archived=False (D-36).
+async def _ensure_category_active(
+    db: AsyncSession, category_id: int, *, user_id: int
+) -> Category:
+    """Validate category exists, belongs to ``user_id`` and is_archived=False (D-36).
 
     Raises:
-        CategoryNotFoundError (from cat_svc): category does not exist (→ 404).
+        CategoryNotFoundError (from cat_svc): category does not exist OR belongs
+            to another tenant (→ 404).
         InvalidCategoryError: category exists but is_archived=True (→ 400).
     """
-    cat = await cat_svc.get_or_404(db, category_id)
+    cat = await cat_svc.get_or_404(db, category_id, user_id=user_id)
     if cat.is_archived:
         raise InvalidCategoryError(category_id, "Cannot use archived category")
     return cat
 
 
-async def _get_period_or_404(db: AsyncSession, period_id: int) -> BudgetPeriod:
-    period = await db.get(BudgetPeriod, period_id)
+async def _get_period_or_404(
+    db: AsyncSession, period_id: int, *, user_id: int
+) -> BudgetPeriod:
+    """Fetch period scoped by ``user_id`` or raise PeriodNotFoundError."""
+    result = await db.execute(
+        select(BudgetPeriod).where(
+            BudgetPeriod.id == period_id,
+            BudgetPeriod.user_id == user_id,
+        )
+    )
+    period = result.scalar_one_or_none()
     if period is None:
         raise PeriodNotFoundError(period_id)
     return period
 
 
-async def get_or_404(db: AsyncSession, planned_id: int) -> PlannedTransaction:
-    """Fetch a planned row or raise ``PlannedNotFoundError``."""
-    row = await db.get(PlannedTransaction, planned_id)
+async def get_or_404(
+    db: AsyncSession, planned_id: int, *, user_id: int
+) -> PlannedTransaction:
+    """Fetch a planned row scoped by ``user_id`` or raise ``PlannedNotFoundError``."""
+    result = await db.execute(
+        select(PlannedTransaction).where(
+            PlannedTransaction.id == planned_id,
+            PlannedTransaction.user_id == user_id,
+        )
+    )
+    row = result.scalar_one_or_none()
     if row is None:
         raise PlannedNotFoundError(planned_id)
     return row
@@ -151,6 +183,7 @@ async def list_planned_for_period(
     db: AsyncSession,
     period_id: int,
     *,
+    user_id: int,
     kind: Optional[str] = None,
     category_id: Optional[int] = None,
 ) -> list[PlannedTransaction]:
@@ -161,8 +194,13 @@ async def list_planned_for_period(
     needed (typical pattern: GET /periods/current → if 404 then no list).
 
     Order: (category_id, planned_date NULLS LAST, id) for stable UI grouping.
+
+    Phase 11: scoped by ``user_id``; cross-tenant period_id yields empty list.
     """
-    stmt = select(PlannedTransaction).where(PlannedTransaction.period_id == period_id)
+    stmt = select(PlannedTransaction).where(
+        PlannedTransaction.user_id == user_id,
+        PlannedTransaction.period_id == period_id,
+    )
     if kind is not None:
         stmt = stmt.where(PlannedTransaction.kind == CategoryKind(kind))
     if category_id is not None:
@@ -178,21 +216,29 @@ async def list_planned_for_period(
 
 
 async def create_manual_planned(
-    db: AsyncSession, period_id: int, body: PlannedCreate
+    db: AsyncSession,
+    period_id: int,
+    body: PlannedCreate,
+    *,
+    user_id: int,
 ) -> PlannedTransaction:
     """Create a planned row with source=manual.
 
     Validation order:
-        1. period exists → PeriodNotFoundError (404).
-        2. category exists and active → CategoryNotFoundError / InvalidCategoryError.
+        1. period exists and belongs to user → PeriodNotFoundError (404).
+        2. category exists, belongs to user, and active → CategoryNotFoundError
+           / InvalidCategoryError.
         3. body.kind matches category.kind → KindMismatchError (400).
+
+    Phase 11: row inserted with ``user_id=user_id``.
     """
-    await _get_period_or_404(db, period_id)
-    cat = await _ensure_category_active(db, body.category_id)
+    await _get_period_or_404(db, period_id, user_id=user_id)
+    cat = await _ensure_category_active(db, body.category_id, user_id=user_id)
     if cat.kind.value != body.kind:
         raise KindMismatchError(body.kind, cat.kind.value)
 
     row = PlannedTransaction(
+        user_id=user_id,
         period_id=period_id,
         kind=CategoryKind(body.kind),
         amount_cents=body.amount_cents,
@@ -209,16 +255,20 @@ async def create_manual_planned(
 
 
 async def update_planned(
-    db: AsyncSession, planned_id: int, patch: PlannedUpdate
+    db: AsyncSession,
+    planned_id: int,
+    patch: PlannedUpdate,
+    *,
+    user_id: int,
 ) -> PlannedTransaction:
     """Update a planned row. Rejects subscription_auto rows (D-37).
 
     If the patch changes ``category_id``, the new category is re-validated
-    (must exist and not be archived). If the patch changes ``kind`` or
-    ``category_id``, kind/category consistency is enforced against the
-    effective (post-patch) state.
+    (must exist, belong to user, and not be archived). If the patch changes
+    ``kind`` or ``category_id``, kind/category consistency is enforced
+    against the effective (post-patch) state.
     """
-    row = await get_or_404(db, planned_id)
+    row = await get_or_404(db, planned_id, user_id=user_id)
     if row.source == PlanSource.subscription_auto:
         raise SubscriptionPlannedReadOnlyError(planned_id)
 
@@ -227,7 +277,9 @@ async def update_planned(
     # If category changes, ensure new category is active.
     new_cat: Optional[Category] = None
     if "category_id" in data and data["category_id"] != row.category_id:
-        new_cat = await _ensure_category_active(db, data["category_id"])
+        new_cat = await _ensure_category_active(
+            db, data["category_id"], user_id=user_id
+        )
 
     # Determine effective kind / effective category for the consistency check.
     effective_kind = data.get(
@@ -239,7 +291,9 @@ async def update_planned(
     if "kind" in data or "category_id" in data:
         if new_cat is None:
             # category_id unchanged (or kind-only patch) — load current category.
-            new_cat = await cat_svc.get_or_404(db, effective_cat_id)
+            new_cat = await cat_svc.get_or_404(
+                db, effective_cat_id, user_id=user_id
+            )
         if new_cat.kind.value != effective_kind:
             raise KindMismatchError(effective_kind, new_cat.kind.value)
 
@@ -253,9 +307,11 @@ async def update_planned(
     return row
 
 
-async def delete_planned(db: AsyncSession, planned_id: int) -> PlannedTransaction:
+async def delete_planned(
+    db: AsyncSession, planned_id: int, *, user_id: int
+) -> PlannedTransaction:
     """Hard delete (CLAUDE.md: soft delete только для category). Rejects subscription_auto (D-37)."""
-    row = await get_or_404(db, planned_id)
+    row = await get_or_404(db, planned_id, user_id=user_id)
     if row.source == PlanSource.subscription_auto:
         raise SubscriptionPlannedReadOnlyError(planned_id)
     await db.delete(row)
@@ -267,7 +323,7 @@ async def delete_planned(db: AsyncSession, planned_id: int) -> PlannedTransactio
 
 
 async def apply_template_to_period(
-    db: AsyncSession, *, period_id: int
+    db: AsyncSession, *, user_id: int, period_id: int
 ) -> dict:
     """D-31: idempotent apply-template — skip if any source='template' already exists.
 
@@ -275,16 +331,22 @@ async def apply_template_to_period(
     (existing template rows returned). Empty template returns
     ``created=0, planned=[]``.
 
-    Raises:
-        PeriodNotFoundError: if period does not exist.
-    """
-    period = await _get_period_or_404(db, period_id)
+    Phase 11 (T-11-05-04): period must belong to ``user_id``; template items
+    are loaded scoped by ``user_id``; new PlannedTransaction rows are inserted
+    with ``user_id=user_id`` so they cannot leak across tenants.
 
-    # Idempotency check: any source='template' for this period?
+    Raises:
+        PeriodNotFoundError: if period does not exist (or belongs to a
+            different user — same 404, no existence leak).
+    """
+    period = await _get_period_or_404(db, period_id, user_id=user_id)
+
+    # Idempotency check: any source='template' for this period (scoped to user)?
     existing_count = await db.scalar(
         select(func.count())
         .select_from(PlannedTransaction)
         .where(
+            PlannedTransaction.user_id == user_id,
             PlannedTransaction.period_id == period_id,
             PlannedTransaction.source == PlanSource.template,
         )
@@ -295,6 +357,7 @@ async def apply_template_to_period(
         result = await db.execute(
             select(PlannedTransaction)
             .where(
+                PlannedTransaction.user_id == user_id,
                 PlannedTransaction.period_id == period_id,
                 PlannedTransaction.source == PlanSource.template,
             )
@@ -306,6 +369,7 @@ async def apply_template_to_period(
     # Load template items + their categories (eager-load for kind access).
     items_result = await db.execute(
         select(PlanTemplateItem)
+        .where(PlanTemplateItem.user_id == user_id)
         .options(selectinload(PlanTemplateItem.category))
         .order_by(PlanTemplateItem.sort_order, PlanTemplateItem.id)
     )
@@ -316,6 +380,7 @@ async def apply_template_to_period(
 
     new_rows = [
         PlannedTransaction(
+            user_id=user_id,
             period_id=period_id,
             kind=item.category.kind,
             amount_cents=item.amount_cents,
