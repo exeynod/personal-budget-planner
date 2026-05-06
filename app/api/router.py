@@ -1,8 +1,8 @@
 """API routers for TG Budget Planner.
 
 Phase 1 routes:
-- ``/me`` (public_router) — returns current user info; protected by
-  ``get_current_user`` (Telegram initData + OWNER_TG_ID whitelist).
+- ``/me`` (public_router) — returns current user info incl. role; protected by
+  ``get_current_user`` (Telegram initData + role-based whitelist, Phase 12).
 - ``/internal/health`` (internal_router) — internal service-to-service health
   probe; protected by ``verify_internal_token`` (X-Internal-Token).
 
@@ -33,20 +33,18 @@ Phase 9 routes (added via include_router):
 - ``/ai/history`` (GET) — AI conversation history (AI-06)
 - ``/ai/conversation`` (DELETE) — clear AI history (AI-06)
 
-D-11: ``app_user`` row is upserted on the first valid ``GET /me`` request
-(``INSERT ... ON CONFLICT DO NOTHING`` on ``tg_user_id``) — no migration seed.
+Phase 12 ROLE-05: ``/me`` returns ``role`` field; ``get_current_user`` (Plan 12-02)
+resolves AppUser ORM + rejects revoked/unknown users. In DEV_MODE the dependency
+upserts the owner row on first call — no upsert inside the handler.
 """
 from __future__ import annotations
 
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
-from sqlalchemy import select
-from sqlalchemy.dialects.postgresql import insert
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.dependencies import get_current_user, get_db, verify_internal_token
+from app.api.dependencies import get_current_user, verify_internal_token
 from app.api.routes.actual import actual_router
 from app.api.routes.categories import categories_router
 from app.api.routes.internal_bot import internal_bot_router
@@ -60,7 +58,7 @@ from app.api.routes.ai_suggest import router as ai_suggest_router
 from app.api.routes.analytics import router as analytics_router
 from app.api.routes.subscriptions import router as subscriptions_router
 from app.api.routes.templates import templates_router
-from app.db.models import AppUser
+from app.db.models import AppUser, UserRole
 
 
 # ---- Public router (requires initData auth) ----
@@ -73,35 +71,31 @@ class MeResponse(BaseModel):
     cycle_start_day: int
     onboarded_at: str | None
     chat_id_known: bool
+    role: Literal["owner", "member", "revoked"]  # Phase 12 ROLE-05
 
 
 @public_router.get("/me", response_model=MeResponse)
 async def get_me(
-    current_user: Annotated[dict, Depends(get_current_user)],
-    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[AppUser, Depends(get_current_user)],
 ) -> MeResponse:
-    """Return current user info; upsert ``app_user`` on first request (D-11)."""
-    tg_user_id = current_user["id"]
+    """Return current user info (Phase 12 ROLE-05).
 
-    # D-11: upsert app_user on first valid request (no migration seed).
-    stmt = (
-        insert(AppUser)
-        .values(tg_user_id=tg_user_id)
-        .on_conflict_do_nothing(index_elements=["tg_user_id"])
-    )
-    await db.execute(stmt)
+    AppUser is resolved by get_current_user (Plan 12-02 refactor).
+    - DEV_MODE: get_current_user upserts OWNER row first → here we just read.
+    - Production: get_current_user requires existing AppUser → 403 if not found.
+      Phase 14 onboarding pre-creates rows for invited members.
 
-    result = await db.execute(
-        select(AppUser).where(AppUser.tg_user_id == tg_user_id)
-    )
-    user = result.scalar_one()
-
+    No upsert in this handler. Existing /me-as-bootstrap semantics moved
+    into get_current_user (DEV_MODE) and Phase 14 onboarding (production).
+    """
     return MeResponse(
-        tg_user_id=user.tg_user_id,
-        tg_chat_id=user.tg_chat_id,
-        cycle_start_day=user.cycle_start_day,
-        onboarded_at=user.onboarded_at.isoformat() if user.onboarded_at else None,
-        chat_id_known=user.tg_chat_id is not None,
+        tg_user_id=current_user.tg_user_id,
+        tg_chat_id=current_user.tg_chat_id,
+        cycle_start_day=current_user.cycle_start_day,
+        onboarded_at=current_user.onboarded_at.isoformat()
+            if current_user.onboarded_at else None,
+        chat_id_known=current_user.tg_chat_id is not None,
+        role=current_user.role.value,  # UserRole.<x>.value == "owner"|"member"|"revoked"
     )
 
 
