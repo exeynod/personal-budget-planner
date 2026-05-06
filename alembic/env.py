@@ -19,10 +19,13 @@ import app.db.models  # noqa: F401 — registers all models with Base
 
 config = context.config
 
-# Override sqlalchemy.url from DATABASE_URL env var if set.
-database_url = os.environ.get("DATABASE_URL")
-if database_url:
-    config.set_main_option("sqlalchemy.url", database_url)
+# Phase 12 D-11-07-02: prefer ADMIN_DATABASE_URL (privileged role) для DDL.
+# Fallback to DATABASE_URL для backward compat (pre-Plan 12-05 setups where
+# only DATABASE_URL is set). ADMIN_DATABASE_URL connects as `budget` (SUPERUSER)
+# which is required for CREATE/ALTER ROLE and GRANT operations in 0007.
+admin_url = os.environ.get("ADMIN_DATABASE_URL") or os.environ.get("DATABASE_URL")
+if admin_url:
+    config.set_main_option("sqlalchemy.url", admin_url)
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
