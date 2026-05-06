@@ -28,6 +28,11 @@ Phase 4 routes (added via include_router):
 - ``/internal/bot/balance`` (POST) — ACT-04 (bot /balance command data)
 - ``/internal/bot/today`` (POST) — ACT-04 (bot /today command data)
 
+Phase 9 routes (added via include_router):
+- ``/ai/chat`` (POST, SSE) — AI streaming chat (AI-03)
+- ``/ai/history`` (GET) — AI conversation history (AI-06)
+- ``/ai/conversation`` (DELETE) — clear AI history (AI-06)
+
 D-11: ``app_user`` row is upserted on the first valid ``GET /me`` request
 (``INSERT ... ON CONFLICT DO NOTHING`` on ``tg_user_id``) — no migration seed.
 """
@@ -50,6 +55,7 @@ from app.api.routes.onboarding import onboarding_router
 from app.api.routes.periods import periods_router
 from app.api.routes.planned import planned_router
 from app.api.routes.settings import settings_router
+from app.api.routes.ai import router as ai_router
 from app.api.routes.analytics import router as analytics_router
 from app.api.routes.subscriptions import router as subscriptions_router
 from app.api.routes.templates import templates_router
@@ -119,6 +125,9 @@ public_router.include_router(subscriptions_router)
 
 # Phase 8 sub-router — Analytics aggregates (ANL-07).
 public_router.include_router(analytics_router)
+
+# Phase 9 sub-router — AI chat endpoint (AI-03, AI-06, AI-10).
+public_router.include_router(ai_router)
 
 
 # ---- Internal router (requires X-Internal-Token) ----
