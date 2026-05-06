@@ -62,7 +62,7 @@
 - [x] 11-03-PLAN.md — ORM models update (Mapped[user_id] + UserRole enum) (Wave 2) — completed 2026-05-06
 - [x] 11-04-PLAN.md — Dependencies refactor (get_current_user_id + SET LOCAL) + dev_seed role=owner (Wave 3) — completed 2026-05-06
 - [x] 11-05-PLAN.md — Service+route refactor part A (categories, periods, templates, planned, onboarding, settings) (Wave 4, parallel with 11-06) — completed 2026-05-06
-- [ ] 11-06-PLAN.md — Service+route refactor part B (actuals, subs, analytics, AI, internal_bot, worker) (Wave 4, parallel with 11-05)
+- [x] 11-06-PLAN.md — Service+route refactor part B (actuals, subs, analytics, AI, internal_bot, worker) (Wave 4, parallel with 11-05) — completed 2026-05-06
 - [ ] 11-07-PLAN.md — Verification: fill RED tests + manual UAT + 11-VERIFICATION.md (Wave 5, has human checkpoint)
 **UI hint**: no
 

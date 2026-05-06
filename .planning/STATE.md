@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v0.4
 milestone_name: — Multi-Tenant & Admin
 status: executing
-last_updated: "2026-05-06T17:00:00.000Z"
-last_activity: 2026-05-06 -- Phase 11 Plan 05 completed (services+routes PART A — user_id scoping for categories, periods, templates, planned, onboarding)
+last_updated: "2026-05-06T17:05:00.000Z"
+last_activity: 2026-05-06 -- Phase 11 Plan 06 completed (services+routes PART B — actuals/subs/analytics/AI/internal_bot scoped + worker per-tenant iteration)
 progress:
   total_phases: 5
   completed_phases: 0
   total_plans: 7
-  completed_plans: 4
-  percent: 11
+  completed_plans: 5
+  percent: 14
 ---
 
 # Project State
@@ -24,35 +24,35 @@ See: .planning/PROJECT.md (updated 2026-05-06 after v0.3 milestone close)
 
 ## Current Position
 
-Phase: 11 — Multi-Tenancy DB Migration & RLS (in progress, 4/7 plans done)
-Plan: 11-05 (services+routes PART A) — completed 2026-05-06
-Status: Plans 11-02, 11-03, 11-04, 11-05 done. Plan 11-01 (RED tests + 2-tenant fixture) and 11-06 (services+routes PART B — actuals/subs/analytics/AI/internal_bot/worker) and 11-07 (integration verify) pending.
-Last activity: 2026-05-06 — app/services/{categories,periods,templates,planned,onboarding}.py + 4 routes scoped by user_id (MUL-03/MUL-04)
+Phase: 11 — Multi-Tenancy DB Migration & RLS (in progress, 5/7 plans done)
+Plan: 11-06 (services+routes PART B + worker per-tenant) — completed 2026-05-06
+Status: Plans 11-02, 11-03, 11-04, 11-05, 11-06 done. Plan 11-01 (RED tests + 2-tenant fixture) and 11-07 (integration verify) pending.
+Last activity: 2026-05-06 — app/services/{actual,subscriptions,analytics,ai_conversation_service,internal_bot}.py + 6 routes + 2 AI helpers + 3 worker jobs scoped by user_id (MUL-03/MUL-04)
 
 Previous milestones:
 - v0.3 (Analytics & AI) — Complete 2026-05-06, 6 phases / 25 plans → archive `.planning/milestones/v0.3-*`
 - v0.2 (MVP) — Complete 2026-05-03, 6 phases / 38 plans → archived retroactively at v0.3 close
 
-Progress: [##        ] 11% (milestone v0.4, 0/5 phases complete; 4/7 plans of Phase 11 done)
+Progress: [##        ] 14% (milestone v0.4, 0/5 phases complete; 5/7 plans of Phase 11 done)
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 4
-- Average duration: ~10 min
-- Total execution time: ~0.7 hours
+- Total plans completed: 5
+- Average duration: ~12 min
+- Total execution time: ~1 hour
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 11 | 4 | ~40 min | ~10 min |
+| 11 | 5 | ~59 min | ~12 min |
 
 **Recent Trend:**
 
-- Last 5 plans: 11-05 (~30 min, 9 files, 3 commits), 11-04 (~?, deps + dev-seed), 11-03 (~3 min, 1 file, 1 commit), 11-02 (~5 min, 1 file, 3 commits)
-- Trend: Phase 11 Waves 1-4 progressing; 11-05 PART A done — 11-06 PART B parallel/next
+- Last 5 plans: 11-06 (~19 min, 16 files, 4 commits), 11-05 (~30 min, 9 files, 3 commits), 11-04 (~3 min, 3 files, 3 commits), 11-03 (~3 min, 1 file, 1 commit), 11-02 (~5 min, 1 file, 3 commits)
+- Trend: Phase 11 Wave 4 in progress; 11-05 PART A + 11-06 PART B done in parallel; 11-07 integration verify next
 
 *Updated after each plan completion*
 
@@ -73,6 +73,7 @@ Recent decisions affecting v0.4 planning:
 - 11-02 (2026-05-06): Single atomic Alembic revision (rollback атомарный); coalesce(...,-1) trick в RLS policy для migration-friendly default; FK ON DELETE RESTRICT (не CASCADE — Phase 13 service-layer purge); FORCE ROW LEVEL SECURITY для defense-in-depth
 - 11-03 (2026-05-06): ORM models mirror migration 0006 exactly — UserRole(str, Enum) lowercase values; PgEnum(create_type=False) для reuse migration-created type; user_id placed last (preserves column order); BudgetPeriod.period_start unique перенесён в __table_args__; AppUser→domain back-refs не добавлены (one-way, по discretion); AppHealth не модифицирован (system table)
 - 11-05 (2026-05-06): Service signatures `*, user_id: int` keyword-only — caller cannot accidentally swap with another int positional; mypy/Pylance flag missing kwarg loudly. App-side filtering primary, RLS backstop. settings.py + routes/onboarding.py NOT changed (AppUser-only / Phase 14 future redesign). Cross-tenant ID access returns 404 (no existence leak). Bug fixes: snapshot_from_period DELETE was unscoped (would have wiped all tenants) — fixed; templates+planned `db.get(Model, id)` replaced with select+where for explicit scope.
+- 11-06 (2026-05-06): Worker per-tenant pattern — outer session for active-users enumeration → per-user inner session with set_tenant_scope → scoped logic; advisory lock global per job (NOT per user). Internal-bot routes keep get_db (X-Internal-Token, no initData); service resolves user_id from tg_user_id INSIDE service then set_tenant_scope. AI conversation per-user (AiConversation row per app_user.id). AI tool dispatch strips user_id from LLM kwargs (defence: LLM cannot override). Settings bypass via direct AppUser column read (Plan 11-05 left settings.py with tg_user_id signature — direct PK read in my files is cleanest fix). Bug fix: ai/tools.py propose_actual/planned_transaction had NameError reference to deleted `category_hint` — replaced with `description or ""`.
 
 ### Pending Todos
 
@@ -105,6 +106,6 @@ Items acknowledged and deferred at v0.3 milestone close on 2026-05-06:
 
 ## Session Continuity
 
-Last session: 2026-05-06T17:00:00.000Z
-Stopped at: Plan 11-05 complete (services+routes PART A — categories, periods, templates, planned, onboarding scoped by user_id)
-Resume file: .planning/phases/11-multi-tenancy-db-migration/11-06-PLAN.md (PART B) or 11-01-PLAN.md (RED tests + 2-tenant fixture, can run in parallel)
+Last session: 2026-05-06T17:05:00.000Z
+Stopped at: Plan 11-06 complete (services+routes PART B — actuals, subs, analytics, AI, internal_bot scoped + 3 worker jobs per-tenant)
+Resume file: .planning/phases/11-multi-tenancy-db-migration/11-07-PLAN.md (integration verify) or 11-01-PLAN.md (RED tests + 2-tenant fixture, can run in parallel)

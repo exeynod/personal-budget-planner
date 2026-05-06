@@ -9,8 +9,8 @@
 
 - [ ] **MUL-01**: Все доменные таблицы (`category`, `budget_period`, `plan_template_item`, `planned_transaction`, `actual_transaction`, `subscription`, `category_embedding`, `ai_conversation`, `ai_message`) имеют `user_id BIGINT NOT NULL FK → app_user.id`
 - [ ] **MUL-02**: Postgres Row-Level Security (RLS) policies на всех доменных таблицах — `user_id = current_setting('app.current_user_id')::bigint` (defense-in-depth)
-- [x] **MUL-03**: Все API queries фильтруют по `user_id` пользователя в Python-слое; RLS как backup (никогда не полагаемся только на RLS) — Plan 11-05 PART A complete (categories, periods, templates, planned, onboarding); PART B (actuals/subs/analytics/AI/internal_bot/worker) tracked in 11-06
-- [x] **MUL-04**: Уникальные constraints с `user_id`: `category(user_id, name)`, `subscription(user_id, name)`, `plan_template_item(user_id, category_id, ...)` — вместо глобальных — established in 11-02 alembic 0006, services use scoped queries since 11-05
+- [x] **MUL-03**: Все API queries фильтруют по `user_id` пользователя в Python-слое; RLS как backup (никогда не полагаемся только на RLS) — Plan 11-05 PART A (categories, periods, templates, planned, onboarding) + Plan 11-06 PART B (actuals/subs/analytics/AI/internal_bot/worker) complete
+- [x] **MUL-04**: Уникальные constraints с `user_id`: `category(user_id, name)`, `subscription(user_id, name)`, `plan_template_item(user_id, category_id, ...)` — вместо глобальных — established in 11-02 alembic 0006, services use scoped queries since 11-05/11-06
 - [ ] **MUL-05**: Alembic-миграция выполняет backfill `user_id = (SELECT id FROM app_user WHERE tg_user_id = OWNER_TG_ID)` на существующих данных, потом устанавливает NOT NULL constraints
 
 ### Role-Based Auth
@@ -92,8 +92,8 @@
 |-------------|-------|--------|
 | MUL-01 | Phase 11 | In progress (schema artifact ready in 11-02 alembic 0006; ORM mappings ready in 11-03; DB application + verify in 11-07) |
 | MUL-02 | Phase 11 | In progress (RLS DDL in 11-02 alembic 0006; DB application + verify in 11-07) |
-| MUL-03 | Phase 11 | PART A complete (Plan 11-05: categories, periods, templates, planned, onboarding); PART B in 11-06 |
-| MUL-04 | Phase 11 | Schema complete (11-02 alembic 0006); service-layer uses scoped queries (11-05); verify in 11-07 |
+| MUL-03 | Phase 11 | PART A complete (Plan 11-05) + PART B complete (Plan 11-06: actuals, subs, analytics, AI, internal_bot, worker per-tenant); verify in 11-07 |
+| MUL-04 | Phase 11 | Schema complete (11-02 alembic 0006); service-layer uses scoped queries (11-05 + 11-06); verify in 11-07 |
 | MUL-05 | Phase 11 | In progress (backfill DDL in 11-02 alembic 0006; DB application + verify in 11-07) |
 | ROLE-01 | Phase 11 | In progress (role enum + column DDL in 11-02 alembic 0006; UserRole + AppUser.role ORM mapping in 11-03; verify in 11-07) |
 | ROLE-02 | Phase 12 | Pending |
