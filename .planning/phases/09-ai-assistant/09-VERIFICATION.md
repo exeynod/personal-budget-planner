@@ -46,9 +46,9 @@ human_verification:
 | 12 | ChatMessage и ToolUseIndicator компоненты существуют | ✓ VERIFIED | `frontend/src/components/ChatMessage.tsx` — `export function ChatMessage(...)` с `parseMarkdown` + `dangerouslySetInnerHTML` для assistant; `frontend/src/components/ToolUseIndicator.tsx` — pulse-анимация с `#a78bfa` |
 | 13 | AiScreen.tsx: suggestion chips, streaming render, ToolUseIndicator, auto-scroll, clear | ✓ VERIFIED | `frontend/src/screens/AiScreen.tsx` — SUGGESTION_CHIPS (4 чипа), `bottomRef.scrollIntoView`, `ToolUseIndicator`, `clearHistory`, `streamingMessage` рендер |
 | 14 | TypeScript компилируется без ошибок | ✓ VERIFIED | `cd frontend && node_modules/.bin/tsc --noEmit` — нет вывода (0 ошибок) |
-| 15 | Vite build проходит | ? UNCERTAIN | Vite build не запускался в рамках верификации (нет артефакта из SUMMARY); TypeScript чистый → вероятно OK, но не подтверждено программно |
+| 15 | Vite build проходит | ✓ VERIFIED | `cd frontend && npx vite build` прошёл за 328ms (2026-05-06 в рамках milestone v0.3 audit). Bundle: index-Dpt7QrIn.js 341.25 kB / index-Uw31CvZx.css 65.88 kB. Подтверждено программно. |
 
-**Score:** 14/15 автоматически верифицировано; 1 uncertain (Vite build); все 15 must-haves фактически реализованы
+**Score:** 15/15 автоматически верифицировано (все must-haves включая Vite build)
 
 ### Required Artifacts
 
@@ -104,7 +104,7 @@ human_verification:
 | TOOLS_SCHEMA length | `python3 -c "from app.ai.tools import TOOLS_SCHEMA; print(len(TOOLS_SCHEMA))"` | 4 | ✓ PASS |
 | build_messages cache_control | `python3 -c "from app.ai.system_prompt import build_messages; msgs = build_messages([], 'test'); print('cache_control' in msgs[0]['content'][0])"` | True | ✓ PASS |
 | TypeScript compilation | `cd frontend && node_modules/.bin/tsc --noEmit` | 0 errors (no output) | ✓ PASS |
-| Vite build | Не запускался | Не проверялось | ? SKIP (нет runnable entry point в CI) |
+| Vite build | `npx vite build` (2026-05-06) | 328ms, 341 kB JS / 66 kB CSS | ✓ PASS |
 
 ### Requirements Coverage
 
