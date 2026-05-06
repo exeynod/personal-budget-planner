@@ -76,7 +76,14 @@
   3. Admin-only endpoints (отмеченные `require_owner`) возвращают 403 для members; для owner — отрабатывают как обычно. Тест покрывает оба сценария.
   4. `GET /api/v1/me` возвращает `{tg_user_id, role, onboarded_at, ...}`; frontend читает `role` из response и использует для conditional rendering admin-вкладки.
   5. Удалены все прямые eq-проверки `tg_user_id == OWNER_TG_ID` из request-pipeline (auth-слой, бот, worker); grep по codebase подтверждает.
-**Plans**: TBD
+**Plans**: 7 plans
+- [ ] 12-01-PLAN.md — RED tests + 2-tenant fixture для role/auth/postgres-role/bot helper (Wave 1)
+- [ ] 12-02-PLAN.md — Auth dependency refactor: get_current_user → AppUser ORM, require_owner, role-based whitelist (Wave 2)
+- [ ] 12-03-PLAN.md — /me endpoint extends with role + frontend MeResponse types (Wave 2, parallel with 12-02)
+- [ ] 12-04-PLAN.md — Bot OWNER_TG_ID removal: bot_resolve_user_role helper + cmd_start/_is_owner refactor (Wave 3)
+- [ ] 12-05-PLAN.md — Postgres role split (D-11-07-02): alembic 0007 + ADMIN_DATABASE_URL + docker-compose updates (Wave 3, parallel with 12-04)
+- [ ] 12-06-PLAN.md — Test fixture sweep (D-11-07-01): tests/helpers/seed.py + single_user fixture + 22 test files updated (Wave 4)
+- [ ] 12-07-PLAN.md — Verification: full pytest + alembic 0007 apply + 12-VERIFICATION.md + threat-model attestation (Wave 5, has human checkpoint)
 **UI hint**: no
 
 ### Phase 13: Admin UI — Whitelist & AI Usage
@@ -147,7 +154,7 @@
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 11. Multi-Tenancy DB Migration & RLS | 4/7 | In progress | — |
-| 12. Role-Based Auth Refactor | 0/? | Not started | — |
+| 12. Role-Based Auth Refactor | 0/7 | Not started | — |
 | 13. Admin UI — Whitelist & AI Usage | 0/? | Not started | — |
 | 14. Multi-Tenant Onboarding | 0/? | Not started | — |
 | 15. AI Cost Cap Per User | 0/? | Not started | — |
