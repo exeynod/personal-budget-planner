@@ -287,3 +287,26 @@ export interface ForecastResponse {
   will_burn_cents: number | null;
   period_end: string | null;   // ISO date
 }
+
+// ---------- Phase 9: AI Assistant ----------
+
+export type AiRole = 'user' | 'assistant' | 'tool';
+
+export interface ChatMessageRead {
+  id: number;
+  role: AiRole;
+  content: string | null;
+  tool_name: string | null;
+  created_at: string; // ISO datetime
+}
+
+export interface ChatHistoryResponse {
+  messages: ChatMessageRead[];
+}
+
+export type AiEventType = 'token' | 'tool_start' | 'tool_end' | 'done' | 'error';
+
+export interface AiStreamEvent {
+  type: AiEventType;
+  data: string;
+}
