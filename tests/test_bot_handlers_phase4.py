@@ -90,9 +90,11 @@ def test_format_kopecks_with_sign_zero():
 @pytest.mark.asyncio
 async def test_cmd_add_rejects_non_owner():
     from app.bot.commands import cmd_add
+    from app.db.models import UserRole
     message = _make_message(user_id=999_999_999)
     command = _make_command("1500 продукты")
-    with patch("app.bot.commands.bot_create_actual", new=AsyncMock()) as mock_api:
+    with patch("app.bot.commands.bot_create_actual", new=AsyncMock()) as mock_api, \
+         patch("app.bot.commands.bot_resolve_user_role", new=AsyncMock(return_value=UserRole.revoked)):
         await cmd_add(message, command)
     mock_api.assert_not_called()
     message.answer.assert_not_called()
@@ -102,6 +104,7 @@ async def test_cmd_add_rejects_non_owner():
 async def test_cmd_add_created_reply():
     from app.bot.commands import cmd_add
     from app.core.settings import settings
+    from app.db.models import UserRole
 
     message = _make_message(user_id=settings.OWNER_TG_ID)
     command = _make_command("1500 продукты")
@@ -119,7 +122,8 @@ async def test_cmd_add_created_reply():
         "candidates": None,
     }
 
-    with patch("app.bot.commands.bot_create_actual", new=AsyncMock(return_value=mock_response)):
+    with patch("app.bot.commands.bot_create_actual", new=AsyncMock(return_value=mock_response)), \
+         patch("app.bot.commands.bot_resolve_user_role", new=AsyncMock(return_value=UserRole.owner)):
         await cmd_add(message, command)
 
     message.answer.assert_awaited_once()
@@ -133,6 +137,7 @@ async def test_cmd_add_ambiguous_sends_inline_keyboard():
     from aiogram.types import InlineKeyboardMarkup
     from app.bot.commands import cmd_add
     from app.core.settings import settings
+    from app.db.models import UserRole
 
     message = _make_message(user_id=settings.OWNER_TG_ID)
     command = _make_command("1500 продукт")
@@ -148,7 +153,8 @@ async def test_cmd_add_ambiguous_sends_inline_keyboard():
         ],
     }
 
-    with patch("app.bot.commands.bot_create_actual", new=AsyncMock(return_value=mock_response)):
+    with patch("app.bot.commands.bot_create_actual", new=AsyncMock(return_value=mock_response)), \
+         patch("app.bot.commands.bot_resolve_user_role", new=AsyncMock(return_value=UserRole.owner)):
         await cmd_add(message, command)
 
     message.answer.assert_awaited_once()
@@ -161,6 +167,7 @@ async def test_cmd_add_ambiguous_sends_inline_keyboard():
 async def test_cmd_add_not_found_reply():
     from app.bot.commands import cmd_add
     from app.core.settings import settings
+    from app.db.models import UserRole
 
     message = _make_message(user_id=settings.OWNER_TG_ID)
     command = _make_command("1500 несуществующая")
@@ -173,7 +180,8 @@ async def test_cmd_add_not_found_reply():
         "candidates": [],
     }
 
-    with patch("app.bot.commands.bot_create_actual", new=AsyncMock(return_value=mock_response)):
+    with patch("app.bot.commands.bot_create_actual", new=AsyncMock(return_value=mock_response)), \
+         patch("app.bot.commands.bot_resolve_user_role", new=AsyncMock(return_value=UserRole.owner)):
         await cmd_add(message, command)
 
     message.answer.assert_awaited_once()
@@ -185,6 +193,7 @@ async def test_cmd_add_not_found_reply():
 async def test_cmd_balance_reply():
     from app.bot.commands import cmd_balance
     from app.core.settings import settings
+    from app.db.models import UserRole
 
     message = _make_message(user_id=settings.OWNER_TG_ID)
 
@@ -204,7 +213,8 @@ async def test_cmd_balance_reply():
         ],
     }
 
-    with patch("app.bot.commands.bot_get_balance", new=AsyncMock(return_value=mock_response)):
+    with patch("app.bot.commands.bot_get_balance", new=AsyncMock(return_value=mock_response)), \
+         patch("app.bot.commands.bot_resolve_user_role", new=AsyncMock(return_value=UserRole.owner)):
         await cmd_balance(message)
 
     message.answer.assert_awaited_once()
@@ -216,6 +226,7 @@ async def test_cmd_balance_reply():
 async def test_cmd_today_empty_reply():
     from app.bot.commands import cmd_today
     from app.core.settings import settings
+    from app.db.models import UserRole
 
     message = _make_message(user_id=settings.OWNER_TG_ID)
 
@@ -225,7 +236,8 @@ async def test_cmd_today_empty_reply():
         "total_income_cents": 0,
     }
 
-    with patch("app.bot.commands.bot_get_today", new=AsyncMock(return_value=mock_response)):
+    with patch("app.bot.commands.bot_get_today", new=AsyncMock(return_value=mock_response)), \
+         patch("app.bot.commands.bot_resolve_user_role", new=AsyncMock(return_value=UserRole.owner)):
         await cmd_today(message)
 
     message.answer.assert_awaited_once()
@@ -238,9 +250,11 @@ async def test_cmd_app_sends_webapp_button():
     from aiogram.types import InlineKeyboardMarkup
     from app.bot.commands import cmd_app
     from app.core.settings import settings
+    from app.db.models import UserRole
 
     message = _make_message(user_id=settings.OWNER_TG_ID)
-    await cmd_app(message)
+    with patch("app.bot.commands.bot_resolve_user_role", new=AsyncMock(return_value=UserRole.owner)):
+        await cmd_app(message)
 
     message.answer.assert_awaited_once()
     kwargs = message.answer.await_args.kwargs
@@ -255,6 +269,7 @@ async def test_cb_disambiguation_flow():
     from app.bot.commands import cb_disambiguation
     from app.bot.disambiguation import PendingActual, store_pending
     from app.core.settings import settings
+    from app.db.models import UserRole
     from datetime import datetime, timezone
 
     owner_id = settings.OWNER_TG_ID
@@ -285,7 +300,8 @@ async def test_cb_disambiguation_flow():
         "candidates": None,
     }
 
-    with patch("app.bot.commands.bot_create_actual", new=AsyncMock(return_value=mock_response)):
+    with patch("app.bot.commands.bot_create_actual", new=AsyncMock(return_value=mock_response)), \
+         patch("app.bot.commands.bot_resolve_user_role", new=AsyncMock(return_value=UserRole.owner)):
         await cb_disambiguation(callback)
 
     callback.message.edit_text.assert_awaited_once()

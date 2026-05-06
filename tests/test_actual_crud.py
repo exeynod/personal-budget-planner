@@ -36,12 +36,13 @@ def auth_headers(bot_token, owner_tg_id):
 
 
 @pytest_asyncio.fixture
-async def db_setup(async_client):
+async def db_setup(async_client, owner_tg_id):
     _require_db()
     from sqlalchemy import text
     from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
     from app.api.dependencies import get_db
+    from app.db.models import AppUser, UserRole
     from app.main_api import app
 
     db_url = os.environ["DATABASE_URL"]
@@ -56,6 +57,11 @@ async def db_setup(async_client):
                 "budget_period, app_user RESTART IDENTITY CASCADE"
             )
         )
+
+    # Seed AppUser explicitly — /me no longer upserts after Phase 12 (Plan 12-03).
+    async with SessionLocal() as session:
+        session.add(AppUser(tg_user_id=owner_tg_id, role=UserRole.owner, cycle_start_day=5))
+        await session.commit()
 
     async def real_get_db():
         async with SessionLocal() as session:
@@ -78,13 +84,20 @@ async def db_client(db_setup):
 
 
 @pytest_asyncio.fixture
-async def seed_categories(db_setup):
+async def seed_categories(db_setup, owner_tg_id):
     _, SessionLocal = db_setup
+    from sqlalchemy import text
     from app.db.models import Category, CategoryKind
 
     async with SessionLocal() as session:
-        expense_cat = Category(name="Продукты", kind=CategoryKind.expense, is_archived=False, sort_order=10)
-        income_cat = Category(name="Зарплата", kind=CategoryKind.income, is_archived=False, sort_order=20)
+        result = await session.execute(
+            text("SELECT id FROM app_user WHERE tg_user_id = :tg"),
+            {"tg": owner_tg_id},
+        )
+        user_id = result.scalar_one()
+
+        expense_cat = Category(user_id=user_id, name="Продукты", kind=CategoryKind.expense, is_archived=False, sort_order=10)
+        income_cat = Category(user_id=user_id, name="Зарплата", kind=CategoryKind.income, is_archived=False, sort_order=20)
         session.add_all([expense_cat, income_cat])
         await session.commit()
         await session.refresh(expense_cat)
@@ -93,12 +106,19 @@ async def seed_categories(db_setup):
 
 
 @pytest_asyncio.fixture
-async def seed_archived_category(db_setup):
+async def seed_archived_category(db_setup, owner_tg_id):
     _, SessionLocal = db_setup
+    from sqlalchemy import text
     from app.db.models import Category, CategoryKind
 
     async with SessionLocal() as session:
-        cat = Category(name="Архивная", kind=CategoryKind.expense, is_archived=True, sort_order=99)
+        result = await session.execute(
+            text("SELECT id FROM app_user WHERE tg_user_id = :tg"),
+            {"tg": owner_tg_id},
+        )
+        user_id = result.scalar_one()
+
+        cat = Category(user_id=user_id, name="Архивная", kind=CategoryKind.expense, is_archived=True, sort_order=99)
         session.add(cat)
         await session.commit()
         await session.refresh(cat)
@@ -106,13 +126,21 @@ async def seed_archived_category(db_setup):
 
 
 @pytest_asyncio.fixture
-async def seed_period(db_setup):
+async def seed_period(db_setup, owner_tg_id):
     _, SessionLocal = db_setup
+    from sqlalchemy import text
     from app.db.models import BudgetPeriod, PeriodStatus
 
     async with SessionLocal() as session:
+        result = await session.execute(
+            text("SELECT id FROM app_user WHERE tg_user_id = :tg"),
+            {"tg": owner_tg_id},
+        )
+        user_id = result.scalar_one()
+
         today = date.today()
         period = BudgetPeriod(
+            user_id=user_id,
             period_start=today - timedelta(days=15),
             period_end=today + timedelta(days=15),
             starting_balance_cents=100000,

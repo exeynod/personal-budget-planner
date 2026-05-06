@@ -39,7 +39,7 @@ def auth_headers(bot_token, owner_tg_id):
 
 
 @pytest_asyncio.fixture
-async def db_setup(async_client):
+async def db_setup(async_client, owner_tg_id):
     """async_client + real DB session via dependency_overrides.
 
     Returns (client, SessionLocal). Truncates tables before yielding.
@@ -49,6 +49,7 @@ async def db_setup(async_client):
     from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
     from app.api.dependencies import get_db
+    from app.db.models import AppUser, UserRole
     from app.main_api import app
 
     db_url = os.environ["DATABASE_URL"]
@@ -63,6 +64,11 @@ async def db_setup(async_client):
                 "budget_period, app_user RESTART IDENTITY CASCADE"
             )
         )
+
+    # Seed AppUser explicitly — /me no longer upserts after Phase 12 (Plan 12-03).
+    async with SessionLocal() as session:
+        session.add(AppUser(tg_user_id=owner_tg_id, role=UserRole.owner, cycle_start_day=5))
+        await session.commit()
 
     async def real_get_db():
         async with SessionLocal() as session:
@@ -85,19 +91,28 @@ async def db_client(db_setup):
 
 
 @pytest_asyncio.fixture
-async def seed_categories(db_setup):
+async def seed_categories(db_setup, owner_tg_id):
     """Seed two non-archived categories: expense + income."""
     _, SessionLocal = db_setup
+    from sqlalchemy import text
     from app.db.models import Category, CategoryKind
 
     async with SessionLocal() as session:
+        result = await session.execute(
+            text("SELECT id FROM app_user WHERE tg_user_id = :tg"),
+            {"tg": owner_tg_id},
+        )
+        user_id = result.scalar_one()
+
         expense_cat = Category(
+            user_id=user_id,
             name="Продукты",
             kind=CategoryKind.expense,
             is_archived=False,
             sort_order=10,
         )
         income_cat = Category(
+            user_id=user_id,
             name="Зарплата",
             kind=CategoryKind.income,
             is_archived=False,
@@ -111,12 +126,20 @@ async def seed_categories(db_setup):
 
 
 @pytest_asyncio.fixture
-async def seed_archived_category(db_setup):
+async def seed_archived_category(db_setup, owner_tg_id):
     _, SessionLocal = db_setup
+    from sqlalchemy import text
     from app.db.models import Category, CategoryKind
 
     async with SessionLocal() as session:
+        result = await session.execute(
+            text("SELECT id FROM app_user WHERE tg_user_id = :tg"),
+            {"tg": owner_tg_id},
+        )
+        user_id = result.scalar_one()
+
         cat = Category(
+            user_id=user_id,
             name="Архивная",
             kind=CategoryKind.expense,
             is_archived=True,
@@ -129,13 +152,21 @@ async def seed_archived_category(db_setup):
 
 
 @pytest_asyncio.fixture
-async def seed_period(db_setup):
+async def seed_period(db_setup, owner_tg_id):
     """Create one active BudgetPeriod, return its id."""
     _, SessionLocal = db_setup
+    from sqlalchemy import text
     from app.db.models import BudgetPeriod, PeriodStatus
 
     async with SessionLocal() as session:
+        result = await session.execute(
+            text("SELECT id FROM app_user WHERE tg_user_id = :tg"),
+            {"tg": owner_tg_id},
+        )
+        user_id = result.scalar_one()
+
         period = BudgetPeriod(
+            user_id=user_id,
             period_start=date(2026, 2, 5),
             period_end=date(2026, 3, 4),
             starting_balance_cents=0,
@@ -148,12 +179,13 @@ async def seed_period(db_setup):
 
 
 @pytest_asyncio.fixture
-async def seed_subscription_auto_planned(db_setup, seed_categories, seed_period):
+async def seed_subscription_auto_planned(db_setup, seed_categories, seed_period, owner_tg_id):
     """Create a planned row with source=subscription_auto for read-only tests.
 
     Returns dict {planned_id, subscription_id, period_id, category_id}.
     """
     _, SessionLocal = db_setup
+    from sqlalchemy import text
     from app.db.models import (
         CategoryKind,
         PlanSource,
@@ -163,7 +195,14 @@ async def seed_subscription_auto_planned(db_setup, seed_categories, seed_period)
     )
 
     async with SessionLocal() as session:
+        result = await session.execute(
+            text("SELECT id FROM app_user WHERE tg_user_id = :tg"),
+            {"tg": owner_tg_id},
+        )
+        user_id = result.scalar_one()
+
         sub = Subscription(
+            user_id=user_id,
             name="Spotify",
             amount_cents=29900,
             cycle=SubCycle.monthly,
@@ -177,6 +216,7 @@ async def seed_subscription_auto_planned(db_setup, seed_categories, seed_period)
         await session.refresh(sub)
 
         row = PlannedTransaction(
+            user_id=user_id,
             period_id=seed_period,
             kind=CategoryKind.expense,
             amount_cents=29900,
