@@ -45,10 +45,20 @@ export function AiScreen({
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, streamingText, toolName]);
 
+  const autoGrow = (ta: HTMLTextAreaElement) => {
+    // Reset height before measuring scrollHeight, иначе textarea не
+    // умеет уменьшаться при стирании текста.
+    ta.style.height = 'auto';
+    ta.style.height = `${ta.scrollHeight}px`;
+  };
+
   const handleSend = () => {
     const trimmed = input.trim();
     if (!trimmed || streaming) return;
     setInput('');
+    if (inputRef.current) {
+      inputRef.current.style.height = 'auto';
+    }
     sendMessage(trimmed);
   };
 
@@ -171,7 +181,10 @@ export function AiScreen({
           ref={inputRef}
           className={styles.input}
           value={input}
-          onChange={(e) => setInput(e.target.value)}
+          onChange={(e) => {
+            setInput(e.target.value);
+            autoGrow(e.target);
+          }}
           onKeyDown={handleKeyDown}
           placeholder="Спроси о бюджете..."
           rows={1}

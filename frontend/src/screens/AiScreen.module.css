@@ -155,10 +155,13 @@
   resize: none;
   outline: none;
   min-height: 40px;
-  max-height: 120px;
+  /* Растём вверх до 60% видимой высоты, потом включается scroll
+     внутри textarea. dvh учитывает мобильную клавиатуру. */
+  max-height: 60dvh;
   overflow-y: auto;
   line-height: 1.4;
   font-family: inherit;
+  box-sizing: border-box;
 }
 
 .input::placeholder {
