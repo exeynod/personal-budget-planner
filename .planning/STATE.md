@@ -10,8 +10,8 @@ progress:
   total_phases: 5
   completed_phases: 1
   total_plans: 14
-  completed_plans: 7
-  percent: 50
+  completed_plans: 8
+  percent: 57
 ---
 
 # Project State
@@ -26,16 +26,16 @@ See: .planning/PROJECT.md (updated 2026-05-06 after v0.3 milestone close)
 ## Current Position
 
 Phase: 12 (role-based-auth-refactor) — EXECUTING
-Plan: 1 of 7
+Plan: 7 of 7
 Status: Executing Phase 12
-Last activity: 2026-05-06 -- Phase 12 execution started
+Last activity: 2026-05-06 -- Plan 12-06 complete (legacy test fixture sweep, 15 files, 4 commits)
 
 Previous milestones:
 
 - v0.3 (Analytics & AI) — Complete 2026-05-06, 6 phases / 25 plans → archive `.planning/milestones/v0.3-*`
 - v0.2 (MVP) — Complete 2026-05-03, 6 phases / 38 plans → archived retroactively at v0.3 close
 
-Progress: [##        ] 20% (milestone v0.4, 0/5 phases complete; 7/7 plans of Phase 11 done — verification human_needed)
+Progress: [###       ] 30% (milestone v0.4, 0/5 phases complete; Phase 12 plan 6/7 done)
 
 ## Performance Metrics
 
@@ -110,6 +110,6 @@ Items acknowledged and deferred at v0.3 milestone close on 2026-05-06:
 
 ## Session Continuity
 
-Last session: 2026-05-06T20:18:00.000Z
-Stopped at: Plan 11-07 complete (integration verification — 14 tests passing, 11-VERIFICATION.md status=human_needed pending live TG MiniApp smoke)
-Resume file: Phase 12 (auth refactor) entry plan — but first address D-11-07-01 (legacy fixture sweep) and D-11-07-02 (non-superuser app role) as prerequisites; or sign off live TG smoke and flip 11-VERIFICATION.md status=passed.
+Last session: 2026-05-06T22:00:00.000Z
+Stopped at: Plan 12-06 complete — legacy test fixture sweep (D-11-07-01 resolved; ~22 test files updated with user_id-aware seeds)
+Resume file: Plan 12-07 (verification plan for Phase 12 role-based auth refactor)
