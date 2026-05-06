@@ -114,22 +114,59 @@ async def _event_stream(
         await conv_svc.append_message(db, conv.id, role="user", content=message)
         await db.flush()
 
-        # 2. История для LLM-контекста
+        # 2. История для LLM-контекста.
+        # Принципы реконструкции:
+        # - user / assistant с непустым content попадают как есть.
+        # - Пустые assistant-плейсхолдеры (промежуточный шаг до tool call)
+        #   не передаём — LLM это шум.
+        # - Каждое сохранённое tool-сообщение разворачиваем в правильную
+        #   пару OpenAI-формата:
+        #     {role: assistant, content: null, tool_calls: [{id, function}]}
+        #     {role: tool, tool_call_id, content: tool_result}
+        #   tool_call_id у нас в БД не лежит — генерируем синтетический
+        #   (OpenAI не валидирует структуру id, важен только match между
+        #   двумя сообщениями). Без этого LLM на следующем turn'е теряет
+        #   фактические числа из tool-результата и начинает противоречить
+        #   собственному предыдущему ответу ("242 630 рублей" → "у меня
+        #   нет данных о вашем доходе").
         history_msgs = await conv_svc.get_recent_messages(
             db, conv.id, limit=settings.AI_MAX_CONTEXT_MESSAGES
         )
-        # Преобразовать ORM → dict для build_messages (исключить только что
-        # добавленный user msg). Фильтруем role='tool' и пустых assistant'ов:
-        # они нужны были только для текущего turn'а; в дальнейшем history
-        # tool-сообщение без preceding assistant.tool_calls вызвало бы
-        # OpenAI 400, а пустые assistant дают модель пустыми реверберациями.
-        history_dicts = [
-            {"role": m.role, "content": m.content or ""}
-            for m in history_msgs[:-1]
-            if m.role in ("user", "assistant") and (m.content or "").strip()
-        ]
+        history_dicts: list[dict] = []
+        synth_id = 0
+        for m in history_msgs[:-1]:  # exclude only-just-added user message
+            if m.role == "user" and (m.content or "").strip():
+                history_dicts.append({"role": "user", "content": m.content})
+            elif m.role == "assistant" and (m.content or "").strip():
+                history_dicts.append({"role": "assistant", "content": m.content})
+            elif m.role == "tool" and m.tool_name and (m.tool_result or "").strip():
+                synth_id += 1
+                call_id = f"reconstructed_{synth_id}"
+                history_dicts.append(
+                    {
+                        "role": "assistant",
+                        "content": None,
+                        "tool_calls": [
+                            {
+                                "id": call_id,
+                                "type": "function",
+                                "function": {
+                                    "name": m.tool_name,
+                                    "arguments": "{}",
+                                },
+                            }
+                        ],
+                    }
+                )
+                history_dicts.append(
+                    {
+                        "role": "tool",
+                        "tool_call_id": call_id,
+                        "content": m.tool_result,
+                    }
+                )
 
-        # 3. Собрать messages с cache_control
+        # 3. Собрать messages с system prompt
         llm_messages = build_messages(history_dicts, message)
 
         # 4. Стримить события

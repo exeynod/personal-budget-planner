@@ -46,14 +46,12 @@ def build_messages(
         {"role": "system", "content": SYSTEM_PROMPT}
     ]
 
-    for msg in history:
-        role = msg.get("role", "user")
-        content = msg.get("content") or ""
-        # tool messages: role="tool" -> передаём как assistant (simplification)
-        if role == "tool":
-            messages.append({"role": "assistant", "content": content})
-        else:
-            messages.append({"role": role, "content": content})
+    # Pass-through. Caller (ai.py:_event_stream) is responsible for
+    # producing dicts in the exact shape the OpenAI API expects —
+    # including assistant.tool_calls / tool.tool_call_id pairs when
+    # reconstructing prior turns. We don't touch / rewrite anything
+    # here, otherwise we'd rip out the tool round-trip context.
+    messages.extend(history)
 
     messages.append({"role": "user", "content": user_message})
 
