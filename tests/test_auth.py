@@ -1,4 +1,8 @@
-"""AUTH-01 / AUTH-02 — Telegram initData validation + OWNER_TG_ID whitelist.
+"""AUTH-01 / AUTH-02 — Telegram initData validation + role-based auth.
+
+Phase 12 update: /me no longer upserts AppUser; get_current_user does role-based
+lookup. Updated db_client fixture seeds owner AppUser after TRUNCATE so /me
+succeeds for owner.
 
 Wave-0 RED stub. The ``app.core.auth`` and ``app.main_api`` modules do not yet
 exist, so each test fails with ``ModuleNotFoundError`` until Plans 04 / 05 land.
@@ -11,8 +15,12 @@ import pytest_asyncio
 
 
 @pytest_asyncio.fixture
-async def db_client(async_client):
-    """async_client with real DB session for tests that need DB access (e.g. GET /me)."""
+async def db_client(async_client, owner_tg_id):
+    """async_client with real DB session for tests that need DB access (e.g. GET /me).
+
+    Phase 12: seeds owner AppUser after TRUNCATE (get_current_user now requires
+    pre-existing AppUser row; upsert moved to DEV_MODE path in dependency).
+    """
     if not os.environ.get("DATABASE_URL"):
         pytest.skip("DATABASE_URL not set — skipping DB-backed test")
 
@@ -20,6 +28,7 @@ async def db_client(async_client):
     from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
     from app.api.dependencies import get_db
+    from app.db.models import AppUser, UserRole
     from app.main_api import app
 
     engine = create_async_engine(os.environ["DATABASE_URL"], echo=False)
@@ -29,10 +38,16 @@ async def db_client(async_client):
         await conn.execute(
             text(
                 "TRUNCATE TABLE category, planned_transaction, actual_transaction, "
-                "plan_template_item, subscription, budget_period, app_user "
+                "plan_template_item, subscription, budget_period, ai_message, "
+                "ai_conversation, category_embedding, app_user "
                 "RESTART IDENTITY CASCADE"
             )
         )
+
+    # Seed owner AppUser so /me can resolve it (Phase 12: no more upsert in handler).
+    async with SessionLocal() as session:
+        session.add(AppUser(tg_user_id=owner_tg_id, role=UserRole.owner, cycle_start_day=5))
+        await session.commit()
 
     async def real_get_db():
         async with SessionLocal() as session:
@@ -93,7 +108,7 @@ def test_validate_init_data_expired(bot_token, owner_tg_id):
 
 
 # ---------------------------------------------------------------------------
-# Integration tests for /api/v1/me whitelist (AUTH-02)
+# Integration tests for /api/v1/me whitelist (AUTH-02 / Phase 12 role-based)
 # ---------------------------------------------------------------------------
 
 
@@ -110,11 +125,17 @@ async def test_owner_whitelist_valid(db_client, bot_token, owner_tg_id):
 
 
 @pytest.mark.asyncio
-async def test_owner_whitelist_foreign(async_client, bot_token):
+async def test_owner_whitelist_foreign(db_client, bot_token):
+    """Phase 12: unknown tg_user_id → 403 (role-based whitelist, not OWNER_TG_ID eq).
+
+    Uses real DB (truncated + only owner seeded) — tg_user_id=999999 has no
+    AppUser row → 403. Previously tested with stub client but Phase 12
+    requires DB lookup in get_current_user.
+    """
     from tests.conftest import make_init_data
 
     init_data = make_init_data(tg_user_id=999999, bot_token=bot_token)
-    response = await async_client.get(
+    response = await db_client.get(
         "/api/v1/me",
         headers={"X-Telegram-Init-Data": init_data},
     )

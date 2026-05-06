@@ -1,13 +1,14 @@
 """FastAPI dependencies for authentication and authorization.
 
-Security design (HLD §7):
+Phase 12 refactor (ROLE-02, ROLE-03, ROLE-04):
+- get_current_user resolves AppUser ORM by tg_user_id; rejects revoked + unknown.
+- require_owner enforces role=='owner' for admin-only endpoints (Phase 13+).
+- get_current_user_id reads from resolved AppUser (single SELECT, no round-trip).
 
-- Public endpoints (``/api/v1/*``): require valid Telegram initData +
-  ``OWNER_TG_ID`` whitelist.
-- Internal endpoints (``/api/v1/internal/*``): require ``X-Internal-Token``
-  header.
-- ``DEV_MODE=true``: bypasses initData HMAC check, injects mock owner user
-  (decision D-05).
+Security design (HLD §7 + Phase 12 CONTEXT):
+- Public endpoints (/api/v1/*): require valid Telegram initData + role IN (owner, member).
+- Internal endpoints (/api/v1/internal/*): require X-Internal-Token (no role).
+- DEV_MODE=true: bypass HMAC, upsert mock OWNER row with role=owner (D-05 carry-over).
 """
 from __future__ import annotations
 
@@ -16,11 +17,12 @@ from typing import Annotated, AsyncGenerator
 
 from fastapi import Depends, Header, HTTPException, status
 from sqlalchemy import select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import validate_init_data
 from app.core.settings import settings
-from app.db.models import AppUser
+from app.db.models import AppUser, UserRole
 from app.db.session import AsyncSessionLocal, set_tenant_scope
 
 
@@ -35,16 +37,57 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
             raise
 
 
-async def get_current_user(
-    x_telegram_init_data: str | None = Header(default=None),
-) -> dict:
-    """Validate Telegram initData and enforce ``OWNER_TG_ID`` whitelist.
+async def _resolve_app_user(db: AsyncSession, tg_user_id: int) -> AppUser | None:
+    """Look up AppUser ORM by tg_user_id (single SELECT)."""
+    result = await db.execute(
+        select(AppUser).where(AppUser.tg_user_id == tg_user_id)
+    )
+    return result.scalar_one_or_none()
 
-    ``DEV_MODE=true`` (per D-05): skips HMAC check, returns mock owner user.
+
+async def _dev_mode_resolve_owner(db: AsyncSession) -> AppUser:
+    """DEV_MODE: upsert OWNER row and return AppUser ORM (dev convenience only).
+
+    NOTE: settings.OWNER_TG_ID used here exclusively for local dev bootstrap.
+    This function is NOT on the production auth path.
     """
-    if settings.DEV_MODE:
-        return {"id": settings.OWNER_TG_ID, "first_name": "Dev"}
+    tg_user_id = settings.OWNER_TG_ID
+    stmt = (
+        pg_insert(AppUser)
+        .values(tg_user_id=tg_user_id, role=UserRole.owner)
+        .on_conflict_do_nothing(index_elements=["tg_user_id"])
+    )
+    await db.execute(stmt)
+    user = await _resolve_app_user(db, tg_user_id)
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="DEV_MODE: failed to upsert OWNER user",
+        )
+    return user
 
+
+async def get_current_user(
+    x_telegram_init_data: Annotated[str | None, Header()] = None,
+    db: Annotated[AsyncSession, Depends(get_db)] = None,  # type: ignore[assignment]
+) -> AppUser:
+    """Validate Telegram initData and return AppUser ORM (Phase 12 ROLE-02/03).
+
+    Behaviour:
+    - DEV_MODE=true: skip HMAC, upsert OWNER row with role=owner, return ORM.
+    - HMAC valid → resolve AppUser by tg_user_id:
+        * row not found → 403 (Phase 14 onboarding will pre-create invitees).
+        * role == revoked → 403 (revoked access).
+        * role IN (owner, member) → return AppUser instance.
+    - HMAC invalid / missing → 403.
+
+    Returns: AppUser ORM. Downstream deps may read .id, .role, .tg_user_id, etc.
+    """
+    # ---------- DEV_MODE: bypass HMAC, upsert OWNER row ----------
+    if settings.DEV_MODE:
+        return await _dev_mode_resolve_owner(db)
+
+    # ---------- Production path: HMAC + role-based whitelist ----------
     if not x_telegram_init_data:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -52,30 +95,49 @@ async def get_current_user(
         )
 
     try:
-        user = validate_init_data(x_telegram_init_data, settings.BOT_TOKEN)
+        tg_payload = validate_init_data(x_telegram_init_data, settings.BOT_TOKEN)
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=str(exc),
         ) from exc
 
-    # AUTH-02: OWNER_TG_ID whitelist — reject non-owner users.
-    if user.get("id") != settings.OWNER_TG_ID:
+    tg_user_id = tg_payload.get("id")
+    if not isinstance(tg_user_id, int):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized: owner only",
+            detail="initData missing user id",
+        )
+
+    user = await _resolve_app_user(db, tg_user_id)
+    if user is None:
+        # Unknown tg_user_id: no whitelist entry. Generic 403 detail —
+        # do not distinguish "unknown" vs "revoked" (info disclosure, T-12-02-04).
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized",
+        )
+
+    if user.role == UserRole.revoked:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized",
+        )
+
+    if user.role not in (UserRole.owner, UserRole.member):
+        # Defensive: enum invariant violated.
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized",
         )
 
     return user
 
 
 async def verify_internal_token(
-    x_internal_token: str | None = Header(default=None),
+    x_internal_token: Annotated[str | None, Header()] = None,
 ) -> None:
-    """Validate ``X-Internal-Token`` for ``/api/v1/internal/*`` endpoints.
-
-    Used exclusively by bot↔api internal communication (HLD §7.3).
-    """
+    """Validate X-Internal-Token for /api/v1/internal/* endpoints (HLD §7.3)."""
     if not x_internal_token or not hmac.compare_digest(
         x_internal_token, settings.INTERNAL_TOKEN
     ):
@@ -86,63 +148,43 @@ async def verify_internal_token(
 
 
 async def get_current_user_id(
-    current_user: Annotated[dict, Depends(get_current_user)],
-    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[AppUser, Depends(get_current_user)],
 ) -> int:
-    """Resolve ``app_user.id`` (PK) for the current Telegram user (Phase 11 MUL-03).
+    """Return app_user.id (PK BIGINT) for the current user (Phase 12 refactor).
 
-    FastAPI кэширует Depends-результаты в рамках одного request, так что
-    cost — один SELECT на request. Возвращает int (PK), а не tg_user_id —
-    чтобы service layer мог фильтровать ``Model.user_id == user_id`` по FK.
-
-    Phase 11 поведение: ищет AppUser строку, raises 403 если не найдена.
-    Это сохраняет существующую семантику OWNER_TG_ID-eq (Phase 12 заменит
-    на role-check без изменения сигнатуры этой функции).
-
-    Args:
-        current_user: dict с ``id`` = tg_user_id (из get_current_user).
-        db: AsyncSession для lookup AppUser строки.
-
-    Returns:
-        app_user.id (PK BIGINT).
-
-    Raises:
-        HTTPException 403: если AppUser строка не существует
-            (например, юзер впервые открыл Mini App до /start в боте).
+    Reads the resolved AppUser ORM from get_current_user — no extra SELECT.
+    FastAPI dependency cache guarantees a single get_current_user execution
+    per request, so callers chain freely.
     """
-    tg_user_id = current_user["id"]
-    result = await db.execute(
-        select(AppUser.id).where(AppUser.tg_user_id == tg_user_id)
-    )
-    user_id = result.scalar_one_or_none()
-    if user_id is None:
+    return current_user.id
+
+
+async def require_owner(
+    current_user: Annotated[AppUser, Depends(get_current_user)],
+) -> AppUser:
+    """Enforce role == owner; reject member with 403 (Phase 12 ROLE-04).
+
+    Used as additional Depends on admin-only endpoints. Phase 13 will register
+    admin routes under /api/v1/admin/* with `Depends(require_owner)`.
+
+    For non-admin routes, get_current_user is sufficient (member is allowed).
+    """
+    if current_user.role != UserRole.owner:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="AppUser not found for current Telegram user",
+            detail="Owner role required for this endpoint",
         )
-    return user_id
+    return current_user
 
 
 async def get_db_with_tenant_scope(
     user_id: Annotated[int, Depends(get_current_user_id)],
 ) -> AsyncGenerator[AsyncSession, None]:
-    """Yield AsyncSession with ``SET LOCAL app.current_user_id`` set (Phase 11 MUL-02).
+    """Yield AsyncSession with SET LOCAL app.current_user_id (Phase 11 MUL-02).
 
-    Эта зависимость заменяет ``get_db`` в роутах, где запросы должны видеть
-    только данные текущего юзера. SET LOCAL transaction-scoped: на COMMIT
-    или ROLLBACK значение сбрасывается, нет утечки между requests.
-
-    Использование в роутах::
-
-        @router.get("/categories")
-        async def list_categories(
-            db: Annotated[AsyncSession, Depends(get_db_with_tenant_scope)],
-            user_id: Annotated[int, Depends(get_current_user_id)],
-        ):
-            return await cat_svc.list_categories(db, user_id=user_id)
-
-    Public/internal endpoints (не требующие user-scope) продолжают использовать
-    обычный ``get_db``.
+    Unchanged semantics from Phase 11. SET LOCAL = transaction-scoped GUC;
+    reset on COMMIT or ROLLBACK. Used for routes whose queries must be
+    tenant-scoped via RLS + app filter.
     """
     async with AsyncSessionLocal() as session:
         try:
