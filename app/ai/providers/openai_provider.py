@@ -101,3 +101,17 @@ class OpenAIProvider(AbstractLLMClient):
 
         except Exception as exc:  # pragma: no cover
             yield {"type": "error", "data": str(exc)}
+
+    async def embed(self, text: str) -> list[float]:
+        """Генерирует embedding через OpenAI Embeddings API (text-embedding-3-small).
+
+        text: строка для векторизации.
+        Возвращает list[float] размерностью 1536.
+        """
+        from app.core.settings import settings
+
+        response = await self._client.embeddings.create(
+            input=text,
+            model=settings.EMBEDDING_MODEL,
+        )
+        return response.data[0].embedding
