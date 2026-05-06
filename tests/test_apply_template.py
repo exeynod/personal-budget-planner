@@ -40,7 +40,7 @@ def auth_headers(bot_token, owner_tg_id):
 
 
 @pytest_asyncio.fixture
-async def db_setup(async_client):
+async def db_setup(async_client, owner_tg_id):
     """async_client + real DB session via dependency_overrides.
 
     Returns (client, SessionLocal). Truncates tables before yielding.
@@ -50,6 +50,7 @@ async def db_setup(async_client):
     from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
     from app.api.dependencies import get_db
+    from app.db.models import AppUser, UserRole
     from app.main_api import app
 
     db_url = os.environ["DATABASE_URL"]
@@ -64,6 +65,11 @@ async def db_setup(async_client):
                 "budget_period, app_user RESTART IDENTITY CASCADE"
             )
         )
+
+    # Seed AppUser explicitly — /me no longer upserts after Phase 12 (Plan 12-03).
+    async with SessionLocal() as session:
+        session.add(AppUser(tg_user_id=owner_tg_id, role=UserRole.owner, cycle_start_day=5))
+        await session.commit()
 
     async def real_get_db():
         async with SessionLocal() as session:
@@ -86,18 +92,27 @@ async def db_client(db_setup):
 
 
 @pytest_asyncio.fixture
-async def seed_categories(db_setup):
+async def seed_categories(db_setup, owner_tg_id):
     _, SessionLocal = db_setup
+    from sqlalchemy import text
     from app.db.models import Category, CategoryKind
 
     async with SessionLocal() as session:
+        result = await session.execute(
+            text("SELECT id FROM app_user WHERE tg_user_id = :tg"),
+            {"tg": owner_tg_id},
+        )
+        user_id = result.scalar_one()
+
         expense_cat = Category(
+            user_id=user_id,
             name="Продукты",
             kind=CategoryKind.expense,
             is_archived=False,
             sort_order=10,
         )
         income_cat = Category(
+            user_id=user_id,
             name="Зарплата",
             kind=CategoryKind.income,
             is_archived=False,
@@ -113,14 +128,23 @@ async def seed_categories(db_setup):
 async def _create_period(
     SessionLocal,
     *,
+    owner_tg_id: int,
     period_start: date,
     period_end: date,
     starting_balance_cents: int = 0,
 ) -> int:
+    from sqlalchemy import text
     from app.db.models import BudgetPeriod, PeriodStatus
 
     async with SessionLocal() as session:
+        result = await session.execute(
+            text("SELECT id FROM app_user WHERE tg_user_id = :tg"),
+            {"tg": owner_tg_id},
+        )
+        user_id = result.scalar_one()
+
         period = BudgetPeriod(
+            user_id=user_id,
             period_start=period_start,
             period_end=period_end,
             starting_balance_cents=starting_balance_cents,
@@ -133,25 +157,34 @@ async def _create_period(
 
 
 @pytest_asyncio.fixture
-async def seed_period(db_setup):
+async def seed_period(db_setup, owner_tg_id):
     """Default period: 2026-02-05..2026-03-04 (28 days)."""
     _, SessionLocal = db_setup
     return await _create_period(
         SessionLocal,
+        owner_tg_id=owner_tg_id,
         period_start=date(2026, 2, 5),
         period_end=date(2026, 3, 4),
     )
 
 
 @pytest_asyncio.fixture
-async def seed_template_items(db_setup, seed_categories):
+async def seed_template_items(db_setup, seed_categories, owner_tg_id):
     """Create 3 template-items: 2 expense + 1 income."""
     _, SessionLocal = db_setup
+    from sqlalchemy import text
     from app.db.models import PlanTemplateItem
 
     async with SessionLocal() as session:
+        result = await session.execute(
+            text("SELECT id FROM app_user WHERE tg_user_id = :tg"),
+            {"tg": owner_tg_id},
+        )
+        user_id = result.scalar_one()
+
         items = [
             PlanTemplateItem(
+                user_id=user_id,
                 category_id=seed_categories["expense_cat"].id,
                 amount_cents=1500000,
                 description="Закупка",
@@ -159,6 +192,7 @@ async def seed_template_items(db_setup, seed_categories):
                 sort_order=10,
             ),
             PlanTemplateItem(
+                user_id=user_id,
                 category_id=seed_categories["expense_cat"].id,
                 amount_cents=3500000,
                 description="Аренда",
@@ -166,6 +200,7 @@ async def seed_template_items(db_setup, seed_categories):
                 sort_order=20,
             ),
             PlanTemplateItem(
+                user_id=user_id,
                 category_id=seed_categories["income_cat"].id,
                 amount_cents=12000000,
                 description="Основная",
@@ -272,7 +307,7 @@ async def test_apply_idempotent_returns_existing(
 
 @pytest.mark.asyncio
 async def test_apply_planned_date_clamped_to_period_end(
-    db_setup, auth_headers, seed_categories
+    db_setup, auth_headers, seed_categories, owner_tg_id
 ):
     """Template day_of_period beyond period length → planned_date clamped to period_end.
 
@@ -282,13 +317,21 @@ async def test_apply_planned_date_clamped_to_period_end(
     client, SessionLocal = db_setup
     period_id = await _create_period(
         SessionLocal,
+        owner_tg_id=owner_tg_id,
         period_start=date(2026, 2, 5),
         period_end=date(2026, 3, 4),
     )
+    from sqlalchemy import text
     from app.db.models import PlanTemplateItem
 
     async with SessionLocal() as session:
+        result = await session.execute(
+            text("SELECT id FROM app_user WHERE tg_user_id = :tg"),
+            {"tg": owner_tg_id},
+        )
+        user_id = result.scalar_one()
         item = PlanTemplateItem(
+            user_id=user_id,
             category_id=seed_categories["expense_cat"].id,
             amount_cents=100000,
             description="Late",
@@ -309,14 +352,21 @@ async def test_apply_planned_date_clamped_to_period_end(
 
 @pytest.mark.asyncio
 async def test_apply_planned_date_null_when_template_day_null(
-    db_setup, auth_headers, seed_categories, seed_period
+    db_setup, auth_headers, seed_categories, seed_period, owner_tg_id
 ):
     """Template-item with day_of_period=NULL → planned_date NULL after apply."""
     _, SessionLocal = db_setup
+    from sqlalchemy import text
     from app.db.models import PlanTemplateItem
 
     async with SessionLocal() as session:
+        result = await session.execute(
+            text("SELECT id FROM app_user WHERE tg_user_id = :tg"),
+            {"tg": owner_tg_id},
+        )
+        user_id = result.scalar_one()
         item = PlanTemplateItem(
+            user_id=user_id,
             category_id=seed_categories["expense_cat"].id,
             amount_cents=200000,
             description="No date",
@@ -338,14 +388,21 @@ async def test_apply_planned_date_null_when_template_day_null(
 
 @pytest.mark.asyncio
 async def test_apply_kind_mirrors_category_kind(
-    db_setup, auth_headers, seed_categories, seed_period
+    db_setup, auth_headers, seed_categories, seed_period, owner_tg_id
 ):
     """Apply: planned.kind == category.kind (income for income-category)."""
     _, SessionLocal = db_setup
+    from sqlalchemy import text
     from app.db.models import PlanTemplateItem
 
     async with SessionLocal() as session:
+        result = await session.execute(
+            text("SELECT id FROM app_user WHERE tg_user_id = :tg"),
+            {"tg": owner_tg_id},
+        )
+        user_id = result.scalar_one()
         item = PlanTemplateItem(
+            user_id=user_id,
             category_id=seed_categories["income_cat"].id,
             amount_cents=12000000,
             description="Зарплата",

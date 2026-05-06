@@ -38,7 +38,7 @@ def auth_headers(bot_token, owner_tg_id):
 
 
 @pytest_asyncio.fixture
-async def db_setup(async_client):
+async def db_setup(async_client, owner_tg_id):
     """async_client + real DB session via dependency_overrides.
 
     Returns (client, SessionLocal). Truncates tables before yielding.
@@ -48,6 +48,7 @@ async def db_setup(async_client):
     from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
     from app.api.dependencies import get_db
+    from app.db.models import AppUser, UserRole
     from app.main_api import app
 
     db_url = os.environ["DATABASE_URL"]
@@ -62,6 +63,11 @@ async def db_setup(async_client):
                 "budget_period, app_user RESTART IDENTITY CASCADE"
             )
         )
+
+    # Seed AppUser explicitly — /me no longer upserts after Phase 12 (Plan 12-03).
+    async with SessionLocal() as session:
+        session.add(AppUser(tg_user_id=owner_tg_id, role=UserRole.owner, cycle_start_day=5))
+        await session.commit()
 
     async def real_get_db():
         async with SessionLocal() as session:
@@ -84,19 +90,28 @@ async def db_client(db_setup):
 
 
 @pytest_asyncio.fixture
-async def seed_categories(db_setup):
+async def seed_categories(db_setup, owner_tg_id):
     """Seed two non-archived categories: expense + income."""
     _, SessionLocal = db_setup
+    from sqlalchemy import text
     from app.db.models import Category, CategoryKind
 
     async with SessionLocal() as session:
+        result = await session.execute(
+            text("SELECT id FROM app_user WHERE tg_user_id = :tg"),
+            {"tg": owner_tg_id},
+        )
+        user_id = result.scalar_one()
+
         expense_cat = Category(
+            user_id=user_id,
             name="Продукты",
             kind=CategoryKind.expense,
             is_archived=False,
             sort_order=10,
         )
         income_cat = Category(
+            user_id=user_id,
             name="Зарплата",
             kind=CategoryKind.income,
             is_archived=False,
@@ -112,15 +127,24 @@ async def seed_categories(db_setup):
 async def _create_period(
     SessionLocal,
     *,
+    owner_tg_id: int,
     period_start: date,
     period_end: date,
     starting_balance_cents: int = 0,
 ) -> int:
     """Create BudgetPeriod via direct DB-insert; return id."""
+    from sqlalchemy import text
     from app.db.models import BudgetPeriod, PeriodStatus
 
     async with SessionLocal() as session:
+        result = await session.execute(
+            text("SELECT id FROM app_user WHERE tg_user_id = :tg"),
+            {"tg": owner_tg_id},
+        )
+        user_id = result.scalar_one()
+
         period = BudgetPeriod(
+            user_id=user_id,
             period_start=period_start,
             period_end=period_end,
             starting_balance_cents=starting_balance_cents,
@@ -135,16 +159,25 @@ async def _create_period(
 async def _create_template_item(
     SessionLocal,
     *,
+    owner_tg_id: int,
     category_id: int,
     amount_cents: int,
     description: Optional[str] = None,
     day_of_period: Optional[int] = None,
     sort_order: int = 0,
 ) -> int:
+    from sqlalchemy import text
     from app.db.models import PlanTemplateItem
 
     async with SessionLocal() as session:
+        result = await session.execute(
+            text("SELECT id FROM app_user WHERE tg_user_id = :tg"),
+            {"tg": owner_tg_id},
+        )
+        user_id = result.scalar_one()
+
         item = PlanTemplateItem(
+            user_id=user_id,
             category_id=category_id,
             amount_cents=amount_cents,
             description=description,
@@ -160,6 +193,7 @@ async def _create_template_item(
 async def _create_planned(
     SessionLocal,
     *,
+    owner_tg_id: int,
     period_id: int,
     category_id: int,
     kind,  # CategoryKind
@@ -169,10 +203,18 @@ async def _create_planned(
     planned_date: Optional[date] = None,
     subscription_id: Optional[int] = None,
 ) -> int:
+    from sqlalchemy import text
     from app.db.models import PlannedTransaction
 
     async with SessionLocal() as session:
+        result = await session.execute(
+            text("SELECT id FROM app_user WHERE tg_user_id = :tg"),
+            {"tg": owner_tg_id},
+        )
+        user_id = result.scalar_one()
+
         row = PlannedTransaction(
+            user_id=user_id,
             period_id=period_id,
             kind=kind,
             amount_cents=amount_cents,
@@ -191,15 +233,24 @@ async def _create_planned(
 async def _create_subscription(
     SessionLocal,
     *,
+    owner_tg_id: int,
     category_id: int,
     name: str = "Spotify",
     amount_cents: int = 29900,
     next_charge_date: Optional[date] = None,
 ) -> int:
+    from sqlalchemy import text
     from app.db.models import Subscription, SubCycle
 
     async with SessionLocal() as session:
+        result = await session.execute(
+            text("SELECT id FROM app_user WHERE tg_user_id = :tg"),
+            {"tg": owner_tg_id},
+        )
+        user_id = result.scalar_one()
+
         sub = Subscription(
+            user_id=user_id,
             name=name,
             amount_cents=amount_cents,
             cycle=SubCycle.monthly,
@@ -228,7 +279,7 @@ async def test_snapshot_period_not_found_404(db_client, auth_headers):
 
 @pytest.mark.asyncio
 async def test_snapshot_empty_period_clears_template(
-    db_setup, auth_headers, seed_categories
+    db_setup, auth_headers, seed_categories, owner_tg_id
 ):
     """Snapshot from a period with no planned rows wipes the template.
 
@@ -238,18 +289,21 @@ async def test_snapshot_empty_period_clears_template(
     client, SessionLocal = db_setup
     period_id = await _create_period(
         SessionLocal,
+        owner_tg_id=owner_tg_id,
         period_start=date(2026, 2, 5),
         period_end=date(2026, 3, 4),
     )
     # Pre-existing template items (will be cleared)
     await _create_template_item(
         SessionLocal,
+        owner_tg_id=owner_tg_id,
         category_id=seed_categories["expense_cat"].id,
         amount_cents=500000,
         sort_order=0,
     )
     await _create_template_item(
         SessionLocal,
+        owner_tg_id=owner_tg_id,
         category_id=seed_categories["expense_cat"].id,
         amount_cents=600000,
         sort_order=10,
@@ -271,7 +325,7 @@ async def test_snapshot_empty_period_clears_template(
 
 @pytest.mark.asyncio
 async def test_snapshot_includes_template_and_manual(
-    db_setup, auth_headers, seed_categories
+    db_setup, auth_headers, seed_categories, owner_tg_id
 ):
     """Snapshot copies planned rows where source IN ('template', 'manual')."""
     from app.db.models import CategoryKind, PlanSource
@@ -279,12 +333,14 @@ async def test_snapshot_includes_template_and_manual(
     client, SessionLocal = db_setup
     period_id = await _create_period(
         SessionLocal,
+        owner_tg_id=owner_tg_id,
         period_start=date(2026, 2, 5),
         period_end=date(2026, 3, 4),
     )
     # Two planned rows: one template-source, one manual-source.
     await _create_planned(
         SessionLocal,
+        owner_tg_id=owner_tg_id,
         period_id=period_id,
         category_id=seed_categories["expense_cat"].id,
         kind=CategoryKind.expense,
@@ -295,6 +351,7 @@ async def test_snapshot_includes_template_and_manual(
     )
     await _create_planned(
         SessionLocal,
+        owner_tg_id=owner_tg_id,
         period_id=period_id,
         category_id=seed_categories["income_cat"].id,
         kind=CategoryKind.income,
@@ -331,7 +388,7 @@ async def test_snapshot_includes_template_and_manual(
 
 @pytest.mark.asyncio
 async def test_snapshot_excludes_subscription_auto(
-    db_setup, auth_headers, seed_categories
+    db_setup, auth_headers, seed_categories, owner_tg_id
 ):
     """D-32: snapshot must exclude rows with source='subscription_auto'."""
     from app.db.models import CategoryKind, PlanSource
@@ -339,16 +396,20 @@ async def test_snapshot_excludes_subscription_auto(
     client, SessionLocal = db_setup
     period_id = await _create_period(
         SessionLocal,
+        owner_tg_id=owner_tg_id,
         period_start=date(2026, 2, 5),
         period_end=date(2026, 3, 4),
     )
     sub_id = await _create_subscription(
-        SessionLocal, category_id=seed_categories["expense_cat"].id
+        SessionLocal,
+        owner_tg_id=owner_tg_id,
+        category_id=seed_categories["expense_cat"].id,
     )
 
     # 3 planned rows: template + manual + subscription_auto.
     await _create_planned(
         SessionLocal,
+        owner_tg_id=owner_tg_id,
         period_id=period_id,
         category_id=seed_categories["expense_cat"].id,
         kind=CategoryKind.expense,
@@ -358,6 +419,7 @@ async def test_snapshot_excludes_subscription_auto(
     )
     await _create_planned(
         SessionLocal,
+        owner_tg_id=owner_tg_id,
         period_id=period_id,
         category_id=seed_categories["expense_cat"].id,
         kind=CategoryKind.expense,
@@ -367,6 +429,7 @@ async def test_snapshot_excludes_subscription_auto(
     )
     await _create_planned(
         SessionLocal,
+        owner_tg_id=owner_tg_id,
         period_id=period_id,
         category_id=seed_categories["expense_cat"].id,
         kind=CategoryKind.expense,
@@ -397,7 +460,7 @@ async def test_snapshot_excludes_subscription_auto(
 
 @pytest.mark.asyncio
 async def test_snapshot_overwrites_existing_template(
-    db_setup, auth_headers, seed_categories
+    db_setup, auth_headers, seed_categories, owner_tg_id
 ):
     """Snapshot is destructive: prior template rows wiped, new ones derived from period."""
     from app.db.models import CategoryKind, PlanSource
@@ -406,6 +469,7 @@ async def test_snapshot_overwrites_existing_template(
     # Pre-existing template-item (different amount than what snapshot will produce)
     await _create_template_item(
         SessionLocal,
+        owner_tg_id=owner_tg_id,
         category_id=seed_categories["expense_cat"].id,
         amount_cents=999999,
         description="Old template",
@@ -413,12 +477,14 @@ async def test_snapshot_overwrites_existing_template(
     )
     period_id = await _create_period(
         SessionLocal,
+        owner_tg_id=owner_tg_id,
         period_start=date(2026, 2, 5),
         period_end=date(2026, 3, 4),
     )
     # One planned row (manual) — what snapshot will produce
     await _create_planned(
         SessionLocal,
+        owner_tg_id=owner_tg_id,
         period_id=period_id,
         category_id=seed_categories["expense_cat"].id,
         kind=CategoryKind.expense,
@@ -445,10 +511,11 @@ async def test_snapshot_overwrites_existing_template(
 
 
 @pytest.mark.asyncio
-async def test_snapshot_no_init_data_403(db_setup, seed_categories):
+async def test_snapshot_no_init_data_403(db_setup, seed_categories, owner_tg_id):
     client, SessionLocal = db_setup
     period_id = await _create_period(
         SessionLocal,
+        owner_tg_id=owner_tg_id,
         period_start=date(2026, 2, 5),
         period_end=date(2026, 3, 4),
     )

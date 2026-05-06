@@ -31,12 +31,13 @@ def auth_headers(bot_token, owner_tg_id):
 
 
 @pytest_asyncio.fixture
-async def db_setup(async_client):
+async def db_setup(async_client, owner_tg_id):
     _require_db()
     from sqlalchemy import text
     from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
     from app.api.dependencies import get_db
+    from app.db.models import AppUser, UserRole
     from app.main_api import app
 
     db_url = os.environ["DATABASE_URL"]
@@ -51,6 +52,11 @@ async def db_setup(async_client):
                 "budget_period, app_user RESTART IDENTITY CASCADE"
             )
         )
+
+    # Seed AppUser explicitly — /me no longer upserts after Phase 12 (Plan 12-03).
+    async with SessionLocal() as session:
+        session.add(AppUser(tg_user_id=owner_tg_id, role=UserRole.owner, cycle_start_day=5))
+        await session.commit()
 
     async def real_get_db():
         async with SessionLocal() as session:
@@ -67,17 +73,25 @@ async def db_setup(async_client):
 
 
 @pytest_asyncio.fixture
-async def seed_periods(db_setup):
+async def seed_periods(db_setup, owner_tg_id):
     """Seed 3 BudgetPeriod rows with different period_start dates.
 
     Returns dict with period ids for use in tests.
     """
     _, SessionLocal = db_setup
+    from sqlalchemy import text
     from app.db.models import BudgetPeriod, PeriodStatus
 
     async with SessionLocal() as session:
+        result = await session.execute(
+            text("SELECT id FROM app_user WHERE tg_user_id = :tg"),
+            {"tg": owner_tg_id},
+        )
+        user_id = result.scalar_one()
+
         # Oldest — closed
         p1 = BudgetPeriod(
+            user_id=user_id,
             period_start=date(2026, 3, 5),
             period_end=date(2026, 4, 4),
             starting_balance_cents=10000,
@@ -86,6 +100,7 @@ async def seed_periods(db_setup):
         )
         # Middle — closed
         p2 = BudgetPeriod(
+            user_id=user_id,
             period_start=date(2026, 4, 5),
             period_end=date(2026, 5, 4),
             starting_balance_cents=12000,
@@ -94,6 +109,7 @@ async def seed_periods(db_setup):
         )
         # Newest — active
         p3 = BudgetPeriod(
+            user_id=user_id,
             period_start=date(2026, 5, 5),
             period_end=date(2026, 6, 4),
             starting_balance_cents=15000,
