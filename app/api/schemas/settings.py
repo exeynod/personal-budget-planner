@@ -14,6 +14,7 @@ class SettingsRead(BaseModel):
     cycle_start_day: int
     notify_days_before: int
     is_bot_bound: bool
+    enable_ai_categorization: bool
 
 
 class SettingsUpdate(BaseModel):
@@ -27,7 +28,11 @@ class SettingsUpdate(BaseModel):
     periods — the new value applies to the next period only.
 
     ``notify_days_before`` optional; ge=0, le=30 (T-06-03 / D-77).
+
+    ``enable_ai_categorization`` optional; controls AI category suggestion
+    feature per user (AICAT-05, SET-03).
     """
 
     cycle_start_day: Optional[int] = Field(None, ge=1, le=28)
     notify_days_before: Optional[int] = Field(None, ge=0, le=30)
+    enable_ai_categorization: Optional[bool] = None

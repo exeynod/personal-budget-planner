@@ -34,6 +34,7 @@ async def get_settings(
         cycle = await settings_svc.get_cycle_start_day(db, current_user["id"])
         notify = await settings_svc.get_notify_days_before(db, current_user["id"])
         is_bot_bound = await settings_svc.get_is_bot_bound(db, current_user["id"])
+        enable_ai_cat = await settings_svc.get_enable_ai_categorization(db, current_user["id"])
     except UserNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -43,6 +44,7 @@ async def get_settings(
         cycle_start_day=cycle,
         notify_days_before=notify,
         is_bot_bound=is_bot_bound,
+        enable_ai_categorization=enable_ai_cat,
     )
 
 
@@ -74,9 +76,16 @@ async def update_settings(
                 tg_user_id=current_user["id"],
                 value=body.notify_days_before,
             )
+        if body.enable_ai_categorization is not None:
+            await settings_svc.update_enable_ai_categorization(
+                db,
+                tg_user_id=current_user["id"],
+                value=body.enable_ai_categorization,
+            )
         cycle = await settings_svc.get_cycle_start_day(db, current_user["id"])
         notify = await settings_svc.get_notify_days_before(db, current_user["id"])
         is_bot_bound = await settings_svc.get_is_bot_bound(db, current_user["id"])
+        enable_ai_cat = await settings_svc.get_enable_ai_categorization(db, current_user["id"])
     except UserNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -86,4 +95,5 @@ async def update_settings(
         cycle_start_day=cycle,
         notify_days_before=notify,
         is_bot_bound=is_bot_bound,
+        enable_ai_categorization=enable_ai_cat,
     )
