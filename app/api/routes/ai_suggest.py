@@ -24,6 +24,7 @@ router = APIRouter(
 @router.get("/suggest-category", response_model=SuggestCategoryResponse)
 async def suggest_category(
     q: Annotated[str, Query(min_length=1, max_length=500, description="Описание транзакции")],
+    current_user: Annotated[dict, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> SuggestCategoryResponse:
     """Предлагает категорию для описания транзакции через AI cosine similarity.
@@ -31,11 +32,16 @@ async def suggest_category(
     Возвращает ближайшую категорию если confidence >= 0.5.
     Иначе возвращает {category_id: null, name: null, confidence: <value>}.
 
-    Требует ENABLE_AI_CATEGORIZATION=True (настраивается через env ENABLE_AI_CATEGORIZATION).
+    Требует ENABLE_AI_CATEGORIZATION=True (ENV) и enable_ai_categorization=True (user setting).
     """
     from app.core.settings import settings
+    from app.services import settings as settings_svc
 
     if not settings.ENABLE_AI_CATEGORIZATION:
+        raise HTTPException(status_code=404, detail="AI categorization is disabled")
+
+    user_enabled = await settings_svc.get_enable_ai_categorization(db, current_user["id"])
+    if not user_enabled:
         raise HTTPException(status_code=404, detail="AI categorization is disabled")
 
     service = get_embedding_service()

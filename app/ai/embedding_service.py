@@ -57,7 +57,6 @@ class EmbeddingService:
             )
         )
         await db.execute(stmt)
-        await db.commit()
 
     async def suggest_category(
         self,
@@ -88,7 +87,7 @@ class EmbeddingService:
             LIMIT 1
             """
         )
-        result = await db.execute(stmt, {"query_vec": str(query_vec)})
+        result = await db.execute(stmt, {"query_vec": query_vec})
         row = result.fetchone()
 
         if row is None:
