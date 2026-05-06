@@ -62,6 +62,12 @@ async def db_setup(async_client, bot_token, owner_tg_id):
             )
         )
 
+    # Seed AppUser explicitly — /me no longer upserts after Phase 12 (Plan 12-03).
+    from app.db.models import AppUser, UserRole
+    async with SessionLocal() as session:
+        session.add(AppUser(tg_user_id=owner_tg_id, role=UserRole.owner, cycle_start_day=5))
+        await session.commit()
+
     async def real_get_db():
         async with SessionLocal() as session:
             try:
@@ -72,13 +78,6 @@ async def db_setup(async_client, bot_token, owner_tg_id):
                 raise
 
     app.dependency_overrides[get_db] = real_get_db
-
-    # Bootstrap AppUser via GET /me so charge-now and settings can find it (D-11).
-    init_data = make_init_data(owner_tg_id, bot_token)
-    await async_client.get(
-        "/api/v1/me",
-        headers={"X-Telegram-Init-Data": init_data},
-    )
 
     yield async_client, SessionLocal
     await engine.dispose()
@@ -91,19 +90,28 @@ async def db_client(db_setup):
 
 
 @pytest_asyncio.fixture
-async def seed_categories(db_setup):
+async def seed_categories(db_setup, owner_tg_id):
     """Seed one active expense category and one archived expense category."""
     _, SessionLocal = db_setup
+    from sqlalchemy import text
     from app.db.models import Category, CategoryKind
 
     async with SessionLocal() as session:
+        result = await session.execute(
+            text("SELECT id FROM app_user WHERE tg_user_id = :tg"),
+            {"tg": owner_tg_id},
+        )
+        user_id = result.scalar_one()
+
         expense_cat = Category(
+            user_id=user_id,
             name="Подписки",
             kind=CategoryKind.expense,
             is_archived=False,
             sort_order=10,
         )
         archived_cat = Category(
+            user_id=user_id,
             name="Архивная",
             kind=CategoryKind.expense,
             is_archived=True,
