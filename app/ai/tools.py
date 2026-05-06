@@ -244,6 +244,17 @@ async def get_forecast(db: AsyncSession) -> dict[str, Any]:
         forecasted_remaining_expense = int(daily_expense_rate * remaining_days)
         forecast_balance_cents = current_balance_cents - forecasted_remaining_expense
 
+        # Pre-computed savings capacity — what's left after projected
+        # expenses for the rest of the month, expressed both monthly
+        # and daily-equivalent. Computing this in code prevents the LLM
+        # from improvising broken arithmetic (e.g. confusing the daily
+        # expense rate with a daily savings rate, or multiplying
+        # remaining_days by monthly amounts).
+        savings_monthly_cents = max(forecast_balance_cents, 0)
+        savings_daily_cents = (
+            int(savings_monthly_cents / total_days) if total_days else 0
+        )
+
         return {
             "insufficient_data": False,
             "period_start": period_start.isoformat(),
@@ -254,6 +265,11 @@ async def get_forecast(db: AsyncSession) -> dict[str, Any]:
             "total_days": total_days,
             "daily_expense_rate_cents": int(daily_expense_rate),
             "forecast_balance_cents": forecast_balance_cents,
+            # Use these directly when the user asks "сколько откладывать".
+            # Do NOT derive savings from daily_expense_rate — that's the
+            # spend rate, not the save rate.
+            "savings_capacity_monthly_cents": savings_monthly_cents,
+            "savings_capacity_daily_cents": savings_daily_cents,
         }
     except Exception as exc:
         return {"error": f"Ошибка прогноза: {exc}"}
