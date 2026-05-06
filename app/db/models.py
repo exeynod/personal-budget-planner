@@ -4,7 +4,8 @@ Conventions (CLAUDE.md):
 - Money: BIGINT kopecks (*_cents fields), no Float
 - Dates: DATE for business dates, TIMESTAMPTZ for audit timestamps (UTC in DB)
 - Soft delete: only Category (is_archived). Transactions/subscriptions: hard delete.
-- Single-tenant MVP: NO user_id FK on any table.
+- Multi-tenant since Phase 11: user_id BIGINT NOT NULL FK → app_user.id ON DELETE RESTRICT
+  присутствует на всех 9 доменных таблицах. RLS policies (см. alembic 0006).
 
 Tables (HLD §2):
 - app_user, category, budget_period, plan_template_item,
@@ -65,6 +66,19 @@ class SubCycle(str, enum.Enum):
     yearly = "yearly"
 
 
+class UserRole(str, enum.Enum):
+    """Роль пользователя (Phase 11 ROLE-01).
+
+    owner   — единственный администратор; backfill для существующего OWNER_TG_ID.
+    member  — приглашённый юзер (default для новых через invite в Phase 13).
+    revoked — отозванный доступ; auth-слой блокирует (полная семантика в Phase 12).
+    """
+
+    owner = "owner"
+    member = "member"
+    revoked = "revoked"
+
+
 # ---------- Models ----------
 
 
@@ -80,6 +94,12 @@ class AppUser(Base):
     )
     enable_ai_categorization: Mapped[bool] = mapped_column(
         Boolean, default=True, nullable=False, server_default="true"
+    )
+    role: Mapped[UserRole] = mapped_column(
+        PgEnum(UserRole, name="user_role", create_type=False),
+        nullable=False,
+        server_default="member",
+        default=UserRole.member,
     )
     onboarded_at: Mapped[Optional[datetime]] = mapped_column(
         TIMESTAMP(timezone=True), nullable=True
@@ -102,13 +122,22 @@ class Category(Base):
     created_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True), server_default=func.now(), nullable=False
     )
+    user_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("app_user.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "name", name="uq_category_user_id_name"),
+    )
 
 
 class BudgetPeriod(Base):
     __tablename__ = "budget_period"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    period_start: Mapped[date] = mapped_column(Date, nullable=False, unique=True)
+    period_start: Mapped[date] = mapped_column(Date, nullable=False)
     period_end: Mapped[date] = mapped_column(Date, nullable=False)
     starting_balance_cents: Mapped[int] = mapped_column(
         BigInteger, default=0, nullable=False
@@ -122,12 +151,25 @@ class BudgetPeriod(Base):
     closed_at: Mapped[Optional[datetime]] = mapped_column(
         TIMESTAMP(timezone=True), nullable=True
     )
+    user_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("app_user.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
 
     planned_transactions: Mapped[list["PlannedTransaction"]] = relationship(
         back_populates="period"
     )
     actual_transactions: Mapped[list["ActualTransaction"]] = relationship(
         back_populates="period"
+    )
+
+    __table_args__ = (
+        UniqueConstraint(
+            "user_id",
+            "period_start",
+            name="uq_budget_period_user_id_period_start",
+        ),
     )
 
 
@@ -140,6 +182,11 @@ class PlanTemplateItem(Base):
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     day_of_period: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     sort_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    user_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("app_user.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
 
     category: Mapped["Category"] = relationship()
 
@@ -157,11 +204,17 @@ class Subscription(Base):
     category_id: Mapped[int] = mapped_column(ForeignKey("category.id"), nullable=False)
     notify_days_before: Mapped[int] = mapped_column(Integer, default=2, nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    user_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("app_user.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
 
     category: Mapped["Category"] = relationship()
 
     __table_args__ = (
         Index("ix_subscription_active_charge", "is_active", "next_charge_date"),
+        UniqueConstraint("user_id", "name", name="uq_subscription_user_id_name"),
     )
 
 
@@ -184,6 +237,11 @@ class PlannedTransaction(Base):
         ForeignKey("subscription.id"), nullable=True
     )
     original_charge_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
+    user_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("app_user.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
 
     period: Mapped["BudgetPeriod"] = relationship(back_populates="planned_transactions")
     category: Mapped["Category"] = relationship()
@@ -215,6 +273,11 @@ class ActualTransaction(Base):
     )
     created_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True), server_default=func.now(), nullable=False
+    )
+    user_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("app_user.id", ondelete="RESTRICT"),
+        nullable=False,
     )
 
     period: Mapped["BudgetPeriod"] = relationship(back_populates="actual_transactions")
@@ -250,6 +313,11 @@ class AiConversation(Base):
     created_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True), server_default=func.now(), nullable=False
     )
+    user_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("app_user.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
 
     messages: Mapped[list["AiMessage"]] = relationship(
         back_populates="conversation", order_by="AiMessage.id"
@@ -271,6 +339,11 @@ class AiMessage(Base):
     tool_result: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True), server_default=func.now(), nullable=False
+    )
+    user_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("app_user.id", ondelete="RESTRICT"),
+        nullable=False,
     )
 
     conversation: Mapped["AiConversation"] = relationship(back_populates="messages")
@@ -297,6 +370,11 @@ class CategoryEmbedding(Base):
     embedding: Mapped[list[float]] = mapped_column(Vector(1536), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True), server_default=func.now(), nullable=False
+    )
+    user_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("app_user.id", ondelete="RESTRICT"),
+        nullable=False,
     )
 
     category: Mapped["Category"] = relationship()
