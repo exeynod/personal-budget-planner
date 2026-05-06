@@ -1,12 +1,18 @@
 .root {
-  padding: var(--space-4) var(--space-4) var(--space-12);
-  min-height: 100dvh;
+  composes: scrollable from '../styles/screen.module.css';
+  padding: var(--space-4) var(--space-4) var(--space-4);
   background: var(--color-bg);
   color: var(--color-text);
   font-family: var(--font-sans);
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
+}
+/* Дети flex-column'а с min-height: 0 могут схлопываться по высоте,
+   когда содержимое скролл-контейнера длиннее. flex-shrink: 0 фиксирует
+   их content-size — chips остаются 32px, секции не сжимаются. */
+.root > * {
+  flex-shrink: 0;
 }
 
 /* Period chips */
@@ -42,11 +48,16 @@
 
 /* Sections */
 .section {
-  background: var(--color-surface);
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   padding: var(--space-4);
 }
 .sectionTitle {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
   font-size: var(--text-sm);
   font-weight: var(--weight-semibold);
   color: var(--color-text-muted);
@@ -86,21 +97,10 @@
   text-align: center;
 }
 
-/* Empty state */
-.emptyState {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-12) var(--space-4);
-  text-align: center;
-}
-.emptyHeading {
-  font-size: var(--text-base);
-  font-weight: var(--weight-medium);
-  color: var(--color-text-muted);
-}
-.emptyBody {
+/* Per-card placeholder (когда данных нет, но саму карточку сохраняем) */
+.placeholder {
+  padding: var(--space-3) 0;
   font-size: var(--text-sm);
   color: var(--color-text-muted);
+  line-height: 1.4;
 }

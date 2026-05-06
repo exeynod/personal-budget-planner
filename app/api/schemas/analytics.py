@@ -24,7 +24,8 @@ class OverspendItem(BaseModel):
     name: str
     planned_cents: int
     actual_cents: int
-    overspend_pct: float
+    # null = unplanned spending (план был 0). Фронт рендерит «Без плана».
+    overspend_pct: Optional[float] = None
 
 
 class TopOverspendResponse(BaseModel):
@@ -46,9 +47,24 @@ class TopCategoriesResponse(BaseModel):
 
 
 class ForecastResponse(BaseModel):
+    """Polymorphic response for the analytics "Прогноз / Cashflow" card.
+
+    mode='forecast'  → range=1M; uses active period plan + starting_balance.
+    mode='cashflow'  → range>=3M; sums net over N closed periods.
+    mode='empty'     → no data to compute.
+    """
     model_config = ConfigDict(from_attributes=True)
-    insufficient_data: bool
-    current_balance_cents: int
+    mode: str  # 'forecast' | 'cashflow' | 'empty'
+
+    # forecast (1M)
+    starting_balance_cents: Optional[int] = None
+    planned_income_cents: Optional[int] = None
+    planned_expense_cents: Optional[int] = None
     projected_end_balance_cents: Optional[int] = None
-    will_burn_cents: Optional[int] = None
     period_end: Optional[str] = None  # ISO date string
+
+    # cashflow (3M+)
+    total_net_cents: Optional[int] = None
+    monthly_avg_cents: Optional[int] = None
+    periods_count: Optional[int] = None
+    requested_periods: Optional[int] = None

@@ -271,7 +271,8 @@ export interface OverspendItem {
   name: string;
   planned_cents: number;
   actual_cents: number;
-  overspend_pct: number;     // actual/plan*100, float
+  // null = unplanned (план был 0); фронт показывает «Без плана».
+  overspend_pct: number | null;
 }
 
 export interface TopOverspendResponse {
@@ -289,12 +290,21 @@ export interface TopCategoriesResponse {
   items: TopCategoryItem[];
 }
 
+export type ForecastMode = 'forecast' | 'cashflow' | 'empty';
+
 export interface ForecastResponse {
-  insufficient_data: boolean;
-  current_balance_cents: number;
-  projected_end_balance_cents: number | null;
-  will_burn_cents: number | null;
-  period_end: string | null;   // ISO date
+  mode: ForecastMode;
+  // forecast (1M)
+  starting_balance_cents?: number | null;
+  planned_income_cents?: number | null;
+  planned_expense_cents?: number | null;
+  projected_end_balance_cents?: number | null;
+  period_end?: string | null;
+  // cashflow (3M+)
+  total_net_cents?: number | null;
+  monthly_avg_cents?: number | null;
+  periods_count?: number | null;
+  requested_periods?: number | null;
 }
 
 // ---------- Phase 9: AI Assistant ----------

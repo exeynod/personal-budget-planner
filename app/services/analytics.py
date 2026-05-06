@@ -4,6 +4,8 @@ All functions are read-only (no db.commit). Period resolution is done internally
 """
 from __future__ import annotations
 
+from datetime import date, timedelta
+
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -51,7 +53,15 @@ async def get_trend(
     *,
     range_: str,
 ) -> dict:
-    """SUM expense and income by period for N periods, ordered by period_start ASC."""
+    """SUM expense and income by period for N periods, ordered by period_start ASC.
+
+    Special case: range='1M' aggregates by tx_date within the active period
+    so the chart still shows a meaningful daily trend (one period = one point
+    is useless visually).
+    """
+    if range_ == "1M":
+        return await _get_trend_daily(db)
+
     n = _range_to_n(range_)
     periods = await get_recent_periods(db, n=n)
     if not periods:
@@ -98,6 +108,61 @@ async def get_trend(
     return {"points": points}
 
 
+async def _get_trend_daily(db: AsyncSession) -> dict:
+    """Daily aggregation across the active period (range='1M').
+
+    Returns one point per day from period_start to period_end with cumulative
+    or per-day totals — here per-day, since the chart visualises trend.
+    Empty days are omitted (chart smoothly connects existing points).
+    """
+    periods = await get_recent_periods(db, n=1)
+    if not periods:
+        return {"points": []}
+    period = periods[0]
+
+    expense_q = (
+        select(
+            ActualTransaction.tx_date,
+            func.sum(ActualTransaction.amount_cents).label("total_cents"),
+        )
+        .where(
+            ActualTransaction.period_id == period.id,
+            ActualTransaction.kind == CategoryKind.expense,
+        )
+        .group_by(ActualTransaction.tx_date)
+    )
+    income_q = (
+        select(
+            ActualTransaction.tx_date,
+            func.sum(ActualTransaction.amount_cents).label("total_cents"),
+        )
+        .where(
+            ActualTransaction.period_id == period.id,
+            ActualTransaction.kind == CategoryKind.income,
+        )
+        .group_by(ActualTransaction.tx_date)
+    )
+    exp = {r.tx_date: r.total_cents for r in (await db.execute(expense_q)).all()}
+    inc = {r.tx_date: r.total_cents for r in (await db.execute(income_q)).all()}
+
+    # Fill every day from period_start to min(period_end, today) so the chart
+    # always renders a continuous trend (single-tx periods would otherwise
+    # collapse to one point and look broken).
+    today = date.today()
+    end = min(period.period_end, today) if period.period_end >= period.period_start else period.period_start
+    days = (end - period.period_start).days + 1
+    all_dates = [period.period_start + timedelta(days=i) for i in range(max(days, 1))]
+    points = [
+        {
+            "period_label": str(d.day),
+            "expense_cents": exp.get(d, 0),
+            "income_cents": inc.get(d, 0),
+        }
+        for d in all_dates
+    ]
+    return {"points": points}
+
+
 async def get_top_overspend(
     db: AsyncSession,
     *,
@@ -136,8 +201,9 @@ async def get_top_overspend(
     planned_rows = {r.category_id: r.planned_cents for r in (await db.execute(planned_q)).all()}
     actual_rows = {r.category_id: r.actual_cents for r in (await db.execute(actual_q)).all()}
 
-    # Only categories that have both plan and actual
-    category_ids = set(planned_rows.keys()) & set(actual_rows.keys())
+    # Все категории с фактом-расходом > 0 — включая unplanned (план = 0).
+    # Категории, у которых only plan but no actual, не интересны как «перерасход».
+    category_ids = set(actual_rows.keys())
     if not category_ids:
         return {"items": []}
 
@@ -147,20 +213,32 @@ async def get_top_overspend(
 
     items = []
     for cat_id in category_ids:
-        planned = planned_rows[cat_id]
-        actual = actual_rows[cat_id]
-        if planned <= 0:
+        actual = int(actual_rows[cat_id] or 0)
+        planned = int(planned_rows.get(cat_id, 0) or 0)
+        if actual <= 0:
             continue
-        overspend_pct = (actual / planned) * 100.0
+        if planned > 0:
+            overspend_pct = round(float(actual) / float(planned) * 100.0, 2)
+            sort_key = overspend_pct
+        else:
+            # Unplanned: фронт показывает «Без плана» вместо процента.
+            overspend_pct = None
+            sort_key = float('inf')  # выводить unplanned первыми
         items.append({
             "category_id": cat_id,
             "name": cats[cat_id].name if cat_id in cats else str(cat_id),
             "planned_cents": planned,
             "actual_cents": actual,
-            "overspend_pct": round(overspend_pct, 2),
+            "overspend_pct": overspend_pct,
+            "_sort": sort_key,
         })
 
-    items.sort(key=lambda x: x["overspend_pct"], reverse=True)
+    # Сортировка по фиктивному ключу _sort (inf для unplanned), убывание
+    items.sort(key=lambda x: x["_sort"], reverse=True)
+    # Оставляем только overspend (>=100%) и unplanned, до 5 штук
+    items = [it for it in items if it["overspend_pct"] is None or it["overspend_pct"] > 100.0]
+    for it in items:
+        it.pop("_sort", None)
     return {"items": items[:5]}
 
 
@@ -225,71 +303,88 @@ async def get_top_categories(
 
 async def get_forecast(
     db: AsyncSession,
+    *,
+    range_: str = "1M",
 ) -> dict:
-    """Forecast end-of-period balance using daily burn rate.
+    """Polymorphic analytics top-card.
 
-    Algorithm:
-      daily_rate = actual_expense_cents / max(days_elapsed, 1)
-      will_burn_cents = remaining_days * daily_rate
-      projected_end_balance_cents = current_balance_cents - will_burn_cents
-
-    Edge case days_elapsed=0: return insufficient_data=True.
+    range='1M'  → forecast active period via plan:
+                  projected = starting_balance + planned_income − planned_expense
+    range>=3M   → cashflow over N CLOSED periods (active period excluded).
     """
-    from app.services.periods import _today_in_app_tz
+    if range_ == "1M":
+        return await _get_forecast_active(db)
+    return await _get_cashflow(db, n=_range_to_n(range_))
 
-    today = _today_in_app_tz()
 
-    # Find active period
+async def _get_forecast_active(db: AsyncSession) -> dict:
     active_q = select(BudgetPeriod).where(BudgetPeriod.status == PeriodStatus.active)
-    active_period = (await db.execute(active_q)).scalar_one_or_none()
-    if active_period is None:
-        return {
-            "insufficient_data": True,
-            "current_balance_cents": 0,
-            "projected_end_balance_cents": None,
-            "will_burn_cents": None,
-            "period_end": None,
-        }
+    active = (await db.execute(active_q)).scalar_one_or_none()
+    if active is None:
+        return {"mode": "empty"}
 
-    days_elapsed = (today - active_period.period_start).days
-    remaining_days = (active_period.period_end - today).days
-
-    # Total actual expense and income this period
-    expense_q = (
-        select(func.sum(ActualTransaction.amount_cents))
-        .where(
-            ActualTransaction.period_id == active_period.id,
-            ActualTransaction.kind == CategoryKind.expense,
-        )
+    income_q = select(func.coalesce(func.sum(PlannedTransaction.amount_cents), 0)).where(
+        PlannedTransaction.period_id == active.id,
+        PlannedTransaction.kind == CategoryKind.income,
     )
-    income_q = (
-        select(func.sum(ActualTransaction.amount_cents))
-        .where(
-            ActualTransaction.period_id == active_period.id,
-            ActualTransaction.kind == CategoryKind.income,
-        )
+    expense_q = select(func.coalesce(func.sum(PlannedTransaction.amount_cents), 0)).where(
+        PlannedTransaction.period_id == active.id,
+        PlannedTransaction.kind == CategoryKind.expense,
     )
-    total_expense = (await db.execute(expense_q)).scalar_one_or_none() or 0
-    total_income = (await db.execute(income_q)).scalar_one_or_none() or 0
-    current_balance_cents = total_income - total_expense
+    planned_income = int((await db.execute(income_q)).scalar_one() or 0)
+    planned_expense = int((await db.execute(expense_q)).scalar_one() or 0)
 
-    if days_elapsed == 0:
-        return {
-            "insufficient_data": True,
-            "current_balance_cents": current_balance_cents,
-            "projected_end_balance_cents": None,
-            "will_burn_cents": None,
-            "period_end": active_period.period_end.isoformat(),
-        }
-
-    daily_rate = total_expense / days_elapsed
-    will_burn_cents = int(remaining_days * daily_rate)
-    projected_end_balance_cents = current_balance_cents - will_burn_cents
+    projected = active.starting_balance_cents + planned_income - planned_expense
 
     return {
-        "insufficient_data": False,
-        "current_balance_cents": current_balance_cents,
-        "projected_end_balance_cents": projected_end_balance_cents,
-        "will_burn_cents": will_burn_cents,
-        "period_end": active_period.period_end.isoformat(),
+        "mode": "forecast",
+        "starting_balance_cents": active.starting_balance_cents,
+        "planned_income_cents": planned_income,
+        "planned_expense_cents": planned_expense,
+        "projected_end_balance_cents": projected,
+        "period_end": active.period_end.isoformat(),
+    }
+
+
+async def _get_cashflow(db: AsyncSession, *, n: int) -> dict:
+    """Sum of (income − expense) per closed period over the latest N closed periods."""
+    closed_q = (
+        select(BudgetPeriod)
+        .where(BudgetPeriod.status == PeriodStatus.closed)
+        .order_by(BudgetPeriod.period_start.desc())
+        .limit(n)
+    )
+    closed = list((await db.execute(closed_q)).scalars().all())
+    if not closed:
+        return {"mode": "empty", "requested_periods": n, "periods_count": 0}
+
+    period_ids = [p.id for p in closed]
+    income_q = select(
+        ActualTransaction.period_id,
+        func.coalesce(func.sum(ActualTransaction.amount_cents), 0).label("total"),
+    ).where(
+        ActualTransaction.period_id.in_(period_ids),
+        ActualTransaction.kind == CategoryKind.income,
+    ).group_by(ActualTransaction.period_id)
+    expense_q = select(
+        ActualTransaction.period_id,
+        func.coalesce(func.sum(ActualTransaction.amount_cents), 0).label("total"),
+    ).where(
+        ActualTransaction.period_id.in_(period_ids),
+        ActualTransaction.kind == CategoryKind.expense,
+    ).group_by(ActualTransaction.period_id)
+
+    inc = {r.period_id: int(r.total) for r in (await db.execute(income_q)).all()}
+    exp = {r.period_id: int(r.total) for r in (await db.execute(expense_q)).all()}
+
+    total_net = sum(inc.get(pid, 0) - exp.get(pid, 0) for pid in period_ids)
+    count = len(closed)
+    avg = total_net // count if count else 0
+
+    return {
+        "mode": "cashflow",
+        "total_net_cents": total_net,
+        "monthly_avg_cents": avg,
+        "periods_count": count,
+        "requested_periods": n,
     }

@@ -1,7 +1,6 @@
 .card {
-  background: var(--color-surface);
-  border-radius: var(--radius-md);
-  padding: var(--space-4);
+  background: transparent;
+  padding: 0;
 }
 .label {
   font-size: var(--text-sm);
@@ -9,12 +8,18 @@
   font-weight: var(--weight-medium);
   margin-bottom: var(--space-2);
 }
+.headlineLabel {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  margin-bottom: 4px;
+}
 .value {
-  font-size: 1.5rem;
+  font-size: 1.6rem;
   font-weight: var(--weight-semibold);
   display: flex;
   align-items: center;
   gap: var(--space-2);
+  font-variant-numeric: tabular-nums;
 }
 .valueDanger { color: var(--color-danger); }
 .valueSuccess { color: var(--color-primary); }
@@ -27,4 +32,33 @@
   font-size: var(--text-sm);
   color: var(--color-text-muted);
   margin-top: var(--space-2);
+}
+
+/* Breakdown lines for 1M forecast */
+.breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--space-3);
+}
+.rowLabel {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+.rowValue {
+  font-size: var(--text-sm);
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
+}
+.rowValuePos { color: var(--color-success); }
+.rowValueNeg { color: var(--color-danger); }
+.divider {
+  height: 1px;
+  background: var(--color-border);
+  margin: var(--space-3) 0;
 }

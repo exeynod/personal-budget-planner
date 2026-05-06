@@ -20,6 +20,6 @@ export async function getTopCategories(range: AnalyticsRange): Promise<TopCatego
   return apiFetch<TopCategoriesResponse>(`/analytics/top-categories?range=${range}`);
 }
 
-export async function getForecast(): Promise<ForecastResponse> {
-  return apiFetch<ForecastResponse>('/analytics/forecast');
+export async function getForecast(range: AnalyticsRange = '1M'): Promise<ForecastResponse> {
+  return apiFetch<ForecastResponse>(`/analytics/forecast?range=${range}`);
 }

@@ -5,6 +5,7 @@ import {
   getTopCategories,
   getForecast,
 } from '../api/analytics';
+import { ApiError } from '../api/client';
 import type { AnalyticsRange } from '../api/analytics';
 import type {
   TrendResponse,
@@ -12,6 +13,11 @@ import type {
   TopCategoriesResponse,
   ForecastResponse,
 } from '../api/types';
+
+/** 4xx — не реальная ошибка, а отсутствие данных (auth не настроен / период пуст). */
+function isClientError(e: unknown): boolean {
+  return e instanceof ApiError && e.status >= 400 && e.status < 500;
+}
 
 export interface UseAnalyticsResult {
   trend: TrendResponse | null;
@@ -39,14 +45,21 @@ export function useAnalytics(range: AnalyticsRange): UseAnalyticsResult {
         getAnalyticsTrend(range),
         getTopOverspend(range),
         getTopCategories(range),
-        getForecast(),
+        getForecast(range),
       ]);
       setTrend(t);
       setTopOverspend(o);
       setTopCategories(c);
       setForecast(f);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      if (isClientError(e)) {
+        setTrend(null);
+        setTopOverspend(null);
+        setTopCategories(null);
+        setForecast(null);
+      } else {
+        setError(e instanceof Error ? e.message : String(e));
+      }
     } finally {
       setLoading(false);
     }
@@ -60,7 +73,7 @@ export function useAnalytics(range: AnalyticsRange): UseAnalyticsResult {
       getAnalyticsTrend(range),
       getTopOverspend(range),
       getTopCategories(range),
-      getForecast(),
+      getForecast(range),
     ])
       .then(([t, o, c, f]) => {
         if (!cancelled) {
@@ -71,7 +84,15 @@ export function useAnalytics(range: AnalyticsRange): UseAnalyticsResult {
         }
       })
       .catch((e: unknown) => {
-        if (!cancelled) setError(e instanceof Error ? e.message : String(e));
+        if (cancelled) return;
+        if (isClientError(e)) {
+          setTrend(null);
+          setTopOverspend(null);
+          setTopCategories(null);
+          setForecast(null);
+        } else {
+          setError(e instanceof Error ? e.message : String(e));
+        }
       })
       .finally(() => {
         if (!cancelled) setLoading(false);

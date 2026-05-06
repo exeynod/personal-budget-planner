@@ -9,9 +9,12 @@ export interface DashboardCategoryRowProps {
 
 export function DashboardCategoryRow({ row, onClick }: DashboardCategoryRowProps) {
   const hasPlanned = row.planned_cents > 0;
+  const hasActual = row.actual_cents > 0;
+  // Unplanned: факт есть, плана нет → 100% перерасход (категория не была в плане).
+  const isUnplanned = !hasPlanned && hasActual;
   const pct = hasPlanned ? row.actual_cents / row.planned_cents : 0;
   const isWarn = hasPlanned && pct >= 0.8 && pct <= 1.0;
-  const isOverspend = hasPlanned && pct > 1.0;
+  const isOverspend = (hasPlanned && pct > 1.0) || isUnplanned;
 
   const rowCls = [
     styles.row,
@@ -28,9 +31,11 @@ export function DashboardCategoryRow({ row, onClick }: DashboardCategoryRowProps
 
   const fillWidth = hasPlanned
     ? `${Math.min(pct * 100, 100)}%`
-    : '0%';
+    : isUnplanned ? '100%' : '0%';
 
-  const overspendPct = isOverspend ? `${Math.round(pct * 100)}%` : null;
+  const overspendBadge = isUnplanned
+    ? 'Без плана'
+    : (hasPlanned && pct > 1.0) ? `${Math.round(pct * 100)}%` : null;
 
   const content = (
     <>
@@ -45,10 +50,10 @@ export function DashboardCategoryRow({ row, onClick }: DashboardCategoryRowProps
             </>
           )}
           <span className={styles.currency}> ₽</span>
-          {overspendPct && <span className={styles.badge}>{overspendPct}</span>}
+          {overspendBadge && <span className={styles.badge}>{overspendBadge}</span>}
         </span>
       </div>
-      {hasPlanned && (
+      {(hasPlanned || isUnplanned) && (
         <div className={styles.bar} aria-hidden>
           <div className={barFillCls} style={{ width: fillWidth }} />
         </div>

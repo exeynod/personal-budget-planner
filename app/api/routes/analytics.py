@@ -58,7 +58,8 @@ async def get_top_categories(
 
 @router.get("/forecast", response_model=ForecastResponse)
 async def get_forecast(
+    range: AnalyticsRange = Query(default="1M"),
     db: AsyncSession = Depends(get_db),
 ) -> ForecastResponse:
-    data = await analytics_service.get_forecast(db)
+    data = await analytics_service.get_forecast(db, range_=range)
     return ForecastResponse(**data)

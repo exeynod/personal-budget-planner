@@ -1,15 +1,19 @@
 import { useState } from 'react';
-import { ChartLine } from '@phosphor-icons/react';
 import { PageTitle } from '../components/PageTitle';
 import { ForecastCard } from '../components/ForecastCard';
 import { TopOverspendList } from '../components/TopOverspendList';
 import { LineChart } from '../components/LineChart';
 import { HorizontalBars } from '../components/HorizontalBars';
+import { InfoNote } from '../components/InfoNote';
 import { useAnalytics } from '../hooks/useAnalytics';
 import type { AnalyticsRange } from '../api/analytics';
 import styles from './AnalyticsScreen.module.css';
 
 const RANGES: AnalyticsRange[] = ['1M', '3M', '6M', '12M'];
+
+function CardPlaceholder({ children }: { children: React.ReactNode }) {
+  return <div className={styles.placeholder}>{children}</div>;
+}
 
 export function AnalyticsScreen() {
   const [range, setRange] = useState<AnalyticsRange>('1M');
@@ -18,15 +22,11 @@ export function AnalyticsScreen() {
   const hasTrend = (trend?.points.length ?? 0) > 1;
   const hasOverspend = (topOverspend?.items.length ?? 0) > 0;
   const hasTopCat = (topCategories?.items.length ?? 0) > 0;
-  const hasForecast = forecast !== null && !forecast.insufficient_data;
-  const hasInsufficient = forecast?.insufficient_data === true;
-  const allEmpty = !loading && !error && !hasTrend && !hasOverspend && !hasTopCat && !hasForecast && !hasInsufficient;
 
   return (
     <div className={styles.root}>
       <PageTitle title="Аналитика" />
 
-      {/* Period chips */}
       <div className={styles.chips}>
         {RANGES.map((r) => (
           <button
@@ -41,7 +41,6 @@ export function AnalyticsScreen() {
         ))}
       </div>
 
-      {/* Loading skeletons */}
       {loading && (
         <div className={styles.skeletons}>
           <div className={`${styles.skeleton} ${styles.skeletonCard}`} />
@@ -51,58 +50,129 @@ export function AnalyticsScreen() {
         </div>
       )}
 
-      {/* Error state */}
       {error && !loading && (
         <div className={styles.error}>
           Не удалось загрузить данные. Попробуй ещё раз.
         </div>
       )}
 
-      {/* Content blocks */}
       {!loading && !error && (
         <>
-          {/* Forecast */}
-          {forecast && (
-            <div className={styles.section}>
-              <div className={styles.sectionTitle}>Прогноз</div>
+          <div className={styles.section}>
+            <div className={styles.sectionTitle}>
+              <span>{range === '1M' ? 'Прогноз' : 'Cashflow'}</span>
+              <InfoNote>
+                {range === '1M' ? (
+                  <>
+                    <p>
+                      Прогноз баланса на конец активного периода по плану:
+                    </p>
+                    <p>
+                      <code>
+                        накопления + план&nbsp;доходов − план&nbsp;расходов
+                      </code>
+                    </p>
+                    <p>
+                      Накопления — стартовый баланс периода (переносится с предыдущего
+                      при закрытии). Факт-транзакции в формуле не участвуют —
+                      это намеренно: показываем «куда придём, если выполним план».
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p>
+                      Чистый поток (cashflow) по N последним закрытым периодам.
+                      Активный период не учитывается, потому что он ещё не закрыт.
+                    </p>
+                    <p>
+                      <code>
+                        net = Σ(доходы&nbsp;факт − расходы&nbsp;факт) по N&nbsp;периодам
+                      </code>
+                    </p>
+                    <p>
+                      Среднее = <code>net / N</code>. Если закрытых периодов меньше N —
+                      считаем по тем, что есть.
+                    </p>
+                  </>
+                )}
+              </InfoNote>
+            </div>
+            {forecast && forecast.mode !== 'empty' ? (
               <ForecastCard forecast={forecast} />
-            </div>
-          )}
+            ) : (
+              <CardPlaceholder>
+                {range === '1M'
+                  ? 'Прогноз появится после старта периода и заполнения плана.'
+                  : `Нет закрытых периодов за выбранный диапазон.`}
+              </CardPlaceholder>
+            )}
+          </div>
 
-          {/* Top overspend */}
-          {hasOverspend && (
-            <div className={styles.section}>
-              <div className={styles.sectionTitle}>Топ перерасходов</div>
+          <div className={styles.section}>
+            <div className={styles.sectionTitle}>
+              <span>Топ перерасходов</span>
+              <InfoNote>
+                <p>
+                  Топ-5 категорий по доле перерасхода:
+                  {' '}<code>факт ÷ план × 100%</code>.
+                </p>
+                <p>
+                  Учитываются только категории, где есть и план, и факт за выбранный
+                  диапазон, и план&nbsp;&gt;&nbsp;0.
+                </p>
+              </InfoNote>
+            </div>
+            {hasOverspend ? (
               <TopOverspendList items={topOverspend!.items} />
-            </div>
-          )}
+            ) : (
+              <CardPlaceholder>Перерасходов нет — план соблюдается.</CardPlaceholder>
+            )}
+          </div>
 
-          {/* Trend line chart */}
-          {hasTrend && (
-            <div className={styles.section}>
-              <div className={styles.sectionTitle}>Тренд расходов</div>
+          <div className={styles.section}>
+            <div className={styles.sectionTitle}>
+              <span>Тренд расходов</span>
+              <InfoNote>
+                {range === '1M' ? (
+                  <p>
+                    Сумма расходов и доходов по дням активного периода. Дни без
+                    транзакций заполняются нулями — кривая всегда непрерывна.
+                  </p>
+                ) : (
+                  <p>
+                    Сумма расходов и доходов за каждый из последних N периодов
+                    (включая активный, если он есть).
+                  </p>
+                )}
+              </InfoNote>
+            </div>
+            {hasTrend ? (
               <LineChart points={trend!.points} />
-            </div>
-          )}
+            ) : (
+              <CardPlaceholder>
+                {range === '1M'
+                  ? 'Тренд появится со второго дня периода.'
+                  : 'Тренд по месяцам появится после второго периода.'}
+              </CardPlaceholder>
+            )}
+          </div>
 
-          {/* Top categories */}
-          {hasTopCat && (
-            <div className={styles.section}>
-              <div className={styles.sectionTitle}>Топ категорий</div>
+          <div className={styles.section}>
+            <div className={styles.sectionTitle}>
+              <span>Топ категорий</span>
+              <InfoNote>
+                <p>
+                  Топ-5 категорий по сумме расходов факт за выбранный диапазон.
+                  Сортировка по&nbsp;убыванию.
+                </p>
+              </InfoNote>
+            </div>
+            {hasTopCat ? (
               <HorizontalBars items={topCategories!.items} />
-            </div>
-          )}
-
-          {/* Global empty state */}
-          {allEmpty && (
-            <div className={styles.emptyState}>
-              <ChartLine size={48} weight="thin" color="var(--color-text-muted)" />
-              <div className={styles.emptyHeading}>Нет данных за период</div>
-              <div className={styles.emptyBody}>
-                Добавь транзакции, чтобы увидеть аналитику
-              </div>
-            </div>
-          )}
+            ) : (
+              <CardPlaceholder>Нет расходов за выбранный период.</CardPlaceholder>
+            )}
+          </div>
         </>
       )}
     </div>
