@@ -26,7 +26,15 @@ if TYPE_CHECKING:
     pass
 
 EMBEDDING_DIM = 1536
-SUGGEST_THRESHOLD = 0.5
+# Cosine-similarity floor below which we don't surface a suggestion.
+# Calibrated empirically against text-embedding-3-small on Russian
+# single-word descriptions ("Хоккей"→Спорт=0.38, "такси"→Транспорт=0.37,
+# "лекарство"→Здоровье=0.35) — picked at 0.35 so common short probes
+# pass while pure gibberish ("qwertyuiop"=0.18, "asdfgh"=0.20) is
+# still rejected. Originally 0.5 in Phase 10 (too strict, killed
+# real suggestions). Tune downward only if we add synonym-augmented
+# embeddings to lift relevant short-text scores.
+SUGGEST_THRESHOLD = 0.35
 
 _EMBED_CACHE_MAXSIZE = 128
 
