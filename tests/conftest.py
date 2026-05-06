@@ -37,6 +37,37 @@ os.environ.setdefault("PUBLIC_DOMAIN", "localhost")
 os.environ.setdefault("OPENAI_API_KEY", "sk-test-fake-key-for-pytest-only")
 
 
+@pytest_asyncio.fixture(autouse=True)
+async def _dispose_global_engine():
+    """Dispose global async_engine after each test to prevent cross-event-loop issues.
+
+    Phase 12-04: tests that use bot_resolve_user_role (via app/bot/auth.py) interact
+    with the module-level async_engine in app/db/session.py. With pytest-asyncio's
+    per-function event loops (asyncio_mode="auto"), the global engine holds asyncpg
+    connections tied to the PREVIOUS test's event loop. Calling the engine on a new
+    loop causes asyncpg.exceptions.InterfaceError "cannot perform operation: another
+    operation is in progress".
+
+    Disposing the engine after each test forces a clean connection pool for the next
+    test's event loop. This is a no-op when the engine has not been imported yet
+    (tests that don't use app.db.session at all are unaffected).
+
+    Per SQLAlchemy docs: dispose() does NOT prevent the engine from being used again;
+    it just closes all existing pool connections. New connections will be created on
+    demand (lazily) on the next use with the current event loop.
+    """
+    yield
+    try:
+        import sys
+
+        if "app.db.session" in sys.modules:
+            from app.db.session import async_engine
+
+            await async_engine.dispose()
+    except Exception:
+        pass  # Best-effort — do not fail tests due to cleanup error
+
+
 def pytest_collection_modifyitems(config, items):
     """Auto-skip auth-failure tests when DEV_MODE=true.
 
