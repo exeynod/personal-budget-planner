@@ -12,24 +12,36 @@
 # Source: 01-RESEARCH.md Open Question 2 recommendation.
 
 :80 {
+	log {
+		output stdout
+		format console
+		level DEBUG
+	}
 	encode zstd gzip
 
-	# T-internal mitigation must apply in dev too: the dev file should not
-	# accidentally re-expose internal endpoints when developers test
-	# locally via curl through Caddy.
-	handle /api/v1/internal/* {
+	@internal {
+		path /api/v1/internal/*
+	}
+	handle @internal {
 		respond "Forbidden" 403
 	}
 
-	# Reverse-proxy /api/* to the api container.
-	handle /api/* {
+	@api {
+		path /api/*
+	}
+	handle @api {
 		reverse_proxy api:8000
 	}
 
-	# SPA fallback (same as production).
 	handle {
 		root * /srv/dist
+		# Hashed assets are immutable — safe to cache for a year.
 		header /assets/* Cache-Control "public, max-age=31536000, immutable"
+		# index.html (and SPA fallback) MUST revalidate every load — otherwise
+		# the browser/TG WebView keeps a stale shell that points at deleted
+		# bundles after a redeploy.
+		header / Cache-Control "no-cache"
+		header /index.html Cache-Control "no-cache"
 		try_files {path} /index.html
 		file_server
 	}

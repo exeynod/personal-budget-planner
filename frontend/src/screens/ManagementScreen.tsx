@@ -37,7 +37,7 @@ export function ManagementScreen({ onNavigate }: ManagementScreenProps) {
               onClick={() => onNavigate(item.id)}
             >
               <span className={styles.iconWrap}>
-                <IconComp size={36} weight="thin" color="var(--color-primary)" />
+                <IconComp size={20} weight="regular" color="var(--color-primary)" />
               </span>
               <div className={styles.rowText}>
                 <div className={styles.rowLabel}>{item.label}</div>

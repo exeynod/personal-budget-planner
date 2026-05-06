@@ -22,14 +22,20 @@
 	# reaches these directly over the budget_net docker network at
 	# http://api:8000/... and presents X-Internal-Token (verified by the
 	# FastAPI verify_internal_token dependency).
-	handle /api/v1/internal/* {
+	@internal {
+		path /api/v1/internal/*
+	}
+	handle @internal {
 		respond "Forbidden" 403
 	}
 
 	# Reverse-proxy the rest of /api/* to FastAPI on the docker network.
 	# api container does NOT publish :8000 on the host — only Caddy can
 	# reach it (T-internal + T-db-exposure threat model).
-	handle /api/* {
+	@api {
+		path /api/*
+	}
+	handle @api {
 		reverse_proxy api:8000
 	}
 
@@ -37,7 +43,13 @@
 	# frontend_dist named volume mounted at /srv/dist (read-only).
 	handle {
 		root * /srv/dist
+		# Hashed assets are immutable — safe to cache for a year.
 		header /assets/* Cache-Control "public, max-age=31536000, immutable"
+		# index.html (and SPA fallback) MUST revalidate every load — otherwise
+		# the browser/TG WebView keeps a stale shell that points at deleted
+		# bundles after a redeploy.
+		header / Cache-Control "no-cache"
+		header /index.html Cache-Control "no-cache"
 		try_files {path} /index.html
 		file_server
 	}

@@ -15,12 +15,18 @@
 
 	# T-internal mitigation: 403 for internal endpoints. Must come first so
 	# /api/v1/internal/* never reaches the reverse-proxy below.
-	handle /api/v1/internal/* {
+	@internal {
+		path /api/v1/internal/*
+	}
+	handle @internal {
 		respond "Forbidden" 403
 	}
 
 	# Reverse-proxy the rest of /api/* to FastAPI on the docker network.
-	handle /api/* {
+	@api {
+		path /api/*
+	}
+	handle @api {
 		reverse_proxy api:8000
 	}
 
@@ -41,7 +47,13 @@
 			-Server
 		}
 		root * /srv/dist
+		# Hashed assets are immutable — safe to cache for a year.
 		header /assets/* Cache-Control "public, max-age=31536000, immutable"
+		# index.html (and SPA fallback) MUST revalidate every load — otherwise
+		# the browser/TG WebView keeps a stale shell that points at deleted
+		# bundles after a redeploy.
+		header / Cache-Control "no-cache"
+		header /index.html Cache-Control "no-cache"
 		try_files {path} /index.html
 		file_server
 	}
