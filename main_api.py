@@ -86,6 +86,9 @@ async def _init_missing_embeddings() -> None:
                         category_id=cat.id,
                         exc_info=True,
                     )
+            # AsyncSession async-with не auto-commit; без этого все upsert'ы
+            # откатываются и таблица category_embedding остаётся пустой.
+            await session.commit()
 
         logger.info(
             "ai.embeddings.startup",
@@ -111,6 +114,12 @@ async def lifespan(app: FastAPI):
         dev_mode=settings.DEV_MODE,
         domain=settings.PUBLIC_DOMAIN,
     )
+    # DEV-only synthetic seed (idempotent; runs BEFORE embedding init
+    # so freshly-seeded categories get vectors in the same boot).
+    if settings.DEV_MODE:
+        from app.dev_seed import seed_dev_data
+
+        await seed_dev_data(settings.OWNER_TG_ID)
     await _init_missing_embeddings()
     yield
     await async_engine.dispose()
