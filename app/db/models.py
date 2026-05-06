@@ -10,11 +10,13 @@ Tables (HLD §2):
 - app_user, category, budget_period, plan_template_item,
 - planned_transaction, actual_transaction, subscription
 - app_health (worker heartbeat per D-12)
+- category_embedding (Phase 10: AI Categorization — pgvector)
 """
 import enum
 from datetime import date, datetime
 from typing import Optional
 
+from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
     BigInteger,
     Boolean,
@@ -271,3 +273,27 @@ class AiMessage(Base):
     conversation: Mapped["AiConversation"] = relationship(back_populates="messages")
 
     __table_args__ = (Index("ix_ai_message_conversation", "conversation_id"),)
+
+
+# ---- Phase 10: AI Categorization ----
+
+
+class CategoryEmbedding(Base):
+    """Cached embedding для категории (text-embedding-3-small, 1536 dims).
+
+    Используется для cosine similarity suggest в GET /ai/suggest-category.
+    category_id — PK и FK на category (CASCADE delete).
+    embedding — vector(1536) от pgvector extension.
+    """
+
+    __tablename__ = "category_embedding"
+
+    category_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("category.id", ondelete="CASCADE"), primary_key=True
+    )
+    embedding: Mapped[list[float]] = mapped_column(Vector(1536), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    category: Mapped["Category"] = relationship()
