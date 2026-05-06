@@ -3,8 +3,10 @@
 5 bot commands: /add, /income, /balance, /today, /app.
 1 callback handler: cb_disambiguation for inline-keyboard category selection.
 
-OWNER-only enforcement: all handlers silently return (no message.answer) for
-non-OWNER users to avoid spam and information disclosure (T-04-30, T-04-37).
+OWNER-only enforcement (Phase 1 → Phase 12 refactored): all handlers
+silently return (no message.answer) for non-whitelisted users (role NOT
+IN (owner, member)) to avoid spam and information disclosure (T-04-30,
+T-04-37). Phase 12 introduced role-based check via bot_resolve_user_role.
 
 Disambiguation flow (D-47, D-48):
   /add → ambiguous response → inline keyboard with act:TOKEN:CATEGORY_ID buttons
@@ -36,9 +38,11 @@ from app.bot.api_client import (
     bot_get_balance,
     bot_get_today,
 )
+from app.bot.auth import bot_resolve_user_role
 from app.bot.disambiguation import PendingActual, pop_pending, store_pending
 from app.bot.parsers import parse_add_command
 from app.core.settings import settings
+from app.db.models import UserRole
 
 
 logger = structlog.get_logger(__name__)
@@ -79,10 +83,22 @@ def format_kopecks_with_sign(cents: int) -> str:
 # ---------------------------------------------------------------------------
 
 
-def _is_owner(message_or_callback: Message | CallbackQuery) -> bool:
-    """Return True if the sender is the configured OWNER_TG_ID."""
+async def _check_user_role_async(
+    message_or_callback: Message | CallbackQuery,
+    *,
+    allowed_roles: tuple[UserRole, ...] = (UserRole.owner, UserRole.member),
+) -> bool:
+    """Phase 12 role-based whitelist check (replaces _is_owner).
+
+    Single SELECT roundtrip (cached at FastAPI dep level not applicable
+    here — bot has no request-scope cache; one DB call per command is
+    negligible cost per T-12-04-05).
+    """
     user = getattr(message_or_callback, "from_user", None)
-    return user is not None and user.id == settings.OWNER_TG_ID
+    if user is None:
+        return False
+    role = await bot_resolve_user_role(user.id)
+    return role in allowed_roles
 
 
 def _build_disambiguation_kbd(token: str, candidates: list[dict]) -> InlineKeyboardMarkup:
@@ -230,8 +246,10 @@ async def _handle_add_or_income(
 ) -> None:
     """Common implementation for /add (kind=expense) and /income (kind=income)."""
     user = message.from_user
-    if not user or not _is_owner(message):
-        return  # silent — non-OWNER (T-04-30)
+    if not user:
+        return  # silent — service message
+    if not await _check_user_role_async(message):
+        return  # silent — non-whitelisted (T-04-30)
 
     parsed = parse_add_command(command.args)
     if parsed is None:
@@ -304,7 +322,7 @@ async def cmd_income(message: Message, command: CommandObject) -> None:
 async def cmd_balance(message: Message) -> None:
     """``/balance`` — сводка баланса текущего периода (D-60)."""
     user = message.from_user
-    if not user or not _is_owner(message):
+    if not user or not await _check_user_role_async(message):
         return
     try:
         result = await bot_get_balance(user.id)
@@ -321,7 +339,7 @@ async def cmd_balance(message: Message) -> None:
 async def cmd_today(message: Message) -> None:
     """``/today`` — список факт-трат за сегодня (D-61)."""
     user = message.from_user
-    if not user or not _is_owner(message):
+    if not user or not await _check_user_role_async(message):
         return
     try:
         result = await bot_get_today(user.id)
@@ -335,7 +353,7 @@ async def cmd_today(message: Message) -> None:
 @router.message(Command("app"))
 async def cmd_app(message: Message) -> None:
     """``/app`` — кнопка запуска Mini App (D-62)."""
-    if not _is_owner(message):
+    if not await _check_user_role_async(message):
         return
     await message.answer(
         "Откройте Mini App для управления бюджетом:",
@@ -355,7 +373,7 @@ async def cb_disambiguation(callback: CallbackQuery) -> None:
     callback_data format: ``act:TOKEN:CATEGORY_ID``.
     Pops pending state, re-calls internal API with explicit category_id.
     """
-    if not _is_owner(callback):
+    if not await _check_user_role_async(callback):
         await callback.answer()  # silent dismiss (T-04-37)
         return
 

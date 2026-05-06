@@ -4,10 +4,11 @@ Replaces the Phase 1 stub in ``main_bot.py``.
 
 Behaviour
 ---------
-- ``/start`` from non-OWNER → ``"Бот приватный"``. Defence-in-depth: Telegram
-  already only delivers messages from chats the OWNER opens, but we re-check
-  per HLD §5 and avoid making any internal API call for stranger users.
-- ``/start`` from OWNER:
+- ``/start`` from non-whitelisted (revoked/unknown role) → ``"Бот приватный"``.
+  Phase 12: role check via bot_resolve_user_role replaces OWNER_TG_ID-eq.
+  Defence-in-depth: Telegram delivers messages from chats the user opens,
+  we re-check role per HLD §5 + Phase 12 CONTEXT.
+- ``/start`` from owner or member:
     1. Calls internal ``/telegram/chat-bind`` to persist ``tg_chat_id``.
     2. Parses optional ``CommandObject.args`` (``/start onboard`` →
        specialised greeting).
@@ -30,7 +31,9 @@ from aiogram.types import (
 )
 
 from app.bot.api_client import InternalApiError, bind_chat_id
+from app.bot.auth import bot_resolve_user_role
 from app.core.settings import settings
+from app.db.models import UserRole
 
 
 logger = structlog.get_logger(__name__)
@@ -54,10 +57,16 @@ async def cmd_start(message: Message, command: CommandObject) -> None:
 
     user_id = message.from_user.id
 
-    # OWNER_TG_ID whitelist (HLD §5, AUTH-02 carry-over from Phase 1)
-    if user_id != settings.OWNER_TG_ID:
+    # Phase 12 ROLE-02/03: role-based check replaces OWNER_TG_ID-eq
+    role = await bot_resolve_user_role(user_id)
+    if role not in (UserRole.owner, UserRole.member):
+        # revoked, unknown, or DB unreachable → silent reject (carry-over UX)
         await message.answer("Бот приватный.")
-        logger.info("bot.start.rejected_non_owner", tg_user_id=user_id)
+        logger.info(
+            "bot.start.rejected",
+            tg_user_id=user_id,
+            role=role.value if role else None,
+        )
         return
 
     chat_id = message.chat.id
