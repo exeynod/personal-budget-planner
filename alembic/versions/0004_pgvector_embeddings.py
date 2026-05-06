@@ -1,6 +1,6 @@
 """add pgvector extension and category_embedding table
 
-Revision ID: 0004_pgvector_category_embeddings
+Revision ID: 0004_pgvector_embeddings
 Revises: 0003_ai_tables
 Create Date: 2026-05-06
 
@@ -18,7 +18,7 @@ from typing import Sequence, Union
 import sqlalchemy as sa
 from alembic import op
 
-revision: str = "0004_pgvector_category_embeddings"
+revision: str = "0004_pgvector_embeddings"
 down_revision: Union[str, None] = "0003_ai_tables"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
