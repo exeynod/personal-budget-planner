@@ -28,7 +28,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 7: Nav Refactor** — функциональный bottom nav (Главная / Транзакции / Аналитика / AI / Управление), объединение History+Plan под «Транзакциями» с под-табами, переименование More→Управление, placeholder-табы «Аналитика» и «AI» (completed 2026-05-05)
 - [x] **Phase 8: Analytics Screen** — экран Аналитики с трендом расходов по месяцам, топом перерасходов, топом категорий и прогнозом остатка; новые API endpoints `/api/v1/analytics/*` (completed 2026-05-05)
 - [x] **Phase 9: AI Assistant** — conversational AI с tool-use над данными бюджета (OpenAI gpt-4.1-nano), streaming SSE, prompt caching, persistence в БД, абстрактный provider-agnostic LLM-клиент
-- [ ] **Phase 10: AI Categorization** — AI-предложение категории в форме новой транзакции через embeddings (text-embedding-3-small + pgvector cosine similarity)
+- [x] **Phase 10: AI Categorization** — AI-предложение категории в форме новой транзакции через embeddings (text-embedding-3-small + pgvector cosine similarity) (completed 2026-05-06)
 
 ## Phase Details
 
@@ -235,7 +235,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 7. Nav Refactor | 6/6 | Complete   | 2026-05-05 |
 | 8. Analytics Screen | 5/5 | Complete   | 2026-05-05 |
 | 9. AI Assistant | 0/0 | Pending plan | - |
-| 10. AI Categorization | 0/0 | Pending plan | - |
+| 10. AI Categorization | 5/5 | Complete   | 2026-05-06 |
 
 ---
 *Roadmap created: 2026-05-01*
