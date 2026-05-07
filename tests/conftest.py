@@ -56,6 +56,29 @@ os.environ.setdefault("OPENAI_API_KEY", "sk-test-fake-key-for-pytest-only")
 
 
 @pytest_asyncio.fixture(autouse=True)
+async def _clear_rate_buckets():
+    """Clear in-process /ai/chat rate-limit buckets before each test (Phase 16).
+
+    `_rate_buckets` is a module-level `defaultdict(list)` keyed by app_user.id.
+    With TRUNCATE+RESTART IDENTITY between tests, user_id 1 in test A is the
+    same key as user_id 1 in test B — accumulated requests leak across tests
+    and trip the 10/min limiter spuriously (e.g. concurrent /ai/chat tests
+    receiving [429, 429] instead of [200, 429]). Same pattern as
+    _clear_spend_cache below.
+    """
+    try:
+        import sys
+
+        if "app.api.routes.ai" in sys.modules:
+            from app.api.routes.ai import _rate_buckets
+
+            _rate_buckets.clear()
+    except Exception:
+        pass  # Best-effort — module may not be loaded
+    yield
+
+
+@pytest_asyncio.fixture(autouse=True)
 async def _clear_spend_cache():
     """Clear in-process spend_cap TTLCache before each test (Phase 15).
 

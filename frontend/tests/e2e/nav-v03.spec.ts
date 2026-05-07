@@ -339,8 +339,9 @@ test('mgt-02: Клик Подписки открывает SubscriptionsScreen',
 
   // SubscriptionsScreen heading should appear
   await expect(page.locator('text=Подписки').first()).toBeVisible();
-  // Should show subscription items (Netflix, Spotify)
-  await expect(page.locator('text=Netflix')).toBeVisible({ timeout: 5000 });
+  // Should show subscription items (Netflix appears in both upcoming list
+  // and the subscription card — strict-mode resolves 2 hits, so pick first).
+  await expect(page.locator('text=Netflix').first()).toBeVisible({ timeout: 5000 });
 });
 
 // ============================================================

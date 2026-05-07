@@ -149,14 +149,21 @@ async def test_create_actual_reuses_existing_period(
 
 @pytest.mark.asyncio
 async def test_resolve_period_for_date_service():
-    """Unit test for _resolve_period_for_date logic using DB fixture."""
-    from app.services.actual import _check_future_date, FutureDateError
-    from datetime import date, timedelta
+    """Unit test for _resolve_period_for_date logic using DB fixture.
 
+    Use _today_in_app_tz() (Europe/Moscow) instead of date.today() — production
+    guard runs in MSK; tests in UTC containers can land on a different calendar
+    day during the MSK-late-evening window and trip false positives/negatives.
+    """
+    from app.services.actual import _check_future_date, FutureDateError
+    from app.services.periods import _today_in_app_tz
+    from datetime import timedelta
+
+    today = _today_in_app_tz()
     # Today is fine
-    _check_future_date(date.today())
-    _check_future_date(date.today() + timedelta(days=7))
+    _check_future_date(today)
+    _check_future_date(today + timedelta(days=7))
 
     # Beyond 7 days raises
     with pytest.raises(FutureDateError):
-        _check_future_date(date.today() + timedelta(days=8))
+        _check_future_date(today + timedelta(days=8))

@@ -246,7 +246,11 @@ async def test_create_actual_amount_zero_422(db_client, auth_headers, seed_categ
 async def test_create_actual_future_date_beyond_7_days_400(
     db_client, auth_headers, seed_categories, seed_period
 ):
-    future_date = date.today() + timedelta(days=8)
+    # Use Europe/Moscow today (server-side guard uses MSK); UTC date.today()
+    # in late-MSK-evening container slides into next day and falsifies the
+    # ">7 days" boundary by exactly 1 day.
+    from app.services.periods import _today_in_app_tz
+    future_date = _today_in_app_tz() + timedelta(days=8)
     response = await db_client.post(
         "/api/v1/actual",
         json={

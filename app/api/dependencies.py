@@ -90,7 +90,31 @@ async def get_current_user(
     # ---------- DEV_MODE: bypass HMAC, upsert OWNER row ----------
     # NOTE: OWNER_TG_ID is referenced from _dev_mode_resolve_owner (dev-only helper).
     # The production path below does NOT use OWNER_TG_ID — auth is role-based.
+    #
+    # DEV_MODE behaviour:
+    #   - No initData → bypass HMAC, return upserted OWNER (legacy convenience).
+    #   - initData present → try HMAC validation; if it succeeds and the user
+    #     exists in app_user with their declared role, return that user. This
+    #     lets integration tests sign initData for a specific tg_user_id
+    #     (member or owner) and exercise role-based gates like /admin/*
+    #     without disabling DEV_MODE wholesale. If HMAC fails or no row
+    #     exists, fall back to OWNER bypass — preserves the legacy
+    #     auth_headers fixture path that seeds nothing and relied on the
+    #     auto-OWNER convenience.
     if settings.DEV_MODE:
+        if not x_telegram_init_data:
+            return await _dev_mode_resolve_owner(db)
+        try:
+            tg_payload = validate_init_data(
+                x_telegram_init_data, settings.BOT_TOKEN
+            )
+            tg_user_id = tg_payload.get("id")
+            if isinstance(tg_user_id, int):
+                resolved = await _resolve_app_user(db, tg_user_id)
+                if resolved is not None and resolved.role != UserRole.revoked:
+                    return resolved
+        except ValueError:
+            pass  # Fall through to OWNER bypass.
         return await _dev_mode_resolve_owner(db)
 
     # ---------- Production path: HMAC + role-based whitelist ----------

@@ -21,7 +21,6 @@ describe('ChatMessage XSS escape (SEC-01)', () => {
   });
 
   it('does NOT register window.__xss when ChatMessage is mounted with adversarial payload', () => {
-    // @ts-expect-error — runtime sentinel cleared between tests.
     delete (window as any).__xss;
     render(<ChatMessage message={mkAssistant('**<img src=x onerror=window.__xss=1>**')} />);
     // jsdom does NOT auto-execute <img onerror> from innerHTML, but bold-tag must not contain <img>.
