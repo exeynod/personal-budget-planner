@@ -4,14 +4,14 @@ milestone: v0.4
 milestone_name: Multi-Tenant & Admin
 status: executing
 stopped_at: Completed 15-02-spend-service-PLAN.md
-last_updated: "2026-05-07T11:49:48.490Z"
+last_updated: "2026-05-07T11:53:33.463Z"
 last_activity: 2026-05-07
 progress:
   total_phases: 5
   completed_phases: 4
   total_plans: 36
-  completed_plans: 33
-  percent: 92
+  completed_plans: 34
+  percent: 94
 ---
 
 # Project State
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-05-06 after v0.3 milestone close)
 ## Current Position
 
 Phase: 15 (ai-cost-cap-per-user) — IN PROGRESS
-Plan: 4 of 7 complete
+Plan: 5 of 7 complete
 Status: Ready to execute
 Last activity: 2026-05-07
 
@@ -64,6 +64,7 @@ Progress: [######    ] 60% (milestone v0.4, 3/5 phases complete; Phase 11 + Phas
 | Phase 15-ai-cost-cap-per-user P01 | ~15m | 3 tasks | 5 files |
 | Phase 15 P02 | 12m | 2 tasks | 3 files |
 | Phase 15 P04 | 8m | 2 tasks | 3 files |
+| Phase 15-ai-cost-cap-per-user P05 | 8 | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -92,6 +93,7 @@ Recent decisions affecting v0.4 planning:
 - [Phase ?]: SET LOCAL app.current_user_id для RLS bypass в spend_cap — читаем только данные одного юзера, superuser избыточен
 - [Phase ?]: autouse fixture _clear_spend_cache в conftest.py — тесты с RESTART IDENTITY создают одинаковые PKs, кеш не должен протекать между тестами
 - [Phase ?]: 15-04: CapUpdate.ge=0 allows cap=0 (AI-off semantics); self-edit allowed via single admin endpoint; cache invalidated immediately after DB flush
+- [Phase ?]: spend+cap in one /me request
 
 ### Pending Todos
 
@@ -124,6 +126,6 @@ Items acknowledged and deferred at v0.3 milestone close on 2026-05-06:
 
 ## Session Continuity
 
-Last session: 2026-05-07T11:49:42.425Z
+Last session: 2026-05-07T11:53:33.453Z
 Stopped at: Completed 15-02-spend-service-PLAN.md
 Resume file: None
