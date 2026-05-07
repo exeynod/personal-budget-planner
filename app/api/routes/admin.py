@@ -27,6 +27,7 @@ from app.api.schemas.admin import (
     AdminAiUsageResponse,
     AdminUserCreateRequest,
     AdminUserResponse,
+    CapUpdate,
 )
 from app.db.models import AppUser
 from app.services import admin_ai_usage as ai_usage_svc
@@ -118,6 +119,48 @@ async def delete_admin_user(
         "audit.user_revoked uid=%s by_owner=%s purged_rows=%s",
         user_id, current_user.id, counts,
     )
+
+
+@admin_router.patch(
+    "/users/{user_id}/cap",
+    response_model=AdminUserResponse,
+)
+async def patch_admin_user_cap(
+    user_id: int,
+    payload: CapUpdate,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[AppUser, Depends(require_owner)],
+) -> AppUser:
+    """AICAP-04 + D-15-03: update spending_cap_cents для self или other user.
+
+    - require_owner: 403 для member.
+    - 404: unknown user_id.
+    - 422: spending_cap_cents < 0 (Pydantic Field bound).
+    - 200: returns updated AdminUserResponse snapshot.
+
+    Self-edit разрешён (id=current_user.id) — owner adjusts own cap. DRY:
+    нет separate /me/cap endpoint; admin endpoint обрабатывает both.
+
+    Side-effect: cache invalidation для user_id (Plan 15-02
+    invalidate_user_spend_cache); следующий enforce_spending_cap читает
+    новый лимит без 60s задержки.
+    """
+    try:
+        updated = await admin_svc.update_user_cap(
+            db,
+            user_id=user_id,
+            spending_cap_cents=payload.spending_cap_cents,
+        )
+    except admin_svc.UserNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="user_id not found",
+        ) from exc
+    logger.info(
+        "audit.cap_patched target_user=%s new_cap=%s by_owner=%s",
+        user_id, payload.spending_cap_cents, current_user.id,
+    )
+    return updated
 
 
 # ---------- AI Usage breakdown (AIUSE-01..03) ----------
