@@ -10,9 +10,10 @@
 
 ### Frontend Security
 
-- [ ] **SEC-01**: Markdown-парсер в `ChatMessage` экранирует HTML до подстановки в `dangerouslySetInnerHTML` — XSS-полезная нагрузка вида `**<img src=x onerror=...>**` не выполняет JS.
+- [x] **SEC-01**: Markdown-парсер в `ChatMessage` экранирует HTML до подстановки в `dangerouslySetInnerHTML` — XSS-полезная нагрузка вида `**<img src=x onerror=...>**` не выполняет JS.
   - **Acceptance:** Playwright-тест отправляет adversarial markdown через AI-чат, проверяет что `window.__xss` остаётся `undefined` и DOM не содержит `<img onerror>` атрибутов.
   - **File:** `frontend/src/components/ChatMessage.tsx`
+  - **Closed:** Plan 16-01 (2026-05-07) — `escapeHtml(&<>"')` helper вызывается перед regex-replace в `parseMarkdown`. Vitest 5/5 + Playwright 1/1 passed; RED→GREEN cycle подтверждён.
 
 ### Backend Security
 
@@ -50,15 +51,17 @@
 
 ### Database Hygiene
 
-- [ ] **DB-01**: `spend_cap.py` устанавливает `app.current_user_id` через тот же `set_tenant_scope` helper, что и `app/db/session.py` — никаких прямых `SET LOCAL` через f-string.
+- [x] **DB-01**: `spend_cap.py` устанавливает `app.current_user_id` через тот же `set_tenant_scope` helper, что и `app/db/session.py` — никаких прямых `SET LOCAL` через f-string.
   - **Acceptance:** code-grep `SET LOCAL app.current_user_id` в `app/services/spend_cap.py` возвращает 0 совпадений; функция использует `await set_tenant_scope(db, user_id)`.
   - **File:** `app/services/spend_cap.py`
+  - **Closed:** Plan 16-08 (2026-05-07) — заменён f-string на `await set_tenant_scope(db, user_id)`. Pytest 4/4 (grep gate, import guard, behavioral GUC, defense-in-depth) passed; 7 регрессионных tests без откатов.
 
 ### Code Quality
 
-- [ ] **CODE-01**: `parseRublesToKopecks` определён один раз в `frontend/src/utils/format.ts` — `ActualEditor` и `PlanItemEditor` импортируют его, без локальных дублей.
+- [x] **CODE-01**: `parseRublesToKopecks` определён один раз в `frontend/src/utils/format.ts` — `ActualEditor` и `PlanItemEditor` импортируют его, без локальных дублей.
   - **Acceptance:** vitest-тесты для парсера на edge-кейсы `"100,50"`, `"1 000.5"`, `"0.01"`, `"0.001"`. Playwright e2e — ввод одинаковых строк в обоих редакторах даёт одинаковые `amount_cents`. grep на дублирующее определение функции возвращает 0.
   - **Files:** `frontend/src/utils/format.ts`, `frontend/src/components/ActualEditor.tsx`, `frontend/src/components/PlanItemEditor.tsx`
+  - **Closed:** Plan 16-09 (2026-05-07) — canonical digit-walk parser в `format.ts` (`'0.001'` → null), 3 importers (ActualEditor + PlanItemEditor + PlanRow). Vitest 29 passed + Playwright 1 cross-editor parity passed; tsc clean.
 
 ## v2 Requirements
 
