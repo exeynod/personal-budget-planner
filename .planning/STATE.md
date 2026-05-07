@@ -4,14 +4,14 @@ milestone: v0.4
 milestone_name: Multi-Tenant & Admin
 status: executing
 stopped_at: Phase 13 complete — 13-VERIFICATION.md status=human_needed (live TG smoke deferred to milestone close, mirroring Phase 11 U-1 and Phase 12). 8/8 plans + 0 regressions; admin UI + endpoints + AI usage tracking shipped. alembic 0008 (spending_cap_cents stub + ai_usage_log + last_seen_at) applied.
-last_updated: "2026-05-07T10:27:42.262Z"
+last_updated: "2026-05-07T10:32:41.924Z"
 last_activity: 2026-05-07
 progress:
   total_phases: 5
   completed_phases: 3
   total_plans: 29
-  completed_plans: 27
-  percent: 93
+  completed_plans: 28
+  percent: 97
 ---
 
 # Project State
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-05-06 after v0.3 milestone close)
 ## Current Position
 
 Phase: 14 (multi-tenant-onboarding) — EXECUTING
-Plan: 3 of 7
+Plan: 4 of 7
 Status: Ready to execute
 Last activity: 2026-05-07
 
@@ -60,6 +60,7 @@ Progress: [######    ] 60% (milestone v0.4, 3/5 phases complete; Phase 11 + Phas
 
 *Updated after each plan completion*
 | Phase 14-multi-tenant-onboarding P05 | 15 | 2 tasks | 5 files |
+| Phase 14-multi-tenant-onboarding P06 | 10m | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -82,6 +83,7 @@ Recent decisions affecting v0.4 planning:
 - 11-06 (2026-05-06): Worker per-tenant pattern — outer session for active-users enumeration → per-user inner session with set_tenant_scope → scoped logic; advisory lock global per job (NOT per user). Internal-bot routes keep get_db (X-Internal-Token, no initData); service resolves user_id from tg_user_id INSIDE service then set_tenant_scope. AI conversation per-user (AiConversation row per app_user.id). AI tool dispatch strips user_id from LLM kwargs (defence: LLM cannot override). Settings bypass via direct AppUser column read (Plan 11-05 left settings.py with tg_user_id signature — direct PK read in my files is cleanest fix). Bug fix: ai/tools.py propose_actual/planned_transaction had NameError reference to deleted `category_hint` — replaced with `description or ""`.
 - 11-07 (2026-05-06): Integration verification flushed three production Rule-1 bugs: (1) alembic revision_id 0006_multitenancy_user_id_rls_role (34 chars) > version_num VARCHAR(32) → renamed to 0006_multitenancy; (2) set_tenant_scope used parameterised SET LOCAL (not allowed) → switched to SELECT set_config('app.current_user_id', :uid, true); (3) RLS policy cast '' to bigint when GUC unset → wrapped with NULLIF(..., '')::bigint. Test infra: dev/prod DB role 'budget' is SUPERUSER (bypasses RLS); _rls_test_role conftest fixture provisions NOSUPERUSER NOBYPASSRLS role used via SET LOCAL ROLE so RLS-enforcement tests verify policies actually fire. D-11-04-01 RESOLVED. D-11-07-01 (legacy fixture sweep, ~63 tests) + D-11-07-02 (move runtime off superuser) deferred to Phase 12 prerequisites.
 - [Phase ?]: Phase 14 plan 05
+- [Phase ?]: api image stale
 
 ### Pending Todos
 
@@ -114,6 +116,6 @@ Items acknowledged and deferred at v0.3 milestone close on 2026-05-06:
 
 ## Session Continuity
 
-Last session: 2026-05-07T10:27:42.259Z
+Last session: 2026-05-07T10:32:39.110Z
 Stopped at: Phase 13 complete — 13-VERIFICATION.md status=human_needed (live TG smoke deferred to milestone close, mirroring Phase 11 U-1 and Phase 12). 8/8 plans + 0 regressions; admin UI + endpoints + AI usage tracking shipped. alembic 0008 (spending_cap_cents stub + ai_usage_log + last_seen_at) applied.
 Resume file: None
