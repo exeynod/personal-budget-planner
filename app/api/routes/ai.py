@@ -253,10 +253,24 @@ async def _event_stream(
         assistant_content_parts: list[str] = []
         max_rounds = 5
 
+        # AI-03 (Plan 16-05): tool-loop guard. Hardcap total tool-fn
+        # executions per session at MAX_TOTAL_TOOL_CALLS (D-16-06). Counter
+        # is incremented AFTER args validation, BEFORE tool_fn() — so
+        # bad-args paths (Plan 16-04 tool_error branch) do not consume the
+        # budget. Repeat-detection compares signatures across the
+        # immediately-previous round only (frozenset of hashable kwargs).
+        # On break we yield a fallback assistant message + done event so
+        # the UI sees a graceful close instead of a stalled stream.
+        MAX_TOTAL_TOOL_CALLS = 8
+        tool_call_count = 0
+        prev_round_signatures: set[tuple[str, frozenset]] = set()
+        loop_aborted = False
+
         for _round in range(max_rounds):
             tool_calls_this_round: list[dict] = []
             text_this_round: list[str] = []
             errored = False
+            current_round_signatures: set[tuple[str, frozenset]] = set()
 
             async for event in client.chat(llm_messages, tools=TOOLS_SCHEMA):
                 etype = event.get("type", "")
@@ -404,6 +418,40 @@ async def _event_stream(
                     )
                     continue  # skip tool execution
 
+                # AI-03 guard (Plan 16-05): hardcap total tool calls +
+                # adjacent-round repeat detect. Runs AFTER successful args
+                # validation and BEFORE tool_fn() so the synthetic
+                # tool_error path above doesn't drain the budget.
+                try:
+                    sig_kwargs = frozenset(
+                        (k, v) for k, v in (parsed_kwargs or {}).items()
+                        if not isinstance(v, (list, dict, set))
+                    )
+                except TypeError:
+                    # Unhashable values (e.g. nested objects): skip dedup
+                    # for this signature but keep enforcing the hardcap.
+                    sig_kwargs = frozenset()
+                signature = (tool_name, sig_kwargs)
+
+                if signature in prev_round_signatures:
+                    logger.warning(
+                        "ai.tool_loop_repeat tool=%s args=%s round=%d",
+                        tool_name, sig_kwargs, _round,
+                    )
+                    loop_aborted = True
+                    break
+
+                if tool_call_count >= MAX_TOTAL_TOOL_CALLS:
+                    logger.warning(
+                        "ai.tool_loop_hardcap tool=%s count=%d cap=%d",
+                        tool_name, tool_call_count, MAX_TOTAL_TOOL_CALLS,
+                    )
+                    loop_aborted = True
+                    break
+
+                current_round_signatures.add(signature)
+                tool_call_count += 1
+
                 tool_fn = TOOL_FUNCTIONS.get(tool_name)
                 if tool_fn:
                     # parsed_kwargs already had user_id stripped above.
@@ -449,7 +497,33 @@ async def _event_stream(
                     }
                 )
 
+            # AI-03 (Plan 16-05): roll the per-round signature set forward
+            # so the next round can detect an immediately-adjacent repeat.
+            # If the inner loop broke via loop_aborted, exit the outer
+            # agent-loop too — fallback message is yielded below.
+            prev_round_signatures = current_round_signatures
+            if loop_aborted:
+                break
+
             yield f"data: {json.dumps({'type': 'tool_end', 'data': ''})}\n\n"
+
+        # AI-03 (Plan 16-05): graceful close if the loop guard tripped —
+        # yield user-friendly fallback assistant message + done event so
+        # the frontend reducer treats this as a normal completion (not an
+        # error / not a stalled stream).
+        if loop_aborted:
+            fallback = "Не удалось завершить, переформулируй запрос."
+            await conv_svc.append_message(
+                db, conv.id, user_id=user_id, role="assistant", content=fallback,
+            )
+            await db.flush()
+            yield (
+                "data: "
+                + json.dumps({"type": "token", "data": fallback}, ensure_ascii=False)
+                + "\n\n"
+            )
+            yield "data: " + json.dumps({"type": "done", "data": ""}) + "\n\n"
+            return
 
         # 5. Persist финального assistant-ответа.
         full_response = "".join(assistant_content_parts)
