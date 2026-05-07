@@ -213,6 +213,48 @@ async def require_onboarded(
     return current_user
 
 
+async def enforce_spending_cap(
+    current_user: Annotated[AppUser, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> None:
+    """Gate AI endpoints behind monthly spend cap (Phase 15 AICAP-02).
+
+    Per CONTEXT D-15-01: applied as router-level dependency on
+    /api/v1/ai/* (chat) and /api/v1/ai/suggest-category. Aggregates
+    monthly spend (cents) for current MSK month, compares to
+    current_user.spending_cap_cents. On `spend >= cap` raises
+    HTTPException(429) with structured detail and Retry-After.
+
+    cap=0 semantics: any spend (>=0) trivially exceeds 0; AI fully off.
+    Retry-After: seconds until next 1st 00:00 Europe/Moscow.
+
+    NB: this dependency intentionally does NOT replace get_current_user
+    or require_onboarded — chains are explicit at router level so each
+    role-and-onboarding constraint surfaces independently.
+
+    NOTE on db param: get_db (untenant-scoped) — we aggregate by user_id
+    explicitly without RLS scope; ai_usage_log query filtered WHERE user_id=X.
+    Plain get_db is cleaner than duplicating tenant scope setup here.
+    """
+    from app.services.spend_cap import (
+        get_user_spend_cents,
+        seconds_until_next_msk_month,
+    )
+
+    cap = int(current_user.spending_cap_cents or 0)
+    spend = await get_user_spend_cents(db, user_id=current_user.id)
+    if spend >= cap:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail={
+                "error": "spending_cap_exceeded",
+                "spent_cents": int(spend),
+                "cap_cents": int(cap),
+            },
+            headers={"Retry-After": str(seconds_until_next_msk_month())},
+        )
+
+
 async def get_db_with_tenant_scope(
     user_id: Annotated[int, Depends(get_current_user_id)],
 ) -> AsyncGenerator[AsyncSession, None]:
