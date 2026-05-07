@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v0.5
 milestone_name: Security & AI Hardening
-status: in_progress
-stopped_at: Completed 16-02-PLAN.md (SEC-02 SSE error sanitisation)
-last_updated: "2026-05-07T17:45:54.000Z"
-last_activity: 2026-05-07 — Plan 16-02 SEC-02 closed; 3/9 plans complete
+status: executing
+stopped_at: Completed Plan 16-06 (CON-01 atomic UPDATE-WHERE claim in complete_onboarding)
+last_updated: "2026-05-07T17:54:00Z"
+last_activity: 2026-05-07 — Plan 16-06 CON-01 closed (atomic UPDATE-WHERE + asyncio.Barrier race regression)
 progress:
   total_phases: 1
   completed_phases: 0
   total_plans: 9
-  completed_plans: 3
-  percent: 33
+  completed_plans: 6
+  percent: 67
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-05-07 — v0.5 milestone started)
 ## Current Position
 
 Phase: 16 of 16 (Security & AI Hardening)
-Plan: 16-02 complete (SEC-02 SSE sanitisation); next plans (16-01, 16-04, 16-05, 16-06, 16-07, 16-09) in flight via parallel agents
+Plan: 16-06 complete (CON-01 atomic onboarding claim); 16-01/02/03/06/08/09 closed; 16-04/05/07 in flight via parallel agents
 Status: In progress
-Last activity: 2026-05-07 — Plan 16-02 SEC-02 closed (humanize_provider_error + logger.exception + pytest regression)
+Last activity: 2026-05-07 — Plan 16-06 CON-01 closed (atomic UPDATE-WHERE + asyncio.Barrier race regression)
 
-Progress: [███░░░░░░░] 33%
+Progress: [██████░░░░] 67%
 
 ## Performance Metrics
 
@@ -72,6 +72,7 @@ Recent decisions affecting v0.5 planning:
 - v0.5 (2026-05-07): AI-03 — total tool-calls per session ≤ 8 + детект повтора одного tool с одинаковыми args в соседних раундах
 - 16-03 (2026-05-07): AI-01 закрыт через positive-check сразу после try/except парсинга amount_cents в propose_*_transaction (минимальный диф D-16-04, 4 строки кода). Edge-кейс 0.001 rub отвергается естественно через round() → 0 cents → fail. 17 pytest unit-тестов (parametrized + happy/edge), 0 регрессов.
 - 16-02 (2026-05-07): SEC-02 закрыт. Renamed `_humanize_provider_error` -> `humanize_provider_error` (public) для переиспользования между провайдером и `_event_stream`. Outer `except Exception` теперь yield `humanize_provider_error(exc)` + `logger.exception("ai.event_stream_failed user_id=%s", user_id)`. Defense-in-depth на inner SSE error-path: `str()` coercion + generic fallback. Pytest regression `tests/api/test_ai_chat_error_sanitize.py` (2 тест-кейса) проверяет sanitised payload + сохранённый traceback в логах.
+- 16-06 (2026-05-07): CON-01 закрыт. Atomic `UPDATE app_user SET onboarded_at=:now, cycle_start_day=:csd WHERE id=:id AND onboarded_at IS NULL RETURNING onboarded_at` per D-16-03 — заменяет SELECT-then-mutate в `complete_onboarding`. Loser видит claimed_row=None, refresh-ит user, raise AlreadyOnboardedError. Pytest regression `tests/test_onboarding_concurrent.py` (2 теста, asyncio.Barrier(2) для детерминистического race) — verified FAIL pre-fix (IntegrityError на uq_budget_period_user_id_period_start) → PASS post-fix через container rebuild. Race-test pattern переиспользуем для будущих CON-* фиксов.
 
 ### Pending Todos
 
@@ -103,6 +104,6 @@ Items acknowledged and deferred at v0.4 milestone close on 2026-05-07:
 
 ## Session Continuity
 
-Last session: 2026-05-07T17:45:54Z
-Stopped at: Completed Plan 16-02 (SEC-02 SSE error sanitisation)
+Last session: 2026-05-07T17:54:00Z
+Stopped at: Completed Plan 16-06 (CON-01 atomic UPDATE-WHERE claim in complete_onboarding)
 Resume file: None

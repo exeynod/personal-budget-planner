@@ -23,9 +23,10 @@
 
 ### Concurrency Safety
 
-- [ ] **CON-01**: `complete_onboarding` атомарно — два параллельных submit'а одного `tg_user_id` дают ровно один success, второй `AlreadyOnboardedError`, нет потерянного user-state.
+- [x] **CON-01**: `complete_onboarding` атомарно — два параллельных submit'а одного `tg_user_id` дают ровно один success, второй `AlreadyOnboardedError`, нет потерянного user-state.
   - **Acceptance:** pytest с `asyncio.gather(complete_onboarding(...), complete_onboarding(...))` для одного пользователя.
   - **File:** `app/services/onboarding.py:complete_onboarding`
+  - **Closed:** Plan 16-06 (2026-05-07) — atomic `UPDATE app_user … WHERE id=:id AND onboarded_at IS NULL RETURNING onboarded_at` per D-16-03 + pytest regression `tests/test_onboarding_concurrent.py` (2 cases, asyncio.Barrier(2)).
 
 - [ ] **CON-02**: `enforce_spending_cap` работает атомарно с записью usage-лога — два параллельных `/ai/chat` при cap-1¢ → ровно один проходит, второй блокируется.
   - **Acceptance:** pytest async, два запроса параллельно, проверка количества записей в `ai_usage_log` и итогового spend.
@@ -81,7 +82,7 @@
 |-------------|-------|--------|
 | SEC-01  | Phase 16 | Pending |
 | SEC-02  | Phase 16 | Complete |
-| CON-01  | Phase 16 | Pending |
+| CON-01  | Phase 16 | Complete |
 | CON-02  | Phase 16 | Pending |
 | AI-01   | Phase 16 | Complete |
 | AI-02   | Phase 16 | Pending |
