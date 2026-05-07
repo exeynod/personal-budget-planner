@@ -32,6 +32,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from sqlalchemy import select
+from sqlalchemy import text as sql_text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.settings import settings
@@ -100,7 +101,7 @@ async def complete_onboarding(
         OnboardingUserNotFoundError: when no AppUser exists for tg_user_id
             (caller must trigger ``GET /me`` first per Phase 1 D-11).
     """
-    # 1. Locate user (resolve PK for downstream tenant-scoped calls).
+    # 1. Locate user — needed for OnboardingUserNotFoundError + PK resolution.
     result = await db.execute(
         select(AppUser).where(AppUser.tg_user_id == tg_user_id)
     )
@@ -108,13 +109,42 @@ async def complete_onboarding(
     if user is None:
         raise OnboardingUserNotFoundError(tg_user_id)
 
-    # D-10: idempotency / repeat-protection
-    if user.onboarded_at is not None:
-        raise AlreadyOnboardedError(tg_user_id, user.onboarded_at)
-
     # Phase 11: resolve PK once and forward to per-tenant service calls so
     # newly-created Category / BudgetPeriod rows get the correct user_id.
     user_pk: int = user.id
+
+    # CON-01 (D-16-03): atomic claim. UPDATE-with-WHERE returns the row only
+    # if NOT yet onboarded. Two concurrent racers: exactly one will see
+    # `claimed_row`, the other will see None and re-read user.onboarded_at to
+    # surface a proper AlreadyOnboardedError with the winner's timestamp.
+    #
+    # Rationale: the previous SELECT-then-UPDATE flow had a race window between
+    # the `if user.onboarded_at is not None` check and the assignment 40 lines
+    # later — both racers could pass the gate, both would attempt
+    # create_first_period, and one would crash on
+    # UniqueConstraint(user_id, period_start) with a 500 instead of a clean
+    # 409 AlreadyOnboardedError. Claim done first → loser short-circuits before
+    # any side-effects.
+    now_utc = datetime.now(timezone.utc)
+    claim = await db.execute(
+        sql_text(
+            "UPDATE app_user "
+            "SET onboarded_at = :now, cycle_start_day = :csd "
+            "WHERE id = :id AND onboarded_at IS NULL "
+            "RETURNING onboarded_at"
+        ),
+        {"now": now_utc, "csd": cycle_start_day, "id": user_pk},
+    )
+    claimed_row = claim.first()
+    if claimed_row is None:
+        # Lost the race OR was already onboarded. Refresh and raise.
+        await db.refresh(user, attribute_names=["onboarded_at"])
+        raise AlreadyOnboardedError(tg_user_id, user.onboarded_at)
+
+    # Reflect claim onto the in-memory user object so downstream returns
+    # can read consistent values without an extra SELECT.
+    user.cycle_start_day = cycle_start_day
+    user.onboarded_at = claimed_row.onboarded_at
 
     # Bug fix 2026-05-07: route uses get_db (not tenant-scoped) because
     # /onboarding/complete is invoked before the user is fully onboarded.
@@ -138,9 +168,6 @@ async def complete_onboarding(
         cycle_start_day=cycle_start_day,
     )
 
-    # 4. Update user
-    user.cycle_start_day = cycle_start_day
-    user.onboarded_at = datetime.now(timezone.utc)
     await db.flush()
 
     # 5. Phase 14 MTONB-03: backfill embeddings for the 14 seed categories so

@@ -44,11 +44,16 @@ def _estimate_cost_usd(model: str, usage: dict) -> float:
     ) / 1_000_000
 
 
-def _humanize_provider_error(exc: Exception) -> str:
-    """Преобразовать исключение OpenAI SDK в безопасное user-facing сообщение.
+def humanize_provider_error(exc: Exception) -> str:
+    """Преобразовать исключение в безопасное user-facing сообщение.
 
-    Никогда не возвращаем str(exc) наружу — могут протечь raw API ключи,
-    URL-ы и метаданные провайдера.
+    SEC-02 (Plan 16-02): public helper, переиспользуется не только провайдером
+    OpenAI, но и outer SSE-handler в `app/api/routes/ai.py:_event_stream` —
+    чтобы любой `Exception` отдавал пользователю generic-text без утечки
+    `str(exc)` (имена классов, file paths, SQL фрагменты, raw API keys).
+
+    Полный traceback должен идти отдельно через `logger.exception(...)`
+    — sanitization применяется только к user-visible payload.
     """
     status = getattr(exc, "status_code", None)
     raw = str(exc).lower()
@@ -163,7 +168,7 @@ class OpenAIProvider(AbstractLLMClient):
 
         except Exception as exc:  # pragma: no cover
             logger.exception("OpenAI provider error during streaming")
-            yield {"type": "error", "data": _humanize_provider_error(exc)}
+            yield {"type": "error", "data": humanize_provider_error(exc)}
 
     async def embed(self, text: str) -> list[float]:
         """Генерирует embedding через OpenAI Embeddings API (text-embedding-3-small).

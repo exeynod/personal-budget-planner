@@ -29,6 +29,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.ai.llm_client import get_llm_client
+from app.ai.providers.openai_provider import humanize_provider_error
 from app.ai.system_prompt import build_messages
 from app.ai.tools import TOOL_FUNCTIONS, TOOLS_SCHEMA
 from app.api.dependencies import (
@@ -277,7 +278,15 @@ async def _event_stream(
                 elif etype == "done":
                     break
                 elif etype == "error":
-                    yield f"data: {json.dumps({'type': 'error', 'data': event['data']})}\n\n"
+                    # SEC-02 (Plan 16-02): event['data'] from openai_provider
+                    # already passed through humanize_provider_error. Defense-
+                    # in-depth: still treat as untrusted text — coerce to str
+                    # and fall back to generic constant if missing/empty so a
+                    # provider regression cannot leak raw exception text here.
+                    safe_data = str(event.get("data") or "").strip() or (
+                        "Не удалось получить ответ от AI. Попробуй позже."
+                    )
+                    yield f"data: {json.dumps({'type': 'error', 'data': safe_data})}\n\n"
                     errored = True
                     break
 
@@ -379,7 +388,14 @@ async def _event_stream(
         yield f"data: {json.dumps({'type': 'done', 'data': ''})}\n\n"
 
     except Exception as exc:
-        yield f"data: {json.dumps({'type': 'error', 'data': str(exc)})}\n\n"
+        # SEC-02 (Plan 16-02): NEVER leak str(exc) to the SSE client — class
+        # names, file paths, SQL fragments and raw API keys can show up in
+        # exception text and were rendered into ChatMessage via
+        # dangerouslySetInnerHTML (compounding SEC-01 XSS surface).
+        # Full traceback is captured by logger.exception for ops/debug only.
+        logger.exception("ai.event_stream_failed user_id=%s", user_id)
+        safe_msg = humanize_provider_error(exc)
+        yield f"data: {json.dumps({'type': 'error', 'data': safe_msg})}\n\n"
 
 
 @router.post("/chat")
