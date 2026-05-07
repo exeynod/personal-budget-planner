@@ -28,9 +28,12 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from pydantic import ValidationError
+
 from app.ai.llm_client import get_llm_client
 from app.ai.providers.openai_provider import humanize_provider_error
 from app.ai.system_prompt import build_messages
+from app.ai.tool_args import TOOL_ARGS_MODELS, humanize_tool_args_error
 from app.ai.tools import TOOL_FUNCTIONS, TOOLS_SCHEMA
 from app.api.dependencies import (
     enforce_spending_cap,        # Plan 15-03 AICAP-02
@@ -322,19 +325,89 @@ async def _event_stream(
             for tc in tool_calls_this_round:
                 tool_name = tc.get("name", "")
                 raw_args = tc.get("arguments", "{}") or "{}"
+
+                # AI-02 (Plan 16-04): strict tool-args validation via Pydantic.
+                # Bad JSON or wrong types → SSE tool_error event +
+                # logger.warning("ai.tool_args_invalid"). No more silent
+                # empty-dict fallback (which let TypeError bubble up later).
+                args_model_cls = TOOL_ARGS_MODELS.get(tool_name)
+                parsed_kwargs: dict | None = None
+                args_error: Exception | None = None
                 try:
-                    kwargs = json.loads(raw_args)
-                except json.JSONDecodeError:
-                    kwargs = {}
+                    raw_kwargs = json.loads(raw_args)
+                    if not isinstance(raw_kwargs, dict):
+                        raise ValueError(
+                            f"tool args must be a JSON object, got "
+                            f"{type(raw_kwargs).__name__}"
+                        )
+                    if args_model_cls is None:
+                        # Unknown tool — fall through to "tool not found"
+                        # branch below; preserve raw kwargs.
+                        parsed_kwargs = raw_kwargs
+                    else:
+                        # Phase 11: never let LLM override user_id scope.
+                        raw_kwargs.pop("user_id", None)
+                        model = args_model_cls.model_validate(raw_kwargs)
+                        parsed_kwargs = model.model_dump(exclude_none=True)
+                except (json.JSONDecodeError, ValidationError, ValueError) as exc:
+                    args_error = exc
+
+                if args_error is not None:
+                    # T-16-04-02: log structured err details (Pydantic
+                    # ``.errors()`` for ValidationError, str() otherwise).
+                    # Truncate raw args to 200 chars to bound any LLM-
+                    # controllable PII in audit log.
+                    logger.warning(
+                        "ai.tool_args_invalid tool=%s err_type=%s err=%s raw_args=%.200s",
+                        tool_name,
+                        type(args_error).__name__,
+                        args_error,
+                        raw_args,
+                    )
+                    human_msg = humanize_tool_args_error(tool_name, args_error)
+                    yield (
+                        "data: "
+                        + json.dumps(
+                            {
+                                "type": "tool_error",
+                                "data": {
+                                    "tool": tool_name,
+                                    "message": human_msg,
+                                },
+                            },
+                            ensure_ascii=False,
+                        )
+                        + "\n\n"
+                    )
+                    # Feed a synthetic tool result back to the LLM so it can
+                    # recover gracefully (or finish with a user-friendly
+                    # text). Preserves the OpenAI message-pair invariant
+                    # (assistant.tool_calls must be followed by tool messages
+                    # with matching tool_call_id, otherwise the next turn
+                    # 400-errors).
+                    synth_result = {"error": human_msg}
+                    synth_result_str = json.dumps(synth_result, ensure_ascii=False)
+                    await conv_svc.append_message(
+                        db,
+                        conv.id,
+                        user_id=user_id,
+                        role="tool",
+                        tool_name=tool_name,
+                        tool_result=synth_result_str,
+                    )
+                    llm_messages.append(
+                        {
+                            "role": "tool",
+                            "tool_call_id": tc.get("id", ""),
+                            "content": synth_result_str,
+                        }
+                    )
+                    continue  # skip tool execution
 
                 tool_fn = TOOL_FUNCTIONS.get(tool_name)
                 if tool_fn:
-                    # Phase 11: tool принимает user_id для tenant scoping.
-                    # Защита: kwargs из LLM может содержать user_id (LLM
-                    # не должна его выбирать, но schema это и не предлагает) —
-                    # stripping предотвращает override через TypeError.
-                    kwargs.pop("user_id", None)
-                    tool_result = await tool_fn(db, user_id=user_id, **kwargs)
+                    # parsed_kwargs already had user_id stripped above.
+                    tool_result = await tool_fn(db, user_id=user_id, **parsed_kwargs)
                 else:
                     tool_result = {"error": f"Неизвестный инструмент: {tool_name}"}
 
