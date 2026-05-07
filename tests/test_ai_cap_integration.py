@@ -110,7 +110,7 @@ async def test_chat_blocked_when_at_cap_returns_429(
     init_data = make_init_data(owner_tg_id, bot_token)
     resp = await client.post(
         "/api/v1/ai/chat",
-        json={"messages": [{"role": "user", "content": "hello"}]},
+        json={"message": "hello"},
         headers={"X-Telegram-Init-Data": init_data},
     )
     # RED: currently 200 or 422 because enforce_spending_cap dep not yet wired
@@ -162,7 +162,7 @@ async def test_chat_unblocked_after_admin_patches_cap_higher(
     # Step 1: expect 429
     resp1 = await client.post(
         "/api/v1/ai/chat",
-        json={"messages": [{"role": "user", "content": "hello"}]},
+        json={"message": "hello"},
         headers={"X-Telegram-Init-Data": init_data},
     )
     assert resp1.status_code == 429, (
@@ -271,7 +271,7 @@ async def test_cap_zero_blocks_chat_and_suggest(
     # /ai/chat must return 429
     chat_resp = await client.post(
         "/api/v1/ai/chat",
-        json={"messages": [{"role": "user", "content": "hello"}]},
+        json={"message": "hello"},
         headers={"X-Telegram-Init-Data": init_data},
     )
     assert chat_resp.status_code == 429, (

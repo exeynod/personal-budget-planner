@@ -120,7 +120,6 @@ export function CapEditSheet({ target, onClose, onSubmit }: CapEditSheetProps) {
         </button>
         <p className={styles.hint}>
           Сбрасывается 1-го числа каждого месяца (МСК).
-          {' '}spending_cap_cents хранится в USD-cents (100/USD).
         </p>
       </form>
     </BottomSheet>

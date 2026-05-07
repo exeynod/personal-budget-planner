@@ -149,10 +149,11 @@ async def build_admin_ai_usage_breakdown(
             if uid in l30_by_user
             else _empty_bucket()
         )
-        # USD копейки = доллары * 100_000 (1 USD == 100000 storage units).
-        # See module docstring for the semantics; this multiplier is what the
-        # admin UI cap-warn test expects (0.083 USD with cap 10_000 → 0.83 pct).
-        est_cost_cents_cm = round(float(cm_bucket.est_cost_usd) * 100_000)
+        # Phase 15 alignment: scale = 100 cents/USD (matches spending_cap_cents
+        # storage in app_user). Previous Phase 13 stub used 100_000 — that gave
+        # pct_of_cap ratios off by 1000x once Phase 15 set the canonical cap
+        # scale to 100/USD via spend_cap.py. CR-01 fix.
+        est_cost_cents_cm = round(float(cm_bucket.est_cost_usd) * 100)
         pct = (
             float(est_cost_cents_cm) / float(cap_cents)
             if cap_cents and cap_cents > 0
