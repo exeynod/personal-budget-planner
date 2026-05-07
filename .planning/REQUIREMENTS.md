@@ -16,9 +16,10 @@
 
 ### Backend Security
 
-- [ ] **SEC-02**: SSE-стрим `/ai/chat` НЕ возвращает `str(exc)` напрямую — пользователь видит generic-сообщение, полный exception идёт только в `logger.exception`.
+- [x] **SEC-02**: SSE-стрим `/ai/chat` НЕ возвращает `str(exc)` напрямую — пользователь видит generic-сообщение, полный exception идёт только в `logger.exception`.
   - **Acceptance:** pytest триггерит исключение в `_event_stream` (mock LLM raise с осмысленным сообщением); SSE error-event НЕ содержит имя класса исключения, file path, SQL текст.
   - **File:** `app/api/routes/ai.py:_event_stream`
+  - **Closed:** Plan 16-02 (2026-05-07) — `humanize_provider_error` (public rename) + `logger.exception("ai.event_stream_failed")` + pytest regression `tests/api/test_ai_chat_error_sanitize.py` (2 cases).
 
 ### Concurrency Safety
 
@@ -79,7 +80,7 @@
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | SEC-01  | Phase 16 | Pending |
-| SEC-02  | Phase 16 | Pending |
+| SEC-02  | Phase 16 | Complete |
 | CON-01  | Phase 16 | Pending |
 | CON-02  | Phase 16 | Pending |
 | AI-01   | Phase 16 | Complete |
