@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v0.5
 milestone_name: Security & AI Hardening
 status: executing
-stopped_at: Completed Plan 16-06 (CON-01 atomic UPDATE-WHERE claim in complete_onboarding)
-last_updated: "2026-05-07T17:54:00Z"
-last_activity: 2026-05-07 — Plan 16-06 CON-01 closed (atomic UPDATE-WHERE + asyncio.Barrier race regression)
+stopped_at: Completed Plan 16-04 (AI-02 Pydantic tool-args validation + tool_error SSE event)
+last_updated: "2026-05-07T18:05:01Z"
+last_activity: 2026-05-07 — Plan 16-04 AI-02 closed (Pydantic ToolArgs models + SSE tool_error event + frontend handler + 3 pytest cases)
 progress:
   total_phases: 1
   completed_phases: 0
   total_plans: 9
-  completed_plans: 6
-  percent: 67
+  completed_plans: 7
+  percent: 78
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-05-07 — v0.5 milestone started)
 ## Current Position
 
 Phase: 16 of 16 (Security & AI Hardening)
-Plan: 16-06 complete (CON-01 atomic onboarding claim); 16-01/02/03/06/08/09 closed; 16-04/05/07 in flight via parallel agents
+Plan: 16-04 complete (AI-02 Pydantic tool-args validation); 16-01/02/03/04/06/08/09 closed; 16-05/07 still pending
 Status: In progress
-Last activity: 2026-05-07 — Plan 16-06 CON-01 closed (atomic UPDATE-WHERE + asyncio.Barrier race regression)
+Last activity: 2026-05-07 — Plan 16-04 AI-02 closed (Pydantic ToolArgs models + tool_error SSE event + 3 pytest cases)
 
-Progress: [██████░░░░] 67%
+Progress: [████████░░] 78%
 
 ## Performance Metrics
 
@@ -73,6 +73,7 @@ Recent decisions affecting v0.5 planning:
 - 16-03 (2026-05-07): AI-01 закрыт через positive-check сразу после try/except парсинга amount_cents в propose_*_transaction (минимальный диф D-16-04, 4 строки кода). Edge-кейс 0.001 rub отвергается естественно через round() → 0 cents → fail. 17 pytest unit-тестов (parametrized + happy/edge), 0 регрессов.
 - 16-02 (2026-05-07): SEC-02 закрыт. Renamed `_humanize_provider_error` -> `humanize_provider_error` (public) для переиспользования между провайдером и `_event_stream`. Outer `except Exception` теперь yield `humanize_provider_error(exc)` + `logger.exception("ai.event_stream_failed user_id=%s", user_id)`. Defense-in-depth на inner SSE error-path: `str()` coercion + generic fallback. Pytest regression `tests/api/test_ai_chat_error_sanitize.py` (2 тест-кейса) проверяет sanitised payload + сохранённый traceback в логах.
 - 16-06 (2026-05-07): CON-01 закрыт. Atomic `UPDATE app_user SET onboarded_at=:now, cycle_start_day=:csd WHERE id=:id AND onboarded_at IS NULL RETURNING onboarded_at` per D-16-03 — заменяет SELECT-then-mutate в `complete_onboarding`. Loser видит claimed_row=None, refresh-ит user, raise AlreadyOnboardedError. Pytest regression `tests/test_onboarding_concurrent.py` (2 теста, asyncio.Barrier(2) для детерминистического race) — verified FAIL pre-fix (IntegrityError на uq_budget_period_user_id_period_start) → PASS post-fix через container rebuild. Race-test pattern переиспользуем для будущих CON-* фиксов.
+- 16-04 (2026-05-07): AI-02 закрыт. Создан `app/ai/tool_args.py` — 6 Pydantic моделей (по одной на tool) extra='forbid' + `TOOL_ARGS_MODELS` mapping. `_event_stream` tool dispatch валидирует raw JSON через `model_validate(raw_kwargs)` → невалидный JSON / mistyped types / extra fields → SSE `tool_error` event + `logger.warning("ai.tool_args_invalid tool=%s err_type=%s err=%s raw_args=%.200s")` + synth `{error: ...}` tool_result message-pair (preserves OpenAI assistant.tool_calls invariant для recovery). Frontend `AiEventType` расширен `tool_error` + `ToolErrorPayload`; `useAiConversation.handleEvent` → `setError(event.data.message)` без abort стрима. Pytest regression `tests/api/test_ai_chat_tool_args_validation.py` (3 теста: bad JSON / mistyped / extra field) — все PASS в integration-контейнере; 0 регрессов в существующих 10 AI-тестах.
 
 ### Pending Todos
 
@@ -104,6 +105,6 @@ Items acknowledged and deferred at v0.4 milestone close on 2026-05-07:
 
 ## Session Continuity
 
-Last session: 2026-05-07T17:54:00Z
-Stopped at: Completed Plan 16-06 (CON-01 atomic UPDATE-WHERE claim in complete_onboarding)
+Last session: 2026-05-07T18:05:01Z
+Stopped at: Completed Plan 16-04 (AI-02 Pydantic tool-args validation + tool_error SSE event)
 Resume file: None
