@@ -140,7 +140,7 @@
 **Plans**: 7 plans
 - [x] 15-01-red-tests-PLAN.md — RED tests + 2-tenant fixture for spend cap + admin PATCH + /me extension (Wave 0)
 - [x] 15-02-spend-service-PLAN.md — app/services/spend_cap.py: get_user_spend_cents + TTLCache + msk-month boundary + cachetools dep (Wave 1)
-- [ ] 15-03-enforce-cap-dep-PLAN.md — enforce_spending_cap dependency + apply to /ai/chat + /ai/suggest-category routers (Wave 2, parallel with 15-04 + 15-05)
+- [x] 15-03-enforce-cap-dep-PLAN.md — enforce_spending_cap dependency + apply to /ai/chat + /ai/suggest-category routers (Wave 2, parallel with 15-04 + 15-05)
 - [ ] 15-04-admin-patch-cap-PLAN.md — PATCH /admin/users/{id}/cap + AdminUserResponse extension + service update_user_cap (Wave 2, parallel)
 - [ ] 15-05-me-ai-spend-PLAN.md — /me extended ai_spend_cents + ai_spending_cap_cents (Wave 2, parallel)
 - [ ] 15-06-frontend-PLAN.md — Frontend SettingsScreen «AI расход» + AccessScreen CapEditSheet + UsersList edit button (Wave 3, has human checkpoint)
@@ -179,7 +179,7 @@
 | 12. Role-Based Auth Refactor | 7/7 | Complete (human_needed) | 2026-05-07 |
 | 13. Admin UI — Whitelist & AI Usage | 8/8 | Complete (human_needed) | 2026-05-07 |
 | 14. Multi-Tenant Onboarding | 7/7 | Complete   | 2026-05-07 |
-| 15. AI Cost Cap Per User | 2/7 | In Progress|  |
+| 15. AI Cost Cap Per User | 3/7 | In Progress|  |
 
 ---
 *Roadmap reorganized: 2026-05-06 at v0.3 milestone close*

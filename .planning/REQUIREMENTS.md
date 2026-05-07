@@ -46,7 +46,7 @@
 ### AI Cost Cap Per User
 
 - [ ] **AICAP-01**: `app_user` имеет колонку `spending_cap_cents BIGINT` (default = $5/month в копейках USD ≈ 46500 коп. при курсе ~93 ₽/$); миграция устанавливает default для существующего owner
-- [ ] **AICAP-02**: Перед каждым `/ai/chat` и `/ai/suggest-category` запросом проверяется месячный spend юзера; при превышении `spending_cap_cents` → 429 с `Retry-After` (до начала следующего календарного месяца)
+- [x] **AICAP-02**: Перед каждым `/ai/chat` и `/ai/suggest-category` запросом проверяется месячный spend юзера; при превышении `spending_cap_cents` → 429 с `Retry-After` (до начала следующего календарного месяца)
 - [x] **AICAP-03**: Per-user spend агрегируется из `ai_usage_log` по `user_id` за текущий календарный месяц (Europe/Moscow); запросы кешируются на 60 сек для производительности
 - [ ] **AICAP-04**: Settings экран показывает текущий spend / cap для self; owner может редактировать `spending_cap_cents` для себя и других юзеров через Admin UI (PATCH `/admin/users/{id}/cap`)
 - [ ] **AICAP-05**: Тесты: при превышении cap → 429; при reset месяца → доступ возвращается; cap=0 → AI отключён полностью; cap_cents изменение → принимается со следующего запроса
@@ -114,7 +114,7 @@
 | MTONB-03 | Phase 14 | Complete |
 | MTONB-04 | Phase 14 | Complete |
 | AICAP-01 | Phase 15 | Pending |
-| AICAP-02 | Phase 15 | Pending |
+| AICAP-02 | Phase 15 | Complete |
 | AICAP-03 | Phase 15 | Complete |
 | AICAP-04 | Phase 15 | Pending |
 | AICAP-05 | Phase 15 | Pending |
