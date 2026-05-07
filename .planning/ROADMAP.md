@@ -109,7 +109,7 @@
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 16. Security & AI Hardening | 0/TBD | Not started | - |
+| 16. Security & AI Hardening | 2/9 | In Progress|  |
 
 ---
 *Roadmap reorganized: 2026-05-06 at v0.3 milestone close*

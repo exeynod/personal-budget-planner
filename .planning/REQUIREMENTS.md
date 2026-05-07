@@ -32,7 +32,7 @@
 
 ### AI Guardrails
 
-- [ ] **AI-01**: Proposal-tools отклоняют `amount_rub <= 0` — отрицательные/нулевые суммы НЕ создают `amount_cents` в ProposalPayload.
+- [x] **AI-01**: Proposal-tools отклоняют `amount_rub <= 0` — отрицательные/нулевые суммы НЕ создают `amount_cents` в ProposalPayload.
   - **Acceptance:** unit-тест `propose_actual_transaction(amount_rub=-1)` и `(amount_rub=0)` → возврат `{"error": ...}`. Идентично для `propose_planned_transaction`.
   - **File:** `app/ai/tools.py`
 
@@ -82,7 +82,7 @@
 | SEC-02  | Phase 16 | Pending |
 | CON-01  | Phase 16 | Pending |
 | CON-02  | Phase 16 | Pending |
-| AI-01   | Phase 16 | Pending |
+| AI-01   | Phase 16 | Complete |
 | AI-02   | Phase 16 | Pending |
 | AI-03   | Phase 16 | Pending |
 | DB-01   | Phase 16 | Pending |

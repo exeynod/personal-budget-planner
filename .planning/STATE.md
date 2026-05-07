@@ -2,15 +2,16 @@
 gsd_state_version: 1.0
 milestone: v0.5
 milestone_name: Security & AI Hardening
-status: ready_to_plan
-last_updated: "2026-05-07T20:30:00.000Z"
-last_activity: 2026-05-07
+status: planning
+stopped_at: ROADMAP.md созданa для v0.5 — Phase 16 готова к планированию
+last_updated: "2026-05-07T17:43:38.511Z"
+last_activity: 2026-05-07 — Roadmap создан, 9/9 v0.5 requirements замаплены на Phase 16
 progress:
   total_phases: 1
   completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
-  percent: 0
+  total_plans: 9
+  completed_plans: 2
+  percent: 22
 ---
 
 # Project State
@@ -69,6 +70,7 @@ Recent decisions affecting v0.5 planning:
 - v0.5 (2026-05-07): Out of scope в v0.5 — миграция `est_cost_usd` Float→BIGINT, embedding cache invalidation на rename категории, CSP-заголовок Caddy (всё ушло в backlog)
 - v0.5 (2026-05-07): CON-02 закрывается per-user `asyncio.Lock` (грубо, но дёшево); полноценный pre-charge token reservation отложен до post-v0.5 если pet-app вырастет
 - v0.5 (2026-05-07): AI-03 — total tool-calls per session ≤ 8 + детект повтора одного tool с одинаковыми args в соседних раундах
+- 16-03 (2026-05-07): AI-01 закрыт через positive-check сразу после try/except парсинга amount_cents в propose_*_transaction (минимальный диф D-16-04, 4 строки кода). Edge-кейс 0.001 rub отвергается естественно через round() → 0 cents → fail. 17 pytest unit-тестов (parametrized + happy/edge), 0 регрессов.
 
 ### Pending Todos
 
@@ -100,6 +102,6 @@ Items acknowledged and deferred at v0.4 milestone close on 2026-05-07:
 
 ## Session Continuity
 
-Last session: 2026-05-07T20:30:00Z
+Last session: 2026-05-07T17:43:38.508Z
 Stopped at: ROADMAP.md созданa для v0.5 — Phase 16 готова к планированию
-Resume file: None — next step `/gsd-plan-phase 16`
+Resume file: None
