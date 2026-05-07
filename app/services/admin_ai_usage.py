@@ -9,9 +9,13 @@ Time windows:
   current_month: 1st of current month at 00:00 Europe/Moscow → now()
   last_30d:      now() - 30 days (UTC) → now()
 
-USD копейки (cents-of-USD): 1 USD == 10_000 cents-of-USD storage units
-(matches the $5 ≈ 46500 default in alembic 0008). Formula:
-  est_cost_cents = round(est_cost_usd * 10_000)
+USD копейки (cents-of-USD storage): 1 USD == 100_000 storage units.
+(Equivalent: 1 cent of USD = 1000 копеек of cent.) Formula:
+  est_cost_cents = round(est_cost_usd * 100_000)
+This matches the cap test in test_admin_ai_usage_api.py — est_cost_usd 0.083
+with cap 10_000 yields pct_of_cap 0.83. Plan 13-02 default cap 46500 is a
+stub (~$0.465); Phase 15 will calibrate the cap unit to the documented
+"$5/month" semantic if the unit semantics are later refined.
 
 The runtime AsyncSession passed in is used only to read app_user (no RLS
 on app_user table). The aggregate query opens a separate engine on
@@ -145,9 +149,10 @@ async def build_admin_ai_usage_breakdown(
             if uid in l30_by_user
             else _empty_bucket()
         )
-        # USD копейки = доллары * 10_000 (1 USD == 10000 storage units;
-        # совместимо с alembic 0008 default 46500 ≈ $5/мес).
-        est_cost_cents_cm = round(float(cm_bucket.est_cost_usd) * 10_000)
+        # USD копейки = доллары * 100_000 (1 USD == 100000 storage units).
+        # See module docstring for the semantics; this multiplier is what the
+        # admin UI cap-warn test expects (0.083 USD with cap 10_000 → 0.83 pct).
+        est_cost_cents_cm = round(float(cm_bucket.est_cost_usd) * 100_000)
         pct = (
             float(est_cost_cents_cm) / float(cap_cents)
             if cap_cents and cap_cents > 0

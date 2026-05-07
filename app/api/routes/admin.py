@@ -23,8 +23,13 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_db, require_owner
-from app.api.schemas.admin import AdminUserCreateRequest, AdminUserResponse
+from app.api.schemas.admin import (
+    AdminAiUsageResponse,
+    AdminUserCreateRequest,
+    AdminUserResponse,
+)
 from app.db.models import AppUser
+from app.services import admin_ai_usage as ai_usage_svc
 from app.services import admin_users as admin_svc
 
 logger = logging.getLogger(__name__)
@@ -113,3 +118,30 @@ async def delete_admin_user(
         "audit.user_revoked uid=%s by_owner=%s purged_rows=%s",
         user_id, current_user.id, counts,
     )
+
+
+# ---------- AI Usage breakdown (AIUSE-01..03) ----------
+
+
+@admin_router.get("/ai-usage", response_model=AdminAiUsageResponse)
+async def admin_ai_usage(
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> AdminAiUsageResponse:
+    """AIUSE-01..03: per-user AI usage breakdown.
+
+    Returns каждого юзера в whitelist с:
+      - current_month UsageBucket (от 1-го числа текущего месяца Europe/Moscow)
+      - last_30d UsageBucket (последние 30 календарных дней UTC)
+      - spending_cap_cents (Phase 13 stub default 46500 USD-копеек ≈ $5/мес)
+      - est_cost_cents_current_month + pct_of_cap для UI warn/danger индикатора
+        (≥ 0.80 → warn, ≥ 1.0 → danger в Plan 13-06 frontend)
+
+    Sort: est_cost_cents_current_month desc; tg_user_id asc fallback.
+
+    Authorization: router-level Depends(require_owner) → 403 для member.
+
+    RLS bypass: Service открывает короткую SUPERUSER-session на
+    ADMIN_DATABASE_URL для cross-tenant aggregation; runtime DSN видит
+    только rows owner'а из-за RLS на ai_usage_log.
+    """
+    return await ai_usage_svc.build_admin_ai_usage_breakdown(db)
