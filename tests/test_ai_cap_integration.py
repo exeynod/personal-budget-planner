@@ -189,7 +189,7 @@ async def test_chat_unblocked_after_admin_patches_cap_higher(
     # Step 4: retry /ai/chat → must now pass
     resp2 = await client.post(
         "/api/v1/ai/chat",
-        json={"messages": [{"role": "user", "content": "hello again"}]},
+        json={"message": "hello again"},
         headers={"X-Telegram-Init-Data": init_data},
     )
     assert resp2.status_code == 200, (
