@@ -213,6 +213,31 @@ async def seed_two_role_tenants(
     }
 
 
+async def seed_member_not_onboarded(
+    session: AsyncSession,
+    *,
+    tg_user_id: int,
+    tg_chat_id: Optional[int] = None,
+) -> AppUser:
+    """Seed a member with onboarded_at=None (Phase 14 invite-flow target).
+
+    Used by Phase 14 RED tests (test_require_onboarded.py,
+    test_embedding_backfill.py) to construct the precise pre-onboarding
+    state: role=member, tg_chat_id may or may not be bound, onboarded_at
+    is NULL → require_onboarded gate fires.
+    """
+    user = AppUser(
+        tg_user_id=tg_user_id,
+        tg_chat_id=tg_chat_id,
+        role=UserRole.member,
+        cycle_start_day=5,
+        onboarded_at=None,
+    )
+    session.add(user)
+    await session.flush()
+    return user
+
+
 async def seed_ai_usage_log(
     session: AsyncSession,
     *,
