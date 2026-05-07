@@ -81,7 +81,7 @@ async def test_cmd_start_rejects_non_owner() -> None:
     command = _make_command(None)
 
     with patch("app.bot.handlers.bind_chat_id", new=AsyncMock()) as mock_bind, \
-         patch("app.bot.handlers.bot_resolve_user_role", new=AsyncMock(return_value=UserRole.revoked)):
+         patch("app.bot.handlers.bot_resolve_user_status", new=AsyncMock(return_value=(UserRole.revoked, None))):
         await handlers.cmd_start(message, command)
 
     message.answer.assert_awaited_once()
@@ -102,10 +102,13 @@ async def test_cmd_start_owner_calls_bind_and_replies_with_webapp_button() -> No
     message = _make_message(user_id=settings.OWNER_TG_ID, chat_id=42)
     command = _make_command(None)
 
+    from datetime import datetime, timezone
+
     with patch(
         "app.bot.handlers.bind_chat_id", new=AsyncMock(return_value=None)
     ) as mock_bind, patch(
-        "app.bot.handlers.bot_resolve_user_role", new=AsyncMock(return_value=UserRole.owner)
+        "app.bot.handlers.bot_resolve_user_status",
+        new=AsyncMock(return_value=(UserRole.owner, datetime(2026, 1, 1, tzinfo=timezone.utc))),
     ):
         await handlers.cmd_start(message, command)
 
@@ -135,12 +138,14 @@ async def test_cmd_start_handles_internal_api_error_gracefully() -> None:
     message = _make_message(user_id=settings.OWNER_TG_ID, chat_id=42)
     command = _make_command(None)
 
+    from datetime import datetime, timezone
+
     with patch(
         "app.bot.handlers.bind_chat_id",
         new=AsyncMock(side_effect=InternalApiError("boom")),
     ), patch(
-        "app.bot.handlers.bot_resolve_user_role",
-        new=AsyncMock(return_value=UserRole.owner),
+        "app.bot.handlers.bot_resolve_user_status",
+        new=AsyncMock(return_value=(UserRole.owner, datetime(2026, 1, 1, tzinfo=timezone.utc))),
     ):
         # Must NOT propagate the exception
         await handlers.cmd_start(message, command)
@@ -161,8 +166,13 @@ async def test_cmd_start_parses_onboard_payload() -> None:
     message = _make_message(user_id=settings.OWNER_TG_ID, chat_id=42)
     command = _make_command("onboard")
 
+    from datetime import datetime, timezone
+
     with patch("app.bot.handlers.bind_chat_id", new=AsyncMock(return_value=None)), \
-         patch("app.bot.handlers.bot_resolve_user_role", new=AsyncMock(return_value=UserRole.owner)):
+         patch(
+             "app.bot.handlers.bot_resolve_user_status",
+             new=AsyncMock(return_value=(UserRole.owner, datetime(2026, 1, 1, tzinfo=timezone.utc))),
+         ):
         await handlers.cmd_start(message, command)
 
     message.answer.assert_awaited_once()

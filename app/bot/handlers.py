@@ -10,9 +10,12 @@ Behaviour
   we re-check role per HLD §5 + Phase 12 CONTEXT.
 - ``/start`` from owner or member:
     1. Calls internal ``/telegram/chat-bind`` to persist ``tg_chat_id``.
-    2. Parses optional ``CommandObject.args`` (``/start onboard`` →
-       specialised greeting).
-    3. Replies with greeting + InlineKeyboardButton(web_app=WebAppInfo(MINI_APP_URL)).
+    2. Resolves (role, onboarded_at) via bot_resolve_user_status (Phase 14).
+    3. Branches greeting:
+       - ``onboarded_at IS NULL`` (member invited but not yet onboarded) →
+         MTONB-01 invite copy ("Откройте приложение и пройдите настройку").
+       - Otherwise: existing onboarded greeting (deep-link payload aware).
+    4. Replies with greeting + InlineKeyboardButton(web_app=WebAppInfo(MINI_APP_URL)).
 - If chat-bind fails (network down, API not ready) → log a warning, continue,
   reply with degraded copy that asks the user to retry ``/start``.
 
@@ -31,7 +34,7 @@ from aiogram.types import (
 )
 
 from app.bot.api_client import InternalApiError, bind_chat_id
-from app.bot.auth import bot_resolve_user_role
+from app.bot.auth import bot_resolve_user_role, bot_resolve_user_status
 from app.core.settings import settings
 from app.db.models import UserRole
 
@@ -51,14 +54,14 @@ def _open_app_keyboard() -> InlineKeyboardMarkup:
 
 @router.message(CommandStart())
 async def cmd_start(message: Message, command: CommandObject) -> None:
-    """``/start`` — chat-bind for OWNER, otherwise reject."""
+    """``/start`` — chat-bind + role-and-onboarded-aware greeting."""
     if not message.from_user:
         return  # safety: ignore service messages without a sender
 
     user_id = message.from_user.id
 
-    # Phase 12 ROLE-02/03: role-based check replaces OWNER_TG_ID-eq
-    role = await bot_resolve_user_role(user_id)
+    # Phase 12 ROLE-02/03 + Phase 14 MTONB-01: resolve (role, onboarded_at)
+    role, onboarded_at = await bot_resolve_user_status(user_id)
     if role not in (UserRole.owner, UserRole.member):
         # revoked, unknown, or DB unreachable → silent reject (carry-over UX)
         await message.answer("Бот приватный.")
@@ -82,6 +85,24 @@ async def cmd_start(message: Message, command: CommandObject) -> None:
 
     # Step 2: parse deep-link payload (Pattern 1 from RESEARCH.md)
     payload = command.args  # str | None — "onboard" if launched via deep link
+
+    # Phase 14 MTONB-01: invited member with onboarded_at IS NULL → invite copy.
+    # Owner is always considered onboarded (backfilled in Phase 11 migration);
+    # member invited via Phase 13 admin UI starts with onboarded_at=NULL.
+    if onboarded_at is None:
+        greeting = (
+            "Добро пожаловать! "
+            "Откройте приложение и пройдите настройку — это займёт минуту."
+        )
+        await message.answer(greeting, reply_markup=_open_app_keyboard())
+        logger.info(
+            "bot.start.invite_pending",
+            tg_user_id=user_id,
+            tg_chat_id=chat_id,
+            chat_bound=chat_bound,
+            role=role.value,
+        )
+        return
 
     if payload == "onboard":
         greeting = (
