@@ -378,3 +378,67 @@ export type AiStreamEvent =
   | { type: 'propose'; data: ProposalPayload }
   | { type: 'done'; data: string }
   | { type: 'error'; data: string };
+
+// ---------- Phase 13: Admin (Whitelist + AI Usage) ----------
+
+/**
+ * Mirrors `AdminUserResponse` from app/api/schemas/admin.py (Phase 13).
+ * Used by GET /api/v1/admin/users.
+ */
+export interface AdminUserResponse {
+  id: number;
+  tg_user_id: number;
+  tg_chat_id: number | null;
+  role: UserRole;
+  last_seen_at: string | null; // ISO datetime UTC
+  onboarded_at: string | null;
+  created_at: string;
+}
+
+/**
+ * Mirrors `AdminUserCreateRequest` — body для POST /api/v1/admin/users.
+ * Min 5 digits enforced backend-side via `ge=10_000` (Pydantic Field).
+ * Frontend дополнительно валидирует UI-сторонне (InviteSheet form).
+ */
+export interface AdminUserCreateRequest {
+  tg_user_id: number;
+}
+
+/**
+ * Mirrors `UsageBucket` from app/api/schemas/ai.py.
+ * Reused for current_month / last_30d nested objects in admin AI usage row.
+ */
+export interface AiUsageBucket {
+  requests: number;
+  prompt_tokens: number;
+  completion_tokens: number;
+  cached_tokens: number;
+  total_tokens: number;
+  est_cost_usd: number;
+}
+
+/**
+ * Mirrors `AdminAiUsageRow` (AIUSE-01..03) — one user breakdown.
+ *
+ * UI uses pct_of_cap to render warn-style (≥0.80) / danger-style (≥1.0)
+ * in the linear progress bar (mirrors DashboardCategoryRow pattern).
+ */
+export interface AdminAiUsageRow {
+  user_id: number;
+  tg_user_id: number;
+  name: string | null;
+  role: UserRole;
+  spending_cap_cents: number;
+  current_month: AiUsageBucket;
+  last_30d: AiUsageBucket;
+  est_cost_cents_current_month: number;
+  pct_of_cap: number;
+}
+
+/**
+ * Mirrors `AdminAiUsageResponse` — wrapper для GET /api/v1/admin/ai-usage.
+ */
+export interface AdminAiUsageResponse {
+  users: AdminAiUsageRow[];
+  generated_at: string; // ISO datetime UTC
+}
