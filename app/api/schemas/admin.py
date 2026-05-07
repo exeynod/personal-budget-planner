@@ -22,6 +22,11 @@ class AdminUserResponse(BaseModel):
     `last_seen_at` пока NULL для всех existing rows — Phase 14 обновит при
     bot bind / first /me. Поле добавлено заранее в alembic 0008 чтобы UI
     мог рендерить «Xd назад» как только данные начнут поступать.
+
+    `spending_cap_cents` (Phase 15 AICAP-04) — текущий AI-расходный лимит
+    юзера. Используется CapEditSheet (Plan 15-06) для prefill. Default
+    в БД 46500 (alembic 0008 stub). Scale: USD-cents (USD * 100 per
+    CONTEXT D-15-02 explicit code).
     """
 
     model_config = ConfigDict(from_attributes=True)
@@ -33,6 +38,7 @@ class AdminUserResponse(BaseModel):
     last_seen_at: Optional[datetime] = None
     onboarded_at: Optional[datetime] = None
     created_at: datetime
+    spending_cap_cents: int = 0  # Phase 15 AICAP-04
 
 
 class AdminUserCreateRequest(BaseModel):
@@ -49,6 +55,24 @@ class AdminUserCreateRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     tg_user_id: int = Field(..., ge=10_000)
+
+
+class CapUpdate(BaseModel):
+    """Body для PATCH /admin/users/{user_id}/cap (AICAP-04, D-15-03).
+
+    `spending_cap_cents` — USD копейки (1 USD = 100 cents storage units, как
+    `app_user.spending_cap_cents` BIGINT) per CONTEXT D-15-02 explicit code.
+
+    Bounds:
+      - ge=0: 0 разрешено = AI off (D-15-01 cap=0 semantics).
+      - le=100_000_00: $100k, sanity-cap.
+
+    `extra="forbid"` блокирует случайные/злонамеренные доп-поля.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    spending_cap_cents: int = Field(..., ge=0, le=100_000_00)
 
 
 # ---------- Phase 13 AI Usage Admin (AIUSE-01..03) ----------

@@ -158,3 +158,42 @@ async def purge_user(db: AsyncSession, *, user_id: int) -> dict[str, int]:
     counts["app_user"] = final.rowcount or 0
     await db.flush()
     return counts
+
+
+async def update_user_cap(
+    db: AsyncSession,
+    *,
+    user_id: int,
+    spending_cap_cents: int,
+) -> AppUser:
+    """AICAP-04: update AppUser.spending_cap_cents + invalidate cache.
+
+    Per CONTEXT D-15-03: owner-only endpoint (handler enforces via
+    Depends(require_owner)); service signature не валидирует caller —
+    handler гарантирует.
+
+    Behaviour:
+    - 404 (UserNotFoundError) если user_id не существует.
+    - SET app_user.spending_cap_cents = :new WHERE id = :user_id.
+    - Returns refreshed AppUser ORM (для AdminUserResponse snapshot в handler).
+    - Invalidates spend-cache для user_id (so следующий enforce_spending_cap
+      запрос видит новый лимит без 60s TTL задержки).
+    """
+    from app.services.spend_cap import invalidate_user_spend_cache
+
+    result = await db.execute(
+        select(AppUser).where(AppUser.id == user_id)
+    )
+    user = result.scalar_one_or_none()
+    if user is None:
+        raise UserNotFoundError(f"user_id={user_id} not found")
+
+    user.spending_cap_cents = int(spending_cap_cents)
+    await db.flush()
+    await db.refresh(user)
+    await invalidate_user_spend_cache(user_id)
+    logger.info(
+        "audit.cap_updated user_id=%s new_cap_cents=%s",
+        user_id, spending_cap_cents,
+    )
+    return user
