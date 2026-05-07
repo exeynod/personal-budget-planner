@@ -255,6 +255,55 @@ async def enforce_spending_cap(
         )
 
 
+async def enforce_spending_cap_for_user(
+    db: AsyncSession, *, user_id: int,
+) -> None:
+    """Imperative variant of enforce_spending_cap — for use INSIDE a per-user lock.
+
+    CON-02 (Plan 16-07): the FastAPI router-level dependency
+    ``enforce_spending_cap`` runs BEFORE ``acquire_user_spend_lock`` (because
+    dependencies resolve before route body). That gives a fast-path 429 on
+    obviously-over-cap requests but does NOT close the check-then-act race for
+    requests still under cap at dependency-time.
+
+    This function is meant to be called from inside ``async with lock`` in the
+    ``/ai/chat`` route handler:
+
+    1. invalidate the per-user TTLCache so we re-read post any concurrent
+       ``_record_usage`` INSERT that just landed;
+    2. re-aggregate ``ai_usage_log`` for the current MSK month;
+    3. raise HTTPException(429) (same shape as ``enforce_spending_cap``) if
+       spend >= cap.
+
+    The DB session must already be tenant-scoped (the route uses
+    ``get_db_with_tenant_scope`` which already calls ``set_tenant_scope``);
+    this helper does not re-scope.
+    """
+    from app.services.spend_cap import (
+        get_user_spend_cents,
+        invalidate_user_spend_cache,
+        seconds_until_next_msk_month,
+    )
+
+    # Force fresh read post-lock — another request may have just INSERTed
+    # to ai_usage_log and released the lock.
+    await invalidate_user_spend_cache(user_id)
+
+    user = await db.scalar(select(AppUser).where(AppUser.id == user_id))
+    cap = int((user.spending_cap_cents if user else None) or 0)
+    spend = await get_user_spend_cents(db, user_id=user_id)
+    if spend >= cap:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail={
+                "error": "spending_cap_exceeded",
+                "spent_cents": int(spend),
+                "cap_cents": int(cap),
+            },
+            headers={"Retry-After": str(seconds_until_next_msk_month())},
+        )
+
+
 async def get_db_with_tenant_scope(
     user_id: Annotated[int, Depends(get_current_user_id)],
 ) -> AsyncGenerator[AsyncSession, None]:

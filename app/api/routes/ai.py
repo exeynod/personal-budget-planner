@@ -35,8 +35,10 @@ from app.ai.providers.openai_provider import humanize_provider_error
 from app.ai.system_prompt import build_messages
 from app.ai.tool_args import TOOL_ARGS_MODELS, humanize_tool_args_error
 from app.ai.tools import TOOL_FUNCTIONS, TOOLS_SCHEMA
+from app.services.spend_cap import acquire_user_spend_lock
 from app.api.dependencies import (
-    enforce_spending_cap,        # Plan 15-03 AICAP-02
+    enforce_spending_cap,           # Plan 15-03 AICAP-02
+    enforce_spending_cap_for_user,  # Plan 16-07 CON-02 (in-lock re-check)
     get_current_user,
     get_current_user_id,
     get_db_with_tenant_scope,
@@ -555,6 +557,18 @@ async def chat(
 
     Phase 11: rate-limit bucket key — app_user.id (PK), не tg_user_id.
     Rate limit: 10 req/мин → 429 + Retry-After (AI-10).
+
+    CON-02 (Plan 16-07): around the ENTIRE stream we hold a per-user
+    asyncio.Lock so the "check spend → call LLM → record_usage" sequence
+    is serialised on a per-user basis. Two concurrent /ai/chat requests
+    for the same user that both pass the router-level
+    ``enforce_spending_cap`` (cached spend < cap) will queue here; the
+    second request re-reads spend from DB after the first's
+    ``_record_usage`` INSERT lands, picking up the fresh value via
+    ``enforce_spending_cap_for_user`` and 429-ing if cap is now reached.
+
+    Different users do NOT block each other — locks are keyed per
+    ``user_id`` (see ``_user_locks`` in app/services/spend_cap.py).
     """
     if _is_rate_limited(user_id):
         raise HTTPException(
@@ -563,14 +577,43 @@ async def chat(
             headers={"Retry-After": "60"},
         )
 
-    return StreamingResponse(
-        _event_stream(db, user_id, body.message),
-        media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "X-Accel-Buffering": "no",
-        },
-    )
+    # CON-02: per-user lock around the entire stream lifecycle.
+    # _event_stream calls _record_usage as part of its `usage` event handling;
+    # the lock is held until the stream generator finishes (incl. _record_usage).
+    lock = await acquire_user_spend_lock(user_id)
+    await lock.acquire()
+    try:
+        # In-lock re-check: serialises against any earlier in-flight request
+        # that just finished _record_usage and released the lock. Cheap when
+        # cap not configured (returns None).
+        await enforce_spending_cap_for_user(db, user_id=user_id)
+
+        async def _wrapped() -> AsyncGenerator[str, None]:
+            try:
+                async for chunk in _event_stream(db, user_id, body.message):
+                    yield chunk
+            finally:
+                # Always release — even on generator close / client disconnect
+                # / mid-stream exception. Lock is per-user so leaving it held
+                # would block all subsequent requests for THIS user.
+                if lock.locked():
+                    lock.release()
+
+        return StreamingResponse(
+            _wrapped(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "X-Accel-Buffering": "no",
+            },
+        )
+    except BaseException:
+        # If anything between acquire and StreamingResponse construction
+        # throws (incl. enforce_spending_cap_for_user → 429), release the
+        # lock before re-raising. BaseException catches CancelledError too.
+        if lock.locked():
+            lock.release()
+        raise
 
 
 @router.get("/history", response_model=ChatHistoryResponse)
