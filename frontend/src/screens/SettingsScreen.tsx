@@ -3,6 +3,7 @@ import { getSettings, updateSettings } from '../api/settings';
 import { Stepper } from '../components/Stepper';
 import { MainButton } from '../components/MainButton';
 import { ScreenHeader } from '../components/ScreenHeader';
+import { useUser } from '../hooks/useUser';
 import styles from './SettingsScreen.module.css';
 
 export interface SettingsScreenProps {
@@ -25,6 +26,7 @@ export interface SettingsScreenProps {
  * only to the *next* period; the current period keeps its existing dates.
  */
 export function SettingsScreen({ onBack }: SettingsScreenProps) {
+  const { user } = useUser();
   const [current, setCurrent] = useState<number | null>(null);
   const [draft, setDraft] = useState<number>(5);
   const [currentNotifyDays, setCurrentNotifyDays] = useState<number | null>(null);
@@ -160,6 +162,30 @@ export function SettingsScreen({ onBack }: SettingsScreenProps) {
           <div className={styles.disclaimer}>
             ⓘ При вводе описания транзакции AI предложит категорию автоматически.
           </div>
+        </section>
+      )}
+
+      {user != null && (
+        <section className={styles.card}>
+          <div className={styles.cardTitle}>AI расход</div>
+          {user.ai_spending_cap_cents === 0 ? (
+            <>
+              <div className={styles.aiSpendOff}>AI отключён</div>
+              <div className={styles.disclaimer}>
+                ⓘ Обратитесь к администратору, если нужен доступ к AI-функциям.
+              </div>
+            </>
+          ) : (
+            <>
+              <div className={styles.aiSpendValue}>
+                ${(user.ai_spend_cents / 100).toFixed(2)} /{' '}
+                ${(user.ai_spending_cap_cents / 100).toFixed(2)}
+              </div>
+              <div className={styles.disclaimer}>
+                ⓘ Сбрасывается 1-го числа каждого месяца (Europe/Moscow).
+              </div>
+            </>
+          )}
         </section>
       )}
 
