@@ -9,6 +9,7 @@ import { SettingsScreen } from './screens/SettingsScreen';
 import { SubscriptionsScreen } from './screens/SubscriptionsScreen';
 import { TransactionsScreen } from './screens/TransactionsScreen';
 import { ManagementScreen, type ManagementView } from './screens/ManagementScreen';
+import { AccessScreen } from './screens/AccessScreen';
 import { AnalyticsScreen } from './screens/AnalyticsScreen';
 import { AiScreen } from './screens/AiScreen';
 import { BottomNav, type TabId } from './components/BottomNav';
@@ -83,6 +84,9 @@ export default function App() {
           )}
           {managementView === 'settings' && (
             <SettingsScreen onBack={() => setManagementView(null)} />
+          )}
+          {managementView === 'access' && (
+            <AccessScreen onBack={() => setManagementView(null)} />
           )}
 
           {/* Main tabs (скрыты когда показывается management sub-screen) */}
