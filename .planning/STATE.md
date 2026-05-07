@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v0.4
 milestone_name: Multi-Tenant & Admin
-status: executing
-stopped_at: "Phase 15 complete — 15-VERIFICATION.md status=human_needed; 26/27 new tests GREEN (1 pre-existing DEV_MODE issue); 0 regressions; frontend build clean; live TG smoke deferred to milestone close; v0.4 milestone ready to close."
-last_updated: "2026-05-07T12:30:00Z"
+status: Ready for milestone close
+stopped_at: Completed 15-07-verification-PLAN.md — Phase 15 done; v0.4 milestone (Phases 11-15) ready to close
+last_updated: "2026-05-07T12:22:56.901Z"
 last_activity: 2026-05-07
 progress:
   total_phases: 5
@@ -132,6 +132,18 @@ Items acknowledged and deferred at v0.3 milestone close on 2026-05-06:
 | verification_gap | Phase 10 — 10-VERIFICATION.md | human_needed | 2026-05-06 (v0.3 close) |
 | quick_task | deploy-fixes (20260504) | missing | 2026-05-06 (v0.3 close) |
 | quick_task | ux-fixes (20260506) | unknown | 2026-05-06 (v0.3 close) |
+
+Items acknowledged and deferred at v0.4 milestone close on 2026-05-07:
+
+| Category | Item | Status | Deferred At |
+|----------|------|--------|-------------|
+| verification_gap | Phase 11 — 11-VERIFICATION.md | human_needed | 2026-05-07 (v0.4 close) |
+| verification_gap | Phase 12 — 12-VERIFICATION.md | human_needed | 2026-05-07 (v0.4 close) |
+| verification_gap | Phase 13 — 13-VERIFICATION.md | human_needed | 2026-05-07 (v0.4 close) |
+| verification_gap | Phase 14 — 14-VERIFICATION.md | human_needed | 2026-05-07 (v0.4 close) |
+| verification_gap | Phase 15 — 15-VERIFICATION.md | human_needed | 2026-05-07 (v0.4 close) |
+
+All 5 v0.4 phase verifications consolidated into the v0.4-MILESTONE-AUDIT.md `human_uat.consolidated_milestone_smoke` block (8 UAT items v0.4-U-1..U-8) — owner runs the live smoke after rebuilding api/bot/worker containers.
 
 ## Session Continuity
 

@@ -4,6 +4,42 @@ History of shipped versions. Each entry summarizes what was delivered and links 
 
 ---
 
+## v0.4 — Multi-Tenant & Admin
+
+**Shipped:** 2026-05-07 (status: human_needed — live TG smoke deferred to user UAT)
+**Phases:** 11-15 (5 phases)
+**Plans:** 36
+**Requirements:** 28/28 satisfied
+
+### Delivered
+
+Перевод single-tenant pet-проекта в multi-user через whitelist-админку + per-user AI cost cap. Multi-tenancy на уровне БД через `user_id` FK + Postgres RLS (defense-in-depth); role-based auth (`owner`/`member`/`revoked`) заменил `OWNER_TG_ID`-eq на каждом запросе; admin UI «Доступ» (видна только owner) для invite/revoke + AI Usage breakdown; member self-onboarding в Mini App без участия owner с auto-embedding 14 seed-категорий; per-user монetary cap на AI с 429 enforcement + Settings spend display + admin PATCH cap.
+
+### Key Accomplishments
+
+- **Phase 11** — Alembic 0006: `user_id BIGINT NOT NULL FK` + RLS policies на 9 доменных таблицах + `UserRole` enum + scoped uniques + backfill для existing owner.
+- **Phase 12** — `get_current_user`/`require_owner`/`bot_resolve_user_role` role-based deps; Alembic 0007 split Postgres role на admin/app (RLS enforcement at runtime); /me extended с `role`.
+- **Phase 13** — Admin AccessScreen с 2 sub-tabs (Users / AI Usage); endpoints `/admin/users` (invite/revoke) + `/admin/ai-usage` (per-user breakdown); revoke = cascade purge всех данных юзера.
+- **Phase 14** — `require_onboarded` 409 gate на 10 routers; bot `/start` ветка для invited member (`onboarded_at IS NULL`); inline async embedding backfill для 14 seed-категорий; frontend `OnboardingRequiredError` + role-branched hero copy.
+- **Phase 15** — `spend_cap` service с TTLCache 60s + MSK month boundary; `enforce_spending_cap` dep на `/ai/chat` + `/ai-suggest/*`; PATCH `/admin/users/{id}/cap` (cap=0 = AI off); SettingsScreen «AI расход» + Admin CapEditSheet.
+
+### Tech Debt / Known Issues
+
+- 5 phase verifications в статусе `human_needed` — live TG smoke consolidated в `v0.4-MILESTONE-AUDIT.md` (8 UAT-пунктов U-1..U-8 для owner после рестарта контейнеров).
+- `ai_usage_log.est_cost_usd Float` — нарушает CLAUDE.md «no float», legacy от Phase 13; миграция → BIGINT cents отложена.
+- `enforce_spending_cap` открывает 2-ю DB-сессию через `Depends(get_db)` рядом с `get_db_with_tenant_scope` — архитектурное упрощение отложено.
+- Money-scale calibration: `spending_cap_cents` = 100/USD; default 46500 = $465/мес, не $5; CR-01 fix выровнял Phase 13 admin_ai_usage с Phase 15 шкалой.
+- Bot контейнер с TelegramUnauthorizedError (refresh BOT_TOKEN перед UAT).
+- 1 pre-existing test failure в DEV_MODE=true container (intentional dev bypass).
+
+### Archive
+
+- [v0.4-ROADMAP.md](milestones/v0.4-ROADMAP.md)
+- [v0.4-REQUIREMENTS.md](milestones/v0.4-REQUIREMENTS.md)
+- [v0.4-MILESTONE-AUDIT.md](v0.4-MILESTONE-AUDIT.md)
+
+---
+
 ## v0.2 — MVP
 
 **Shipped:** 2026-05-03
@@ -53,6 +89,7 @@ History of shipped versions. Each entry summarizes what was delivered and links 
 ### Known Deferred Items
 
 11 items acknowledged at close (see STATE.md → Deferred Items):
+
 - 2 UAT gaps (Phases 04, 10) — pending human verification scenarios
 - 7 verification gaps (Phases 01-05, 09, 10) — все статусы `human_needed`, не code blockers
 - 2 quick tasks (`deploy-fixes`, `ux-fixes`) — частичный/unknown статус
