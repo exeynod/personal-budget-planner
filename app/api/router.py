@@ -46,6 +46,7 @@ from pydantic import BaseModel
 
 from app.api.dependencies import get_current_user, verify_internal_token
 from app.api.routes.actual import actual_router
+from app.api.routes.admin import admin_router
 from app.api.routes.categories import categories_router
 from app.api.routes.internal_bot import internal_bot_router
 from app.api.routes.internal_telegram import internal_telegram_router
@@ -126,6 +127,10 @@ public_router.include_router(ai_router)
 
 # Phase 10 sub-router — AI categorization suggest endpoint (AICAT-03).
 public_router.include_router(ai_suggest_router, prefix="/ai")
+
+# Phase 13 sub-router — admin whitelist CRUD (require_owner gated, ADM-03..06).
+# Plan 13-05 will extend the same admin_router with /admin/ai-usage breakdown.
+public_router.include_router(admin_router)
 
 
 # ---- Internal router (requires X-Internal-Token) ----
