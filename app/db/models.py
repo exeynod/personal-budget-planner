@@ -22,6 +22,7 @@ from sqlalchemy import (
     BigInteger,
     Boolean,
     Date,
+    Float,
     ForeignKey,
     Index,
     Integer,
@@ -94,6 +95,12 @@ class AppUser(Base):
     )
     enable_ai_categorization: Mapped[bool] = mapped_column(
         Boolean, default=True, nullable=False, server_default="true"
+    )
+    spending_cap_cents: Mapped[int] = mapped_column(
+        BigInteger,
+        nullable=False,
+        default=46500,
+        server_default="46500",
     )
     role: Mapped[UserRole] = mapped_column(
         PgEnum(UserRole, name="user_role", create_type=False),
@@ -378,3 +385,58 @@ class CategoryEmbedding(Base):
     )
 
     category: Mapped["Category"] = relationship()
+
+
+# ---- Phase 13: Admin AI Usage Breakdown ----
+
+
+class AiUsageLog(Base):
+    """Persistent log одного /ai/chat вызова (Plan 13-03 hooks here from
+    app/api/routes/ai.py::_record_usage). Используется admin /ai-usage
+    endpoint (Plan 13-05) для per-user breakdown за current month + 30d.
+
+    ON DELETE CASCADE на user_id — telemetry без защищаемой бизнес-
+    семантики, упрощает Phase 13 revoke flow (cascade purge без явного
+    DELETE из service-слоя).
+
+    RLS policy (alembic 0008): user_id = current_setting(app.current_user_id).
+    Admin endpoint обходит RLS через set_config bypass или privileged
+    query (Plan 13-05 detail).
+    """
+
+    __tablename__ = "ai_usage_log"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("app_user.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    model: Mapped[str] = mapped_column(Text, nullable=False)
+    prompt_tokens: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
+    completion_tokens: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
+    cached_tokens: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
+    total_tokens: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
+    est_cost_usd: Mapped[float] = mapped_column(
+        Float(asdecimal=False),
+        nullable=False,
+        default=0.0,
+        server_default="0.0",
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+
+    __table_args__ = (
+        Index("ix_ai_usage_log_user_created", "user_id", "created_at"),
+    )
