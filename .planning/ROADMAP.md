@@ -38,7 +38,7 @@
 
 ### 🚧 v0.4 Multi-Tenant & Admin (Active)
 
-- [x] **Phase 11: Multi-Tenancy DB Migration & RLS** — `user_id` FK во всех доменных таблицах + Postgres RLS + `app_user.role` колонка с backfill для существующего owner — 7/7 plans complete; status=human_needed (live TG smoke deferred per user); D-11-07-01/02 carry into Phase 12
+- [x] **Phase 11: Multi-Tenancy DB Migration & RLS** — `user_id` FK во всех доменных таблицах + Postgres RLS + `app_user.role` колонка с backfill для существующего owner — 7/7 plans complete; status=human_needed (live TG smoke deferred per user); D-11-07-01/02 carry forward into the next phase
 - [ ] **Phase 12: Role-Based Auth Refactor** — auth-dependencies переключены с `OWNER_TG_ID`-eq на `app_user.role`; `/me` отдаёт role; `require_owner` для admin endpoints
 - [ ] **Phase 13: Admin UI — Whitelist & AI Usage** — вкладка «Доступ» в «Управление» (только owner): список юзеров + invite/revoke + AI usage sub-tab с per-user breakdown
 - [ ] **Phase 14: Multi-Tenant Onboarding** — invite-flow для `role=member` юзеров: bot bind → starting_balance → cycle_start_day → seed 14 категорий per-user + автогенерация embeddings
