@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { CategoryKind, CategoryRead } from '../api/types';
 import { useDateInput } from '../hooks/useDateInput';
 import { useAiCategorize } from '../hooks/useAiCategorize';
+import { parseRublesToKopecks } from '../utils/format';
 import styles from './ActualEditor.module.css';
 
 export interface ActualEditorInitial {
@@ -43,16 +44,6 @@ function todayISO(): string {
   return todayInMoscow();
 }
 
-
-/** Parses a Russian-localised rubles string ("1 500,50") to integer kopecks. */
-function parseRublesToKopecks(input: string): number | null {
-  const cleaned = input.replace(/\s/g, '').replace(',', '.');
-  if (cleaned === '') return null;
-  const [intPart, fracPart = ''] = cleaned.split('.');
-  if (!/^\d+$/.test(intPart) || !/^\d{0,2}$/.test(fracPart)) return null;
-  const kopecks = parseInt(intPart, 10) * 100 + parseInt(fracPart.padEnd(2, '0'), 10);
-  return kopecks > 0 ? kopecks : null;
-}
 
 function formatKopecksToRubles(cents: number | undefined | null): string {
   if (cents === undefined || cents === null) return '';

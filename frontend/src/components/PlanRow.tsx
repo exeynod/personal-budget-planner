@@ -1,5 +1,6 @@
 import { useState, type MouseEvent } from 'react';
 import type { CategoryRead, PlannedRead, TemplateItemRead } from '../api/types';
+import { parseRublesToKopecks } from '../utils/format';
 import styles from './PlanRow.module.css';
 
 export type PlanRowItem =
@@ -12,14 +13,6 @@ export interface PlanRowProps {
   category: CategoryRead | undefined;
   onAmountSave: (newAmountCents: number) => Promise<void>;
   onOpenEditor: () => void;
-}
-
-function parseRublesToKopecks(input: string): number | null {
-  const cleaned = input.replace(/\s/g, '').replace(',', '.');
-  if (cleaned === '') return null;
-  const f = parseFloat(cleaned);
-  if (isNaN(f) || !isFinite(f) || f <= 0) return null;
-  return Math.round(f * 100);
 }
 
 function formatRubles(cents: number): string {

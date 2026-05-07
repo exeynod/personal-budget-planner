@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import type { CategoryRead } from '../api/types';
 import { useDateInput } from '../hooks/useDateInput';
+import { parseRublesToKopecks } from '../utils/format';
 import styles from './PlanItemEditor.module.css';
 
 export type EditorMode =
@@ -39,15 +40,6 @@ export interface PlanItemEditorProps {
   /** Provide for edit modes; omit for create modes. */
   onDelete?: () => Promise<void>;
   onCancel: () => void;
-}
-
-/** Parses a Russian-localised rubles string ("1 500,50") to integer kopecks. */
-function parseRublesToKopecks(input: string): number | null {
-  const cleaned = input.replace(/\s/g, '').replace(',', '.');
-  if (cleaned === '') return null;
-  const f = parseFloat(cleaned);
-  if (isNaN(f) || !isFinite(f)) return null;
-  return Math.round(f * 100);
 }
 
 function formatKopecksToRubles(cents: number | undefined | null): string {

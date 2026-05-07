@@ -40,15 +40,43 @@ export function formatKopecksWithCurrency(cents: number): string {
 
 /**
  * Parse user-typed rubles string into kopecks integer. Returns null on invalid.
- * - "1500" → 150000
- * - "1500,50" → 150050
- * - "1 500" → 150000
- * - "" / "abc" / "0" / "-50" → null (zero/negative not allowed)
+ *
+ * Decimal-grade digit-walk parser (NO parseFloat — IEEE 754 loses precision
+ * on round kopeck amounts). Money invariant per CLAUDE.md: «no float, BIGINT
+ * копейки».
+ *
+ * Accepts:
+ *  - `"1500"` → 150000
+ *  - `"1500,50"` → 150050  (comma decimal — ru-RU)
+ *  - `"1500.50"` → 150050  (dot decimal)
+ *  - `"1 500"` → 150000    (nbsp/space thousand-sep, ignored)
+ *  - `"0.01"` → 1          (smallest positive kopek)
+ *
+ * Rejects (returns null):
+ *  - `""` (empty)
+ *  - `"abc"` / mixed letters
+ *  - `"-50"` (negative — money invariant)
+ *  - `"0"` / `"0.00"` (must be > 0)
+ *  - `"0.001"` (3+ fractional digits — refuse, not round)
+ *  - `"1.2.3"` (multiple separators)
  */
 export function parseRublesToKopecks(input: string): number | null {
-  const cleaned = input.replace(/\s/g, '').replace(',', '.');
+  // Strip whitespace (incl. nbsp  ); normalise comma → dot.
+  const cleaned = input.replace(/[\s ]/g, '').replace(',', '.');
   if (cleaned === '') return null;
-  const f = parseFloat(cleaned);
-  if (isNaN(f) || !isFinite(f) || f <= 0) return null;
-  return Math.round(f * 100);
+  // Reject negative / non-digit prefix.
+  if (!/^[0-9.]+$/.test(cleaned)) return null;
+
+  const parts = cleaned.split('.');
+  if (parts.length > 2) return null; // multiple dots
+  const [intPart, fracPart = ''] = parts;
+  if (intPart === '' && fracPart === '') return null;
+  if (intPart !== '' && !/^[0-9]+$/.test(intPart)) return null;
+  // Fractional part: 0..2 digits (3+ → reject per money invariant).
+  if (!/^[0-9]{0,2}$/.test(fracPart)) return null;
+
+  const intVal = intPart === '' ? 0 : parseInt(intPart, 10);
+  const fracVal = parseInt((fracPart || '0').padEnd(2, '0'), 10);
+  const kopecks = intVal * 100 + fracVal;
+  return kopecks > 0 ? kopecks : null;
 }
