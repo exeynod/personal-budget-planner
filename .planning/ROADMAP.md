@@ -171,7 +171,7 @@
 | 11. Multi-Tenancy DB Migration & RLS | 7/7 | Complete (human_needed) | 2026-05-06 |
 | 12. Role-Based Auth Refactor | 7/7 | Complete (human_needed) | 2026-05-07 |
 | 13. Admin UI — Whitelist & AI Usage | 8/8 | Complete (human_needed) | 2026-05-07 |
-| 14. Multi-Tenant Onboarding | 7/7 | Complete (human_needed) | 2026-05-07 |
+| 14. Multi-Tenant Onboarding | 7/7 | Complete   | 2026-05-07 |
 | 15. AI Cost Cap Per User | 0/? | Not started | — |
 
 ---
