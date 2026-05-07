@@ -178,10 +178,97 @@ async def seed_actual_transaction(
     return a
 
 
+async def seed_two_role_tenants(
+    session: AsyncSession,
+    *,
+    owner_tg_user_id: int,
+    member_tg_user_id: int,
+) -> dict[str, int]:
+    """Seed an owner + a member in one session, return their PK ids.
+
+    Used by Phase 13 admin RBAC tests where we need:
+      - owner row to authenticate as caller of /api/v1/admin/*
+      - member row that the caller will list / invite / revoke
+
+    Both users have onboarded_at = NULL (Phase 14 will fill it).
+    """
+    owner = await seed_user(
+        session,
+        tg_user_id=owner_tg_user_id,
+        role=UserRole.owner,
+        cycle_start_day=5,
+    )
+    member = await seed_user(
+        session,
+        tg_user_id=member_tg_user_id,
+        role=UserRole.member,
+        cycle_start_day=5,
+    )
+    await session.commit()
+    return {
+        "owner_id": owner.id,
+        "member_id": member.id,
+        "owner_tg_user_id": owner_tg_user_id,
+        "member_tg_user_id": member_tg_user_id,
+    }
+
+
+async def seed_ai_usage_log(
+    session: AsyncSession,
+    *,
+    user_id: int,
+    model: str = "gpt-4o-mini",
+    prompt_tokens: int = 0,
+    completion_tokens: int = 0,
+    cached_tokens: int = 0,
+    total_tokens: int = 0,
+    est_cost_usd: float = 0.0,
+    ts: Optional[datetime] = None,
+) -> None:
+    """Insert a single ai_usage_log row via raw SQL (no ORM dependency).
+
+    Phase 13 Plan 13-02 creates the ai_usage_log table; Plan 13-03 wires
+    the SQLAlchemy model. This helper uses sqlalchemy.text() to stay
+    decoupled from import-time model loading order during RED phase.
+
+    ts: when None, defaults to now(UTC). Caller passes explicit ts to
+    produce records inside / outside current month + 30d windows for
+    the admin /ai-usage breakdown tests.
+    """
+    from sqlalchemy import text
+
+    when = ts or datetime.now(timezone.utc)
+    await session.execute(
+        text(
+            "INSERT INTO ai_usage_log "
+            "(user_id, model, prompt_tokens, completion_tokens, "
+            " cached_tokens, total_tokens, est_cost_usd, created_at) "
+            "VALUES (:user_id, :model, :pt, :ct, :ch, :tt, :ec, :ts)"
+        ),
+        {
+            "user_id": user_id,
+            "model": model,
+            "pt": prompt_tokens,
+            "ct": completion_tokens,
+            "ch": cached_tokens,
+            "tt": total_tokens,
+            "ec": est_cost_usd,
+            "ts": when,
+        },
+    )
+    await session.commit()
+
+
 _DEFAULT_TRUNCATE_TABLES = (
     "category, planned_transaction, actual_transaction, plan_template_item, "
     "subscription, budget_period, ai_message, ai_conversation, "
     "category_embedding, app_user"
+)
+
+_PHASE13_TRUNCATE_TABLES = (
+    "category, planned_transaction, actual_transaction, plan_template_item, "
+    "subscription, budget_period, ai_message, ai_conversation, "
+    "category_embedding, ai_usage_log, app_user"
 )
 
 
@@ -207,3 +294,13 @@ async def truncate_db(*, tables: str = _DEFAULT_TRUNCATE_TABLES) -> None:
             await conn.execute(text(f"TRUNCATE TABLE {tables} RESTART IDENTITY CASCADE"))
     finally:
         await engine.dispose()
+
+
+async def truncate_db_phase13() -> None:
+    """Phase 13 variant: includes ai_usage_log table in truncate set.
+
+    Used by tests/test_admin_users_api.py and tests/test_admin_ai_usage_api.py
+    which seed ai_usage_log rows. Will fail with ProgrammingError until
+    Plan 13-02 creates the ai_usage_log table — that is by design (RED phase).
+    """
+    await truncate_db(tables=_PHASE13_TRUNCATE_TABLES)
