@@ -1,17 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v0.4
-milestone_name: Multi-Tenant & Admin
-status: Ready for milestone close
-stopped_at: Completed 15-07-verification-PLAN.md — Phase 15 done; v0.4 milestone (Phases 11-15) ready to close
-last_updated: "2026-05-07T12:22:56.901Z"
+milestone: v0.5
+milestone_name: Security & AI Hardening
+status: planning
+last_updated: "2026-05-07T17:10:15.224Z"
 last_activity: 2026-05-07
 progress:
-  total_phases: 5
-  completed_phases: 5
-  total_plans: 36
-  completed_plans: 36
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -25,17 +24,10 @@ See: .planning/PROJECT.md (updated 2026-05-06 after v0.3 milestone close)
 
 ## Current Position
 
-Phase: 15 (ai-cost-cap-per-user) — COMPLETE
-Plan: 7 of 7 complete
-Status: Ready for milestone close
-Last activity: 2026-05-07
-
-Previous milestones:
-
-- v0.3 (Analytics & AI) — Complete 2026-05-06, 6 phases / 25 plans → archive `.planning/milestones/v0.3-*`
-- v0.2 (MVP) — Complete 2026-05-03, 6 phases / 38 plans → archived retroactively at v0.3 close
-
-Progress: [##########] 100% (milestone v0.4, 5/5 phases complete; Phases 11-15 all human_needed pending live TG smoke at milestone close)
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-05-07 — Milestone v0.5 started
 
 ## Performance Metrics
 

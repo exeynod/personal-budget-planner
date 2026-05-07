@@ -38,22 +38,27 @@ Telegram Mini App для планирования и ведения месячн
 - AI cost cap не enforced (только observability через `GET /ai/usage`)
 - 11 deferred items (UAT/verification gaps, см. STATE.md)
 
-## Current Milestone: v0.4 Multi-Tenant & Admin
+## Current Milestone: v0.5 Security & AI Hardening
 
-**Goal:** Превратить single-tenant pet в multi-user приложение с whitelist-управлением через UI-админку. Owner управляет доступом сам, не через бот-команды.
+**Goal:** Закрыть 2 CRITICAL и 7 HIGH из код-ревью 2026-05-07. Каждый фикс — с регресс-тестом. Hotfix-style milestone, без новых фич.
 
 **Target features:**
-- Multi-tenancy: `user_id` FK во всех доменных таблицах + Postgres RLS как defense-in-depth
-- Role-based auth: `app_user.role` (owner / member / revoked); удаление `OWNER_TG_ID`-eq из dependencies; OWNER_TG_ID определяет owner-роль только при первом запуске
-- Admin UI tab в «Управление» (видна только owner): whitelist (по скетчам `010-admin-whitelist`) + AI usage sub-tab с per-user breakdown
-- Все админ-действия через UI (никаких `/invite` `/revoke` бот-команд)
-- Onboarding для приглашённых юзеров: scrollable-flow + per-user seed категорий; юзер сам задаёт `starting_balance` и `cycle_start_day`
-- AI cost cap per user (`spending_cap_cents`, default $5/month) с enforcement → 429 и тестами
-- Revoke = hard delete + purge всех данных юзера
+- C1: устранить XSS-вектор в `frontend/src/components/ChatMessage.tsx` (markdown-парсер без HTML-escape под `dangerouslySetInnerHTML`)
+- C2: убрать утечку `str(exc)` из SSE-стрима в `app/api/routes/ai.py:_event_stream`
+- H1: атомарность `complete_onboarding` против гонки двух параллельных submit'ов
+- H2: валидация `amount_rub > 0` в proposal-tools (`propose_actual_transaction`, `propose_planned_transaction`)
+- H3: schema-валидация tool-args в /ai/chat dispatch loop + явный `tool_error` SSE-event
+- H4: устранить race spend-cap (два параллельных /ai/chat обходят cap через TTL-кэш)
+- H5: cap по total tool-calls и детект циклов в agent-loop (защита от token-DoS)
+- H6: унифицировать `SET LOCAL` в `spend_cap.py` через `set_tenant_scope` (защита от регрессии SQLi)
+- H7: вынести `parseRublesToKopecks` в `utils/format.ts`, удалить дубли в `ActualEditor` / `PlanItemEditor`
 
 **Constraints:**
-- 5-50 пользователей, closed whitelist (без биллинга)
-- Phase numbering продолжается: v0.3 закончился на 10.2, v0.4 стартует с Phase 11
+- Каждый фикс сопровождается регресс-тестом (pytest для backend, Playwright для frontend XSS, vitest для money-парсера). Без теста — фикс не считается завершённым.
+- Phase numbering продолжается: v0.4 закончился на 15, v0.5 стартует с Phase 16.
+- Out of scope: миграция `est_cost_usd` Float→BIGINT (architecture debt), embedding cache invalidation на rename категории, CSP-заголовок Caddy.
+
+**Контекст и UAT-критерии:** `~/.claude/plans/serialized-prancing-spark.md`
 
 ## Requirements
 
@@ -199,4 +204,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-06 — v0.4 milestone started (Multi-Tenant & Admin)*
+*Last updated: 2026-05-07 — v0.5 milestone started (Security & AI Hardening)*
