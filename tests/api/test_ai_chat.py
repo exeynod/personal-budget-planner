@@ -58,6 +58,15 @@ async def db_client(async_client, bot_token, owner_tg_id):
         headers={"X-Telegram-Init-Data": init_data},
     )
 
+    # Phase 14 require_onboarded: bootstrap-via-/me path leaves onboarded_at
+    # NULL; flip it now so /ai/* domain endpoints stay reachable in tests.
+    async with SessionLocal() as _onb_session:
+        await _onb_session.execute(
+            text("UPDATE app_user SET onboarded_at = NOW() WHERE tg_user_id = :tg"),
+            {"tg": owner_tg_id},
+        )
+        await _onb_session.commit()
+
     yield async_client, {"X-Telegram-Init-Data": init_data}
 
     app.dependency_overrides.clear()

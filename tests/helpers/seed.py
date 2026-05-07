@@ -34,6 +34,12 @@ from app.db.models import (
 )
 
 
+# Sentinel: callers can explicitly pass onboarded_at=None (invite-flow tests),
+# but the default seeds an already-onboarded user so legacy v0.2/v0.3 tests
+# don't trip over Phase 14's require_onboarded gate.
+_ONBOARDED_DEFAULT: object = object()
+
+
 async def seed_user(
     session: AsyncSession,
     *,
@@ -41,8 +47,10 @@ async def seed_user(
     tg_chat_id: Optional[int] = None,
     role: UserRole = UserRole.owner,
     cycle_start_day: int = 5,
-    onboarded_at: Optional[datetime] = None,
+    onboarded_at=_ONBOARDED_DEFAULT,
 ) -> AppUser:
+    if onboarded_at is _ONBOARDED_DEFAULT:
+        onboarded_at = datetime.now(timezone.utc)
     user = AppUser(
         tg_user_id=tg_user_id,
         tg_chat_id=tg_chat_id,
@@ -197,12 +205,14 @@ async def seed_two_role_tenants(
         tg_user_id=owner_tg_user_id,
         role=UserRole.owner,
         cycle_start_day=5,
+        onboarded_at=None,
     )
     member = await seed_user(
         session,
         tg_user_id=member_tg_user_id,
         role=UserRole.member,
         cycle_start_day=5,
+        onboarded_at=None,
     )
     await session.commit()
     return {

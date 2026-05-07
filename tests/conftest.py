@@ -438,9 +438,12 @@ async def two_tenants(db_session):
     # Pre-test cleanup
     await _cleanup()
 
-    # Create users
-    user_a = AppUser(tg_user_id=tg_a, role=UserRole.member, cycle_start_day=5)
-    user_b = AppUser(tg_user_id=tg_b, role=UserRole.member, cycle_start_day=5)
+    # Create users — onboarded so Phase 14 require_onboarded gate doesn't
+    # block multi-tenant isolation tests on domain endpoints.
+    from datetime import datetime, timezone
+    _onb = datetime.now(timezone.utc)
+    user_a = AppUser(tg_user_id=tg_a, role=UserRole.member, cycle_start_day=5, onboarded_at=_onb)
+    user_b = AppUser(tg_user_id=tg_b, role=UserRole.member, cycle_start_day=5, onboarded_at=_onb)
     db_session.add_all([user_a, user_b])
     await db_session.flush()
 
@@ -498,6 +501,8 @@ async def single_user(db_session, owner_tg_id):
     helper'ов (`user_id=single_user['id']`), второй для initData
     (`make_init_data(single_user['tg_user_id'], bot_token)`).
     """
+    from datetime import datetime, timezone
+
     from sqlalchemy import text
     from app.db.models import AppUser, UserRole
 
@@ -513,10 +518,13 @@ async def single_user(db_session, owner_tg_id):
     await db_session.execute(text("DELETE FROM app_user"))
     await db_session.commit()
 
+    # Phase 14 require_onboarded gate: legacy tests expect a fully-onboarded
+    # owner so domain endpoints stay reachable (411 → 200).
     user = AppUser(
         tg_user_id=owner_tg_id,
         role=UserRole.owner,
         cycle_start_day=5,
+        onboarded_at=datetime.now(timezone.utc),
     )
     db_session.add(user)
     await db_session.commit()

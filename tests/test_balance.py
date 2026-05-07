@@ -12,7 +12,7 @@ Covered behaviors:
 - Empty period returns zeros
 """
 import os
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime, timezone
 
 import pytest
 import pytest_asyncio
@@ -48,7 +48,7 @@ async def db_setup(async_client, owner_tg_id):
 
     # Seed AppUser explicitly — /me no longer upserts after Phase 12 (Plan 12-03).
     async with SessionLocal() as session:
-        session.add(AppUser(tg_user_id=owner_tg_id, role=UserRole.owner, cycle_start_day=5))
+        session.add(AppUser(tg_user_id=owner_tg_id, role=UserRole.owner, cycle_start_day=5, onboarded_at=datetime.now(timezone.utc)))
         await session.commit()
 
     async def real_get_db():

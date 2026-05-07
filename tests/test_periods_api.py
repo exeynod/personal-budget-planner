@@ -13,7 +13,7 @@ Covered behaviors:
 - GET /periods/{id}/balance works for closed periods
 """
 import os
-from datetime import date
+from datetime import date, datetime, timezone
 
 import pytest
 import pytest_asyncio
@@ -49,7 +49,7 @@ async def db_setup(async_client, owner_tg_id):
 
     # Seed AppUser explicitly — /me no longer upserts after Phase 12 (Plan 12-03).
     async with SessionLocal() as session:
-        session.add(AppUser(tg_user_id=owner_tg_id, role=UserRole.owner, cycle_start_day=5))
+        session.add(AppUser(tg_user_id=owner_tg_id, role=UserRole.owner, cycle_start_day=5, onboarded_at=datetime.now(timezone.utc)))
         await session.commit()
 
     async def real_get_db():

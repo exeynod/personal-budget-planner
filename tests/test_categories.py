@@ -70,6 +70,15 @@ async def db_client(async_client, bot_token, owner_tg_id):
         "/api/v1/me",
         headers={"X-Telegram-Init-Data": init_data},
     )
+    # Phase 14 require_onboarded gate: legacy bootstrap-via-/me path leaves
+    # onboarded_at NULL (DEV_MODE upsert doesn't set it); flip it now so
+    # domain endpoints stay reachable.
+    async with SessionLocal() as _onb_session:
+        await _onb_session.execute(
+            text("UPDATE app_user SET onboarded_at = NOW() WHERE tg_user_id = :tg"),
+            {"tg": owner_tg_id},
+        )
+        await _onb_session.commit()
 
     yield async_client
     await engine.dispose()

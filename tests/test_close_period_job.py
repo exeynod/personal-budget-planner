@@ -13,7 +13,7 @@ Covered behaviours:
 - error during close rolls back the entire transaction
 """
 import os
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime, timezone
 
 import pytest
 import pytest_asyncio
@@ -46,7 +46,7 @@ async def db_setup(async_client, monkeypatch):
 
     # Seed AppUser so domain rows have a valid user_id FK.
     async with SessionLocal() as session:
-        user = AppUser(tg_user_id=123456789, role=UserRole.owner, cycle_start_day=5)
+        user = AppUser(tg_user_id=123456789, role=UserRole.owner, cycle_start_day=5, onboarded_at=datetime.now(timezone.utc))
         session.add(user)
         await session.commit()
         await session.refresh(user)
