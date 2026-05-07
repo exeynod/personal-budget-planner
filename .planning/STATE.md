@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v0.4
 milestone_name: Multi-Tenant & Admin
-status: executing
-stopped_at: "Phase 14 complete — 14-VERIFICATION.md status=human_needed; 22 bot handler + 4 vitest unit tests GREEN; DB-backed integration tests pending api container rebuild; live TG smoke deferred per Phase 11/12/13 pattern; ready for Phase 15."
-last_updated: "2026-05-07T13:40:00.000Z"
-last_activity: 2026-05-07 -- Phase 14 verification complete (14-07)
+status: Ready to discuss/plan
+stopped_at: Phase 13 complete — 13-VERIFICATION.md status=human_needed (live TG smoke deferred to milestone close, mirroring Phase 11 U-1 and Phase 12). 8/8 plans + 0 regressions; admin UI + endpoints + AI usage tracking shipped. alembic 0008 (spending_cap_cents stub + ai_usage_log + last_seen_at) applied.
+last_updated: "2026-05-07T11:35:42.348Z"
+last_activity: 2026-05-07 -- Phase 14 verification complete
 progress:
   total_phases: 5
   completed_phases: 4
-  total_plans: 29
-  completed_plans: 29
-  percent: 80
+  total_plans: 36
+  completed_plans: 31
+  percent: 86
 ---
 
 # Project State
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-05-06 after v0.3 milestone close)
 
 ## Current Position
 
-Phase: 15 (ai-cost-cap-per-user) — NOT STARTED
-Plan: 0 of N (planning pending)
-Status: Ready to discuss/plan
-Last activity: 2026-05-07 -- Phase 14 verification complete
+Phase: 15 (ai-cost-cap-per-user) — IN PROGRESS
+Plan: 1 of 7 complete
+Status: In progress
+Last activity: 2026-05-07 -- Phase 15 Plan 01 complete (28 RED tests across 5 modules)
 
 Previous milestones:
 
@@ -61,6 +61,7 @@ Progress: [######    ] 60% (milestone v0.4, 3/5 phases complete; Phase 11 + Phas
 
 *Updated after each plan completion*
 | Phase 14-multi-tenant-onboarding P07 | ~10m | 3 tasks | 3 files |
+| Phase 15-ai-cost-cap-per-user P01 | ~15m | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -118,6 +119,6 @@ Items acknowledged and deferred at v0.3 milestone close on 2026-05-06:
 
 ## Session Continuity
 
-Last session: 2026-05-07T10:32:39.110Z
-Stopped at: Phase 13 complete — 13-VERIFICATION.md status=human_needed (live TG smoke deferred to milestone close, mirroring Phase 11 U-1 and Phase 12). 8/8 plans + 0 regressions; admin UI + endpoints + AI usage tracking shipped. alembic 0008 (spending_cap_cents stub + ai_usage_log + last_seen_at) applied.
+Last session: 2026-05-07T11:35:04Z
+Stopped at: Completed Phase 15 Plan 01 (15-01-red-tests): 28 RED TDD tests in 5 files pinning AICAP-01..05 contracts.
 Resume file: None

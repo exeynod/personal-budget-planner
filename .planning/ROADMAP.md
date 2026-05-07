@@ -138,7 +138,7 @@
   4. `cap_cents = 0` полностью отключает AI для юзера (любой `/ai/*` запрос → 429); изменение cap_cents принимается со следующего запроса (TTL кеша respect'ится).
   5. Тестовая матрица покрывает: превышение → 429 с корректным Retry-After; reset на 1-е число месяца → доступ возвращается; cap=0 → всегда 429; cap edit через PATCH → новый лимит действует на следующем запросе.
 **Plans**: 7 plans
-- [ ] 15-01-red-tests-PLAN.md — RED tests + 2-tenant fixture for spend cap + admin PATCH + /me extension (Wave 0)
+- [x] 15-01-red-tests-PLAN.md — RED tests + 2-tenant fixture for spend cap + admin PATCH + /me extension (Wave 0)
 - [ ] 15-02-spend-service-PLAN.md — app/services/spend_cap.py: get_user_spend_cents + TTLCache + msk-month boundary + cachetools dep (Wave 1)
 - [ ] 15-03-enforce-cap-dep-PLAN.md — enforce_spending_cap dependency + apply to /ai/chat + /ai/suggest-category routers (Wave 2, parallel with 15-04 + 15-05)
 - [ ] 15-04-admin-patch-cap-PLAN.md — PATCH /admin/users/{id}/cap + AdminUserResponse extension + service update_user_cap (Wave 2, parallel)
