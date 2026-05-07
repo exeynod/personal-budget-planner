@@ -85,6 +85,27 @@
   margin-top: 2px;
 }
 
+.capBtn {
+  background: transparent;
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color 100ms;
+}
+
+.capBtn:hover {
+  background: var(--color-bg-elevated);
+}
+
+.capBtn:active {
+  opacity: 0.7;
+}
+
 .revokeBtn {
   background: transparent;
   border: 0;

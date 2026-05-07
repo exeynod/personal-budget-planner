@@ -5,6 +5,8 @@ import styles from './UsersList.module.css';
 export interface UsersListProps {
   users: AdminUserResponse[];
   onRevoke: (user: AdminUserResponse) => void;
+  /** Phase 15 AICAP-04 — open CapEditSheet for this user (all roles including owner). */
+  onEditCap: (user: AdminUserResponse) => void;
 }
 
 function lastSeenLabel(iso: string | null): string {
@@ -31,7 +33,7 @@ function roleLabel(role: AdminUserResponse['role']): string {
  * Member rows: numeric tg_user_id + last_seen метка + inline trash button.
  * Sort обеспечивается backend (owner-pinned), фронт не дублирует.
  */
-export function UsersList({ users, onRevoke }: UsersListProps) {
+export function UsersList({ users, onRevoke, onEditCap }: UsersListProps) {
   if (users.length === 0) {
     return (
       <p className={styles.empty}>
@@ -67,6 +69,16 @@ export function UsersList({ users, onRevoke }: UsersListProps) {
               </div>
               <div className={styles.subLine}>{lastSeenLabel(u.last_seen_at)}</div>
             </div>
+            {!isRevoked && (
+              <button
+                type="button"
+                className={styles.capBtn}
+                aria-label={`Изменить AI-лимит для ${u.tg_user_id}`}
+                onClick={() => onEditCap(u)}
+              >
+                Лимит
+              </button>
+            )}
             {!isOwner && !isRevoked && (
               <button
                 type="button"

@@ -5,6 +5,7 @@ import { Fab } from '../components/Fab';
 import { UsersList } from '../components/UsersList';
 import { InviteSheet } from '../components/InviteSheet';
 import { RevokeConfirmDialog } from '../components/RevokeConfirmDialog';
+import { CapEditSheet } from '../components/CapEditSheet';
 import { AiUsageList } from '../components/AiUsageList';
 import { useAdminUsers } from '../hooks/useAdminUsers';
 import { useAdminAiUsage } from '../hooks/useAdminAiUsage';
@@ -43,6 +44,7 @@ export function AccessScreen({ onBack }: AccessScreenProps) {
   const [activeTab, setActiveTab] = useState<AccessTab>('users');
   const [inviteOpen, setInviteOpen] = useState(false);
   const [revokeTarget, setRevokeTarget] = useState<AdminUserResponse | null>(null);
+  const [capEditTarget, setCapEditTarget] = useState<AdminUserResponse | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
   const usersHook = useAdminUsers();
@@ -60,6 +62,11 @@ export function AccessScreen({ onBack }: AccessScreenProps) {
     showToast('Приглашение создано');
     // AI usage list also benefits from refresh (new user appears with zeroes).
     void usageHook.refetch();
+  };
+
+  const handleUpdateCap = async (userId: number, cents: number) => {
+    await usersHook.updateCap(userId, cents);
+    showToast('Лимит обновлён');
   };
 
   const handleRevokeConfirm = async () => {
@@ -98,7 +105,11 @@ export function AccessScreen({ onBack }: AccessScreenProps) {
               <p className={styles.error}>Ошибка: {usersHook.error}</p>
             )}
             {!usersHook.loading && !usersHook.error && (
-              <UsersList users={usersHook.users} onRevoke={setRevokeTarget} />
+              <UsersList
+                users={usersHook.users}
+                onRevoke={setRevokeTarget}
+                onEditCap={setCapEditTarget}
+              />
             )}
           </div>
           <Fab
@@ -114,6 +125,11 @@ export function AccessScreen({ onBack }: AccessScreenProps) {
             target={revokeTarget}
             onConfirm={handleRevokeConfirm}
             onCancel={() => setRevokeTarget(null)}
+          />
+          <CapEditSheet
+            target={capEditTarget}
+            onClose={() => setCapEditTarget(null)}
+            onSubmit={handleUpdateCap}
           />
         </div>
       )}
