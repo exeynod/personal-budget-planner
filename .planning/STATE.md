@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v0.4
 milestone_name: Multi-Tenant & Admin
 status: executing
-stopped_at: Plan 11-07 complete (integration verification — 14 tests passing, 11-VERIFICATION.md status=human_needed pending live TG MiniApp smoke)
-last_updated: "2026-05-06T18:48:38.638Z"
-last_activity: 2026-05-06 -- Phase 12 execution started
+stopped_at: Phase 12 complete — 12-VERIFICATION.md status=human_needed (live TG smoke deferred to milestone close, mirroring Phase 11 U-1). Ready for Phase 13.
+last_updated: "2026-05-07T06:45:00.000Z"
+last_activity: 2026-05-07 -- Phase 12 verification complete (12-07)
 progress:
   total_phases: 5
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 14
-  completed_plans: 7
-  percent: 50
+  completed_plans: 14
+  percent: 100
 ---
 
 # Project State
@@ -21,40 +21,41 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-06 after v0.3 milestone close)
 
 **Core value:** В один тап записать факт-трату и видеть актуальную дельту план/факт по категориям бюджета — быстрее, чем открывать Google-таблицу. После v0.3 — conversational AI-помощник + аналитика.
-**Current focus:** Phase 12 — role-based-auth-refactor
+**Current focus:** Phase 13 — admin-ui-whitelist-ai-usage (next; Phase 12 complete)
 
 ## Current Position
 
-Phase: 12 (role-based-auth-refactor) — EXECUTING
-Plan: 1 of 7
-Status: Executing Phase 12
-Last activity: 2026-05-06 -- Phase 12 execution started
+Phase: 13 (admin-ui-whitelist-ai-usage) — NOT STARTED
+Plan: 0 of N (planning pending)
+Status: Ready to discuss/plan
+Last activity: 2026-05-07 -- Phase 12 verification complete
 
 Previous milestones:
 
 - v0.3 (Analytics & AI) — Complete 2026-05-06, 6 phases / 25 plans → archive `.planning/milestones/v0.3-*`
 - v0.2 (MVP) — Complete 2026-05-03, 6 phases / 38 plans → archived retroactively at v0.3 close
 
-Progress: [##        ] 20% (milestone v0.4, 0/5 phases complete; 7/7 plans of Phase 11 done — verification human_needed)
+Progress: [####      ] 40% (milestone v0.4, 2/5 phases complete; both Phase 11 and Phase 12 status=human_needed pending live TG smoke)
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 7
-- Average duration: ~12 min
-- Total execution time: ~1.5 hours
+- Total plans completed: 14
+- Average duration: ~13 min
+- Total execution time: ~3 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 11 | 7 | ~84 min | ~12 min |
+| 12 | 7 | ~95 min | ~14 min |
 
 **Recent Trend:**
 
-- Last 5 plans: 11-07 (~25 min, 7 files, 5 commits, 14 integration tests + VERIFICATION.md), 11-06 (~19 min, 16 files, 4 commits), 11-05 (~30 min, 9 files, 3 commits), 11-04 (~3 min, 3 files, 3 commits), 11-03 (~3 min, 1 file, 1 commit)
-- Trend: Phase 11 functionally complete; 14/14 new integration tests pass; verification status=human_needed (live TG smoke pending)
+- Last 5 plans: 12-07 (~10 min, 2 docs, 1 commit, full pytest 275/294 + 12-VERIFICATION.md), 12-06 (test fixture sweep ~25 min, 22 files, 5 commits), 12-05 (Postgres role split ~20 min, 7 files, 3 commits), 12-04 (bot OWNER_TG_ID removal ~12 min), 12-03 (/me + role ~8 min)
+- Trend: Phase 12 functionally complete; auth surface migrated to role-based; D-11-07-01/02 closed. Verification status=human_needed (live TG smoke deferred, same disposition as Phase 11)
 
 *Updated after each plan completion*
 
@@ -110,6 +111,6 @@ Items acknowledged and deferred at v0.3 milestone close on 2026-05-06:
 
 ## Session Continuity
 
-Last session: 2026-05-06T20:18:00.000Z
-Stopped at: Plan 11-07 complete (integration verification — 14 tests passing, 11-VERIFICATION.md status=human_needed pending live TG MiniApp smoke)
-Resume file: Phase 12 (auth refactor) entry plan — but first address D-11-07-01 (legacy fixture sweep) and D-11-07-02 (non-superuser app role) as prerequisites; or sign off live TG smoke and flip 11-VERIFICATION.md status=passed.
+Last session: 2026-05-07T06:45:00.000Z
+Stopped at: Phase 12 complete — 12-VERIFICATION.md status=human_needed (live TG smoke deferred to milestone close, mirroring Phase 11 U-1). D-11-07-01 (legacy fixture sweep) + D-11-07-02 (Postgres role split) closed.
+Resume file: Phase 13 (admin-ui-whitelist-ai-usage) — discuss/plan/execute next. Owner-gated UI tab «Доступ» with Users + AI Usage sub-tabs; FAB invite, inline revoke. Backend admin endpoints behind `Depends(require_owner)` (already shipped in Phase 12).

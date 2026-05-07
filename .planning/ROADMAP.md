@@ -39,7 +39,7 @@
 ### 🚧 v0.4 Multi-Tenant & Admin (Active)
 
 - [x] **Phase 11: Multi-Tenancy DB Migration & RLS** — `user_id` FK во всех доменных таблицах + Postgres RLS + `app_user.role` колонка с backfill для существующего owner — 7/7 plans complete; status=human_needed (live TG smoke deferred per user); D-11-07-01/02 carry forward into the next phase
-- [ ] **Phase 12: Role-Based Auth Refactor** — auth-dependencies переключены с `OWNER_TG_ID`-eq на `app_user.role`; `/me` отдаёт role; `require_owner` для admin endpoints
+- [x] **Phase 12: Role-Based Auth Refactor** — 7/7 plans complete; status=human_needed (live TG smoke deferred per user pattern, mirroring Phase 11 U-1); D-11-07-01 + D-11-07-02 closed
 - [ ] **Phase 13: Admin UI — Whitelist & AI Usage** — вкладка «Доступ» в «Управление» (только owner): список юзеров + invite/revoke + AI usage sub-tab с per-user breakdown
 - [ ] **Phase 14: Multi-Tenant Onboarding** — invite-flow для `role=member` юзеров: bot bind → starting_balance → cycle_start_day → seed 14 категорий per-user + автогенерация embeddings
 - [ ] **Phase 15: AI Cost Cap Per User** — `spending_cap_cents` (default $5/month) с enforcement → 429; Settings показывает текущий spend/cap; owner редактирует cap через Admin UI
@@ -83,7 +83,7 @@
 - [x] 12-04-PLAN.md — Bot OWNER_TG_ID removal: bot_resolve_user_role helper + cmd_start/_is_owner refactor (Wave 3)
 - [x] 12-05-PLAN.md — Postgres role split (D-11-07-02): alembic 0007 + ADMIN_DATABASE_URL + docker-compose updates (Wave 3, parallel with 12-04)
 - [x] 12-06-PLAN.md — Test fixture sweep (D-11-07-01): tests/helpers/seed.py + single_user fixture + 22 test files updated (Wave 4)
-- [ ] 12-07-PLAN.md — Verification: full pytest + alembic 0007 apply + 12-VERIFICATION.md + threat-model attestation (Wave 5, has human checkpoint)
+- [x] 12-07-PLAN.md — Verification: full pytest + alembic 0007 apply + 12-VERIFICATION.md + threat-model attestation (Wave 5, has human checkpoint) — completed 2026-05-07; status=human_needed (live TG smoke deferred)
 **UI hint**: no
 
 ### Phase 13: Admin UI — Whitelist & AI Usage
