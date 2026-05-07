@@ -19,6 +19,7 @@ dependencies = [
     "aiohttp>=3.9.0,<3.13",
     "pytz",
     "openai>=1.50.0",
+    "cachetools>=5.3,<6.0",
     "pgvector>=0.3.0",
 ]
 
