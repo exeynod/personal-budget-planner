@@ -36,24 +36,24 @@ describe('apiFetch 409 sub-shape detection', () => {
     fetchSpy.mockResolvedValueOnce(
       makeResponse(409, JSON.stringify({ detail: 'User 123 is already onboarded' })),
     );
-    const err = await apiFetch('/onboarding/complete').catch((e) => e);
+    const err = await apiFetch('/onboarding/complete').catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ApiError);
     expect(err).not.toBeInstanceOf(OnboardingRequiredError);
-    expect(err.status).toBe(409);
+    expect((err as ApiError).status).toBe(409);
   });
 
   it('throws plain ApiError on 409 with malformed JSON body', async () => {
     fetchSpy.mockResolvedValueOnce(makeResponse(409, '<html>nginx 502</html>'));
-    const err = await apiFetch('/anything').catch((e) => e);
+    const err = await apiFetch('/anything').catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ApiError);
     expect(err).not.toBeInstanceOf(OnboardingRequiredError);
   });
 
   it('throws plain ApiError on non-409 errors', async () => {
     fetchSpy.mockResolvedValueOnce(makeResponse(403, '{"detail":"Not authorized"}'));
-    const err = await apiFetch('/me').catch((e) => e);
+    const err = await apiFetch('/me').catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ApiError);
     expect(err).not.toBeInstanceOf(OnboardingRequiredError);
-    expect(err.status).toBe(403);
+    expect((err as ApiError).status).toBe(403);
   });
 });

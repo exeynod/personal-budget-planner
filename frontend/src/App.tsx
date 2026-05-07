@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useUser } from './hooks/useUser';
+import { OnboardingRequiredError } from './api/client';
 import { useAiConversation } from './hooks/useAiConversation';
 import { OnboardingScreen } from './screens/OnboardingScreen';
 import { HomeScreen } from './screens/HomeScreen';
@@ -23,6 +24,19 @@ export default function App() {
   // Поднимаем состояние AI-чата на уровень App, чтобы оно переживало
   // переключение нижних табов (AiScreen unmount-ится при смене вкладки).
   const aiConversation = useAiConversation();
+  const [pendingOnboarding, setPendingOnboarding] = useState<boolean>(false);
+
+  useEffect(() => {
+    function onUnhandled(ev: PromiseRejectionEvent) {
+      // Phase 14 D-14-01: stale /me + 409 race → force OnboardingScreen.
+      if (ev.reason instanceof OnboardingRequiredError) {
+        ev.preventDefault();
+        setPendingOnboarding(true);
+      }
+    }
+    window.addEventListener('unhandledrejection', onUnhandled);
+    return () => window.removeEventListener('unhandledrejection', onUnhandled);
+  }, []);
 
   if (loading && !user) {
     return (
@@ -45,7 +59,7 @@ export default function App() {
 
   const isOnboarded = user.onboarded_at !== null;
 
-  if (!isOnboarded) {
+  if (!isOnboarded || pendingOnboarding) {
     return (
       <div className={styles.appWrapper}>
         <div className={styles.appRoot}>
@@ -53,6 +67,7 @@ export default function App() {
             user={user}
             onRefreshUser={refetch}
             onComplete={() => {
+              setPendingOnboarding(false);
               setActiveTab('home');
               void refetch();
             }}

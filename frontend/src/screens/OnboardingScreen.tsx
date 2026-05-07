@@ -89,13 +89,24 @@ export function OnboardingScreen({ user, onRefreshUser, onComplete }: Onboarding
   return (
     <div className={styles.root}>
       <header className={styles.header}>
-        <div className={styles.title}>Добро пожаловать</div>
+        <div className={styles.title}>
+          {user.role === 'member' ? 'Добро пожаловать в команду' : 'Добро пожаловать'}
+        </div>
       </header>
 
       <div className={styles.intro}>
         <div className={styles.heroIcon}>💸</div>
-        <div className={styles.heroTitle}>Несколько шагов</div>
-        <div className={styles.heroHint}>Заполните по порядку — займёт минуту</div>
+        {user.role === 'member' ? (
+          <>
+            <div className={styles.heroTitle}>Привет!</div>
+            <div className={styles.heroHint}>Несколько шагов и вы готовы вести бюджет</div>
+          </>
+        ) : (
+          <>
+            <div className={styles.heroTitle}>Несколько шагов</div>
+            <div className={styles.heroHint}>Заполните по порядку — займёт минуту</div>
+          </>
+        )}
       </div>
 
       {/* Section 1: bot bind */}
