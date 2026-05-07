@@ -13,6 +13,10 @@ Phase 11 (Plan 11-06): upsert_category_embedding и suggest_category прини�
 ``user_id`` keyword-only. CategoryEmbedding INSERT задаёт user_id явно
 (NOT NULL constraint в schema). suggest_category фильтрует embeddings по
 user_id (только свои категории влияют на suggestion).
+
+Phase 14 (MTONB-03): EmbeddingService.embed_texts wraps embed_text for
+batch usage from backfill_user_embeddings without breaking the LRU
+cache semantics (per-text key, same normalisation).
 """
 from __future__ import annotations
 
@@ -111,6 +115,30 @@ class EmbeddingService:
         if len(self._embed_cache) > _EMBED_CACHE_MAXSIZE:
             self._embed_cache.popitem(last=False)
         return vector
+
+    async def embed_texts(self, texts: list[str]) -> list[list[float]]:
+        """Batch wrapper around embed_text — preserves LRU caching per item.
+
+        Phase 14 (MTONB-03): callers like backfill_user_embeddings issue 14
+        embeddings at once. Routing each through embed_text means duplicate
+        names within the batch (or repeated batches over time) hit the
+        in-process LRU cache instead of the LLM provider.
+
+        For Phase 14 the implementation is a sequential loop of self.embed_text;
+        switching to a true provider-side batch API (single HTTPS request) is
+        a future optimisation that does not change the public contract.
+
+        Args:
+            texts: list of input strings, may be empty.
+        Returns:
+            list[list[float]] of length len(texts), each vector EMBEDDING_DIM.
+        """
+        if not texts:
+            return []
+        vectors: list[list[float]] = []
+        for t in texts:
+            vectors.append(await self.embed_text(t))
+        return vectors
 
     async def upsert_category_embedding(
         self,
