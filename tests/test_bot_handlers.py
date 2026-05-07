@@ -231,3 +231,52 @@ async def test_bind_chat_id_raises_internal_api_error_on_http_failure() -> None:
     with patch.object(api_client.httpx, "AsyncClient", _FailingClient):
         with pytest.raises(api_client.InternalApiError):
             await api_client.bind_chat_id(tg_user_id=111, tg_chat_id=222)
+
+
+# ---------------------------------------------------------------
+# Phase 14 MTONB-01: cmd_start branch for member with onboarded_at=None
+# ---------------------------------------------------------------
+
+async def test_cmd_start_member_not_onboarded_uses_invite_copy() -> None:
+    """Member with onboarded_at=None → "Откройте приложение и пройдите настройку".
+
+    Phase 14 D-14-02: bot extracts (role, onboarded_at) via
+    bot_resolve_user_status. Existing bot_resolve_user_role helper
+    cannot distinguish onboarded vs not-onboarded — Plan 14-04 adds the
+    sibling. Test fails with assertion error until then (create=True
+    patches the non-existing attribute so the test can reach the
+    assertion line, which will fail because cmd_start has not yet
+    implemented the not-onboarded branch).
+    """
+    from app.bot import handlers
+    from app.db.models import UserRole
+
+    msg = _make_message(user_id=555, chat_id=777)
+    cmd = _make_command(args=None)
+
+    with patch.object(
+        handlers,
+        "bot_resolve_user_status",
+        new=AsyncMock(return_value=(UserRole.member, None)),
+        create=True,  # attribute does not exist yet — RED phase
+    ), patch.object(
+        handlers,
+        "bot_resolve_user_role",
+        new=AsyncMock(return_value=UserRole.member),
+    ), patch.object(
+        handlers,
+        "bind_chat_id",
+        new=AsyncMock(return_value=None),
+    ):
+        await handlers.cmd_start(msg, cmd)
+
+    msg.answer.assert_called_once()
+    call_args, call_kwargs = msg.answer.call_args
+    greeting = call_args[0]
+    assert "Откройте приложение и пройдите настройку" in greeting, (
+        f"Expected not-onboarded invite copy, got: {greeting!r}"
+    )
+    assert "Бот запущен и готов к работе" not in greeting, (
+        f"Got onboarded copy instead of invite copy: {greeting!r}"
+    )
+    assert "reply_markup" in call_kwargs, "WebApp button must remain for not-onboarded member"
