@@ -187,11 +187,12 @@ async def test_admin_ai_usage_current_month_excludes_old_data(
 async def test_admin_ai_usage_pct_of_cap_warns_at_80_pct(
     db_client, bot_token, owner_tg_id
 ):
-    """spending_cap_cents — Phase 13 stub default 46500 копеек USD ($5).
+    """spending_cap_cents at scale 100/USD (post-CR-01 + alembic 0009).
 
-    Тест фиксирует cap≈10000 копеек и проверяет что 80% триггерится.
-    Cap settings change: после Plan 13-02 alembic 0008 column NOT NULL DEFAULT 46500.
-    Тест меняет cap явно через UPDATE для конкретной строки.
+    Re-baselined 2026-05-07: cap=1000 cents = $10/month, spend $8.30 →
+    830 cents at 100/USD → pct≈0.83. Previously calibrated на legacy
+    100_000/USD scale; CR-01 fix in admin_ai_usage.py + alembic 0009 default
+    align scale на 100/USD canonical.
     """
     from tests.conftest import make_init_data
     from tests.helpers.seed import seed_user, seed_ai_usage_log
@@ -202,17 +203,17 @@ async def test_admin_ai_usage_pct_of_cap_warns_at_80_pct(
         owner = await seed_user(s, tg_user_id=owner_tg_id, role=UserRole.owner)
         await s.commit()
         owner_id = owner.id
-        # Override cap to 10000 (USD копейки = $1.00).
+        # Override cap to 1000 cents = $10/month at 100/USD scale.
         await s.execute(
             text("UPDATE app_user SET spending_cap_cents = :cap WHERE id = :uid"),
-            {"cap": 10_000, "uid": owner_id},
+            {"cap": 1_000, "uid": owner_id},
         )
         await s.commit()
 
     async with SessionLocal() as s:
-        # est_cost_usd = 0.083 → 8300 копеек USD ≈ 83% от cap 10000.
+        # est_cost_usd = 8.30 → 830 cents at 100/USD ≈ 83% от cap 1000.
         await seed_ai_usage_log(
-            s, user_id=owner_id, total_tokens=1, est_cost_usd=0.083,
+            s, user_id=owner_id, total_tokens=1, est_cost_usd=8.30,
         )
 
     init_data = make_init_data(owner_tg_id, bot_token)
@@ -222,7 +223,7 @@ async def test_admin_ai_usage_pct_of_cap_warns_at_80_pct(
     assert resp.status_code == 200, resp.text
     body = resp.json()
     row = next(r for r in body["users"] if r["user_id"] == owner_id)
-    assert row["spending_cap_cents"] == 10_000
+    assert row["spending_cap_cents"] == 1_000
     assert row["pct_of_cap"] >= 0.80, (
         f"83% of cap → pct_of_cap should be ≥0.80, got {row['pct_of_cap']}"
     )

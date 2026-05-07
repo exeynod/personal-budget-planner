@@ -482,7 +482,6 @@ async def test_sp10_cycle_boundary_period_resolution():
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.skip(reason="SP-11: needs deeper investigation into charge_now charge_date semantics — see Layer 5 findings in v0.4-TEST-REPORT.md")
 @pytest.mark.asyncio
 async def test_sp11_subscription_double_charge_409(sec_env):
     """POST /subscriptions/{id}/charge-now twice same day → 2nd = 409."""
@@ -508,15 +507,18 @@ async def test_sp11_subscription_double_charge_409(sec_env):
     cats = (await client.get("/api/v1/categories", headers=headers)).json()
     expense_cat_id = next(c["id"] for c in cats if c["kind"] == "expense")
 
-    # Create subscription with future next_charge_date (so first charge-now
-    # is a fresh charge, not pre-charged by worker close_period).
+    # uq_planned_sub_charge_date = (subscription_id, original_charge_date).
+    # POST /subscriptions auto-adds a planned row when next_charge_date is
+    # inside the active period — so picking a date OUTSIDE the active period
+    # gives a clean slate for the explicit double-charge test.
+    future_date = date.today() + timedelta(days=60)
     sub = await client.post(
         "/api/v1/subscriptions",
         json={
-            "name": "TestSub",
+            "name": "TestSubSP11",
             "amount_cents": 1_000,
             "cycle": "monthly",
-            "next_charge_date": (date.today() + timedelta(days=30)).isoformat(),
+            "next_charge_date": future_date.isoformat(),
             "category_id": expense_cat_id,
             "notify_days_before": 0,
             "is_active": True,
@@ -526,23 +528,18 @@ async def test_sp11_subscription_double_charge_409(sec_env):
     assert sub.status_code in (200, 201), sub.text
     sub_id = sub.json()["id"]
 
-    # First charge — may succeed (200) or already-charged (409) depending
-    # on whether the worker close_period scheduled this sub already.
+    # First charge — original_charge_date = future_date; advances next_charge_date.
     c1 = await client.post(f"/api/v1/subscriptions/{sub_id}/charge-now", headers=headers)
-    if c1.status_code == 409:
-        # First charge already exists — that itself proves the constraint:
-        # a duplicate charge attempt was rejected.
-        pytest.skip("subscription already auto-charged by worker; constraint validated")
+    assert c1.status_code in (200, 201), (
+        f"first charge unexpectedly returned {c1.status_code}: {c1.text}"
+    )
 
-    assert c1.status_code in (200, 201), c1.text
-
-    # Reset next_charge_date back to today and re-issue charge — must 409
-    # because uq_planned_sub_charge_date already has a row for (sub_id, today).
-    today_obj = date.today()
+    # Rewind next_charge_date back to future_date — second charge tries to
+    # INSERT (sub_id, future_date), which already exists from the first charge.
     async with SessionLocal() as session:
         await session.execute(
             text("UPDATE subscription SET next_charge_date = :d WHERE id = :id"),
-            {"d": today_obj, "id": sub_id},
+            {"d": future_date, "id": sub_id},
         )
         await session.commit()
 

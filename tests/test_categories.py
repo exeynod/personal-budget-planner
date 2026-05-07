@@ -195,8 +195,26 @@ async def test_archived_can_be_unarchived(db_client, auth_headers):
 
 
 @pytest.mark.asyncio
-async def test_seed_creates_14_categories(db_client, auth_headers):
-    """CAT-03: seed via /onboarding/complete (with seed_default_categories=true)."""
+async def test_seed_creates_14_categories(db_client, auth_headers, owner_tg_id):
+    """CAT-03: seed via /onboarding/complete (with seed_default_categories=true).
+
+    Phase 14 test-infra note: db_client fixture flips onboarded_at=NOW() right
+    after the GET /me bootstrap. Reset it back to NULL so /onboarding/complete
+    can run (otherwise → 409 AlreadyOnboardedError).
+    """
+    import os
+    from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
+    from sqlalchemy import text as _text
+    _engine = create_async_engine(os.environ["DATABASE_URL"], echo=False)
+    _SessionLocal = async_sessionmaker(_engine, expire_on_commit=False)
+    async with _SessionLocal() as _s:
+        await _s.execute(
+            _text("UPDATE app_user SET onboarded_at = NULL WHERE tg_user_id = :tg"),
+            {"tg": owner_tg_id},
+        )
+        await _s.commit()
+    await _engine.dispose()
+
     response = await db_client.post(
         "/api/v1/onboarding/complete",
         json={

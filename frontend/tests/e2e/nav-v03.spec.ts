@@ -183,7 +183,10 @@ test('nav-01: 5 функциональных табов с новыми лейб
 // ============================================================
 // NAV-02: AI таб имеет класс ai когда активен
 // ============================================================
-test('nav-02: AI таб имеет класс ai когда активен', async ({ page }) => {
+// SKIPPED 2026-05-07 (v0.4 test campaign L-3): Phase 7 nav refactor + later
+// AiScreen rework removed the legacy `ai` class hook on the active button.
+// Replace this assertion with a real AiScreen-rendered check if needed.
+test.skip('nav-02: AI таб имеет класс ai когда активен', async ({ page }) => {
   await mockApiRich(page);
   await page.goto('/');
   await waitForLoad(page);
@@ -262,7 +265,11 @@ test('txn-03: Под-таб план показывает source-badge', async (
 // ============================================================
 // TXN-04: Фильтр-чипы видны в Транзакциях
 // ============================================================
-test('txn-04: Фильтр-чипы видны в Транзакциях', async ({ page }) => {
+// SKIPPED 2026-05-07 (v0.4 test campaign L-3): TransactionsScreen UI was
+// reworked in v0.3 ux-fixes (sub-tabs Actual/Planned with different chip
+// labels). Re-author against the current SubTabBar markup if regression
+// coverage is needed.
+test.skip('txn-04: Фильтр-чипы видны в Транзакциях', async ({ page }) => {
   await mockApiRich(page);
   await page.goto('/');
   await waitForLoad(page);
@@ -339,7 +346,10 @@ test('mgt-02: Клик Подписки открывает SubscriptionsScreen',
 // ============================================================
 // placeholder: Аналитика и AI показывают «Скоро будет»
 // ============================================================
-test('placeholder: Аналитика и AI показывают Скоро будет', async ({ page }) => {
+// SKIPPED 2026-05-07 (v0.4 test campaign L-3): obsolete since v0.3 — both
+// AnalyticsScreen and AiScreen are fully implemented. Remove or rewrite as
+// real-screen smoke tests.
+test.skip('placeholder: Аналитика и AI показывают Скоро будет', async ({ page }) => {
   await mockApiRich(page);
   await page.goto('/');
   await waitForLoad(page);

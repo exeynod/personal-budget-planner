@@ -106,8 +106,30 @@ async def test_invalid_cycle_day_422(db_client, auth_headers, invalid_day):
 
 
 @pytest.mark.asyncio
-async def test_patch_does_not_recompute_existing_period(db_client, auth_headers):
-    """SET-01 / D-17: изменение cycle_start_day не пересчитывает текущий период."""
+async def test_patch_does_not_recompute_existing_period(db_client, auth_headers, owner_tg_id):
+    """SET-01 / D-17: изменение cycle_start_day не пересчитывает текущий период.
+
+    Phase 14 test-infra note: db_client fixture flips onboarded_at=NOW() right
+    after the GET /me bootstrap (so legacy domain endpoints stay reachable
+    behind require_onboarded). This test specifically wants to exercise the
+    real /onboarding/complete flow, so we reset onboarded_at to NULL in DB
+    before calling complete_onboarding.
+    """
+    # Reset onboarded_at — undo db_client's pre-onboarding shortcut so that
+    # /onboarding/complete is allowed to run.
+    import os
+    from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
+    from sqlalchemy import text as _text
+    _engine = create_async_engine(os.environ["DATABASE_URL"], echo=False)
+    _SessionLocal = async_sessionmaker(_engine, expire_on_commit=False)
+    async with _SessionLocal() as _s:
+        await _s.execute(
+            _text("UPDATE app_user SET onboarded_at = NULL WHERE tg_user_id = :tg"),
+            {"tg": owner_tg_id},
+        )
+        await _s.commit()
+    await _engine.dispose()
+
     # 1. Onboarding с cycle_start_day=5 — создаёт период
     await db_client.post(
         "/api/v1/onboarding/complete",

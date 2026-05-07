@@ -58,12 +58,18 @@ async def db_client(async_client, bot_token, owner_tg_id):
 
 
 @pytest.mark.asyncio
-async def test_periods_current_before_onboarding_is_404(db_client, auth_headers):
-    """До onboarding активного периода нет."""
+async def test_periods_current_before_onboarding_is_409(db_client, auth_headers):
+    """До onboarding require_onboarded gate срабатывает раньше period lookup.
+
+    Phase 14 (MTONB-04): был 404 до Phase 14, теперь 409 onboarding_required —
+    /periods/current под Depends(require_onboarded), gate firs первым.
+    """
     # First trigger /me to create app_user row (Phase 1 D-11 upsert pattern)
     await db_client.get("/api/v1/me", headers=auth_headers)
     response = await db_client.get("/api/v1/periods/current", headers=auth_headers)
-    assert response.status_code == 404
+    assert response.status_code == 409
+    body = response.json()
+    assert body.get("detail", {}).get("error") == "onboarding_required"
 
 
 @pytest.mark.asyncio

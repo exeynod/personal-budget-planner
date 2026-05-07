@@ -64,17 +64,24 @@ async def db_session():
 
 
 def _make_embed_service_mock(n_vectors: int = 3):
-    """Return a MagicMock(spec=EmbeddingService) whose embed_texts AsyncMock
-    returns deterministic vectors matching the requested count."""
-    from app.ai.embedding_service import EmbeddingService, EMBEDDING_DIM
+    """Return a real EmbeddingService instance with embed_texts replaced by an
+    AsyncMock — preserves real upsert_category_embedding so DB writes happen.
 
-    svc = MagicMock(spec=EmbeddingService)
+    Phase 14-test-debt fix (H-2): MagicMock(spec=EmbeddingService) silently
+    stubs ALL methods, including upsert_category_embedding which writes to
+    DB. Tests asserting row_count then saw 0 even though the helper reported
+    success. Mocking only the OpenAI-bound method preserves DB-write path.
+    """
+    from app.ai.embedding_service import EmbeddingService, EMBEDDING_DIM, get_embedding_service
+
+    real_svc = get_embedding_service()
 
     async def _embed_texts(texts):
         return [[0.1 * i] * EMBEDDING_DIM for i in range(len(texts))]
 
-    svc.embed_texts = AsyncMock(side_effect=_embed_texts)
-    return svc
+    real_svc.embed_texts = AsyncMock(side_effect=_embed_texts)
+    real_svc.embed_text = AsyncMock(side_effect=lambda txt: [0.1] * EMBEDDING_DIM)
+    return real_svc
 
 
 async def test_backfill_creates_embeddings_for_all_user_categories(db_session):
