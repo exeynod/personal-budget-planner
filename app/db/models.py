@@ -96,11 +96,13 @@ class AppUser(Base):
     enable_ai_categorization: Mapped[bool] = mapped_column(
         Boolean, default=True, nullable=False, server_default="true"
     )
+    # Scale 100/USD per spend_cap.py (1 USD == 100 storage units).
+    # Default = 100 cents = $1/month per user (alembic 0009 migration).
     spending_cap_cents: Mapped[int] = mapped_column(
         BigInteger,
         nullable=False,
-        default=46500,
-        server_default="46500",
+        default=100,
+        server_default="100",
     )
     role: Mapped[UserRole] = mapped_column(
         PgEnum(UserRole, name="user_role", create_type=False),
