@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v0.5
 milestone_name: Security & AI Hardening
 status: executing
-stopped_at: Completed Plan 16-05 (AI-03 tool-loop guard + 3 pytest cases)
-last_updated: "2026-05-07T18:16:07.686Z"
-last_activity: 2026-05-07 — Plan 16-05 AI-03 closed (tool-loop guard hardcap=8 + repeat-detect + 3 pytest cases)
+stopped_at: Completed Plan 16-07 (CON-02 per-user asyncio.Lock + 2 pytest concurrent cases)
+last_updated: "2026-05-07T18:32:00.000Z"
+last_activity: 2026-05-07 — Plan 16-07 CON-02 closed (per-user asyncio.Lock + in-lock re-check + 2 pytest concurrent cases). Phase 16 complete (9/9).
 progress:
   total_phases: 1
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 9
-  completed_plans: 8
-  percent: 89
+  completed_plans: 9
+  percent: 100
 ---
 
 # Project State
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-05-07 — v0.5 milestone started)
 
 ## Current Position
 
-Phase: 16 of 16 (Security & AI Hardening)
-Plan: 16-05 complete (AI-03 tool-loop guard); 16-01/02/03/04/05/06/08/09 closed; 16-07 still pending
-Status: In progress
-Last activity: 2026-05-07 — Plan 16-05 AI-03 closed (hardcap 8 tool-calls + adjacent-round repeat-detect + token-style fallback + 3 pytest cases)
+Phase: 16 of 16 (Security & AI Hardening) — COMPLETE
+Plan: 16-07 complete (CON-02 per-user asyncio.Lock); ALL 9 plans closed (16-01..16-09).
+Status: Phase complete — milestone v0.5 ready for close.
+Last activity: 2026-05-07 — Plan 16-07 CON-02 closed (per-user asyncio.Lock dict + enforce_spending_cap_for_user in-lock helper + 2 pytest concurrent cases verified pre-fix FAILS, post-fix PASSES).
 
-Progress: [█████████░] 89%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
@@ -60,6 +60,7 @@ Progress: [█████████░] 89%
 **v0.5 plans (Phase 16) — running tally:**
 
 - Phase 16 P05: 4 min, 2 tasks, 2 files (`app/api/routes/ai.py` modified, `tests/api/test_ai_chat_tool_loop_guard.py` created)
+- Phase 16 P07: ~10 min, 3 tasks, 4 files (`app/services/spend_cap.py` + `app/api/dependencies.py` + `app/api/routes/ai.py` modified, `tests/test_spend_cap_concurrent.py` created); 2 commits feat + fix + test (d4be381 / 86cfdea / bab91c6)
 
 ## Accumulated Context
 
@@ -79,6 +80,7 @@ Recent decisions affecting v0.5 planning:
 - 16-06 (2026-05-07): CON-01 закрыт. Atomic `UPDATE app_user SET onboarded_at=:now, cycle_start_day=:csd WHERE id=:id AND onboarded_at IS NULL RETURNING onboarded_at` per D-16-03 — заменяет SELECT-then-mutate в `complete_onboarding`. Loser видит claimed_row=None, refresh-ит user, raise AlreadyOnboardedError. Pytest regression `tests/test_onboarding_concurrent.py` (2 теста, asyncio.Barrier(2) для детерминистического race) — verified FAIL pre-fix (IntegrityError на uq_budget_period_user_id_period_start) → PASS post-fix через container rebuild. Race-test pattern переиспользуем для будущих CON-* фиксов.
 - 16-04 (2026-05-07): AI-02 закрыт. Создан `app/ai/tool_args.py` — 6 Pydantic моделей (по одной на tool) extra='forbid' + `TOOL_ARGS_MODELS` mapping. `_event_stream` tool dispatch валидирует raw JSON через `model_validate(raw_kwargs)` → невалидный JSON / mistyped types / extra fields → SSE `tool_error` event + `logger.warning("ai.tool_args_invalid tool=%s err_type=%s err=%s raw_args=%.200s")` + synth `{error: ...}` tool_result message-pair (preserves OpenAI assistant.tool_calls invariant для recovery). Frontend `AiEventType` расширен `tool_error` + `ToolErrorPayload`; `useAiConversation.handleEvent` → `setError(event.data.message)` без abort стрима. Pytest regression `tests/api/test_ai_chat_tool_args_validation.py` (3 теста: bad JSON / mistyped / extra field) — все PASS в integration-контейнере; 0 регрессов в существующих 10 AI-тестах.
 - 16-05 (2026-05-07): AI-03 закрыт. Hardcap MAX_TOTAL_TOOL_CALLS=8 + adjacent-round repeat-detect `(tool_name, frozenset(parsed_kwargs.items()))` в `_event_stream`. Counter инкрементируется ПОСЛЕ args validation и ДО tool_fn(), так что Plan 16-04 tool_error path не консьюмит budget. На trigger — yield token-style fallback "Не удалось завершить, переформулируй запрос" + done. Логи `ai.tool_loop_repeat` / `ai.tool_loop_hardcap` зеркалят `ai.tool_args_invalid` из 16-04. `max_rounds=5` оставлен как outer safety net. Pytest regression `tests/api/test_ai_chat_tool_loop_guard.py` (3 теста: dedup, hardcap, normal) — PASS, 0 регрессов в 13 существующих AI-тестах.
+- 16-07 (2026-05-07): CON-02 закрыт. Per-user `asyncio.Lock` dict (`_user_locks: dict[int, asyncio.Lock]`) в `app/services/spend_cap.py` через `acquire_user_spend_lock` get-or-create под `_user_locks_guard`. `chat()` route оборачивает StreamingResponse в acquire-before / release-in-finally; `enforce_spending_cap_for_user` (новый imperative helper в `app/api/dependencies.py`) делает invalidate_cache + re-check внутри lock — закрывает race между двумя параллельными /ai/chat при cached spend < cap. Router-level dep `enforce_spending_cap` оставлен как fast-path. Pytest regression `tests/test_spend_cap_concurrent.py` (2 теста: same-user race [200, 429] + 1.00 USD total, cross-user isolation [200, 200]) — verified pre-fix FAIL [200, 200] / 1.01 USD через container rebuild со stashed changes; post-fix PASS. 0 регрессов в 17 существующих spend-cap тестах. Lock dict GC отложен (pet-app 5-50 users per PROJECT.md, ~200 bytes per Lock).
 
 ### Pending Todos
 
@@ -110,6 +112,6 @@ Items acknowledged and deferred at v0.4 milestone close on 2026-05-07:
 
 ## Session Continuity
 
-Last session: 2026-05-07T18:15:51.373Z
-Stopped at: Completed Plan 16-04 (AI-02 Pydantic tool-args validation + tool_error SSE event)
+Last session: 2026-05-07T18:32:00.000Z
+Stopped at: Completed Plan 16-07 (CON-02 per-user asyncio.Lock + 2 pytest concurrent cases). Phase 16 complete (9/9 plans).
 Resume file: None

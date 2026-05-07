@@ -28,9 +28,10 @@
   - **File:** `app/services/onboarding.py:complete_onboarding`
   - **Closed:** Plan 16-06 (2026-05-07) — atomic `UPDATE app_user … WHERE id=:id AND onboarded_at IS NULL RETURNING onboarded_at` per D-16-03 + pytest regression `tests/test_onboarding_concurrent.py` (2 cases, asyncio.Barrier(2)).
 
-- [ ] **CON-02**: `enforce_spending_cap` работает атомарно с записью usage-лога — два параллельных `/ai/chat` при cap-1¢ → ровно один проходит, второй блокируется.
+- [x] **CON-02**: `enforce_spending_cap` работает атомарно с записью usage-лога — два параллельных `/ai/chat` при cap-1¢ → ровно один проходит, второй блокируется.
   - **Acceptance:** pytest async, два запроса параллельно, проверка количества записей в `ai_usage_log` и итогового spend.
   - **Files:** `app/services/spend_cap.py`, `app/api/dependencies.py`, `app/api/routes/ai.py:_record_usage`
+  - **Closed:** Plan 16-07 (2026-05-07) — per-user `asyncio.Lock` dict в `spend_cap.py` (D-16-07) + `acquire_user_spend_lock` get-or-create helper + `enforce_spending_cap_for_user` imperative helper в `dependencies.py` для in-lock re-check после `invalidate_user_spend_cache` + `chat()` route оборачивает StreamingResponse в acquire-before / release-in-finally. Pytest regression `tests/test_spend_cap_concurrent.py` (2 cases: same-user race + cross-user isolation) — verified pre-fix FAILS [200,200], post-fix PASSES [200,429] + ai_usage_log SUM == 1.00 USD.
 
 ### AI Guardrails
 
@@ -81,15 +82,15 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| SEC-01  | Phase 16 | Pending |
+| SEC-01  | Phase 16 | Complete |
 | SEC-02  | Phase 16 | Complete |
 | CON-01  | Phase 16 | Complete |
-| CON-02  | Phase 16 | Pending |
+| CON-02  | Phase 16 | Complete |
 | AI-01   | Phase 16 | Complete |
 | AI-02   | Phase 16 | Complete |
 | AI-03   | Phase 16 | Complete |
-| DB-01   | Phase 16 | Pending |
-| CODE-01 | Phase 16 | Pending |
+| DB-01   | Phase 16 | Complete |
+| CODE-01 | Phase 16 | Complete |
 
 **Coverage:**
 - v1 requirements: 9 total

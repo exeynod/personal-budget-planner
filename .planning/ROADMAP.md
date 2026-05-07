@@ -109,7 +109,7 @@
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 16. Security & AI Hardening | 8/9 | In Progress|  |
+| 16. Security & AI Hardening | 9/9 | Complete | 2026-05-07 |
 
 ---
 *Roadmap reorganized: 2026-05-06 at v0.3 milestone close*
