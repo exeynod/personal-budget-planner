@@ -33,6 +33,39 @@ _MSK = ZoneInfo("Europe/Moscow")
 _spend_cache: TTLCache[int, int] = TTLCache(maxsize=128, ttl=60)
 _cache_lock = asyncio.Lock()
 
+# CON-02 (Plan 16-07): per-user serialization for "check spend → LLM call →
+# record usage". Distinct from _cache_lock (which is short-held around
+# TTLCache miss). _user_locks is held across the LLM streaming call to
+# prevent two concurrent requests from both passing a cap-1¢ check.
+#
+# Pet-app scope: 5-50 users (PROJECT.md). Lock objects are ~200 bytes;
+# grow-forever is acceptable. LRU eviction deferred (CONTEXT D-16-07).
+_user_locks: dict[int, asyncio.Lock] = {}
+_user_locks_guard = asyncio.Lock()
+
+
+async def acquire_user_spend_lock(user_id: int) -> asyncio.Lock:
+    """Get-or-create the per-user spend lock and return it.
+
+    Caller is responsible for ``async with`` usage::
+
+        lock = await acquire_user_spend_lock(user_id)
+        async with lock:
+            # check cap, run LLM, record usage
+
+    The dict is mutated under ``_user_locks_guard`` so two concurrent
+    callers requesting the same ``user_id`` race-create exactly one Lock.
+    """
+    lock = _user_locks.get(user_id)
+    if lock is not None:
+        return lock
+    async with _user_locks_guard:
+        lock = _user_locks.get(user_id)
+        if lock is None:
+            lock = asyncio.Lock()
+            _user_locks[user_id] = lock
+        return lock
+
 
 def _month_start_msk(now: datetime | None = None) -> datetime:
     """Return MSK-aware datetime truncated to 1st of current month at 00:00."""
