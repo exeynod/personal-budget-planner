@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v0.4
 milestone_name: Multi-Tenant & Admin
 status: executing
-stopped_at: Phase 12 complete — 12-VERIFICATION.md status=human_needed (live TG smoke deferred to milestone close, mirroring Phase 11 U-1). Ready for Phase 13.
-last_updated: "2026-05-07T06:45:00.000Z"
-last_activity: 2026-05-07 -- Phase 12 verification complete (12-07)
+stopped_at: Phase 13 complete — 13-VERIFICATION.md status=human_needed (live TG smoke deferred to milestone close, mirroring Phase 11 U-1 and Phase 12 Checkpoint 2). 8/8 plans + 0 regressions; 20/20 own tests + 16 net-new GREEN. Ready for Phase 14.
+last_updated: "2026-05-07T09:30:00.000Z"
+last_activity: 2026-05-07 -- Phase 13 verification complete (13-08)
 progress:
   total_phases: 5
-  completed_phases: 2
-  total_plans: 14
-  completed_plans: 14
+  completed_phases: 3
+  total_plans: 22
+  completed_plans: 22
   percent: 100
 ---
 
@@ -21,29 +21,29 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-06 after v0.3 milestone close)
 
 **Core value:** В один тап записать факт-трату и видеть актуальную дельту план/факт по категориям бюджета — быстрее, чем открывать Google-таблицу. После v0.3 — conversational AI-помощник + аналитика.
-**Current focus:** Phase 13 — admin-ui-whitelist-ai-usage (next; Phase 12 complete)
+**Current focus:** Phase 14 — multi-tenant-onboarding (next; Phase 13 complete)
 
 ## Current Position
 
-Phase: 13 (admin-ui-whitelist-ai-usage) — NOT STARTED
+Phase: 14 (multi-tenant-onboarding) — NOT STARTED
 Plan: 0 of N (planning pending)
 Status: Ready to discuss/plan
-Last activity: 2026-05-07 -- Phase 12 verification complete
+Last activity: 2026-05-07 -- Phase 13 verification complete
 
 Previous milestones:
 
 - v0.3 (Analytics & AI) — Complete 2026-05-06, 6 phases / 25 plans → archive `.planning/milestones/v0.3-*`
 - v0.2 (MVP) — Complete 2026-05-03, 6 phases / 38 plans → archived retroactively at v0.3 close
 
-Progress: [####      ] 40% (milestone v0.4, 2/5 phases complete; both Phase 11 and Phase 12 status=human_needed pending live TG smoke)
+Progress: [######    ] 60% (milestone v0.4, 3/5 phases complete; Phase 11 + Phase 12 + Phase 13 all human_needed pending live TG smoke)
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 14
-- Average duration: ~13 min
-- Total execution time: ~3 hours
+- Total plans completed: 22
+- Average duration: ~10 min
+- Total execution time: ~4.5 hours
 
 **By Phase:**
 
@@ -51,11 +51,12 @@ Progress: [####      ] 40% (milestone v0.4, 2/5 phases complete; both Phase 11 a
 |-------|-------|-------|----------|
 | 11 | 7 | ~84 min | ~12 min |
 | 12 | 7 | ~95 min | ~14 min |
+| 13 | 8 | ~33 min | ~4 min |
 
 **Recent Trend:**
 
-- Last 5 plans: 12-07 (~10 min, 2 docs, 1 commit, full pytest 275/294 + 12-VERIFICATION.md), 12-06 (test fixture sweep ~25 min, 22 files, 5 commits), 12-05 (Postgres role split ~20 min, 7 files, 3 commits), 12-04 (bot OWNER_TG_ID removal ~12 min), 12-03 (/me + role ~8 min)
-- Trend: Phase 12 functionally complete; auth surface migrated to role-based; D-11-07-01/02 closed. Verification status=human_needed (live TG smoke deferred, same disposition as Phase 11)
+- Last 5 plans: 13-08 (~5 min, 2 docs, 1 commit, full pytest 291/295 + 13-VERIFICATION.md), 13-07 (~5 min, AccessScreen UI + role gate, 4 commits), 13-06 (~2 min, frontend admin types/API/hooks, 4 commits), 13-05 (~6 min, admin AI usage breakdown, 4 commits), 13-04 (~6 min, admin users CRUD + cascade purge, 3 commits)
+- Trend: Phase 13 functionally complete in <1 hour autonomous; admin endpoints + UI + AI usage tracking all delivered; 20/20 own tests GREEN, 0 regressions; live smoke deferred (consistent with Phase 11/12)
 
 *Updated after each plan completion*
 
@@ -111,6 +112,6 @@ Items acknowledged and deferred at v0.3 milestone close on 2026-05-06:
 
 ## Session Continuity
 
-Last session: 2026-05-07T06:45:00.000Z
-Stopped at: Phase 12 complete — 12-VERIFICATION.md status=human_needed (live TG smoke deferred to milestone close, mirroring Phase 11 U-1). D-11-07-01 (legacy fixture sweep) + D-11-07-02 (Postgres role split) closed.
-Resume file: Phase 13 (admin-ui-whitelist-ai-usage) — discuss/plan/execute next. Owner-gated UI tab «Доступ» with Users + AI Usage sub-tabs; FAB invite, inline revoke. Backend admin endpoints behind `Depends(require_owner)` (already shipped in Phase 12).
+Last session: 2026-05-07T09:30:00.000Z
+Stopped at: Phase 13 complete — 13-VERIFICATION.md status=human_needed (live TG smoke deferred to milestone close, mirroring Phase 11 U-1 and Phase 12). 8/8 plans + 0 regressions; admin UI + endpoints + AI usage tracking shipped. alembic 0008 (spending_cap_cents stub + ai_usage_log + last_seen_at) applied.
+Resume file: Phase 14 (multi-tenant-onboarding) — discuss/plan/execute next. Bot bind for invited members; member-self onboarding flow (starting_balance + cycle_start_day); 14 seed categories per-user; auto-gen embeddings. Requirements: MTONB-01..04. Depends on Phase 11 (per-user data isolation) and Phase 12 (role-check for invite-flow).

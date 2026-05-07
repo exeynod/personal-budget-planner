@@ -40,7 +40,7 @@
 
 - [x] **Phase 11: Multi-Tenancy DB Migration & RLS** — `user_id` FK во всех доменных таблицах + Postgres RLS + `app_user.role` колонка с backfill для существующего owner — 7/7 plans complete; status=human_needed (live TG smoke deferred per user); D-11-07-01/02 carry forward into the next phase
 - [x] **Phase 12: Role-Based Auth Refactor** — 7/7 plans complete; status=human_needed (live TG smoke deferred per user pattern, mirroring Phase 11 U-1); D-11-07-01 + D-11-07-02 closed
-- [ ] **Phase 13: Admin UI — Whitelist & AI Usage** — вкладка «Доступ» в «Управление» (только owner): список юзеров + invite/revoke + AI usage sub-tab с per-user breakdown
+- [x] **Phase 13: Admin UI — Whitelist & AI Usage** — 8/8 plans complete; status=human_needed (live TG smoke deferred per user pattern, mirroring Phase 11/12); 20/20 own tests GREEN, +16 net-new, 0 regressions; alembic 0008 (spending_cap_cents stub + ai_usage_log + last_seen_at) shipped
 - [ ] **Phase 14: Multi-Tenant Onboarding** — invite-flow для `role=member` юзеров: bot bind → starting_balance → cycle_start_day → seed 14 категорий per-user + автогенерация embeddings
 - [ ] **Phase 15: AI Cost Cap Per User** — `spending_cap_cents` (default $5/month) с enforcement → 429; Settings показывает текущий spend/cap; owner редактирует cap через Admin UI
 
@@ -97,14 +97,14 @@
   4. Revoke жмёт confirm-dialog с warning «Все данные юзера будут удалены безвозвратно»; подтверждение вызывает `DELETE /api/v1/admin/users/{user_id}` с cascade purge всех связанных данных (включая `ai_conversation`, `ai_message`, `category_embedding`); после revoke юзер получает 403 на любом запросе.
   5. Саб-таб «AI Usage» показывает per-user breakdown (имя, total tokens, est_cost_usd, % от spending_cap, индикатор ≥80% warn / ≥100% danger) за последние 30 дней + текущий месяц через `GET /api/v1/admin/ai-usage`.
 **Plans**: 8 plans
-- [ ] 13-01-PLAN.md — RED tests + 2-tenant fixture extension for admin endpoints + ai_usage_log helper (Wave 1)
-- [ ] 13-02-PLAN.md — Alembic 0008: spending_cap_cents + ai_usage_log + last_seen_at + RLS + grants (Wave 1, parallel with 13-01)
-- [ ] 13-03-PLAN.md — _record_usage hook persists to ai_usage_log (Wave 2)
-- [ ] 13-04-PLAN.md — Backend admin users CRUD service+routes + cascade purge (Wave 2, parallel with 13-03)
-- [ ] 13-05-PLAN.md — Backend GET /admin/ai-usage breakdown service+endpoint (Wave 3)
-- [ ] 13-06-PLAN.md — Frontend admin types + API + useAdminUsers + useAdminAiUsage hooks (Wave 4)
-- [ ] 13-07-PLAN.md — Frontend AccessScreen + UsersList + InviteSheet + RevokeConfirmDialog + AiUsageList + Management/App integration (Wave 5, has human checkpoint)
-- [ ] 13-08-PLAN.md — Verification: pytest + alembic 0008 cycle + frontend build + 13-VERIFICATION.md + threat-model attestation (Wave 6, has human checkpoints)
+- [x] 13-01-PLAN.md — RED tests + 2-tenant fixture extension for admin endpoints + ai_usage_log helper (Wave 1) — completed 2026-05-07
+- [x] 13-02-PLAN.md — Alembic 0008: spending_cap_cents + ai_usage_log + last_seen_at + RLS + grants (Wave 1, parallel with 13-01) — completed 2026-05-07
+- [x] 13-03-PLAN.md — _record_usage hook persists to ai_usage_log (Wave 2) — completed 2026-05-07
+- [x] 13-04-PLAN.md — Backend admin users CRUD service+routes + cascade purge (Wave 2, parallel with 13-03) — completed 2026-05-07
+- [x] 13-05-PLAN.md — Backend GET /admin/ai-usage breakdown service+endpoint (Wave 3) — completed 2026-05-07
+- [x] 13-06-PLAN.md — Frontend admin types + API + useAdminUsers + useAdminAiUsage hooks (Wave 4) — completed 2026-05-07
+- [x] 13-07-PLAN.md — Frontend AccessScreen + UsersList + InviteSheet + RevokeConfirmDialog + AiUsageList + Management/App integration (Wave 5, has human checkpoint) — completed 2026-05-07
+- [x] 13-08-PLAN.md — Verification: pytest + alembic 0008 cycle + frontend build + 13-VERIFICATION.md + threat-model attestation (Wave 6, has human checkpoints) — completed 2026-05-07
 **UI hint**: yes
 
 ### Phase 14: Multi-Tenant Onboarding
