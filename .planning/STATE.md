@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v0.4
 milestone_name: Multi-Tenant & Admin
 status: executing
-stopped_at: Phase 13 complete — 13-VERIFICATION.md status=human_needed (live TG smoke deferred to milestone close, mirroring Phase 11 U-1 and Phase 12 Checkpoint 2). 8/8 plans + 0 regressions; 20/20 own tests + 16 net-new GREEN. Ready for Phase 14.
-last_updated: "2026-05-07T09:30:00.000Z"
-last_activity: 2026-05-07 -- Phase 13 verification complete (13-08)
+stopped_at: Phase 13 complete — 13-VERIFICATION.md status=human_needed (live TG smoke deferred to milestone close, mirroring Phase 11 U-1 and Phase 12). 8/8 plans + 0 regressions; admin UI + endpoints + AI usage tracking shipped. alembic 0008 (spending_cap_cents stub + ai_usage_log + last_seen_at) applied.
+last_updated: "2026-05-07T10:07:22.617Z"
+last_activity: 2026-05-07
 progress:
   total_phases: 5
   completed_phases: 3
-  total_plans: 22
-  completed_plans: 22
-  percent: 100
+  total_plans: 29
+  completed_plans: 23
+  percent: 79
 ---
 
 # Project State
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-06 after v0.3 milestone close)
 
 **Core value:** В один тап записать факт-трату и видеть актуальную дельту план/факт по категориям бюджета — быстрее, чем открывать Google-таблицу. После v0.3 — conversational AI-помощник + аналитика.
-**Current focus:** Phase 14 — multi-tenant-onboarding (next; Phase 13 complete)
+**Current focus:** Phase 14 — multi-tenant-onboarding
 
 ## Current Position
 
-Phase: 14 (multi-tenant-onboarding) — NOT STARTED
-Plan: 0 of N (planning pending)
-Status: Ready to discuss/plan
-Last activity: 2026-05-07 -- Phase 13 verification complete
+Phase: 14 (multi-tenant-onboarding) — EXECUTING
+Plan: 2 of 7
+Status: Ready to execute
+Last activity: 2026-05-07
 
 Previous milestones:
 
@@ -112,6 +112,6 @@ Items acknowledged and deferred at v0.3 milestone close on 2026-05-06:
 
 ## Session Continuity
 
-Last session: 2026-05-07T09:30:00.000Z
+Last session: 2026-05-07T10:07:22.614Z
 Stopped at: Phase 13 complete — 13-VERIFICATION.md status=human_needed (live TG smoke deferred to milestone close, mirroring Phase 11 U-1 and Phase 12). 8/8 plans + 0 regressions; admin UI + endpoints + AI usage tracking shipped. alembic 0008 (spending_cap_cents stub + ai_usage_log + last_seen_at) applied.
-Resume file: Phase 14 (multi-tenant-onboarding) — discuss/plan/execute next. Bot bind for invited members; member-self onboarding flow (starting_balance + cycle_start_day); 14 seed categories per-user; auto-gen embeddings. Requirements: MTONB-01..04. Depends on Phase 11 (per-user data isolation) and Phase 12 (role-check for invite-flow).
+Resume file: None

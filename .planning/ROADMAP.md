@@ -117,7 +117,7 @@
   3. Onboarding-flow (scrollable-page по дизайну `006-B`) проходит шаги: bot bind → ввод starting_balance → выбор cycle_start_day → seed 14 категорий per-user (копия из default-набора, изолирована по `user_id`).
   4. По завершении onboarding для нового юзера автогенерируются embeddings для его 14 seed-категорий (background task через worker или inline async); первый AI-suggest-category для нового юзера возвращает корректные результаты без задержки на cold-start.
   5. Существующий owner (уже onboarded в v0.2/v0.3) проходит при следующем запросе без 409 — миграция считает его onboarded_at непустым; новый member после успешного onboarding также не получает 409.
-**Plans:** 7 plans
+**Plans:** 1/7 plans executed
 - [ ] 14-01-PLAN.md — RED tests for require_onboarded + embedding backfill + bot helper (Wave 0)
 - [ ] 14-02-PLAN.md — require_onboarded dep + apply to 10 gated routers (Wave 1)
 - [ ] 14-03-PLAN.md — embedding backfill helper + extend complete_onboarding step 5 (Wave 1, parallel)
@@ -171,7 +171,7 @@
 | 11. Multi-Tenancy DB Migration & RLS | 4/7 | In progress | — |
 | 12. Role-Based Auth Refactor | 6/7 | In Progress|  |
 | 13. Admin UI — Whitelist & AI Usage | 0/? | Not started | — |
-| 14. Multi-Tenant Onboarding | 0/? | Not started | — |
+| 14. Multi-Tenant Onboarding | 1/7 | In Progress|  |
 | 15. AI Cost Cap Per User | 0/? | Not started | — |
 
 ---

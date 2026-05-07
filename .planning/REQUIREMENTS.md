@@ -38,10 +38,10 @@
 
 ### Multi-Tenant Onboarding
 
-- [ ] **MTONB-01**: Юзер с `role=member` после `/start` в боте → бот сохраняет `tg_chat_id` и пишет «Добро пожаловать, открывайте Mini App для onboarding»
-- [ ] **MTONB-02**: Onboarding для приглашённого: bot bind → starting_balance (сам выбирает) → cycle_start_day (сам выбирает) → seed 14 категорий (per-user копия из default-набора)
-- [ ] **MTONB-03**: При завершении onboarding для нового юзера автогенерируются embeddings для его 14 seed-категорий (background task через worker или inline async)
-- [ ] **MTONB-04**: Все доменные API-запросы от юзера до завершения onboarding → 409 с `{"error": "onboarding_required"}`; frontend перехватывает и редиректит в onboarding flow
+- [x] **MTONB-01**: Юзер с `role=member` после `/start` в боте → бот сохраняет `tg_chat_id` и пишет «Добро пожаловать, открывайте Mini App для onboarding»
+- [x] **MTONB-02**: Onboarding для приглашённого: bot bind → starting_balance (сам выбирает) → cycle_start_day (сам выбирает) → seed 14 категорий (per-user копия из default-набора)
+- [x] **MTONB-03**: При завершении onboarding для нового юзера автогенерируются embeddings для его 14 seed-категорий (background task через worker или inline async)
+- [x] **MTONB-04**: Все доменные API-запросы от юзера до завершения onboarding → 409 с `{"error": "onboarding_required"}`; frontend перехватывает и редиректит в onboarding flow
 
 ### AI Cost Cap Per User
 
@@ -109,10 +109,10 @@
 | AIUSE-01 | Phase 13 | Pending |
 | AIUSE-02 | Phase 13 | Pending |
 | AIUSE-03 | Phase 13 | Pending |
-| MTONB-01 | Phase 14 | Pending |
-| MTONB-02 | Phase 14 | Pending |
-| MTONB-03 | Phase 14 | Pending |
-| MTONB-04 | Phase 14 | Pending |
+| MTONB-01 | Phase 14 | Complete |
+| MTONB-02 | Phase 14 | Complete |
+| MTONB-03 | Phase 14 | Complete |
+| MTONB-04 | Phase 14 | Complete |
 | AICAP-01 | Phase 15 | Pending |
 | AICAP-02 | Phase 15 | Pending |
 | AICAP-03 | Phase 15 | Pending |
