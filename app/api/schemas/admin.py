@@ -1,11 +1,10 @@
-"""Pydantic schemas для admin endpoints (Phase 13 ADM-03..06).
+"""Pydantic schemas для admin endpoints (Phase 13 ADM-03..06 + AIUSE-01..03).
 
 Используются роутами в ``app/api/routes/admin.py``:
   - GET    /api/v1/admin/users          → list[AdminUserResponse]
   - POST   /api/v1/admin/users          ← AdminUserCreateRequest, → AdminUserResponse
   - DELETE /api/v1/admin/users/{user_id} (no body, no response)
-
-Plan 13-05 расширит этот модуль AdminAiUsageResponse / AdminAiUsageRow.
+  - GET    /api/v1/admin/ai-usage       → AdminAiUsageResponse (Phase 13 Plan 13-05)
 """
 from __future__ import annotations
 
@@ -13,6 +12,8 @@ from datetime import datetime
 from typing import Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
+
+from app.api.schemas.ai import UsageBucket
 
 
 class AdminUserResponse(BaseModel):
@@ -48,3 +49,39 @@ class AdminUserCreateRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     tg_user_id: int = Field(..., ge=10_000)
+
+
+# ---------- Phase 13 AI Usage Admin (AIUSE-01..03) ----------
+
+
+class AdminAiUsageRow(BaseModel):
+    """One user's AI usage breakdown row для GET /admin/ai-usage.
+
+    `current_month` — bucket с 1-го числа текущего месяца Europe/Moscow.
+    `last_30d` — bucket за последние 30 календарных дней (UTC).
+    `est_cost_cents_current_month` — USD копейки (1 USD = 10000 storage units),
+    используется для sort + UI cap percentage.
+    `pct_of_cap` — float ≥ 0.0; 0.0 если cap == 0 (защита от div by zero);
+    UI триггерит warn при ≥ 0.80, danger при ≥ 1.0.
+    """
+
+    model_config = ConfigDict(from_attributes=True)
+
+    user_id: int
+    tg_user_id: int
+    name: Optional[str] = None  # tg_chat_id-derived если известно (Phase 14)
+    role: Literal["owner", "member", "revoked"]
+    spending_cap_cents: int  # USD копейки; default 46500 ($5/мес)
+    current_month: UsageBucket
+    last_30d: UsageBucket
+    est_cost_cents_current_month: int
+    pct_of_cap: float
+
+
+class AdminAiUsageResponse(BaseModel):
+    """Wrapper для GET /admin/ai-usage — список юзеров + метаданные ответа."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    users: list[AdminAiUsageRow]
+    generated_at: datetime  # UTC datetime когда aggregation выполнен
