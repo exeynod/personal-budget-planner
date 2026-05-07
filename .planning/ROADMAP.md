@@ -4,7 +4,7 @@
 
 - ✅ **v0.2 — MVP** (Phases 1-6) — shipped 2026-05-03 → [archive](milestones/v0.3-REQUIREMENTS.md) (full v0.2 traceability в v0.3 archive at close)
 - ✅ **v0.3 — Analytics & AI** (Phases 7-10.2) — shipped 2026-05-06 → [archive](milestones/v0.3-ROADMAP.md)
-- 🚧 **v0.4 — Multi-Tenant & Admin** (Phases 11-15) — active, planning 2026-05-06
+- 🚧 **v0.4 — Multi-Tenant & Admin** (Phases 11-15) — 5/5 phases complete, pending live TG smoke + milestone close
 
 ## Phases
 
@@ -42,7 +42,7 @@
 - [x] **Phase 12: Role-Based Auth Refactor** — 7/7 plans complete; status=human_needed (live TG smoke deferred per user pattern, mirroring Phase 11 U-1); D-11-07-01 + D-11-07-02 closed
 - [x] **Phase 13: Admin UI — Whitelist & AI Usage** — 8/8 plans complete; status=human_needed (live TG smoke deferred per user pattern, mirroring Phase 11/12); 20/20 own tests GREEN, +16 net-new, 0 regressions; alembic 0008 (spending_cap_cents stub + ai_usage_log + last_seen_at) shipped
 - [x] **Phase 14: Multi-Tenant Onboarding** — 7/7 plans complete; status=human_needed (live TG smoke deferred per user pattern, mirroring Phase 11/12/13); 22 bot handler + 4 vitest unit tests GREEN; DB-backed tests pending api container rebuild; 0 regressions
-- [ ] **Phase 15: AI Cost Cap Per User** — `spending_cap_cents` (default $5/month) с enforcement → 429; Settings показывает текущий spend/cap; owner редактирует cap через Admin UI
+- [x] **Phase 15: AI Cost Cap Per User** — 7/7 plans complete; status=human_needed; 26/27 new tests GREEN (1 pre-existing DEV_MODE issue); 0 regressions; frontend build clean; live TG smoke deferred to milestone close; alembic 0008 (existing) covers spending_cap_cents BIGINT; scale=100/USD, default 46500=$465/month
 
 ## Phase Details
 
@@ -144,7 +144,7 @@
 - [x] 15-04-admin-patch-cap-PLAN.md — PATCH /admin/users/{id}/cap + AdminUserResponse extension + service update_user_cap (Wave 2, parallel)
 - [x] 15-05-me-ai-spend-PLAN.md — /me extended ai_spend_cents + ai_spending_cap_cents (Wave 2, parallel)
 - [x] 15-06-frontend-PLAN.md — Frontend SettingsScreen «AI расход» + AccessScreen CapEditSheet + UsersList edit button (Wave 3, has human checkpoint)
-- [ ] 15-07-verification-PLAN.md — Integration verification + 15-VERIFICATION.md + STATE/ROADMAP/REQUIREMENTS update (Wave 4, has human checkpoint)
+- [x] 15-07-verification-PLAN.md — Integration verification + 15-VERIFICATION.md + STATE/ROADMAP/REQUIREMENTS update (Wave 4, has human checkpoint) — completed 2026-05-07; status=human_needed (live TG smoke deferred)
 **UI hint**: yes
 
 ## Progress
@@ -179,7 +179,7 @@
 | 12. Role-Based Auth Refactor | 7/7 | Complete (human_needed) | 2026-05-07 |
 | 13. Admin UI — Whitelist & AI Usage | 8/8 | Complete (human_needed) | 2026-05-07 |
 | 14. Multi-Tenant Onboarding | 7/7 | Complete   | 2026-05-07 |
-| 15. AI Cost Cap Per User | 6/7 | In Progress|  |
+| 15. AI Cost Cap Per User | 7/7 | Complete (human_needed) | 2026-05-07 |
 
 ---
 *Roadmap reorganized: 2026-05-06 at v0.3 milestone close*

@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v0.4
 milestone_name: Multi-Tenant & Admin
 status: executing
-stopped_at: Completed 15-02-spend-service-PLAN.md
-last_updated: "2026-05-07T11:58:41.793Z"
+stopped_at: "Phase 15 complete — 15-VERIFICATION.md status=human_needed; 26/27 new tests GREEN (1 pre-existing DEV_MODE issue); 0 regressions; frontend build clean; live TG smoke deferred to milestone close; v0.4 milestone ready to close."
+last_updated: "2026-05-07T12:30:00Z"
 last_activity: 2026-05-07
 progress:
   total_phases: 5
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 36
-  completed_plans: 35
-  percent: 97
+  completed_plans: 36
+  percent: 100
 ---
 
 # Project State
@@ -25,9 +25,9 @@ See: .planning/PROJECT.md (updated 2026-05-06 after v0.3 milestone close)
 
 ## Current Position
 
-Phase: 15 (ai-cost-cap-per-user) — IN PROGRESS
-Plan: 6 of 7 complete
-Status: Ready to execute
+Phase: 15 (ai-cost-cap-per-user) — COMPLETE
+Plan: 7 of 7 complete
+Status: Ready for milestone close
 Last activity: 2026-05-07
 
 Previous milestones:
@@ -35,7 +35,7 @@ Previous milestones:
 - v0.3 (Analytics & AI) — Complete 2026-05-06, 6 phases / 25 plans → archive `.planning/milestones/v0.3-*`
 - v0.2 (MVP) — Complete 2026-05-03, 6 phases / 38 plans → archived retroactively at v0.3 close
 
-Progress: [######    ] 60% (milestone v0.4, 3/5 phases complete; Phase 11 + Phase 12 + Phase 13 all human_needed pending live TG smoke)
+Progress: [##########] 100% (milestone v0.4, 5/5 phases complete; Phases 11-15 all human_needed pending live TG smoke at milestone close)
 
 ## Performance Metrics
 
@@ -66,6 +66,7 @@ Progress: [######    ] 60% (milestone v0.4, 3/5 phases complete; Phase 11 + Phas
 | Phase 15 P04 | 8m | 2 tasks | 3 files |
 | Phase 15-ai-cost-cap-per-user P05 | 8 | 1 tasks | 1 files |
 | Phase 15-ai-cost-cap-per-user P06 | 15m | 3 tasks | 10 files |
+| Phase 15-ai-cost-cap-per-user P07 | 30m | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -96,6 +97,12 @@ Recent decisions affecting v0.4 planning:
 - [Phase ?]: 15-04: CapUpdate.ge=0 allows cap=0 (AI-off semantics); self-edit allowed via single admin endpoint; cache invalidated immediately after DB flush
 - [Phase ?]: spend+cap in one /me request
 - [Phase ?]: useAdminUsers.updateCap does server-merge (no snapshot rollback) — server returns full AdminUserResponse snapshot
+- 15-02 (2026-05-07): cachetools added to deps; spend cents scale = 100/USD per CONTEXT D-15-02 explicit code (default 46500 = $465/mo); Phase 13 admin /ai-usage retains 100_000/USD scale (legacy, not breaking).
+- 15-03 (2026-05-07): enforce_spending_cap router-level dependency on /ai/* and /ai-suggest/*; cap=0 blocks all (spend>=0 trivial).
+- 15-04 (2026-05-07): PATCH /admin/users/{id}/cap; AdminUserResponse extended with spending_cap_cents (non-breaking).
+- 15-05 (2026-05-07): /me extended ai_spend_cents + ai_spending_cap_cents; required fields.
+- 15-06 (2026-05-07): Frontend SettingsScreen «AI расход» block + AccessScreen CapEditSheet bottom-sheet.
+- 15-07 (2026-05-07): Phase 15 verification complete; 26/27 new tests GREEN; 1 pre-existing DEV_MODE issue (mirrors Phase 13); frontend build clean; v0.4 all 5 phases complete, pending milestone close.
 
 ### Pending Todos
 
@@ -128,6 +135,6 @@ Items acknowledged and deferred at v0.3 milestone close on 2026-05-06:
 
 ## Session Continuity
 
-Last session: 2026-05-07T11:58:41.790Z
-Stopped at: Completed 15-02-spend-service-PLAN.md
+Last session: 2026-05-07T12:30:00Z
+Stopped at: Completed 15-07-verification-PLAN.md — Phase 15 done; v0.4 milestone (Phases 11-15) ready to close
 Resume file: None

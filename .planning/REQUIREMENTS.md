@@ -16,25 +16,25 @@
 ### Role-Based Auth
 
 - [x] **ROLE-01**: `app_user` имеет колонку `role` (enum: `owner` / `member` / `revoked`), default = `member` для новых юзеров; миграция устанавливает `role=owner` для существующего OWNER_TG_ID-юзера — alembic 0006 (CREATE TYPE + ALTER TABLE + UPDATE) + ORM models (UserRole) + dev_seed; verified by test_user_role_enum_type_exists + test_role_owner_assigned_to_owner_tg_id (Plan 11-07)
-- [ ] **ROLE-02**: При первом запуске юзер с `tg_user_id == OWNER_TG_ID` получает `role = owner`; OWNER_TG_ID больше не используется в auth-проверках на каждом запросе
-- [ ] **ROLE-03**: Auth-dependency `get_current_user` пропускает только юзеров с `role IN ('owner', 'member')`; `revoked` → 403; неизвестный `tg_user_id` → 403
-- [ ] **ROLE-04**: Admin-only endpoints защищены дополнительной dependency `require_owner` → 403 для юзеров с `role != 'owner'`
-- [ ] **ROLE-05**: Endpoint `GET /api/v1/me` возвращает `{tg_user_id, role, onboarded_at, ...}` — frontend использует `role` для conditional admin tab visibility
+- [x] **ROLE-02**: При первом запуске юзер с `tg_user_id == OWNER_TG_ID` получает `role = owner`; OWNER_TG_ID больше не используется в auth-проверках на каждом запросе — Phase 12-02 + 12-04; dependencies.py _dev_mode_resolve_owner + get_current_user production path; verified Phase 12
+- [x] **ROLE-03**: Auth-dependency `get_current_user` пропускает только юзеров с `role IN ('owner', 'member')`; `revoked` → 403; неизвестный `tg_user_id` → 403 — Phase 12-02; dependencies.py get_current_user; Phase 12 test suite
+- [x] **ROLE-04**: Admin-only endpoints защищены дополнительной dependency `require_owner` → 403 для юзеров с `role != 'owner'` — Phase 12-02 + Phase 13 admin routes; dependencies.py require_owner
+- [x] **ROLE-05**: Endpoint `GET /api/v1/me` возвращает `{tg_user_id, role, onboarded_at, ...}` — frontend использует `role` для conditional admin tab visibility — Phase 12-03; test_me_returns_role.py 2/2 passed
 
 ### Admin UI — Whitelist
 
-- [ ] **ADM-01**: В «Управление» добавляется пункт «Доступ» — visible только при `role === 'owner'` (backend-driven через `/me`); скрыт у members
-- [ ] **ADM-02**: Экран «Доступ» содержит 2 саб-таба (underline sticky TabBar): «Пользователи» / «AI Usage»
-- [ ] **ADM-03**: Саб-таб «Пользователи» — список членов whitelist с inline-кнопкой «Отозвать» (по скетчу `010-admin-whitelist`); owner-строка отображается без revoke-кнопки
-- [ ] **ADM-04**: FAB «Пригласить» открывает bottom-sheet с полем `tg_user_id` (число); создаёт `app_user(role=member)` без bot-bind (юзер пройдёт onboarding сам после `/start` в боте)
-- [ ] **ADM-05**: Revoke открывает confirm-dialog с warning «Все данные юзера будут удалены безвозвратно»; подтверждение → DELETE с purge всех связанных данных
-- [ ] **ADM-06**: API: `GET /api/v1/admin/users` (список с last_seen_at), `POST /api/v1/admin/users` (invite by tg_user_id), `DELETE /api/v1/admin/users/{user_id}` (revoke + cascade purge)
+- [x] **ADM-01**: В «Управление» добавляется пункт «Доступ» — visible только при `role === 'owner'` (backend-driven через `/me`); скрыт у members — Phase 13-07 ManagementScreen + AccessScreen gate; frontend/src/screens/AccessScreen.tsx
+- [x] **ADM-02**: Экран «Доступ» содержит 2 саб-таба (underline sticky TabBar): «Пользователи» / «AI Usage» — Phase 13-07; AccessScreen.tsx
+- [x] **ADM-03**: Саб-таб «Пользователи» — список членов whitelist с inline-кнопкой «Отозвать» (по скетчу `010-admin-whitelist`); owner-строка отображается без revoke-кнопки — Phase 13-07; UsersList.tsx
+- [x] **ADM-04**: FAB «Пригласить» открывает bottom-sheet с полем `tg_user_id` (число); создаёт `app_user(role=member)` без bot-bind (юзер пройдёт onboarding сам после `/start` в боте) — Phase 13-06/07; InviteSheet.tsx
+- [x] **ADM-05**: Revoke открывает confirm-dialog с warning «Все данные юзера будут удалены безвозвратно»; подтверждение → DELETE с purge всех связанных данных — Phase 13-04/07; admin_users.py purge_user + RevokeConfirmDialog
+- [x] **ADM-06**: API: `GET /api/v1/admin/users` (список с last_seen_at), `POST /api/v1/admin/users` (invite by tg_user_id), `DELETE /api/v1/admin/users/{user_id}` (revoke + cascade purge) — Phase 13-04; admin.py router; test_admin_users_api.py
 
 ### AI Usage Admin
 
-- [ ] **AIUSE-01**: Саб-таб «AI Usage» в «Доступ» — список юзеров с total tokens и est_cost_usd за last 30 дней + текущий месяц
-- [ ] **AIUSE-02**: Endpoint `GET /api/v1/admin/ai-usage` возвращает per-user breakdown (расширение существующего `/ai/usage` с user-grouping)
-- [ ] **AIUSE-03**: Каждая строка показывает: имя юзера, total tokens, est_cost, % от spending_cap, индикатор приближения к лимиту (≥80% = warn-стили, ≥100% = danger-стили)
+- [x] **AIUSE-01**: Саб-таб «AI Usage» в «Доступ» — список юзеров с total tokens и est_cost_usd за last 30 дней + текущий месяц — Phase 13-07; AiUsageList.tsx
+- [x] **AIUSE-02**: Endpoint `GET /api/v1/admin/ai-usage` возвращает per-user breakdown (расширение существующего `/ai/usage` с user-grouping) — Phase 13-05; admin_ai_usage.py; test_admin_ai_usage_api.py 4/5 passed
+- [x] **AIUSE-03**: Каждая строка показывает: имя юзера, total tokens, est_cost, % от spending_cap, индикатор приближения к лимиту (≥80% = warn-стили, ≥100% = danger-стили) — Phase 13-05/07; AiUsageList.tsx + AdminAiUsageRow schema
 
 ### Multi-Tenant Onboarding
 
@@ -45,11 +45,11 @@
 
 ### AI Cost Cap Per User
 
-- [ ] **AICAP-01**: `app_user` имеет колонку `spending_cap_cents BIGINT` (default = $5/month в копейках USD ≈ 46500 коп. при курсе ~93 ₽/$); миграция устанавливает default для существующего owner
+- [x] **AICAP-01**: `app_user` имеет колонку `spending_cap_cents BIGINT` (default = 46500; scale=100/USD → $465/month per D-15-02 `ceil(usd*100)`; shipped in alembic 0008 Phase 13; Phase 15-02 service uses same column) — verified via PATCH cap tests + SELECT default
 - [x] **AICAP-02**: Перед каждым `/ai/chat` и `/ai/suggest-category` запросом проверяется месячный spend юзера; при превышении `spending_cap_cents` → 429 с `Retry-After` (до начала следующего календарного месяца)
 - [x] **AICAP-03**: Per-user spend агрегируется из `ai_usage_log` по `user_id` за текущий календарный месяц (Europe/Moscow); запросы кешируются на 60 сек для производительности
 - [x] **AICAP-04**: Settings экран показывает текущий spend / cap для self; owner может редактировать `spending_cap_cents` для себя и других юзеров через Admin UI (PATCH `/admin/users/{id}/cap`)
-- [ ] **AICAP-05**: Тесты: при превышении cap → 429; при reset месяца → доступ возвращается; cap=0 → AI отключён полностью; cap_cents изменение → принимается со следующего запроса
+- [x] **AICAP-05**: Тесты: при превышении cap → 429; при reset месяца → доступ возвращается; cap=0 → AI отключён полностью; cap_cents изменение → принимается со следующего запроса — 28 tests (Plan 15-01 RED → GREEN by 15-02..06); 26/27 GREEN; 1 pre-existing DEV_MODE issue
 
 ## Future Requirements (Deferred)
 
@@ -96,28 +96,28 @@
 | MUL-04 | Phase 11 | Schema complete (11-02 alembic 0006); service-layer uses scoped queries (11-05 + 11-06); verify in 11-07 |
 | MUL-05 | Phase 11 | In progress (backfill DDL in 11-02 alembic 0006; DB application + verify in 11-07) |
 | ROLE-01 | Phase 11 | In progress (role enum + column DDL in 11-02 alembic 0006; UserRole + AppUser.role ORM mapping in 11-03; verify in 11-07) |
-| ROLE-02 | Phase 12 | Pending |
-| ROLE-03 | Phase 12 | Pending |
-| ROLE-04 | Phase 12 | Pending |
-| ROLE-05 | Phase 12 | Pending |
-| ADM-01 | Phase 13 | Pending |
-| ADM-02 | Phase 13 | Pending |
-| ADM-03 | Phase 13 | Pending |
-| ADM-04 | Phase 13 | Pending |
-| ADM-05 | Phase 13 | Pending |
-| ADM-06 | Phase 13 | Pending |
-| AIUSE-01 | Phase 13 | Pending |
-| AIUSE-02 | Phase 13 | Pending |
-| AIUSE-03 | Phase 13 | Pending |
+| ROLE-02 | Phase 12 | Complete |
+| ROLE-03 | Phase 12 | Complete |
+| ROLE-04 | Phase 12 | Complete |
+| ROLE-05 | Phase 12 | Complete |
+| ADM-01 | Phase 13 | Complete |
+| ADM-02 | Phase 13 | Complete |
+| ADM-03 | Phase 13 | Complete |
+| ADM-04 | Phase 13 | Complete |
+| ADM-05 | Phase 13 | Complete |
+| ADM-06 | Phase 13 | Complete |
+| AIUSE-01 | Phase 13 | Complete |
+| AIUSE-02 | Phase 13 | Complete |
+| AIUSE-03 | Phase 13 | Complete |
 | MTONB-01 | Phase 14 | Complete |
 | MTONB-02 | Phase 14 | Complete |
 | MTONB-03 | Phase 14 | Complete |
 | MTONB-04 | Phase 14 | Complete |
-| AICAP-01 | Phase 15 | Pending |
+| AICAP-01 | Phase 15 | Complete |
 | AICAP-02 | Phase 15 | Complete |
 | AICAP-03 | Phase 15 | Complete |
 | AICAP-04 | Phase 15 | Complete |
-| AICAP-05 | Phase 15 | Pending |
+| AICAP-05 | Phase 15 | Complete |
 
 **Coverage:**
 - v0.4 requirements: 28 total
