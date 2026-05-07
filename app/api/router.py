@@ -37,6 +37,10 @@ Phase 12 ROLE-05: ``/me`` returns ``role`` field; ``get_current_user`` (Plan 12-
 resolves AppUser ORM + rejects revoked/unknown users. In DEV_MODE the dependency
 upserts the owner row on first call — no upsert inside the handler.
 """
+# Phase 14 (MTONB-04, D-14-01): each gated domain router carries its own
+# Depends(require_onboarded) (added in Plan 14-02). /me, /onboarding/*,
+# /internal/*, /admin/*, /health remain reachable for not-yet-onboarded
+# members so the frontend can drive the bot-bind -> balance -> cycle_day flow.
 from __future__ import annotations
 
 from typing import Annotated, Literal

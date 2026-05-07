@@ -18,6 +18,7 @@ from app.api.dependencies import (
     get_current_user,
     get_current_user_id,
     get_db_with_tenant_scope,
+    require_onboarded,
 )
 from app.api.schemas.ai import SuggestCategoryResponse
 from app.ai.embedding_service import get_embedding_service
@@ -25,7 +26,7 @@ from app.ai.embedding_service import get_embedding_service
 router = APIRouter(
     prefix="",
     tags=["ai-categorization"],
-    dependencies=[Depends(get_current_user)],
+    dependencies=[Depends(get_current_user), Depends(require_onboarded)],
 )
 
 

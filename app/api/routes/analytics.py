@@ -18,6 +18,7 @@ from app.api.dependencies import (
     get_current_user,
     get_current_user_id,
     get_db_with_tenant_scope,
+    require_onboarded,
 )
 from app.api.schemas.analytics import (
     ForecastResponse,
@@ -30,7 +31,7 @@ from app.services import analytics as analytics_service
 router = APIRouter(
     prefix="/analytics",
     tags=["analytics"],
-    dependencies=[Depends(get_current_user)],
+    dependencies=[Depends(get_current_user), Depends(require_onboarded)],
 )
 
 AnalyticsRange = Literal["1M", "3M", "6M", "12M"]

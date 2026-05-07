@@ -31,6 +31,7 @@ from app.api.dependencies import (
     get_current_user,
     get_current_user_id,
     get_db_with_tenant_scope,
+    require_onboarded,
 )
 from app.api.schemas.templates import (
     SnapshotFromPeriodResponse,
@@ -47,7 +48,7 @@ from app.services.templates import TemplateItemNotFoundError
 templates_router = APIRouter(
     prefix="/template",
     tags=["templates"],
-    dependencies=[Depends(get_current_user)],
+    dependencies=[Depends(get_current_user), Depends(require_onboarded)],
 )
 
 

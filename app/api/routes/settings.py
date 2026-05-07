@@ -11,7 +11,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.dependencies import get_current_user, get_db
+from app.api.dependencies import get_current_user, get_db, require_onboarded
 from app.api.schemas.settings import SettingsRead, SettingsUpdate
 from app.db.models import AppUser
 from app.services import settings as settings_svc
@@ -21,7 +21,7 @@ from app.services.settings import UserNotFoundError
 settings_router = APIRouter(
     prefix="/settings",
     tags=["settings"],
-    dependencies=[Depends(get_current_user)],
+    dependencies=[Depends(get_current_user), Depends(require_onboarded)],
 )
 
 
