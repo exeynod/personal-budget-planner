@@ -5,9 +5,10 @@ export interface AiUsageListProps {
   users: AdminAiUsageRow[];
 }
 
-/** Backend stores cost as integer cents-of-USD: 10000 cents = 1 USD. */
+/** Backend stores cost at scale 100/USD (1 USD = 100 cents).
+ * Aligned with spend_cap.py + admin_ai_usage.py post-CR-01 (2026-05-07). */
 function formatUsd(centsOfUsd: number): string {
-  const usd = centsOfUsd / 10_000;
+  const usd = centsOfUsd / 100;
   return `$${usd.toFixed(2)}`;
 }
 

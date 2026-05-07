@@ -22,7 +22,7 @@ export interface CapEditSheetProps {
  * converts to cents via Math.round(value * 100) on submit.
  * 0 is valid (AI off). Backend bound: 0 ≤ cap_cents ≤ 10_000_000 ($100k).
  *
- * Prefills from target.spending_cap_cents on open (fallback 46500 = $465.00
+ * Prefills from target.spending_cap_cents on open (fallback 100 = $1.00
  * if field absent — defensive; backend Plan 15-04 always returns it).
  */
 export function CapEditSheet({ target, onClose, onSubmit }: CapEditSheetProps) {
@@ -33,7 +33,7 @@ export function CapEditSheet({ target, onClose, onSubmit }: CapEditSheetProps) {
   // Prefill input from current cap when target changes.
   useEffect(() => {
     if (target != null) {
-      const dollars = (target.spending_cap_cents ?? 46500) / 100;
+      const dollars = (target.spending_cap_cents ?? 100) / 100;
       setValue(dollars.toFixed(2));
       setError(null);
     } else {
