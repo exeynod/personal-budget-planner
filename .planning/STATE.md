@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v0.4
 milestone_name: Multi-Tenant & Admin
-status: Ready to discuss/plan
-stopped_at: Phase 13 complete — 13-VERIFICATION.md status=human_needed (live TG smoke deferred to milestone close, mirroring Phase 11 U-1 and Phase 12). 8/8 plans + 0 regressions; admin UI + endpoints + AI usage tracking shipped. alembic 0008 (spending_cap_cents stub + ai_usage_log + last_seen_at) applied.
-last_updated: "2026-05-07T11:35:42.348Z"
-last_activity: 2026-05-07 -- Phase 14 verification complete
+status: executing
+stopped_at: Completed 15-02-spend-service-PLAN.md
+last_updated: "2026-05-07T11:44:01.211Z"
+last_activity: 2026-05-07
 progress:
   total_phases: 5
   completed_phases: 4
@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-05-06 after v0.3 milestone close)
 ## Current Position
 
 Phase: 15 (ai-cost-cap-per-user) — IN PROGRESS
-Plan: 1 of 7 complete
-Status: In progress
-Last activity: 2026-05-07 -- Phase 15 Plan 01 complete (28 RED tests across 5 modules)
+Plan: 2 of 7 complete
+Status: Ready to execute
+Last activity: 2026-05-07
 
 Previous milestones:
 
@@ -62,6 +62,7 @@ Progress: [######    ] 60% (milestone v0.4, 3/5 phases complete; Phase 11 + Phas
 *Updated after each plan completion*
 | Phase 14-multi-tenant-onboarding P07 | ~10m | 3 tasks | 3 files |
 | Phase 15-ai-cost-cap-per-user P01 | ~15m | 3 tasks | 5 files |
+| Phase 15 P02 | 12m | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -87,6 +88,8 @@ Recent decisions affecting v0.4 planning:
 - 14-03 (2026-05-07): embedding backfill inline in complete_onboarding via `backfill_user_embeddings`; failure-graceful (returns 0, log WARN); deferred background-worker re-tries.
 - 14-04 (2026-05-07): bot_resolve_user_status sibling helper to bot_resolve_user_role; cmd_start branches on onboarded_at.
 - 14-05 (2026-05-07): frontend OnboardingRequiredError class + window unhandledrejection catch-all + role-branched hero copy.
+- [Phase ?]: SET LOCAL app.current_user_id для RLS bypass в spend_cap — читаем только данные одного юзера, superuser избыточен
+- [Phase ?]: autouse fixture _clear_spend_cache в conftest.py — тесты с RESTART IDENTITY создают одинаковые PKs, кеш не должен протекать между тестами
 
 ### Pending Todos
 
@@ -119,6 +122,6 @@ Items acknowledged and deferred at v0.3 milestone close on 2026-05-06:
 
 ## Session Continuity
 
-Last session: 2026-05-07T11:35:04Z
-Stopped at: Completed Phase 15 Plan 01 (15-01-red-tests): 28 RED TDD tests in 5 files pinning AICAP-01..05 contracts.
+Last session: 2026-05-07T11:44:01.209Z
+Stopped at: Completed 15-02-spend-service-PLAN.md
 Resume file: None
