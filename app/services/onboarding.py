@@ -116,6 +116,15 @@ async def complete_onboarding(
     # newly-created Category / BudgetPeriod rows get the correct user_id.
     user_pk: int = user.id
 
+    # Bug fix 2026-05-07: route uses get_db (not tenant-scoped) because
+    # /onboarding/complete is invoked before the user is fully onboarded.
+    # Without app.current_user_id GUC, RLS policies on category /
+    # budget_period block the upcoming INSERTs under the runtime budget_app
+    # role (NOSUPERUSER, FORCE ROW LEVEL SECURITY). Set the scope now that
+    # we know user_pk.
+    from app.db.session import set_tenant_scope  # local import: avoid cycle
+    await set_tenant_scope(db, user_pk)
+
     # 2. Optional seed (idempotent inside service, scoped by user_id).
     seeded: list = []
     if seed_default_categories:
