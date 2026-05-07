@@ -26,7 +26,7 @@ from typing import Annotated, AsyncGenerator
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.ai.llm_client import get_llm_client
 from app.ai.system_prompt import build_messages
@@ -43,6 +43,8 @@ from app.api.schemas.ai import (
     UsageResponse,
 )
 from app.core.settings import settings
+from app.db.models import AiUsageLog
+from app.db.session import AsyncSessionLocal
 from app.services import ai_conversation_service as conv_svc
 
 logger = logging.getLogger(__name__)
@@ -65,9 +67,33 @@ _USAGE_BUFFER_MAX = 1000
 _usage_buffer: deque[dict] = deque(maxlen=_USAGE_BUFFER_MAX)
 
 
-def _record_usage(usage: dict) -> None:
-    """Append a usage record (with UTC timestamp) to the ring buffer
-    and emit a structured log line. Called from the SSE event loop."""
+async def _record_usage(
+    usage: dict,
+    *,
+    user_id: int | None = None,
+    session_factory: "async_sessionmaker[AsyncSession] | None" = None,
+) -> None:
+    """Append a usage record + log line + persist to ai_usage_log table.
+
+    Phase 13 (Plan 13-03): persistent per-user storage backing the admin
+    ``GET /admin/ai-usage`` breakdown (AIUSE-02). The existing in-memory
+    ring buffer is preserved for the legacy ``/ai/usage`` dashboard
+    endpoint.
+
+    Args:
+        usage: dict with model + token counts + est_cost_usd (LLM event).
+        user_id: app_user.id of the requestor. ``None`` or ``0`` skips the
+            DB insert (defensive — should never happen on the live SSE
+            path because user_id comes from ``get_current_user_id``).
+        session_factory: ``async_sessionmaker`` to open a short-lived
+            INSERT transaction. ``None`` skips the DB insert (used by
+            tests / sites without a session).
+
+    DB failures are caught and logged as
+    ``ai.usage_log_persist_failed`` so a broken DB does NOT break the
+    SSE event stream — telemetry must never be a hard dependency of the
+    user-facing chat path.
+    """
     record = {**usage, "ts": datetime.now(timezone.utc).isoformat()}
     _usage_buffer.append(record)
     logger.info(
@@ -79,6 +105,30 @@ def _record_usage(usage: dict) -> None:
         usage.get("total_tokens", 0),
         usage.get("est_cost_usd", 0.0),
     )
+
+    # ---- Phase 13 AIUSE-02: persist to ai_usage_log ----
+    if not user_id or session_factory is None:
+        return
+    try:
+        async with session_factory() as session:
+            row = AiUsageLog(
+                user_id=user_id,
+                model=str(usage.get("model") or "unknown"),
+                prompt_tokens=int(usage.get("prompt_tokens", 0) or 0),
+                completion_tokens=int(usage.get("completion_tokens", 0) or 0),
+                cached_tokens=int(usage.get("cached_tokens", 0) or 0),
+                total_tokens=int(usage.get("total_tokens", 0) or 0),
+                est_cost_usd=float(usage.get("est_cost_usd", 0.0) or 0.0),
+            )
+            session.add(row)
+            await session.commit()
+    except Exception as exc:  # noqa: BLE001 — telemetry must not break SSE
+        logger.warning(
+            "ai.usage_log_persist_failed user_id=%s model=%s err=%s",
+            user_id,
+            usage.get("model"),
+            exc,
+        )
 
 
 def _is_rate_limited(rate_key: int) -> bool:
@@ -204,7 +254,14 @@ async def _event_stream(
                     text_this_round.append(event["data"])
                     yield f"data: {json.dumps({'type': 'token', 'data': event['data']})}\n\n"
                 elif etype == "usage":
-                    _record_usage(event["data"])
+                    # Phase 13: pass user_id + session factory so the hook can
+                    # persist to ai_usage_log (Plan 13-03). Failure is swallowed
+                    # inside the hook — telemetry must not break the SSE stream.
+                    await _record_usage(
+                        event["data"],
+                        user_id=user_id,
+                        session_factory=AsyncSessionLocal,
+                    )
                 elif etype == "tool_start":
                     yield f"data: {json.dumps({'type': 'tool_start', 'data': event['data']})}\n\n"
                 elif etype == "tool_call_complete":
