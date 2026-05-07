@@ -73,18 +73,17 @@ async def _fetch_spend_cents_from_db(db: AsyncSession, user_id: int) -> int:
     is deferred (CONTEXT out-of-scope).
 
     RLS note: ai_usage_log has row-level security policy that filters by
-    app.current_user_id. We SET LOCAL this parameter before the SELECT so the
-    runtime budget_app role can read only the target user's rows. The SET LOCAL
-    is scoped to the current transaction (auto-reset on commit/rollback).
+    app.current_user_id. We call set_tenant_scope() (shared helper from
+    app/db/session.py) so the runtime budget_app role can read only the
+    target user's rows. set_config() is scoped to the current transaction.
     """
-    from sqlalchemy import text as sql_text
-
     month_start = _month_start_msk()
     month_start_utc = month_start.astimezone(timezone.utc)
-    # Set RLS context so budget_app role can see this user's rows.
-    # PostgreSQL SET LOCAL does not accept bind parameters — interpolate int directly.
-    # Safe: user_id is always int (PK); no injection vector.
-    await db.execute(sql_text(f"SET LOCAL app.current_user_id = '{int(user_id)}'"))
+    # DB-01 (Plan 16-08): unified RLS-context helper. Equivalent to the
+    # previous f-string SET LOCAL but uses set_config() with a bind-parameter,
+    # matching app/db/session.py:30 (set_tenant_scope).
+    from app.db.session import set_tenant_scope  # local import: avoid cycle
+    await set_tenant_scope(db, user_id)
     stmt = select(func.coalesce(func.sum(AiUsageLog.est_cost_usd), 0.0)).where(
         AiUsageLog.user_id == user_id,
         AiUsageLog.created_at >= month_start_utc,
