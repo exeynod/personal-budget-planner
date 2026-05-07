@@ -43,7 +43,7 @@
   - **Files:** `app/api/routes/ai.py:_event_stream`, новые Pydantic-валидаторы в `app/ai/tools.py`
   - **Closed:** Plan 16-04 (2026-05-07) — `app/ai/tool_args.py` (6 Pydantic models with `extra='forbid'`) + `TOOL_ARGS_MODELS` dispatcher in `_event_stream` + SSE `tool_error` event + `logger.warning('ai.tool_args_invalid …')` + synth `{error}` tool_result message-pair for graceful recovery + frontend `AiEventType` extended + `useAiConversation` handler + pytest regression `tests/api/test_ai_chat_tool_args_validation.py` (3 cases: bad JSON, mistyped, extra field).
 
-- [ ] **AI-03**: Agent-loop защищён от tool-loop — total tool-executions per session ≤ 8 и повтор одного tool с одинаковыми args в соседних раундах прерывает цикл.
+- [x] **AI-03**: Agent-loop защищён от tool-loop — total tool-executions per session ≤ 8 и повтор одного tool с одинаковыми args в соседних раундах прерывает цикл.
   - **Acceptance:** mock LLM с зацикленным tool_call → break после ≤8 total tool-calls, финальный user-friendly assistant-message.
   - **File:** `app/api/routes/ai.py:_event_stream` (agent-loop)
 
@@ -87,7 +87,7 @@
 | CON-02  | Phase 16 | Pending |
 | AI-01   | Phase 16 | Complete |
 | AI-02   | Phase 16 | Complete |
-| AI-03   | Phase 16 | Pending |
+| AI-03   | Phase 16 | Complete |
 | DB-01   | Phase 16 | Pending |
 | CODE-01 | Phase 16 | Pending |
 

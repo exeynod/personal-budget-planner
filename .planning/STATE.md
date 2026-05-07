@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v0.5
 milestone_name: Security & AI Hardening
 status: executing
-stopped_at: Completed Plan 16-04 (AI-02 Pydantic tool-args validation + tool_error SSE event)
-last_updated: "2026-05-07T18:05:01Z"
-last_activity: 2026-05-07 — Plan 16-04 AI-02 closed (Pydantic ToolArgs models + SSE tool_error event + frontend handler + 3 pytest cases)
+stopped_at: Completed Plan 16-05 (AI-03 tool-loop guard + 3 pytest cases)
+last_updated: "2026-05-07T18:16:07.686Z"
+last_activity: 2026-05-07 — Plan 16-05 AI-03 closed (tool-loop guard hardcap=8 + repeat-detect + 3 pytest cases)
 progress:
   total_phases: 1
   completed_phases: 0
   total_plans: 9
-  completed_plans: 7
-  percent: 78
+  completed_plans: 8
+  percent: 89
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-05-07 — v0.5 milestone started)
 ## Current Position
 
 Phase: 16 of 16 (Security & AI Hardening)
-Plan: 16-04 complete (AI-02 Pydantic tool-args validation); 16-01/02/03/04/06/08/09 closed; 16-05/07 still pending
+Plan: 16-05 complete (AI-03 tool-loop guard); 16-01/02/03/04/05/06/08/09 closed; 16-07 still pending
 Status: In progress
-Last activity: 2026-05-07 — Plan 16-04 AI-02 closed (Pydantic ToolArgs models + tool_error SSE event + 3 pytest cases)
+Last activity: 2026-05-07 — Plan 16-05 AI-03 closed (hardcap 8 tool-calls + adjacent-round repeat-detect + token-style fallback + 3 pytest cases)
 
-Progress: [████████░░] 78%
+Progress: [█████████░] 89%
 
 ## Performance Metrics
 
@@ -57,6 +57,10 @@ Progress: [████████░░] 78%
 
 *Updated after each plan completion*
 
+**v0.5 plans (Phase 16) — running tally:**
+
+- Phase 16 P05: 4 min, 2 tasks, 2 files (`app/api/routes/ai.py` modified, `tests/api/test_ai_chat_tool_loop_guard.py` created)
+
 ## Accumulated Context
 
 ### Decisions
@@ -74,6 +78,7 @@ Recent decisions affecting v0.5 planning:
 - 16-02 (2026-05-07): SEC-02 закрыт. Renamed `_humanize_provider_error` -> `humanize_provider_error` (public) для переиспользования между провайдером и `_event_stream`. Outer `except Exception` теперь yield `humanize_provider_error(exc)` + `logger.exception("ai.event_stream_failed user_id=%s", user_id)`. Defense-in-depth на inner SSE error-path: `str()` coercion + generic fallback. Pytest regression `tests/api/test_ai_chat_error_sanitize.py` (2 тест-кейса) проверяет sanitised payload + сохранённый traceback в логах.
 - 16-06 (2026-05-07): CON-01 закрыт. Atomic `UPDATE app_user SET onboarded_at=:now, cycle_start_day=:csd WHERE id=:id AND onboarded_at IS NULL RETURNING onboarded_at` per D-16-03 — заменяет SELECT-then-mutate в `complete_onboarding`. Loser видит claimed_row=None, refresh-ит user, raise AlreadyOnboardedError. Pytest regression `tests/test_onboarding_concurrent.py` (2 теста, asyncio.Barrier(2) для детерминистического race) — verified FAIL pre-fix (IntegrityError на uq_budget_period_user_id_period_start) → PASS post-fix через container rebuild. Race-test pattern переиспользуем для будущих CON-* фиксов.
 - 16-04 (2026-05-07): AI-02 закрыт. Создан `app/ai/tool_args.py` — 6 Pydantic моделей (по одной на tool) extra='forbid' + `TOOL_ARGS_MODELS` mapping. `_event_stream` tool dispatch валидирует raw JSON через `model_validate(raw_kwargs)` → невалидный JSON / mistyped types / extra fields → SSE `tool_error` event + `logger.warning("ai.tool_args_invalid tool=%s err_type=%s err=%s raw_args=%.200s")` + synth `{error: ...}` tool_result message-pair (preserves OpenAI assistant.tool_calls invariant для recovery). Frontend `AiEventType` расширен `tool_error` + `ToolErrorPayload`; `useAiConversation.handleEvent` → `setError(event.data.message)` без abort стрима. Pytest regression `tests/api/test_ai_chat_tool_args_validation.py` (3 теста: bad JSON / mistyped / extra field) — все PASS в integration-контейнере; 0 регрессов в существующих 10 AI-тестах.
+- 16-05 (2026-05-07): AI-03 закрыт. Hardcap MAX_TOTAL_TOOL_CALLS=8 + adjacent-round repeat-detect `(tool_name, frozenset(parsed_kwargs.items()))` в `_event_stream`. Counter инкрементируется ПОСЛЕ args validation и ДО tool_fn(), так что Plan 16-04 tool_error path не консьюмит budget. На trigger — yield token-style fallback "Не удалось завершить, переформулируй запрос" + done. Логи `ai.tool_loop_repeat` / `ai.tool_loop_hardcap` зеркалят `ai.tool_args_invalid` из 16-04. `max_rounds=5` оставлен как outer safety net. Pytest regression `tests/api/test_ai_chat_tool_loop_guard.py` (3 теста: dedup, hardcap, normal) — PASS, 0 регрессов в 13 существующих AI-тестах.
 
 ### Pending Todos
 
@@ -105,6 +110,6 @@ Items acknowledged and deferred at v0.4 milestone close on 2026-05-07:
 
 ## Session Continuity
 
-Last session: 2026-05-07T18:05:01Z
+Last session: 2026-05-07T18:15:51.373Z
 Stopped at: Completed Plan 16-04 (AI-02 Pydantic tool-args validation + tool_error SSE event)
 Resume file: None
