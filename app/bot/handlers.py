@@ -34,7 +34,7 @@ from aiogram.types import (
 )
 
 from app.bot.api_client import InternalApiError, bind_chat_id
-from app.bot.auth import bot_resolve_user_role, bot_resolve_user_status
+from app.bot.auth import bot_resolve_user_status
 from app.core.settings import settings
 from app.db.models import UserRole
 

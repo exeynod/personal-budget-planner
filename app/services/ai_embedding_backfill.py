@@ -99,17 +99,33 @@ async def backfill_user_embeddings(
         return 0
 
     # 3. Upsert each embedding (single transaction, caller commits).
+    #    WR-01: catch DB errors per-row to honor the documented contract
+    #    "embedding failure does NOT roll back onboarding". An FK or
+    #    unique-violation here would otherwise propagate up through
+    #    complete_onboarding → get_db → ROLLBACK, throwing away the
+    #    seed_default_categories work and the AppUser.onboarded_at flag.
+    written = 0
     for category_id, vector in zip(category_ids, vectors, strict=True):
-        await embedding_svc.upsert_category_embedding(
-            db,
-            category_id=category_id,
-            vector=vector,
-            user_id=user_id,
-        )
+        try:
+            await embedding_svc.upsert_category_embedding(
+                db,
+                category_id=category_id,
+                vector=vector,
+                user_id=user_id,
+            )
+            written += 1
+        except Exception as exc:
+            logger.warning(
+                "embedding_backfill.upsert_failed",
+                user_id=user_id,
+                category_id=category_id,
+                error=str(exc),
+            )
 
     logger.info(
         "embedding_backfill.completed",
         user_id=user_id,
-        count=len(category_ids),
+        count=written,
+        attempted=len(category_ids),
     )
-    return len(category_ids)
+    return written

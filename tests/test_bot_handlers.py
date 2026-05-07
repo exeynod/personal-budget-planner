@@ -268,11 +268,6 @@ async def test_cmd_start_member_not_onboarded_uses_invite_copy() -> None:
         handlers,
         "bot_resolve_user_status",
         new=AsyncMock(return_value=(UserRole.member, None)),
-        create=True,  # attribute does not exist yet — RED phase
-    ), patch.object(
-        handlers,
-        "bot_resolve_user_role",
-        new=AsyncMock(return_value=UserRole.member),
     ), patch.object(
         handlers,
         "bind_chat_id",
