@@ -24,6 +24,7 @@ from app.api.dependencies import (
     get_current_user,
     get_current_user_id,
     get_db_with_tenant_scope,
+    require_onboarded,
 )
 from app.api.schemas.subscriptions import (
     ChargeNowResponse,
@@ -37,7 +38,7 @@ from app.services import subscriptions as sub_service
 router = APIRouter(
     prefix="/subscriptions",
     tags=["subscriptions"],
-    dependencies=[Depends(get_current_user)],
+    dependencies=[Depends(get_current_user), Depends(require_onboarded)],
 )
 
 

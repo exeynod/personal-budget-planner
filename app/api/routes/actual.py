@@ -42,6 +42,7 @@ from app.api.dependencies import (
     get_current_user,
     get_current_user_id,
     get_db_with_tenant_scope,
+    require_onboarded,
 )
 from app.api.schemas.actual import (
     ActualCreate,
@@ -63,7 +64,7 @@ from app.services.planned import (
 
 actual_router = APIRouter(
     tags=["actual"],
-    dependencies=[Depends(get_current_user)],
+    dependencies=[Depends(get_current_user), Depends(require_onboarded)],
 )
 
 

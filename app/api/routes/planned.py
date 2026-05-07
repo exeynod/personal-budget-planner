@@ -35,6 +35,7 @@ from app.api.dependencies import (
     get_current_user,
     get_current_user_id,
     get_db_with_tenant_scope,
+    require_onboarded,
 )
 from app.api.schemas.planned import (
     ApplyTemplateResponse,
@@ -56,7 +57,7 @@ from app.services.planned import (
 
 planned_router = APIRouter(
     tags=["planned"],
-    dependencies=[Depends(get_current_user)],
+    dependencies=[Depends(get_current_user), Depends(require_onboarded)],
 )
 
 

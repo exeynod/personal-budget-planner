@@ -35,6 +35,7 @@ from app.api.dependencies import (
     get_current_user,
     get_current_user_id,
     get_db_with_tenant_scope,
+    require_onboarded,
 )
 from app.api.schemas.ai import (
     ChatHistoryResponse,
@@ -52,7 +53,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(
     prefix="/ai",
     tags=["ai"],
-    dependencies=[Depends(get_current_user)],
+    dependencies=[Depends(get_current_user), Depends(require_onboarded)],
 )
 
 # ---- Rate limiter (in-memory, per-process) — Phase 10.1: 30 → 10 ----

@@ -22,6 +22,7 @@ from app.api.dependencies import (
     get_current_user,
     get_current_user_id,
     get_db_with_tenant_scope,
+    require_onboarded,
 )
 from app.api.schemas.categories import CategoryCreate, CategoryRead, CategoryUpdate
 from app.core.settings import settings
@@ -34,7 +35,7 @@ logger = structlog.get_logger(__name__)
 categories_router = APIRouter(
     prefix="/categories",
     tags=["categories"],
-    dependencies=[Depends(get_current_user)],
+    dependencies=[Depends(get_current_user), Depends(require_onboarded)],
 )
 
 
