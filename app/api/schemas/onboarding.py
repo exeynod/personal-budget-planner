@@ -23,8 +23,14 @@ class OnboardingCompleteRequest(BaseModel):
 
 
 class OnboardingCompleteResponse(BaseModel):
-    """POST /onboarding/complete response — atomic side-effects summary."""
+    """POST /onboarding/complete response — atomic side-effects summary.
+
+    Phase 14 (MTONB-03): embeddings_created added — number of CategoryEmbedding
+    rows created during onboarding backfill. 0 when seed_default_categories=False,
+    ENABLE_AI_CATEGORIZATION=False, or OpenAI provider was unavailable.
+    """
 
     period_id: int
     seeded_categories: int
     onboarded_at: datetime
+    embeddings_created: int = 0

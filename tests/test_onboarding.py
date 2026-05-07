@@ -154,3 +154,80 @@ async def test_negative_starting_balance_allowed(db_client, auth_headers):
         headers=auth_headers,
     )
     assert response.status_code == 200
+
+
+# ---------------------------------------------------------------
+# Phase 14 MTONB-03: embedding backfill during onboarding
+# ---------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_complete_onboarding_creates_seed_embeddings(
+    db_client, auth_headers, monkeypatch,
+):
+    """seed_default_categories=True + AI on → 14 embeddings created."""
+    _require_db()
+    from unittest.mock import AsyncMock
+
+    from app.ai.embedding_service import EMBEDDING_DIM, get_embedding_service
+    from app.core.settings import settings
+
+    # Force AI categorization on (default true, but be explicit).
+    monkeypatch.setattr(settings, "ENABLE_AI_CATEGORIZATION", True)
+
+    # Mock provider so no real OpenAI call.
+    get_embedding_service.cache_clear()
+    svc = get_embedding_service()
+    monkeypatch.setattr(
+        svc,
+        "embed_texts",
+        AsyncMock(side_effect=lambda texts: [[0.0] * EMBEDDING_DIM for _ in texts]),
+    )
+
+    resp = await db_client.post(
+        "/api/v1/onboarding/complete",
+        headers=auth_headers,
+        json={
+            "starting_balance_cents": 100_00,
+            "cycle_start_day": 5,
+            "seed_default_categories": True,
+        },
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["seeded_categories"] == 14
+    assert body["embeddings_created"] == 14
+
+
+@pytest.mark.asyncio
+async def test_complete_onboarding_swallows_embedding_failure(
+    db_client, auth_headers, monkeypatch,
+):
+    """Provider raises → onboarding succeeds; embeddings_created=0."""
+    _require_db()
+    from unittest.mock import AsyncMock
+
+    from app.ai.embedding_service import get_embedding_service
+    from app.core.settings import settings
+
+    monkeypatch.setattr(settings, "ENABLE_AI_CATEGORIZATION", True)
+
+    get_embedding_service.cache_clear()
+    svc = get_embedding_service()
+    monkeypatch.setattr(
+        svc,
+        "embed_texts",
+        AsyncMock(side_effect=RuntimeError("OpenAI down")),
+    )
+
+    resp = await db_client.post(
+        "/api/v1/onboarding/complete",
+        headers=auth_headers,
+        json={
+            "starting_balance_cents": 0,
+            "cycle_start_day": 1,
+            "seed_default_categories": True,
+        },
+    )
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["embeddings_created"] == 0

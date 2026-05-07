@@ -1,15 +1,19 @@
 """Onboarding orchestration (ONB-01, PER-02, CAT-03).
 
-Performs four steps atomically (all-or-nothing via the request-scoped DB
+Performs five steps atomically (all-or-nothing via the request-scoped DB
 transaction held by ``get_db``):
 
   1. Verify user not already onboarded (``AlreadyOnboardedError`` → 409).
   2. Optionally seed default categories (idempotent inside service).
   3. Create the first budget period using ``period_for(today_msk, cycle_start_day)``.
   4. Set ``user.cycle_start_day`` + ``user.onboarded_at = now()``.
+  5. Phase 14 (MTONB-03): backfill seed-category embeddings for AI suggest
+     cold-start. Wrapped in try/except — provider failure does NOT roll
+     back onboarding (returns embeddings_created=0).
 
-If any step raises, the surrounding transaction is rolled back by the
-``get_db`` dependency — no partial onboarding state is persisted.
+If any step raises (excluding step 5's provider failure), the surrounding
+transaction is rolled back by the ``get_db`` dependency — no partial
+onboarding state is persisted.
 This covers the T-onboarding-atomicity threat from 02-VALIDATION.md.
 
 Service layer is HTTP-framework-agnostic: raises domain exceptions
@@ -30,9 +34,11 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.settings import settings
 from app.db.models import AppUser
 from app.services import categories as cat_svc
 from app.services import periods as period_svc
+from app.services.ai_embedding_backfill import backfill_user_embeddings
 
 
 class AlreadyOnboardedError(Exception):
@@ -128,8 +134,17 @@ async def complete_onboarding(
     user.onboarded_at = datetime.now(timezone.utc)
     await db.flush()
 
+    # 5. Phase 14 MTONB-03: backfill embeddings for the 14 seed categories so
+    #    the very first /ai/suggest-category call has hot indices. Wrapped in
+    #    try/except by backfill_user_embeddings — provider failure logs WARN
+    #    and returns 0 without rolling back onboarding.
+    embeddings_created = 0
+    if seed_default_categories and settings.ENABLE_AI_CATEGORIZATION:
+        embeddings_created = await backfill_user_embeddings(db, user_id=user_pk)
+
     return {
         "period_id": period.id,
         "seeded_categories": len(seeded),
         "onboarded_at": user.onboarded_at.isoformat(),
+        "embeddings_created": embeddings_created,
     }
