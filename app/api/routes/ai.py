@@ -32,6 +32,7 @@ from app.ai.llm_client import get_llm_client
 from app.ai.system_prompt import build_messages
 from app.ai.tools import TOOL_FUNCTIONS, TOOLS_SCHEMA
 from app.api.dependencies import (
+    enforce_spending_cap,        # Plan 15-03 AICAP-02
     get_current_user,
     get_current_user_id,
     get_db_with_tenant_scope,
@@ -53,7 +54,11 @@ logger = logging.getLogger(__name__)
 router = APIRouter(
     prefix="/ai",
     tags=["ai"],
-    dependencies=[Depends(get_current_user), Depends(require_onboarded)],
+    dependencies=[
+        Depends(get_current_user),
+        Depends(require_onboarded),
+        Depends(enforce_spending_cap),   # Plan 15-03 AICAP-02
+    ],
 )
 
 # ---- Rate limiter (in-memory, per-process) — Phase 10.1: 30 → 10 ----

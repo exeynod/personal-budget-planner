@@ -15,6 +15,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import (
+    enforce_spending_cap,        # Plan 15-03 AICAP-02
     get_current_user,
     get_current_user_id,
     get_db_with_tenant_scope,
@@ -26,7 +27,11 @@ from app.ai.embedding_service import get_embedding_service
 router = APIRouter(
     prefix="",
     tags=["ai-categorization"],
-    dependencies=[Depends(get_current_user), Depends(require_onboarded)],
+    dependencies=[
+        Depends(get_current_user),
+        Depends(require_onboarded),
+        Depends(enforce_spending_cap),   # Plan 15-03 AICAP-02
+    ],
 )
 
 
