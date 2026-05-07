@@ -5,6 +5,10 @@ Phase 12 refactor (ROLE-02, ROLE-03, ROLE-04):
 - require_owner enforces role=='owner' for admin-only endpoints (Phase 13+).
 - get_current_user_id reads from resolved AppUser (single SELECT, no round-trip).
 
+Phase 14 refactor (MTONB-04):
+- require_onboarded gates domain endpoints; returns 409 onboarding_required
+  when current_user.onboarded_at IS NULL.
+
 Security design (HLD §7 + Phase 12 CONTEXT):
 - Public endpoints (/api/v1/*): require valid Telegram initData + role IN (owner, member).
 - Internal endpoints (/api/v1/internal/*): require X-Internal-Token (no role).
@@ -175,6 +179,36 @@ async def require_owner(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Owner role required for this endpoint",
+        )
+    return current_user
+
+
+async def require_onboarded(
+    current_user: Annotated[AppUser, Depends(get_current_user)],
+) -> AppUser:
+    """Gate domain endpoints behind completed onboarding (Phase 14 MTONB-04, D-14-01).
+
+    Raises HTTPException(409) with onboarding_required error detail
+    when current_user.onboarded_at IS NULL. Used as a router-level
+    dependency on /categories, /actual, /planned, /templates,
+    /subscriptions, /periods, /analytics, /ai, /ai/suggest-category,
+    /settings.
+
+    NOT applied to:
+    - /me                      (frontend uses it to drive routing)
+    - /onboarding/*            (target of redirect)
+    - /internal/*              (X-Internal-Token, no user context)
+    - /admin/*                 (require_owner; owner is always onboarded)
+    - /health                  (infra probe)
+
+    Returns the same AppUser passed in so dependency chains can re-use
+    without an additional SELECT (FastAPI dep cache deduplicates
+    get_current_user across the request).
+    """
+    if current_user.onboarded_at is None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"error": "onboarding_required"},
         )
     return current_user
 
