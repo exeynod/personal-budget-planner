@@ -46,6 +46,15 @@ DEFAULT_SPENDING_CAP_CENTS = 46500
 
 
 def upgrade() -> None:
+    # ---- 0. AppUser.last_seen_at column (Phase 13 admin breakdown) ----
+    # last login indicator; nullable — existing rows backfill as NULL until
+    # Phase 14 wires /me handler (or bot bind) to populate it on each request.
+    # Plan 13-04 returns this field via GET /api/v1/admin/users for ADM-06.
+    op.add_column(
+        "app_user",
+        sa.Column("last_seen_at", sa.TIMESTAMP(timezone=True), nullable=True),
+    )
+
     # ---- 1. AppUser.spending_cap_cents column ----
     # server_default fills existing rows + future inserts that omit the field.
     op.add_column(
@@ -151,3 +160,7 @@ def downgrade() -> None:
     op.drop_table("ai_usage_log")
 
     op.drop_column("app_user", "spending_cap_cents")
+    # IF EXISTS — defensive idempotency: 0008 шипалась в две ревизии (без
+    # last_seen_at, потом с last_seen_at). Если БД уже на 0008 со старой
+    # ревизией без last_seen_at, downgrade -1 не должен падать.
+    op.execute("ALTER TABLE app_user DROP COLUMN IF EXISTS last_seen_at")
