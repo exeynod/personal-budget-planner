@@ -10,6 +10,17 @@ export interface MeResponse {
   chat_id_known: boolean;
   /** Phase 12 ROLE-05: backend-driven role for admin-tab visibility (Phase 13). */
   role: UserRole;
+  /**
+   * Phase 15 AICAP-04 — current MSK-month spend in USD-cents (scale 100/USD).
+   * Format: (ai_spend_cents / 100).toFixed(2) → "$X.XX".
+   * Differs from AdminAiUsageRow.spending_cap_cents which uses 100_000/USD scale (Phase 13 legacy).
+   */
+  ai_spend_cents: number;
+  /**
+   * Phase 15 AICAP-04 — spending cap in USD-cents (scale 100/USD); 0 = AI off.
+   * Default: 46500 ($465.00). Format: (ai_spending_cap_cents / 100).toFixed(2).
+   */
+  ai_spending_cap_cents: number;
 }
 
 export type CategoryKind = 'expense' | 'income';
@@ -384,6 +395,7 @@ export type AiStreamEvent =
 /**
  * Mirrors `AdminUserResponse` from app/api/schemas/admin.py (Phase 13).
  * Used by GET /api/v1/admin/users.
+ * Phase 15 AICAP-04: spending_cap_cents added (USD-cents scale 100/USD).
  */
 export interface AdminUserResponse {
   id: number;
@@ -393,6 +405,12 @@ export interface AdminUserResponse {
   last_seen_at: string | null; // ISO datetime UTC
   onboarded_at: string | null;
   created_at: string;
+  /**
+   * Phase 15 AICAP-04 — current AI cap in USD-cents (scale 100/USD).
+   * 0 = AI off. Default 46500 ($465.00).
+   * Exposed by backend AdminUserResponse since Plan 15-04.
+   */
+  spending_cap_cents: number;
 }
 
 /**
@@ -402,6 +420,17 @@ export interface AdminUserResponse {
  */
 export interface AdminUserCreateRequest {
   tg_user_id: number;
+}
+
+/**
+ * Mirrors `CapUpdate` (app/api/schemas/admin.py) — body для PATCH
+ * /api/v1/admin/users/{user_id}/cap (Phase 15 AICAP-04).
+ *
+ * Bounds: 0 ≤ spending_cap_cents ≤ 10_000_000 (= $100k cap).
+ * Scale: USD-cents (100/USD) — NOT the Phase 13 legacy 100_000/USD scale.
+ */
+export interface CapUpdateRequest {
+  spending_cap_cents: number;
 }
 
 /**

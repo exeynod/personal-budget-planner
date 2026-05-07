@@ -3,6 +3,7 @@ import type {
   AdminAiUsageResponse,
   AdminUserCreateRequest,
   AdminUserResponse,
+  CapUpdateRequest,
 } from './types';
 
 /**
@@ -59,4 +60,22 @@ export async function revokeAdminUser(userId: number): Promise<void> {
  */
 export async function getAdminAiUsage(): Promise<AdminAiUsageResponse> {
   return apiFetch<AdminAiUsageResponse>('/admin/ai-usage');
+}
+
+/**
+ * PATCH /api/v1/admin/users/{user_id}/cap
+ *
+ * Update spending_cap_cents for any user (self or other). Owner-only — 403
+ * for non-owner. 422 при negative cap or extra fields. 404 если user_id не найден.
+ *
+ * Returns обновлённый AdminUserResponse snapshot (Phase 15 AICAP-04).
+ */
+export async function updateAdminUserCap(
+  userId: number,
+  spending_cap_cents: number,
+): Promise<AdminUserResponse> {
+  return apiFetch<AdminUserResponse>(`/admin/users/${userId}/cap`, {
+    method: 'PATCH',
+    body: JSON.stringify({ spending_cap_cents } satisfies CapUpdateRequest),
+  });
 }

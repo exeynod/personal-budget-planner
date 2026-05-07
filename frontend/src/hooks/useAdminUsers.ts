@@ -3,6 +3,7 @@ import {
   inviteAdminUser,
   listAdminUsers,
   revokeAdminUser,
+  updateAdminUserCap,
 } from '../api/admin';
 import type { AdminUserResponse } from '../api/types';
 
@@ -15,6 +16,12 @@ export interface UseAdminUsersResult {
   invite: (tg_user_id: number) => Promise<AdminUserResponse>;
   /** Revoke (cascade purge); optimistic UI removes row immediately, rolls back on error */
   revoke: (userId: number) => Promise<void>;
+  /**
+   * Phase 15 AICAP-04 — update AI spending cap for userId.
+   * Server returns updated AdminUserResponse; merges into local state.
+   * Caller (CapEditSheet) handles errors inline — no rollback here.
+   */
+  updateCap: (userId: number, spending_cap_cents: number) => Promise<void>;
 }
 
 /**
@@ -104,5 +111,16 @@ export function useAdminUsers(): UseAdminUsersResult {
     }
   }, []);
 
-  return { users, loading, error, refetch, invite, revoke };
+  const updateCap = useCallback(
+    async (userId: number, spending_cap_cents: number) => {
+      // Server returns updated AdminUserResponse — merge into local state.
+      const updated = await updateAdminUserCap(userId, spending_cap_cents);
+      if (mountedRef.current) {
+        setUsers((prev) => prev.map((u) => (u.id === userId ? updated : u)));
+      }
+    },
+    [],
+  );
+
+  return { users, loading, error, refetch, invite, revoke, updateCap };
 }
