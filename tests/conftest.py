@@ -56,6 +56,29 @@ os.environ.setdefault("OPENAI_API_KEY", "sk-test-fake-key-for-pytest-only")
 
 
 @pytest_asyncio.fixture(autouse=True)
+async def _clear_spend_cache():
+    """Clear in-process spend_cap TTLCache before each test (Phase 15).
+
+    Tests that TRUNCATE + RESTART IDENTITY create users with the same
+    integer PKs across test functions. Without this, a cached spend=0 from
+    test A leaks into test B which seeds logs under the same user_id and
+    expects a non-zero result. Clearing the module-level TTLCache before
+    each test prevents cross-test contamination without touching the TTL or
+    maxsize settings that production behaviour depends on.
+    """
+    try:
+        import sys
+
+        if "app.services.spend_cap" in sys.modules:
+            from app.services.spend_cap import _spend_cache
+
+            _spend_cache.clear()
+    except Exception:
+        pass  # Best-effort — module may not be loaded in non-spend tests
+    yield
+
+
+@pytest_asyncio.fixture(autouse=True)
 async def _dispose_global_engine():
     """Dispose global async_engine after each test to prevent cross-event-loop issues.
 
