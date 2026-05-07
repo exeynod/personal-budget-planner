@@ -80,6 +80,22 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * Phase 14 (MTONB-04 / D-14-01): apiFetch throws this when backend returns
+ * 409 with body shape `{"detail": {"error": "onboarding_required"}}`.
+ *
+ * Caught by App.tsx's onboarding gate to force-render OnboardingScreen
+ * even if the cached /me response hasn't yet flipped to onboarded_at===null.
+ * Other 409 cases (e.g. AlreadyOnboardedError on /onboarding/complete)
+ * remain plain ApiError so existing handlers keep working.
+ */
+export class OnboardingRequiredError extends ApiError {
+  constructor(body: string) {
+    super('onboarding_required', 409, body);
+    this.name = 'OnboardingRequiredError';
+  }
+}
+
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const headers = new Headers(init?.headers);
   headers.set('Content-Type', 'application/json');
@@ -95,6 +111,18 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
   const response = await fetch(API_BASE + path, { ...init, headers });
   const text = await response.text();
   if (!response.ok) {
+    // Phase 14 (D-14-01): detect 409 onboarding_required sub-shape.
+    if (response.status === 409) {
+      let parsed: { detail?: { error?: string } } | null = null;
+      try {
+        parsed = JSON.parse(text);
+      } catch {
+        parsed = null;
+      }
+      if (parsed?.detail?.error === 'onboarding_required') {
+        throw new OnboardingRequiredError(text);
+      }
+    }
     throw new ApiError(`API ${path} → ${response.status}`, response.status, text);
   }
   return text ? (JSON.parse(text) as T) : (undefined as T);
