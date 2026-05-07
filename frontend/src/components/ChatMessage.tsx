@@ -16,9 +16,20 @@ interface Props {
   isStreaming?: boolean;
 }
 
+/** Escape HTML-special chars to prevent XSS via LLM-controlled markdown content. */
+function escapeHtml(input: string): string {
+  return input
+    .replace(/&/g, '&amp;')   // MUST be first — иначе double-escape /amp;lt;/
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 /** Простой inline markdown парсер (bold, ul, ol) без библиотек. */
 function parseMarkdown(text: string): string {
-  return text
+  const safe = escapeHtml(text);
+  return safe
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
     .replace(/^- (.+)$/gm, '<li>$1</li>')
     .replace(/^(\d+)\. (.+)$/gm, '<li>$2</li>');
