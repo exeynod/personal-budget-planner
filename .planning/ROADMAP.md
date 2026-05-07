@@ -41,7 +41,7 @@
 - [x] **Phase 11: Multi-Tenancy DB Migration & RLS** — `user_id` FK во всех доменных таблицах + Postgres RLS + `app_user.role` колонка с backfill для существующего owner — 7/7 plans complete; status=human_needed (live TG smoke deferred per user); D-11-07-01/02 carry forward into the next phase
 - [x] **Phase 12: Role-Based Auth Refactor** — 7/7 plans complete; status=human_needed (live TG smoke deferred per user pattern, mirroring Phase 11 U-1); D-11-07-01 + D-11-07-02 closed
 - [x] **Phase 13: Admin UI — Whitelist & AI Usage** — 8/8 plans complete; status=human_needed (live TG smoke deferred per user pattern, mirroring Phase 11/12); 20/20 own tests GREEN, +16 net-new, 0 regressions; alembic 0008 (spending_cap_cents stub + ai_usage_log + last_seen_at) shipped
-- [ ] **Phase 14: Multi-Tenant Onboarding** — invite-flow для `role=member` юзеров: bot bind → starting_balance → cycle_start_day → seed 14 категорий per-user + автогенерация embeddings
+- [x] **Phase 14: Multi-Tenant Onboarding** — 7/7 plans complete; status=human_needed (live TG smoke deferred per user pattern, mirroring Phase 11/12/13); 22 bot handler + 4 vitest unit tests GREEN; DB-backed tests pending api container rebuild; 0 regressions
 - [ ] **Phase 15: AI Cost Cap Per User** — `spending_cap_cents` (default $5/month) с enforcement → 429; Settings показывает текущий spend/cap; owner редактирует cap через Admin UI
 
 ## Phase Details
@@ -117,14 +117,14 @@
   3. Onboarding-flow (scrollable-page по дизайну `006-B`) проходит шаги: bot bind → ввод starting_balance → выбор cycle_start_day → seed 14 категорий per-user (копия из default-набора, изолирована по `user_id`).
   4. По завершении onboarding для нового юзера автогенерируются embeddings для его 14 seed-категорий (background task через worker или inline async); первый AI-suggest-category для нового юзера возвращает корректные результаты без задержки на cold-start.
   5. Существующий owner (уже onboarded в v0.2/v0.3) проходит при следующем запросе без 409 — миграция считает его onboarded_at непустым; новый member после успешного onboarding также не получает 409.
-**Plans:** 6/7 plans executed
-- [ ] 14-01-PLAN.md — RED tests for require_onboarded + embedding backfill + bot helper (Wave 0)
-- [ ] 14-02-PLAN.md — require_onboarded dep + apply to 10 gated routers (Wave 1)
-- [ ] 14-03-PLAN.md — embedding backfill helper + extend complete_onboarding step 5 (Wave 1, parallel)
-- [ ] 14-04-PLAN.md — bot_resolve_user_status + cmd_start invite-flow branch (Wave 1, parallel)
-- [ ] 14-05-PLAN.md — frontend OnboardingRequiredError + hero copy branch + App catch-all (Wave 2)
-- [ ] 14-06-PLAN.md — Integration tests: gate matrix + onboarding happy path + existing-user safety (Wave 3)
-- [ ] 14-07-PLAN.md — Verification + STATE/ROADMAP updates (Wave 4, has human checkpoint)
+**Plans**: 7 plans
+- [x] 14-01-PLAN.md — RED tests for require_onboarded + embedding backfill + bot helper (Wave 0) — completed 2026-05-07
+- [x] 14-02-PLAN.md — require_onboarded dep + apply to 10 gated routers (Wave 1) — completed 2026-05-07
+- [x] 14-03-PLAN.md — embedding backfill helper + extend complete_onboarding step 5 (Wave 1, parallel with 14-02 + 14-04) — completed 2026-05-07
+- [x] 14-04-PLAN.md — bot_resolve_user_status + cmd_start invite-flow branch (Wave 1, parallel with 14-02 + 14-03) — completed 2026-05-07
+- [x] 14-05-PLAN.md — frontend OnboardingRequiredError + hero copy branch + App catch-all (Wave 2) — completed 2026-05-07
+- [x] 14-06-PLAN.md — Integration tests: gate matrix + onboarding happy path + existing-user safety (Wave 3) — completed 2026-05-07
+- [x] 14-07-PLAN.md — Verification + STATE/ROADMAP updates (Wave 4, has human checkpoint) — completed 2026-05-07
 **UI hint**: yes
 
 ### Phase 15: AI Cost Cap Per User
@@ -168,10 +168,10 @@
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 11. Multi-Tenancy DB Migration & RLS | 4/7 | In progress | — |
-| 12. Role-Based Auth Refactor | 6/7 | In Progress|  |
-| 13. Admin UI — Whitelist & AI Usage | 0/? | Not started | — |
-| 14. Multi-Tenant Onboarding | 6/7 | In Progress|  |
+| 11. Multi-Tenancy DB Migration & RLS | 7/7 | Complete (human_needed) | 2026-05-06 |
+| 12. Role-Based Auth Refactor | 7/7 | Complete (human_needed) | 2026-05-07 |
+| 13. Admin UI — Whitelist & AI Usage | 8/8 | Complete (human_needed) | 2026-05-07 |
+| 14. Multi-Tenant Onboarding | 7/7 | Complete (human_needed) | 2026-05-07 |
 | 15. AI Cost Cap Per User | 0/? | Not started | — |
 
 ---

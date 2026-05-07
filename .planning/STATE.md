@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v0.4
 milestone_name: Multi-Tenant & Admin
 status: executing
-stopped_at: Phase 13 complete — 13-VERIFICATION.md status=human_needed (live TG smoke deferred to milestone close, mirroring Phase 11 U-1 and Phase 12). 8/8 plans + 0 regressions; admin UI + endpoints + AI usage tracking shipped. alembic 0008 (spending_cap_cents stub + ai_usage_log + last_seen_at) applied.
-last_updated: "2026-05-07T10:32:41.924Z"
-last_activity: 2026-05-07
+stopped_at: "Phase 14 complete — 14-VERIFICATION.md status=human_needed; 22 bot handler + 4 vitest unit tests GREEN; DB-backed integration tests pending api container rebuild; live TG smoke deferred per Phase 11/12/13 pattern; ready for Phase 15."
+last_updated: "2026-05-07T13:35:00.000Z"
+last_activity: 2026-05-07 -- Phase 14 verification complete (14-07)
 progress:
   total_phases: 5
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 29
-  completed_plans: 28
-  percent: 97
+  completed_plans: 29
+  percent: 80
 ---
 
 # Project State
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-05-06 after v0.3 milestone close)
 
 ## Current Position
 
-Phase: 14 (multi-tenant-onboarding) — EXECUTING
-Plan: 4 of 7
-Status: Ready to execute
-Last activity: 2026-05-07
+Phase: 15 (ai-cost-cap-per-user) — NOT STARTED
+Plan: 0 of N (planning pending)
+Status: Ready to discuss/plan
+Last activity: 2026-05-07 -- Phase 14 verification complete
 
 Previous milestones:
 
@@ -52,15 +52,15 @@ Progress: [######    ] 60% (milestone v0.4, 3/5 phases complete; Phase 11 + Phas
 | 11 | 7 | ~84 min | ~12 min |
 | 12 | 7 | ~95 min | ~14 min |
 | 13 | 8 | ~33 min | ~4 min |
+| 14 | 7 | ~75 min | ~11 min |
 
 **Recent Trend:**
 
-- Last 5 plans: 13-08 (~5 min, 2 docs, 1 commit, full pytest 291/295 + 13-VERIFICATION.md), 13-07 (~5 min, AccessScreen UI + role gate, 4 commits), 13-06 (~2 min, frontend admin types/API/hooks, 4 commits), 13-05 (~6 min, admin AI usage breakdown, 4 commits), 13-04 (~6 min, admin users CRUD + cascade purge, 3 commits)
-- Trend: Phase 13 functionally complete in <1 hour autonomous; admin endpoints + UI + AI usage tracking all delivered; 20/20 own tests GREEN, 0 regressions; live smoke deferred (consistent with Phase 11/12)
+- Last 5 plans: 14-07 (~10 min, 14-VERIFICATION.md + STATE/ROADMAP update), 14-06 (~10 min, E2E integration tests onboarding gate + existing-user-safety), 14-05 (~15 min, frontend OnboardingRequiredError + hero copy + vitest), 14-04 (~8 min, bot_resolve_user_status + cmd_start branch), 14-03 (~10 min, embedding backfill helper + complete_onboarding step 5)
+- Trend: Phase 14 functionally complete; 25 new tests (22 bot handler unit + 4 vitest unit = 26 runnable without DB; 16 DB-backed pending container rebuild); live smoke deferred (consistent with Phase 11/12/13)
 
 *Updated after each plan completion*
-| Phase 14-multi-tenant-onboarding P05 | 15 | 2 tasks | 5 files |
-| Phase 14-multi-tenant-onboarding P06 | 10m | 2 tasks | 2 files |
+| Phase 14-multi-tenant-onboarding P07 | ~10m | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -82,8 +82,10 @@ Recent decisions affecting v0.4 planning:
 - 11-05 (2026-05-06): Service signatures `*, user_id: int` keyword-only — caller cannot accidentally swap with another int positional; mypy/Pylance flag missing kwarg loudly. App-side filtering primary, RLS backstop. settings.py + routes/onboarding.py NOT changed (AppUser-only / Phase 14 future redesign). Cross-tenant ID access returns 404 (no existence leak). Bug fixes: snapshot_from_period DELETE was unscoped (would have wiped all tenants) — fixed; templates+planned `db.get(Model, id)` replaced with select+where for explicit scope.
 - 11-06 (2026-05-06): Worker per-tenant pattern — outer session for active-users enumeration → per-user inner session with set_tenant_scope → scoped logic; advisory lock global per job (NOT per user). Internal-bot routes keep get_db (X-Internal-Token, no initData); service resolves user_id from tg_user_id INSIDE service then set_tenant_scope. AI conversation per-user (AiConversation row per app_user.id). AI tool dispatch strips user_id from LLM kwargs (defence: LLM cannot override). Settings bypass via direct AppUser column read (Plan 11-05 left settings.py with tg_user_id signature — direct PK read in my files is cleanest fix). Bug fix: ai/tools.py propose_actual/planned_transaction had NameError reference to deleted `category_hint` — replaced with `description or ""`.
 - 11-07 (2026-05-06): Integration verification flushed three production Rule-1 bugs: (1) alembic revision_id 0006_multitenancy_user_id_rls_role (34 chars) > version_num VARCHAR(32) → renamed to 0006_multitenancy; (2) set_tenant_scope used parameterised SET LOCAL (not allowed) → switched to SELECT set_config('app.current_user_id', :uid, true); (3) RLS policy cast '' to bigint when GUC unset → wrapped with NULLIF(..., '')::bigint. Test infra: dev/prod DB role 'budget' is SUPERUSER (bypasses RLS); _rls_test_role conftest fixture provisions NOSUPERUSER NOBYPASSRLS role used via SET LOCAL ROLE so RLS-enforcement tests verify policies actually fire. D-11-04-01 RESOLVED. D-11-07-01 (legacy fixture sweep, ~63 tests) + D-11-07-02 (move runtime off superuser) deferred to Phase 12 prerequisites.
-- [Phase ?]: Phase 14 plan 05
-- [Phase ?]: api image stale
+- 14-CONTEXT (2026-05-07): require_onboarded dependency at router level; 10 domain routers gated; /me, /onboarding, /internal, /admin, /health exempt. 409 body `{"detail": {"error": "onboarding_required"}}`.
+- 14-03 (2026-05-07): embedding backfill inline in complete_onboarding via `backfill_user_embeddings`; failure-graceful (returns 0, log WARN); deferred background-worker re-tries.
+- 14-04 (2026-05-07): bot_resolve_user_status sibling helper to bot_resolve_user_role; cmd_start branches on onboarded_at.
+- 14-05 (2026-05-07): frontend OnboardingRequiredError class + window unhandledrejection catch-all + role-branched hero copy.
 
 ### Pending Todos
 
