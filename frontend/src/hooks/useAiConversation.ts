@@ -83,6 +83,13 @@ export function useAiConversation(): UseAiConversationResult {
         // AI prepared an actual/planned txn — surface the bottom sheet
         // for user review. Last one wins if AI proposes more in a row.
         setProposal(event.data);
+      } else if (event.type === 'tool_error') {
+        // AI-02 (Plan 16-04): backend validated tool-args and rejected.
+        // Surface to the chat as an inline error; do not abort the stream
+        // — backend feeds a synthetic tool_result and the LLM may still
+        // produce a final assistant message in the same SSE round.
+        setError(event.data.message);
+        setToolName(null);
       } else if (event.type === 'error') {
         setError(event.data);
       }

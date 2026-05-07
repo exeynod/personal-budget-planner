@@ -345,7 +345,8 @@ export type AiEventType =
   | 'tool_end'
   | 'propose'
   | 'done'
-  | 'error';
+  | 'error'
+  | 'tool_error';
 
 export interface ActualProposalTxn {
   amount_cents: number;
@@ -381,12 +382,21 @@ export interface PlannedProposalPayload {
 
 export type ProposalPayload = ActualProposalPayload | PlannedProposalPayload;
 
+// AI-02 (Plan 16-04): backend SSE event when tool-args fail Pydantic
+// validation. `tool` is the offending tool name (for telemetry/UI hints);
+// `message` is a humanized, sanitized text safe to render in chat.
+export interface ToolErrorPayload {
+  tool: string;
+  message: string;
+}
+
 // Discriminated union: 'propose' carries an object, others a string.
 export type AiStreamEvent =
   | { type: 'token'; data: string }
   | { type: 'tool_start'; data: string }
   | { type: 'tool_end'; data: string }
   | { type: 'propose'; data: ProposalPayload }
+  | { type: 'tool_error'; data: ToolErrorPayload }
   | { type: 'done'; data: string }
   | { type: 'error'; data: string };
 
