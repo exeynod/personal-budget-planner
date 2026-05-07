@@ -398,6 +398,8 @@ async def propose_actual_transaction(
         amount_cents = int(round(float(amount_rub) * 100))
     except (TypeError, ValueError):
         return {"error": "Не удалось распознать сумму"}
+    if amount_cents <= 0:
+        return {"error": "Сумма должна быть > 0"}
 
     if kind not in ("expense", "income"):
         kind = "expense"
@@ -461,6 +463,8 @@ async def propose_planned_transaction(
         amount_cents = int(round(float(amount_rub) * 100))
     except (TypeError, ValueError):
         return {"error": "Не удалось распознать сумму"}
+    if amount_cents <= 0:
+        return {"error": "Сумма должна быть > 0"}
 
     if kind not in ("expense", "income"):
         kind = "expense"
