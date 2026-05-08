@@ -180,8 +180,18 @@ interface UpcomingProps {
 }
 
 function Upcoming({ subscriptions }: UpcomingProps) {
+  // "Ближайшие списания" = next 3 active subscriptions by charge date,
+  // capped at a 30-day horizon so the block reflects what's coming up
+  // in the current planning window. notify_days_before is for push
+  // notifications, not the UI list — using it as a filter hid every
+  // subscription whose charge was further than 2 days away.
+  const HORIZON_DAYS = 30;
   const items = [...subscriptions]
-    .filter((s) => s.is_active && daysUntil(s.next_charge_date) <= s.notify_days_before)
+    .filter((s) => {
+      if (!s.is_active) return false;
+      const d = daysUntil(s.next_charge_date);
+      return d >= 0 && d <= HORIZON_DAYS;
+    })
     .sort((a, b) => a.next_charge_date.localeCompare(b.next_charge_date))
     .slice(0, 3);
 

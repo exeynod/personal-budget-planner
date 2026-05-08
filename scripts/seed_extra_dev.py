@@ -200,9 +200,19 @@ async def _seed_planned(
 
 
 async def _seed_subscriptions(
-    session: AsyncSession, user_pk: int, cats: dict[str, Category]
-) -> int:
-    """Append subscriptions if not already present (uniqueness by user_id+name)."""
+    session: AsyncSession,
+    user_pk: int,
+    period: BudgetPeriod,
+    cats: dict[str, Category],
+) -> tuple[int, int]:
+    """Append subscriptions if not already present (uniqueness by user_id+name).
+
+    Also drops a `PlanSource.subscription_auto` PlannedTransaction into the
+    active period for each newly-created subscription whose next_charge_date
+    lies within the period — mirrors what the worker `charge_subscriptions`
+    job does at 00:05 UTC, but lets the local stack render plan/fact deltas
+    immediately after seeding without waiting overnight.
+    """
     existing_names = {
         row.name
         for row in (
@@ -212,27 +222,48 @@ async def _seed_subscriptions(
         ).scalars()
     }
     today = date.today()
-    inserted = 0
+    inserted_subs = 0
+    inserted_plans = 0
     for name, cat_name, rub, cycle, days_until in _SUBSCRIPTIONS:
         if name in existing_names:
             continue
         cat = cats.get(cat_name)
         if cat is None:
             continue
-        session.add(
-            Subscription(
-                name=name,
-                amount_cents=rub * 100,
-                cycle=SubCycle(cycle),
-                next_charge_date=today + timedelta(days=days_until),
-                category_id=cat.id,
-                notify_days_before=2,
-                is_active=True,
-                user_id=user_pk,
-            )
+        next_charge = today + timedelta(days=days_until)
+        sub = Subscription(
+            name=name,
+            amount_cents=rub * 100,
+            cycle=SubCycle(cycle),
+            next_charge_date=next_charge,
+            category_id=cat.id,
+            notify_days_before=2,
+            is_active=True,
+            user_id=user_pk,
         )
-        inserted += 1
-    return inserted
+        session.add(sub)
+        await session.flush()  # populate sub.id for the planned row.
+        inserted_subs += 1
+
+        # Mirror the worker: project the next_charge into a planned row
+        # for the active period (uq_planned_sub_charge_date keeps it idempotent).
+        if period.period_start <= next_charge <= period.period_end:
+            session.add(
+                PlannedTransaction(
+                    period_id=period.id,
+                    kind=cat.kind,
+                    amount_cents=rub * 100,
+                    description=name,
+                    category_id=cat.id,
+                    planned_date=next_charge,
+                    source=PlanSource.subscription_auto,
+                    subscription_id=sub.id,
+                    original_charge_date=next_charge,
+                    user_id=user_pk,
+                )
+            )
+            inserted_plans += 1
+    return inserted_subs, inserted_plans
 
 
 async def main() -> None:
@@ -240,9 +271,12 @@ async def main() -> None:
         user_pk, period, cats = await _resolve_owner(session)
         a = await _seed_actuals(session, user_pk, period, cats)
         p = await _seed_planned(session, user_pk, period, cats)
-        s = await _seed_subscriptions(session, user_pk, cats)
+        s, sub_plans = await _seed_subscriptions(session, user_pk, period, cats)
         await session.commit()
-        print(f"Seeded extras: actual_tx=+{a} planned_tx=+{p} subscriptions=+{s}")
+        print(
+            f"Seeded extras: actual_tx=+{a} planned_tx=+{p + sub_plans} "
+            f"(manual={p}, subscription_auto={sub_plans}) subscriptions=+{s}"
+        )
 
 
 if __name__ == "__main__":
