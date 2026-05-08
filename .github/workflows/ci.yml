@@ -33,8 +33,20 @@ jobs:
           --health-retries 5
 
     env:
-      DATABASE_URL: postgresql+asyncpg://budget:budget@localhost:5432/budget_test
-      DATABASE_URL_SYNC: postgresql://budget:budget@localhost:5432/budget_test
+      # Two DATABASE_URLs to mirror the production two-role split (Phase 12
+      # D-11-07-02):
+      #   - ADMIN_DATABASE_URL → `budget` (POSTGRES_USER, SUPERUSER) — used
+      #     by alembic for DDL (CREATE/ALTER ROLE, GRANTs in 0007).
+      #   - DATABASE_URL → `budget_app` (NOSUPERUSER NOBYPASSRLS, created
+      #     by 0007) — used by the test runtime so RLS policies actually
+      #     enforce, matching what api/bot/worker do in prod.
+      # The `Run migrations` step below temporarily overrides DATABASE_URL
+      # to the admin URL so alembic 0007 can run privileged DDL; the
+      # `Run tests` step uses the budget_app URL so RLS-enforcement tests
+      # (test_postgres_role_runtime) see the same NOSUPERUSER role they
+      # check against.
+      DATABASE_URL: postgresql+asyncpg://budget_app:ci_test_app_password_not_a_secret_just_passes_validator@localhost:5432/budget_test
+      DATABASE_URL_SYNC: postgresql://budget_app:ci_test_app_password_not_a_secret_just_passes_validator@localhost:5432/budget_test
       ADMIN_DATABASE_URL: postgresql+asyncpg://budget:budget@localhost:5432/budget_test
       BOT_TOKEN: "1234567890:test_bot_token_for_testing_only"
       OWNER_TG_ID: "123456789"
@@ -43,12 +55,19 @@ jobs:
       # rejects empty/`change_me*` values. CI uses an ephemeral throwaway
       # postgres service, so this is a hardcoded test placeholder, not a
       # secret. Production gets the real password via deploy.yml from
-      # GitHub Secrets.
+      # GitHub Secrets. Must match the password baked into DATABASE_URL above.
       BUDGET_APP_PASSWORD: "ci_test_app_password_not_a_secret_just_passes_validator"
       # Required by validate_production_settings whenever AI is enabled —
       # backend tests mock OpenAI calls, so a fake-looking key satisfies the
       # boot-time guard without ever leaving the runner.
       OPENAI_API_KEY: "sk-test-fake-key-for-ci-only"
+      # Tests rely on the DEV_MODE auto-OWNER bypass for endpoints that
+      # don't carry signed initData (test_settings, test_security_probes,
+      # auth_headers fixture path). Production override remains "false" via
+      # docker-compose.yml; CI gets `true` to mirror the local docker
+      # `compose -f docker-compose.dev.yml` default the suite was authored
+      # against.
+      DEV_MODE: "true"
 
     steps:
       - uses: actions/checkout@v4
@@ -65,9 +84,19 @@ jobs:
         run: uv sync --all-extras
 
       - name: Run migrations
+        # alembic needs the privileged role for DDL — temporarily override
+        # DATABASE_URL to the admin URL just for this step (mirrors
+        # entrypoint.sh on the VPS).
+        env:
+          DATABASE_URL: postgresql+asyncpg://budget:budget@localhost:5432/budget_test
+          DATABASE_URL_SYNC: postgresql://budget:budget@localhost:5432/budget_test
         run: uv run alembic upgrade head
 
       - name: Run tests
+        # DATABASE_URL inherited from the job env block points at budget_app
+        # (NOSUPERUSER NOBYPASSRLS), which is what the production runtime uses
+        # — so RLS-enforcement tests check the same role the app actually runs
+        # under.
         run: uv run pytest --tb=short -q
 
   # ------------------------------------------------------------------
