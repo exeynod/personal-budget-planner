@@ -1,17 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v0.5
-milestone_name: Security & AI Hardening
-status: executing
-stopped_at: Completed Plan 16-07 (CON-02 per-user asyncio.Lock + 2 pytest concurrent cases)
-last_updated: "2026-05-07T18:32:00.000Z"
-last_activity: 2026-05-07 — Plan 16-07 CON-02 closed (per-user asyncio.Lock + in-lock re-check + 2 pytest concurrent cases). Phase 16 complete (9/9).
+milestone: v0.6
+milestone_name: iOS App
+status: planning
+last_updated: "2026-05-08T14:09:01.210Z"
+last_activity: 2026-05-08
 progress:
-  total_phases: 1
-  completed_phases: 1
-  total_plans: 9
-  completed_plans: 9
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -25,12 +24,10 @@ See: .planning/PROJECT.md (updated 2026-05-07 — v0.5 milestone started)
 
 ## Current Position
 
-Phase: 16 of 16 (Security & AI Hardening) — COMPLETE
-Plan: 16-07 complete (CON-02 per-user asyncio.Lock); ALL 9 plans closed (16-01..16-09).
-Status: Phase complete — milestone v0.5 ready for close.
-Last activity: 2026-05-08 — Quick task 260508-fib: UI rework handoff package (18 mobile screenshots + user-stories.md + README) собран в .planning/ui-rework/ для передачи в Claude Design. Awaiting human-verify checkpoint.
-
-Progress: [██████████] 100%
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-05-08 — Milestone v0.6 started
 
 ## Performance Metrics
 

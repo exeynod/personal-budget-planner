@@ -10,9 +10,9 @@ Telegram Mini App для планирования и ведения месячн
 
 ## Current State
 
-**Shipped:** v0.3 (2026-05-06) — Analytics & AI
+**Shipped:** v0.5 (2026-05-07) — Security & AI Hardening (Phase 16, 9 plans, 2 CRITICAL + 7 HIGH closed)
 
-**Active milestone:** v0.4 — Multi-Tenant & Admin (planning)
+**Active milestone:** v0.6 — iOS App (planning)
 
 **Codebase:**
 - Backend: Python 3.12 / FastAPI / SQLAlchemy 2.x async / Pydantic v2
@@ -38,27 +38,37 @@ Telegram Mini App для планирования и ведения месячн
 - AI cost cap не enforced (только observability через `GET /ai/usage`)
 - 11 deferred items (UAT/verification gaps, см. STATE.md)
 
-## Current Milestone: v0.5 Security & AI Hardening
+## Current Milestone: v0.6 iOS App
 
-**Goal:** Закрыть 2 CRITICAL и 7 HIGH из код-ревью 2026-05-07. Каждый фикс — с регресс-тестом. Hotfix-style milestone, без новых фич.
+**Goal:** Native iOS-приложение (SwiftUI), эквивалентное существующему TG Mini App. Backend остаётся неизменным — добавляется только альтернативный auth-механизм для нативного клиента (Bearer token вместо TG initData). MVP — личное использование на iPhone владельца через Free Provisioning, расширение до TestFlight для друга после оплаты Apple Developer Account.
 
 **Target features:**
-- C1: устранить XSS-вектор в `frontend/src/components/ChatMessage.tsx` (markdown-парсер без HTML-escape под `dangerouslySetInnerHTML`)
-- C2: убрать утечку `str(exc)` из SSE-стрима в `app/api/routes/ai.py:_event_stream`
-- H1: атомарность `complete_onboarding` против гонки двух параллельных submit'ов
-- H2: валидация `amount_rub > 0` в proposal-tools (`propose_actual_transaction`, `propose_planned_transaction`)
-- H3: schema-валидация tool-args в /ai/chat dispatch loop + явный `tool_error` SSE-event
-- H4: устранить race spend-cap (два параллельных /ai/chat обходят cap через TTL-кэш)
-- H5: cap по total tool-calls и детект циклов в agent-loop (защита от token-DoS)
-- H6: унифицировать `SET LOCAL` в `spend_cap.py` через `set_tenant_scope` (защита от регрессии SQLi)
-- H7: вынести `parseRublesToKopecks` в `utils/format.ts`, удалить дубли в `ActualEditor` / `PlanItemEditor`
+- iOS-foundation: новая SwiftUI-кодовая база в `/ios/`, design-system port из `tokens.css`, glass-эффекты через `Material`/`UIVisualEffectView`, Aurora Light + Mesh Dark фоны
+- API-клиент: URLSession + Codable + async/await, обёртки над всеми существующими endpoints, SSE-парсер для AI-чата
+- Auth: новый бэкенд-endpoint `POST /api/v1/auth/dev-exchange` + Bearer-fallback в `get_current_user`; iOS Keychain-хранение токена; перевод на Telegram Login Widget или Sign in with Apple после $99
+- Core CRUD: 4 таб-bar экрана (Home / Transactions / AI / Management) + 6 management sub-screens + Onboarding (4-step) + TransactionEditor bottom-sheet
+- AI-чат: SSE consumption, ChatMessage / ToolUseIndicator / AIProposalSheet с реализованным write-flow через стандартные `POST /actual|planned`
+- Локальные нотификации: `UNUserNotificationCenter` для напоминаний о подписках (зеркалирует worker-джоб `notify_subscriptions` локально на устройстве, без APNs)
+- TestFlight: $99 Apple Developer Account, App Store Connect, internal-tester для друга, опциональный переход на APNs
 
 **Constraints:**
-- Каждый фикс сопровождается регресс-тестом (pytest для backend, Playwright для frontend XSS, vitest для money-парсера). Без теста — фикс не считается завершённым.
-- Phase numbering продолжается: v0.4 закончился на 15, v0.5 стартует с Phase 16.
-- Out of scope: миграция `est_cost_usd` Float→BIGINT (architecture debt), embedding cache invalidation на rename категории, CSP-заголовок Caddy.
+- iOS 17.0+ (для `@Observable`, `NavigationStack`, `MeshGradient`).
+- Без сторонних библиотек: vanilla URLSession + Codable + Swift Concurrency.
+- Backend остаётся работать для существующего Web Mini App без изменений (только дополнительный auth-механизм).
+- Phase numbering продолжается с 17 (v0.5 закончился на Phase 16).
+- Локализация только русский на старте.
+- Push-уведомления: локальные на dev-фазе, APNs опционален в Phase 5.
+- Money/period/balance логика — на сервере; клиент только форматирует через `NumberFormatter(ru-RU)`.
 
-**Контекст и UAT-критерии:** `~/.claude/plans/serialized-prancing-spark.md`
+**Out of scope:**
+- iPad-оптимизация (master-detail, multi-column).
+- Apple Watch companion-приложение.
+- Виджеты главного экрана (iOS Widgets).
+- macOS / Catalyst-сборка.
+- Offline-режим с локальной БД (SwiftData / Core Data) — на старте полная зависимость от API.
+- Замена web-фронта на iOS — оба клиента продолжают работать параллельно.
+
+**Контекст и план:** `~/.claude/plans/tender-hopping-simon.md`
 
 ## Requirements
 
@@ -92,18 +102,32 @@ Telegram Mini App для планирования и ведения месячн
 > - AI-10 rate limit: 30 → 10 req/мин (Phase 10.1)
 > - AICAT-04 confidence threshold: 0.5 → 0.35 (Phase 10.2)
 
-### Active (v0.4 — Multi-Tenant & Admin)
+#### v0.4 — Multi-Tenant & Admin
+- ✓ MT-01..05 — `user_id` FK + Postgres RLS на 9 доменных таблицах + scoped uniques + backfill — v0.4 (Phase 11)
+- ✓ AUTH-03..05 — role-based deps (`get_current_user`, `require_owner`, `bot_resolve_user_role`), Alembic split admin/app role — v0.4 (Phase 12)
+- ✓ ADMIN-01..05 — AccessScreen Users / AI Usage tabs + invite/revoke endpoints + cascade purge — v0.4 (Phase 13)
+- ✓ ONB-04..06 — `require_onboarded` 409 gate + bot member branch + inline embedding backfill — v0.4 (Phase 14)
+- ✓ CAP-01..04 — per-user spending_cap_cents + 429 enforcement + Settings display + admin PATCH cap — v0.4 (Phase 15)
 
-> Detailed requirements будут зафиксированы в новом REQUIREMENTS.md через `/gsd-new-milestone`. Below — high-level intent.
+#### v0.5 — Security & AI Hardening
+- ✓ SEC-01..02 — XSS escape в ChatMessage + SSE error sanitize — v0.5 (Phase 16)
+- ✓ AI-SEC-01..03 — amount > 0 validation + tool-args schema validation + tool-loop guard — v0.5 (Phase 16)
+- ✓ CON-01..02 — onboarding atomic + spend-cap per-user asyncio.Lock — v0.5 (Phase 16)
+- ✓ DB-01 — `set_tenant_scope` unify в spend_cap.py — v0.5 (Phase 16)
+- ✓ CODE-01 — `parseRublesToKopecks` dedup в utils/format.ts — v0.5 (Phase 16)
 
-- [ ] Multi-tenancy core: `user_id` FK во всех доменных таблицах, Postgres RLS, refactor всех queries
-- [ ] Role-based auth: `app_user.role` enum (owner / member / revoked), удаление `OWNER_TG_ID`-eq из dependencies
-- [ ] Owner bootstrapping: `OWNER_TG_ID` определяет owner-роль только при первом запуске
-- [ ] Admin UI: вкладка внутри «Управление», видна только owner; список юзеров + invite-sheet + revoke-confirm (по скетчам 010-A/B/C)
-- [ ] AI usage admin sub-tab: per-user breakdown через расширенный `GET /ai/usage`
-- [ ] Onboarding для приглашённых: scrollable-flow с своими starting_balance + cycle_start_day; seed категорий per-user
-- [ ] AI cost cap per user: `spending_cap_cents` (default $5/month), enforcement → 429, отображение в Settings, тесты
-- [ ] Revoke = hard delete + purge всех данных юзера
+### Active (v0.6 — iOS App)
+
+> Detailed requirements будут зафиксированы в REQUIREMENTS.md ниже в этом milestone. Below — high-level intent.
+
+- [ ] iOS-foundation: SwiftUI-проект `/ios/`, дизайн-токены порт, glass-эффекты, Aurora/Mesh фоны
+- [ ] Networking: URLSession + Codable + AsyncStream SSE-клиент; покрытие всех существующих endpoints
+- [ ] Auth: backend `POST /api/v1/auth/dev-exchange` + Bearer-fallback в `get_current_user`; iOS Keychain хранение
+- [ ] Onboarding (4-step) + Home (баланс, top-categories, period switcher, forecast)
+- [ ] Transactions (History + Planned + Editor bottom-sheet) + Categories CRUD + Settings
+- [ ] Subscriptions + локальные UNUserNotifications, Template apply, Analytics через Swift Charts
+- [ ] AI-чат: SSE consumption, streaming UI, AIProposalSheet write-flow
+- [ ] TestFlight: $99 Apple Developer Account, App Store Connect, internal-tester для друга
 
 ### Out of Scope (post v0.3)
 
@@ -204,4 +228,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-07 — v0.5 milestone started (Security & AI Hardening)*
+*Last updated: 2026-05-08 — v0.6 milestone started (iOS App)*
