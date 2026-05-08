@@ -6,6 +6,9 @@
 # so the SSH session can run nothing else regardless of what CI sends.
 #
 # Sequence:
+#   0. consume optional .env payload from stdin (CI sends one assembled from
+#      GitHub Secrets — manual ops can run this script without piping anything
+#      and it keeps the existing .env)
 #   1. fetch + reset hard to origin/master (no merge conflicts on dirty tree)
 #   2. build api/bot/worker images
 #   3. up -d to recreate them
@@ -24,6 +27,32 @@ log() { echo "$LOG_PREFIX $*"; }
 die() { echo "$LOG_PREFIX FATAL: $*" >&2; exit 1; }
 
 cd "$REPO"
+
+# .env rotation — optional stdin payload from CI. When CI assembles a fresh
+# .env from GitHub Secrets it pipes it into this script via SSH stdin. We
+# write the new file atomically *before* the build/up steps so docker
+# compose interpolation (DATABASE_URL, OPENAI_API_KEY, …) sees the new
+# values. Empty / no-tty stdin keeps the existing .env untouched, which is
+# what manual `workflow_dispatch` re-deploys and direct `ssh ... deploy`
+# invocations from the operator want.
+if [ ! -t 0 ]; then
+    ENV_PAYLOAD=$(cat || true)
+    if [ -n "${ENV_PAYLOAD:-}" ]; then
+        TS=$(date -u +%FT%H%M%SZ)
+        if [ -f .env ]; then
+            cp -p .env ".env.old.$TS"
+            log "archived current .env → .env.old.$TS"
+        fi
+        umask 077
+        printf '%s\n' "$ENV_PAYLOAD" > .env.new
+        mv .env.new .env
+        log "wrote new .env from CI payload ($(wc -l < .env) lines)"
+
+        # Keep only the 5 most recent .env.old.* archives so the working
+        # tree doesn't accumulate years of rotated secrets on every deploy.
+        ls -1t .env.old.* 2>/dev/null | tail -n +6 | xargs -r rm --
+    fi
+fi
 
 log "fetching origin/master"
 git fetch --quiet origin master
