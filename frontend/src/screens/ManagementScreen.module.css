@@ -98,8 +98,9 @@
   transition: background 0.15s;
 }
 
-.row:active {
+.row:active:not(:disabled) {
   background: rgba(0, 0, 0, 0.03);
+  transform: scale(0.985);
 }
 
 .first { border-top: none; }

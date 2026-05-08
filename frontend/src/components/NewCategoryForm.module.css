@@ -60,18 +60,18 @@
 
 .submitBtn {
   flex: 1;
-  padding: 12px 16px;
+  padding: 14px 18px;
   background: linear-gradient(180deg, var(--accent), color-mix(in srgb, var(--accent) 80%, #000 0%));
   color: #fff;
   border: 0;
-  border-radius: 12px;
+  border-radius: 14px;
   font-size: 14px;
   font-weight: 700;
   cursor: pointer;
   font-family: inherit;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.4),
-    0 4px 12px color-mix(in srgb, var(--accent) 33%, transparent);
+    0 8px 22px color-mix(in srgb, var(--accent) 33%, transparent);
 }
 
 .submitBtn:disabled {

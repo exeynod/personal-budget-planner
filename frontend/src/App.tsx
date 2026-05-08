@@ -2,6 +2,10 @@ import { useEffect, useState } from 'react';
 import { useUser } from './hooks/useUser';
 import { OnboardingRequiredError } from './api/client';
 import { useAiConversation } from './hooks/useAiConversation';
+import { useCategories } from './hooks/useCategories';
+import { useSettings } from './hooks/useSettings';
+import { createActual } from './api/actual';
+import type { CategoryKind } from './api/types';
 import { OnboardingScreen } from './screens/OnboardingScreen';
 import { HomeScreen } from './screens/HomeScreen';
 import { CategoriesScreen } from './screens/CategoriesScreen';
@@ -14,15 +18,27 @@ import { AccessScreen } from './screens/AccessScreen';
 import { AnalyticsScreen } from './screens/AnalyticsScreen';
 import { AiScreen } from './screens/AiScreen';
 import { BottomNav, type BottomNavTint, type TabId } from './components/BottomNav';
+import { BottomSheet } from './components/BottomSheet';
+import { TransactionEditor } from './components/TransactionEditor';
 import styles from './App.module.css';
 
-/** Тон таб-бара под фон экрана. Aurora-экраны — light, Mesh/Sunset — dark. */
+/** Тон таб-бара под фон экрана. Aurora-экраны — light, Mesh/Sunset (AI) — dark.
+ *  Analytics уехала в Management hub как sub-screen. */
 const TAB_TINT: Record<TabId, BottomNavTint> = {
   home: 'light',
   transactions: 'light',
-  analytics: 'dark',
   ai: 'dark',
   management: 'light',
+};
+
+/** Тинт таб-бара для management sub-screens. Analytics — Mesh dark, остальные — Aurora light. */
+const MGMT_TINT: Record<ManagementView, BottomNavTint> = {
+  subscriptions: 'light',
+  template: 'light',
+  categories: 'light',
+  settings: 'light',
+  access: 'light',
+  analytics: 'dark',
 };
 
 export default function App() {
@@ -34,6 +50,14 @@ export default function App() {
   // переключение нижних табов (AiScreen unmount-ится при смене вкладки).
   const aiConversation = useAiConversation();
   const [pendingOnboarding, setPendingOnboarding] = useState<boolean>(false);
+
+  // App-level Add-Transaction sheet — открывается через central FAB (BottomNav).
+  // txMutationKey — bump-count, экраны (HomeScreen / TransactionsScreen / etc.)
+  // подписываются на него через useEffect и рефетчат свои данные.
+  const [addTxOpen, setAddTxOpen] = useState(false);
+  const [txMutationKey, setTxMutationKey] = useState(0);
+  const { categories } = useCategories(false);
+  const { settings } = useSettings();
 
   useEffect(() => {
     function onUnhandled(ev: PromiseRejectionEvent) {
@@ -92,11 +116,47 @@ export default function App() {
     if (tab !== 'transactions') setHistoryFilter(null);
   };
 
+  const handleAddTxSave = async (data: {
+    kind?: CategoryKind;
+    category_id: number;
+    amount_cents: number;
+    description: string | null;
+    tx_date?: string;
+  }) => {
+    if (!data.kind || !data.tx_date) return;
+    await createActual({
+      kind: data.kind,
+      category_id: data.category_id,
+      amount_cents: data.amount_cents,
+      description: data.description,
+      tx_date: data.tx_date,
+    });
+    setTxMutationKey((k) => k + 1);
+    setAddTxOpen(false);
+  };
+
+  const maxTxDate = (() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 7);
+    return d.toISOString().slice(0, 10);
+  })();
+
+  const tabbarTint: BottomNavTint = managementView
+    ? MGMT_TINT[managementView]
+    : TAB_TINT[activeTab];
+
+  // key для force-remount screenContainer ребёнка при смене экрана (триггерит screenFade)
+  const screenKey = managementView ?? activeTab;
+
   return (
     <div className={styles.appWrapper}>
       <div className={styles.appRoot}>
         <div className={styles.screenContainer}>
+          <div key={screenKey} className={styles.screenSlot}>
           {/* Management sub-screens (рендерятся поверх всего) */}
+          {managementView === 'analytics' && (
+            <AnalyticsScreen onBack={() => setManagementView(null)} />
+          )}
           {managementView === 'subscriptions' && (
             <SubscriptionsScreen onBack={() => setManagementView(null)} />
           )}
@@ -116,8 +176,8 @@ export default function App() {
           {/* Main tabs (скрыты когда показывается management sub-screen) */}
           {!managementView && activeTab === 'home' && (
             <HomeScreen
+              txMutationKey={txMutationKey}
               onNavigateToSub={(s) => {
-                // s может быть 'planned' (cross-tab) или 'template'|'categories'|'settings'
                 if (s === 'planned') {
                   setActiveTab('transactions');
                 } else {
@@ -132,23 +192,40 @@ export default function App() {
           )}
           {!managementView && activeTab === 'transactions' && (
             <TransactionsScreen
+              txMutationKey={txMutationKey}
               categoryFilter={historyFilter}
               onClearFilter={() => setHistoryFilter(null)}
             />
           )}
-          {!managementView && activeTab === 'analytics' && <AnalyticsScreen />}
           {!managementView && activeTab === 'ai' && <AiScreen {...aiConversation} />}
           {!managementView && activeTab === 'management' && (
             <ManagementScreen onNavigate={(screen) => setManagementView(screen)} />
           )}
+          </div>
         </div>
-        {!managementView && (
-          <BottomNav
-            activeTab={activeTab}
-            onTabChange={handleTabChange}
-            tint={TAB_TINT[activeTab]}
+
+        <BottomNav
+          activeTab={activeTab}
+          onTabChange={handleTabChange}
+          onFabClick={() => setAddTxOpen(true)}
+          tint={tabbarTint}
+        />
+
+        <BottomSheet
+          open={addTxOpen}
+          onClose={() => setAddTxOpen(false)}
+          title="Новая транзакция"
+        >
+          <TransactionEditor
+            entity="actual"
+            key={addTxOpen ? `app-actual-${txMutationKey}` : 'closed'}
+            categories={categories}
+            onSave={handleAddTxSave}
+            onCancel={() => setAddTxOpen(false)}
+            maxTxDate={maxTxDate}
+            aiEnabled={settings?.enable_ai_categorization ?? false}
           />
-        )}
+        </BottomSheet>
       </div>
     </div>
   );

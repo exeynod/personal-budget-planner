@@ -184,7 +184,10 @@
   transition: background 0.15s;
 }
 
-.row:active { background: rgba(0, 0, 0, 0.03); }
+.row:active:not(:disabled) {
+  background: rgba(0, 0, 0, 0.03);
+  transform: scale(0.985);
+}
 .row.first { border-top: none; }
 .row.inactive { opacity: 0.5; }
 

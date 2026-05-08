@@ -24,6 +24,8 @@ const KIND_TABS = [
 export interface TransactionsScreenProps {
   categoryFilter?: number | null;
   onClearFilter?: () => void;
+  /** Bump-counter из App.tsx (рост при создании транзакции через central FAB). */
+  txMutationKey?: number;
 }
 
 function formatPeriodChip(periodStart: string | undefined): string {
@@ -33,7 +35,7 @@ function formatPeriodChip(periodStart: string | undefined): string {
   return m.charAt(0).toLowerCase() + m.slice(1);
 }
 
-export function TransactionsScreen({ categoryFilter, onClearFilter }: TransactionsScreenProps) {
+export function TransactionsScreen({ categoryFilter, onClearFilter, txMutationKey }: TransactionsScreenProps) {
   const [activeSubTab, setActiveSubTab] = useState<SubTab>('history');
   const [kindFilter, setKindFilter] = useState<CategoryKind>('expense');
   const [localCategoryFilter, setLocalCategoryFilter] = useState<number | null>(null);
@@ -49,10 +51,11 @@ export function TransactionsScreen({ categoryFilter, onClearFilter }: Transactio
 
   const effectiveCategoryFilter = categoryFilter ?? localCategoryFilter;
 
+  // FAB на этом экране показывается ТОЛЬКО на sub-tab=План — для создания
+  // строки плана. На sub-tab=История пользователь использует central FAB
+  // в bottom nav (app-level Add-Transaction sheet).
   const handleFab = () => {
-    if (activeSubTab === 'history') {
-      historyRef.current?.openCreateSheet();
-    } else {
+    if (activeSubTab === 'plan') {
       plannedRef.current?.openCreateSheet();
     }
   };
@@ -132,6 +135,7 @@ export function TransactionsScreen({ categoryFilter, onClearFilter }: Transactio
               onClearFilter?.();
             }}
             activeKindFilter={kindFilter}
+            txMutationKey={txMutationKey}
           />
         )}
         {activeSubTab === 'plan' && (
@@ -144,10 +148,9 @@ export function TransactionsScreen({ categoryFilter, onClearFilter }: Transactio
         )}
       </div>
 
-      <Fab
-        onClick={handleFab}
-        ariaLabel={activeSubTab === 'history' ? 'Добавить транзакцию' : 'Добавить строку плана'}
-      />
+      {activeSubTab === 'plan' && (
+        <Fab onClick={handleFab} ariaLabel="Добавить строку плана" />
+      )}
     </div>
   );
 }

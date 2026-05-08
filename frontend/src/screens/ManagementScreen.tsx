@@ -1,5 +1,6 @@
 import {
   CaretRight,
+  ChartBar,
   Stack,
   ListBullets,
   Bag,
@@ -12,6 +13,7 @@ import { useUser } from '../hooks/useUser';
 import styles from './ManagementScreen.module.css';
 
 export type ManagementView =
+  | 'analytics'
   | 'subscriptions'
   | 'template'
   | 'categories'
@@ -23,6 +25,7 @@ export interface ManagementScreenProps {
 }
 
 const ICONS: Record<ManagementView, Icon> = {
+  analytics: ChartBar,
   subscriptions: Stack,
   template: ListBullets,
   categories: Bag,
@@ -38,6 +41,7 @@ interface Item {
 }
 
 const ITEMS: Item[] = [
+  { id: 'analytics', label: 'Аналитика', description: 'Тренды и прогноз бюджета' },
   { id: 'subscriptions', label: 'Подписки', description: 'Регулярные платежи и напоминания' },
   { id: 'template', label: 'Шаблон бюджета', description: 'Повторяющийся план для нового периода' },
   { id: 'categories', label: 'Категории', description: 'Структура расходов и доходов' },

@@ -1,4 +1,4 @@
-import { forwardRef, useImperativeHandle, useState } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useState } from 'react';
 import { createActual, deleteActual, updateActual } from '../api/actual';
 import type { ActualRead, CategoryKind } from '../api/types';
 import { TransactionEditor } from '../components/TransactionEditor';
@@ -15,6 +15,8 @@ export interface HistoryViewProps {
   onClearFilter?: () => void;
   inTransactions?: boolean;
   activeKindFilter?: 'all' | 'expense' | 'income';
+  /** Bump-counter из родителя — рост при создании транзакции через central FAB. */
+  txMutationKey?: number;
 }
 
 export interface HistoryViewHandle {
@@ -56,7 +58,7 @@ function formatAmount(cents: number, kind: CategoryKind): string {
 }
 
 export const HistoryView = forwardRef<HistoryViewHandle, HistoryViewProps>(
-  function HistoryView({ onBack, categoryFilter, onClearFilter, inTransactions, activeKindFilter }, ref) {
+  function HistoryView({ onBack, categoryFilter, onClearFilter, inTransactions, activeKindFilter, txMutationKey }, ref) {
     const { period, loading: perLoading, error: perError } = useCurrentPeriod();
     const { rows, loading, error, refetch } = useActual(period?.id ?? null);
     const { categories } = useCategories(false);
@@ -68,6 +70,12 @@ export const HistoryView = forwardRef<HistoryViewHandle, HistoryViewProps>(
     useImperativeHandle(ref, () => ({
       openCreateSheet: () => setSheet({ open: true, mode: 'create' }),
     }));
+
+    // Подписка на app-level «транзакция создана» — рефетчим список.
+    useEffect(() => {
+      if (txMutationKey === undefined || txMutationKey === 0) return;
+      void refetch();
+    }, [txMutationKey, refetch]);
 
     const showToast = (msg: string) => {
       setToast(msg);

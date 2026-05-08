@@ -48,6 +48,17 @@
   overflow: hidden;
 }
 
+/* screenSlot — обёртка с key={managementView ?? activeTab}, при смене ключа
+   React пере-маунтит её, screenFade срабатывает свежо. Сама обёртка занимает
+   всё пространство screenContainer и flex-column'ит дочерние screens. */
+.screenSlot {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  animation: screenFade 0.28s ease-out;
+}
+
 /* Desktop preview frame */
 @media (min-width: 540px) {
   .appWrapper {

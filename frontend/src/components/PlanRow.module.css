@@ -26,8 +26,9 @@
   transition: background 0.15s;
 }
 
-.row:active {
+.row:active:not(:disabled) {
   background: rgba(255, 255, 255, 0.7);
+  transform: scale(0.985);
 }
 
 .readOnly {

@@ -130,14 +130,14 @@
 /* ── Cycle-day pills ──────────────────────────────────────── */
 
 .dayGrid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
 }
 
 .dayPill {
-  width: 40px;
-  height: 40px;
+  width: 100%;
+  aspect-ratio: 1 / 1;
   border-radius: 12px;
   display: flex;
   align-items: center;
@@ -166,10 +166,12 @@
 }
 
 .dayPillCustom {
-  flex: 1;
-  min-width: 56px;
+  grid-column: 1 / -1;
+  width: 100%;
+  aspect-ratio: auto;
+  height: 44px;
   padding: 0 10px;
-  font-size: 12px;
+  font-size: 13px;
 }
 
 /* free-form input (показывается когда выбран "другое") */

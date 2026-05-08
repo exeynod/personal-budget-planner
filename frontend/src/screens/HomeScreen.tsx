@@ -1,12 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
-import { createActual } from '../api/actual';
 import { applyTemplate } from '../api/planned';
 import type { CategoryKind } from '../api/types';
 import { AuroraBg } from '../components/AuroraBg';
-import { TransactionEditor } from '../components/TransactionEditor';
-import { BottomSheet } from '../components/BottomSheet';
 import { DashboardCategoryRow } from '../components/DashboardCategoryRow';
-import { Fab } from '../components/Fab';
 import { HeroCard } from '../components/HeroCard';
 import { MainButton } from '../components/MainButton';
 import { PeriodSwitcher } from '../components/PeriodSwitcher';
@@ -15,7 +11,6 @@ import { useCategories } from '../hooks/useCategories';
 import { useCurrentPeriod } from '../hooks/useCurrentPeriod';
 import { useDashboard } from '../hooks/useDashboard';
 import { usePeriods } from '../hooks/usePeriods';
-import { useSettings } from '../hooks/useSettings';
 import styles from './HomeScreen.module.css';
 
 type SubScreen = 'categories' | 'template' | 'planned' | 'settings';
@@ -23,6 +18,9 @@ type SubScreen = 'categories' | 'template' | 'planned' | 'settings';
 export interface HomeScreenProps {
   onNavigateToSub: (screen: SubScreen) => void;
   onNavigateToHistory: (categoryId?: number) => void;
+  /** Bump-counter из App.tsx — увеличивается при создании транзакции через
+   *  central FAB. HomeScreen рефетчит дашборд при изменении. */
+  txMutationKey?: number;
 }
 
 const KIND_TABS: { id: CategoryKind; label: string }[] = [
@@ -30,15 +28,13 @@ const KIND_TABS: { id: CategoryKind; label: string }[] = [
   { id: 'income', label: 'Доходы' },
 ];
 
-export function HomeScreen({ onNavigateToSub, onNavigateToHistory }: HomeScreenProps) {
+export function HomeScreen({ onNavigateToSub, onNavigateToHistory, txMutationKey }: HomeScreenProps) {
   const { period: currentPeriod, loading: curLoading } = useCurrentPeriod();
   const { periods } = usePeriods();
   const { categories } = useCategories(false);
-  const { settings } = useSettings();
 
   const [selectedPeriodId, setSelectedPeriodId] = useState<number | null>(null);
   const [activeKind, setActiveKind] = useState<CategoryKind>('expense');
-  const [sheetOpen, setSheetOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [mutationError, setMutationError] = useState<string | null>(null);
@@ -67,6 +63,15 @@ export function HomeScreen({ onNavigateToSub, onNavigateToHistory }: HomeScreenP
     error: balError,
     refetch: refetchDashboard,
   } = useDashboard(selectedPeriodId, isActiveCurrent);
+
+  // Подписка на app-level «транзакция создана» — рефетчим дашборд.
+  useEffect(() => {
+    if (txMutationKey === undefined || txMutationKey === 0) return;
+    void refetchDashboard();
+    setToast('Транзакция добавлена');
+    const t = window.setTimeout(() => setToast(null), 2200);
+    return () => window.clearTimeout(t);
+  }, [txMutationKey, refetchDashboard]);
 
   const showToast = (msg: string) => {
     setToast(msg);
@@ -116,32 +121,6 @@ export function HomeScreen({ onNavigateToSub, onNavigateToHistory }: HomeScreenP
   };
 
   const handleAddManual = () => onNavigateToSub('planned');
-
-  const maxTxDate = (() => {
-    const d = new Date();
-    d.setDate(d.getDate() + 7);
-    return d.toISOString().slice(0, 10);
-  })();
-
-  const handleSaveActual = async (data: {
-    kind?: CategoryKind;
-    category_id: number;
-    amount_cents: number;
-    description: string | null;
-    tx_date?: string;
-  }) => {
-    if (!data.kind || !data.tx_date) return;
-    await createActual({
-      kind: data.kind,
-      category_id: data.category_id,
-      amount_cents: data.amount_cents,
-      description: data.description,
-      tx_date: data.tx_date,
-    });
-    setSheetOpen(false);
-    showToast('Транзакция добавлена');
-    await refetchDashboard();
-  };
 
   if (curLoading) {
     return (
@@ -252,28 +231,6 @@ export function HomeScreen({ onNavigateToSub, onNavigateToHistory }: HomeScreenP
       </div>
 
       {toast && <div className={styles.toast}>{toast}</div>}
-
-      {isActiveCurrent && !isClosed && (
-        <Fab
-          onClick={() => setSheetOpen(true)}
-          ariaLabel="Добавить факт-трату"
-        />
-      )}
-
-      <BottomSheet
-        open={sheetOpen}
-        onClose={() => setSheetOpen(false)}
-        title="Новая транзакция"
-      >
-        <TransactionEditor
-          entity="actual"
-          categories={categories}
-          onSave={handleSaveActual}
-          onCancel={() => setSheetOpen(false)}
-          maxTxDate={maxTxDate}
-          aiEnabled={settings?.enable_ai_categorization ?? false}
-        />
-      </BottomSheet>
     </div>
   );
 }

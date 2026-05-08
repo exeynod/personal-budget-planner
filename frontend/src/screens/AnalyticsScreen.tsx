@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { MeshDarkBg } from '../components/MeshDarkBg';
+import { ScreenHeader } from '../components/ScreenHeader';
 import { SubTabBar } from '../components/SubTabBar';
 import { TopOverspendList } from '../components/TopOverspendList';
 import { LineChart } from '../components/LineChart';
@@ -33,7 +34,13 @@ function CardPlaceholder({ children }: { children: React.ReactNode }) {
  *   ├─ Top overspend (kicker + glass-dark list)
  *   └─ Top categories (kicker + glass-dark HorizontalBars)
  */
-export function AnalyticsScreen() {
+export interface AnalyticsScreenProps {
+  /** Возврат в Management hub. Опционально — если screen рендерится как
+   *  отдельный таб (legacy), back-кнопка не показывается. */
+  onBack?: () => void;
+}
+
+export function AnalyticsScreen({ onBack }: AnalyticsScreenProps = {}) {
   const [range, setRange] = useState<AnalyticsRange>('1M');
   const { trend, topOverspend, topCategories, forecast, loading, error } = useAnalytics(range);
 
@@ -77,10 +84,19 @@ export function AnalyticsScreen() {
     <div className={styles.wrap}>
       <MeshDarkBg />
       <div className={styles.scroll}>
-        <div className={styles.header}>
-          <h1 className={styles.title}>Аналитика</h1>
-          <p className={styles.subtitle}>Прогноз и тренды по бюджету</p>
-        </div>
+        {onBack ? (
+          <ScreenHeader
+            title="Аналитика"
+            subtitle="Прогноз и тренды по бюджету"
+            onBack={onBack}
+            tint="dark"
+          />
+        ) : (
+          <div className={styles.header}>
+            <h1 className={styles.title}>Аналитика</h1>
+            <p className={styles.subtitle}>Прогноз и тренды по бюджету</p>
+          </div>
+        )}
 
         <div className={styles.rangeRow}>
           <SubTabBar<AnalyticsRange>

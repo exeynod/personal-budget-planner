@@ -1,5 +1,5 @@
-/* BottomNav — Liquid Glass floating dock.
-   Source: prototype.jsx ClickTabBar / screens.jsx TabBarFull. */
+/* BottomNav — Liquid Glass floating dock с центральным FAB.
+   Source: prototype.jsx ClickTabBar (lines 188-244). */
 
 .dock {
   position: absolute;
@@ -10,8 +10,9 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 6px;
+  padding: 6px;
   border-radius: 28px;
+  gap: 4px;
 }
 
 /* Light tint — на Aurora-фоне (Home, Transactions, Management, sub-screens). */
@@ -51,38 +52,47 @@
   background: transparent;
   border: 0;
   cursor: pointer;
-  padding: 6px 0 4px;
+  padding: 4px 0;
   font-family: inherit;
   -webkit-tap-highlight-color: transparent;
-  border-radius: 22px;
+  border-radius: 20px;
   color: rgba(40, 28, 20, 0.55);
-  transition: color 0.15s ease;
+  transition: color 0.2s ease, transform 0.12s ease;
+  min-height: 46px;
 }
 
 .dockDark .tab {
   color: rgba(255, 255, 255, 0.6);
 }
 
-.tab:active {
-  opacity: 0.85;
+/* Локальная переопределение глобального button:active (button → 0.96).
+   Для tab — мягче, чтобы pill не «прыгал» сильно. */
+.tab:active:not(:disabled) {
+  transform: scale(0.96);
 }
 
-/* Активный таб — accent-tinted pill. */
+/* Активный таб — accent-tinted pill через ::before. Inactive → opacity 0,
+   плавно переходит к активному при смене таба. */
+.tab::before {
+  content: '';
+  position: absolute;
+  inset: 4px;
+  border-radius: 16px;
+  background: linear-gradient(180deg,
+    color-mix(in srgb, var(--accent) 18%, transparent),
+    color-mix(in srgb, var(--accent) 8%, transparent));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 40%, transparent);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease, background 0.25s ease;
+}
+
 .tab.active {
   color: var(--accent);
 }
 
 .tab.active::before {
-  content: '';
-  position: absolute;
-  inset: 4px;
-  border-radius: 18px;
-  background: linear-gradient(180deg,
-    color-mix(in srgb, var(--accent) 18%, transparent),
-    color-mix(in srgb, var(--accent) 8%, transparent));
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 40%, transparent);
-  z-index: -1;
-  pointer-events: none;
+  opacity: 1;
 }
 
 .icon {
@@ -94,8 +104,40 @@
 
 .label {
   position: relative;
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 600;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.02em;
   line-height: 1;
+}
+
+/* Центральный FAB — radial accent gradient + heavy glow.
+   Сидит как 3-й элемент в flex-баре, не выступает над ним. */
+.fabSlot {
+  flex: 0 0 46px;
+  width: 46px;
+  height: 46px;
+  border: 0;
+  border-radius: 23px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  background: radial-gradient(closest-side,
+    var(--accent) 0%,
+    color-mix(in srgb, var(--accent) 80%, transparent) 60%,
+    color-mix(in srgb, var(--accent) 53%, transparent) 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.6),
+    inset 0 0 0 0.5px rgba(255, 255, 255, 0.45),
+    0 8px 22px color-mix(in srgb, var(--accent) 40%, transparent);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.fabSlot:active:not(:disabled) {
+  transform: scale(0.92);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.5),
+    inset 0 0 0 0.5px rgba(255, 255, 255, 0.4),
+    0 4px 12px color-mix(in srgb, var(--accent) 33%, transparent);
 }

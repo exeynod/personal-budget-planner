@@ -18,11 +18,13 @@
 .rowButton {
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
-  transition: background 0.15s;
+  transition: background 0.15s, transform 0.12s ease;
 }
 
-.rowButton:active {
+/* Мягче чем global button :active scale(0.96), чтобы строки не «прыгали». */
+.rowButton:active:not(:disabled) {
   background: rgba(0, 0, 0, 0.03);
+  transform: scale(0.985);
 }
 
 .first {

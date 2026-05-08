@@ -115,10 +115,47 @@
   -webkit-backdrop-filter: blur(14px) saturate(140%);
 }
 
+/* ========== Глобальные правила press-feedback ==========
+   Все <button> получают tap-press scale (0.96) и убирают серую TG-подсветку.
+   Локальные правила побеждают через CSS specificity (например .fabSlot 0.92,
+   .row 0.985). Disabled-кнопки не реагируют. */
+
+button {
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.12s ease;
+}
+
+button:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
 /* ========== Утилиты ========== */
 
 .tnum {
   font-variant-numeric: tabular-nums;
+}
+
+.tap-press {
+  transition: transform 0.12s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.tap-press:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+/* Для row-элементов — мягче (списки, карточки). */
+.tap-press-soft {
+  transition: transform 0.12s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.tap-press-soft:active:not(:disabled) {
+  transform: scale(0.985);
+}
+
+.screen-anim {
+  animation: screenFade 0.28s ease-out;
 }
 
 .kicker {
