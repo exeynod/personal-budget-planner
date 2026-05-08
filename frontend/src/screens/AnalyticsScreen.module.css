@@ -1,106 +1,265 @@
-.root {
-  composes: scrollable from '../styles/screen.module.css';
-  padding: var(--space-4) var(--space-4) var(--space-4);
-  background: var(--color-bg);
-  color: var(--color-text);
-  font-family: var(--font-sans);
+/* AnalyticsScreen — Liquid Glass dark layout (Mesh background).
+   Source: screens.jsx AnalyticsScreen() — title 28 + range chips +
+   forecast hero (glass-dark) + sections (glass-dark). */
+
+.wrap {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
-}
-/* Дети flex-column'а с min-height: 0 могут схлопываться по высоте,
-   когда содержимое скролл-контейнера длиннее. flex-shrink: 0 фиксирует
-   их content-size — chips остаются 32px, секции не сжимаются. */
-.root > * {
-  flex-shrink: 0;
 }
 
-/* Period chips */
-.chips {
-  display: flex;
-  gap: var(--space-2);
-  overflow-x: auto;
+.scroll {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
   scrollbar-width: none;
-  padding-bottom: 2px;
-}
-.chips::-webkit-scrollbar { display: none; }
-.chip,
-.chipActive {
-  flex-shrink: 0;
-  height: 32px;
-  padding: 0 var(--space-3);
-  border-radius: var(--radius-full);
-  font-family: inherit;
-  font-size: var(--text-sm);
-  font-weight: var(--weight-medium);
-  cursor: pointer;
-  border: 1px solid var(--color-border);
-}
-.chip {
-  background: transparent;
-  color: var(--color-text-muted);
-}
-.chipActive {
-  background: var(--color-primary);
-  color: #fff;
-  border-color: var(--color-primary);
+  /* prototype: padding 60px 16px 110px — у нас screenContainer уже задаёт top+bottom,
+     поэтому используем тонкий top inset под status-bar и большой нижний под FAB+tabbar. */
+  padding: 16px 16px 130px;
+  color: var(--ink-d);
+  font-family: var(--font-sans);
 }
 
-/* Sections */
-.section {
-  background: var(--color-bg-elevated);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  padding: var(--space-4);
+.scroll::-webkit-scrollbar {
+  display: none;
 }
+
+/* === Header (title + subtitle) === */
+
+.header {
+  margin-bottom: 14px;
+  padding: 0 4px;
+}
+
+.title {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--ink-d);
+  margin: 0;
+  line-height: 1.15;
+}
+
+.subtitle {
+  font-size: 13px;
+  color: var(--ink-d-2);
+  margin: 2px 0 0;
+}
+
+/* === Range chips row (SubTabBar wrapper) === */
+
+.rangeRow {
+  margin-bottom: 14px;
+}
+
+/* === Forecast hero card === */
+
+.heroCard {
+  border-radius: 26px;
+  padding: 16px;
+  margin-bottom: 14px;
+  /* Содержимое лежит над ::before/::after слоями glass-dark */
+}
+
+.heroCard > * {
+  position: relative;
+  z-index: 1;
+}
+
+.heroTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.heroTexts {
+  flex: 1;
+  min-width: 0;
+}
+
+.heroKicker {
+  /* kicker-d уже задаёт font-size 11, transform, letter-spacing */
+  margin-bottom: 4px;
+}
+
+.heroValue {
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--ink-d);
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+.heroValueNeg {
+  color: #FF9F8A;
+}
+
+.heroCurrency {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--ink-d-2);
+  margin-left: 2px;
+}
+
+.heroEmpty {
+  color: var(--ink-d-2);
+  font-weight: 600;
+}
+
+.heroRight {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.deltaChip {
+  padding: 6px 10px;
+  border-radius: 14px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.deltaChipPos {
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  color: #FFD8B5;
+  box-shadow: inset 0 0 0 0.5px color-mix(in srgb, var(--accent) 30%, transparent);
+}
+
+.deltaChipNeg {
+  background: color-mix(in srgb, var(--danger) 22%, transparent);
+  color: #FFB5BC;
+  box-shadow: inset 0 0 0 0.5px color-mix(in srgb, var(--danger) 30%, transparent);
+}
+
+.chartWrap {
+  margin-top: 14px;
+  position: relative;
+  height: 140px;
+  padding: 0 4px;
+}
+
+.chartPlaceholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  font-size: 13px;
+  color: var(--ink-d-2);
+  text-align: center;
+  padding: 0 24px;
+}
+
+.legend {
+  display: flex;
+  gap: 14px;
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--ink-d-2);
+}
+
+.legendItem {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.legendDot {
+  display: inline-block;
+  width: 10px;
+  height: 2px;
+  border-radius: 1px;
+}
+
+.legendInc { background: #7CC68F; }
+.legendExp { background: var(--accent); }
+
+/* === Section kicker (between cards) === */
+
 .sectionTitle {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-2);
-  font-size: var(--text-sm);
-  font-weight: var(--weight-semibold);
-  color: var(--color-text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  margin-bottom: var(--space-3);
+  gap: 8px;
+  padding: 6px 8px 8px;
 }
 
-/* Loading skeletons */
+.sectionTitle :global(.kicker-d) {
+  /* в этом контексте kicker немного крупнее как в прототипе (12px). */
+  font-size: 12px;
+  letter-spacing: 0.06em;
+}
+
+/* === Empty-state placeholder card === */
+
+.placeholderCard {
+  border-radius: 22px;
+  padding: 16px;
+  margin-bottom: 14px;
+}
+
+.placeholderCard > * {
+  position: relative;
+  z-index: 1;
+}
+
+.placeholder {
+  font-size: 13px;
+  color: var(--ink-d-2);
+  text-align: center;
+  line-height: 1.4;
+}
+
+/* === Footer summary (under hero, optional) === */
+
+.heroFooter {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--ink-d-2);
+  padding: 4px 8px 0;
+  margin-top: -6px;
+  margin-bottom: 14px;
+}
+
+/* === Loading skeletons === */
+
 .skeletons {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  gap: 14px;
 }
-.skeleton {
-  border-radius: var(--radius-md);
-  background: var(--color-surface);
-  animation: shimmer 1.4s infinite;
-}
-.skeletonCard { height: 80px; }
-.skeletonList { height: 120px; }
-.skeletonChart { height: 160px; }
 
-@keyframes shimmer {
+.skeleton {
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.06);
+  animation: skelShimmer 1.4s infinite;
+}
+
+.skeletonHero { height: 200px; }
+.skeletonList { height: 120px; }
+
+@keyframes skelShimmer {
   0%   { opacity: 1; }
   50%  { opacity: 0.5; }
   100% { opacity: 1; }
 }
 
-/* Error */
-.error {
-  padding: var(--space-4);
-  background: var(--color-surface);
-  border-radius: var(--radius-md);
-  color: var(--color-danger);
-  font-size: var(--text-sm);
-  text-align: center;
-}
+/* === Error banner === */
 
-/* Per-card placeholder (когда данных нет, но саму карточку сохраняем) */
-.placeholder {
-  padding: var(--space-3) 0;
-  font-size: var(--text-sm);
-  color: var(--color-text-muted);
-  line-height: 1.4;
+.error {
+  padding: 16px;
+  background: color-mix(in srgb, var(--danger) 18%, transparent);
+  border-radius: 18px;
+  color: #FFB5BC;
+  font-size: 13px;
+  text-align: center;
+  box-shadow: inset 0 0 0 0.5px color-mix(in srgb, var(--danger) 30%, transparent);
 }

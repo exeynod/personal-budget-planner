@@ -1,15 +1,84 @@
-.list { display: flex; flex-direction: column; gap: var(--space-2); }
-.row {
-  padding: var(--space-3);
-  background: var(--color-surface);
-  border-radius: var(--radius-md);
-  border-left: 4px solid transparent;
+/* TopOverspendList — Liquid Glass dark list. Source: screens.jsx Analytics
+   «Превышения плана» block. */
+
+.list {
+  border-radius: 22px;
+  padding: 4px;
+  margin-bottom: 14px;
 }
-.borderDanger { border-left-color: var(--color-danger); }
-.borderWarn { border-left-color: var(--color-warn); }
-.borderNeutral { border-left-color: var(--color-border); }
-.rowTop { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
-.name { font-size: var(--text-sm); font-weight: var(--weight-medium); color: var(--color-text); }
-.pct { font-size: var(--text-sm); font-weight: var(--weight-semibold); color: var(--color-text-muted); }
-.rowSub { display: flex; gap: var(--space-3); }
-.planned, .actual { font-size: 11px; color: var(--color-text-muted); }
+
+.list > * {
+  position: relative;
+  z-index: 1;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border-top: 0.5px solid rgba(255, 255, 255, 0.08);
+}
+
+.row.first {
+  border-top: none;
+}
+
+.iconTile {
+  width: 36px;
+  height: 36px;
+  border-radius: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.body {
+  flex: 1;
+  min-width: 0;
+}
+
+.name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink-d);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.barTrack {
+  margin-top: 6px;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+}
+
+.barFill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.2s ease-out;
+}
+
+.right {
+  text-align: right;
+  flex-shrink: 0;
+  min-width: 70px;
+}
+
+.pct {
+  font-size: 14px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.delta {
+  font-size: 10px;
+  color: var(--ink-d-2);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  margin-top: 2px;
+}
