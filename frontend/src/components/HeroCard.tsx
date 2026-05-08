@@ -1,63 +1,65 @@
-import type { BalanceResponse, PeriodRead } from '../api/types';
+import type { BalanceResponse, CategoryKind, PeriodRead } from '../api/types';
 import { formatKopecks, formatKopecksWithSign } from '../utils/format';
 import styles from './HeroCard.module.css';
 
 export interface HeroCardProps {
   balance: BalanceResponse;
   period: PeriodRead;
-  /** True when viewing a closed/archived period — switches label and amount source. */
+  /** Активный kind таб — определяет, какие план/факт показываем в трёх pill'ах. */
+  kind: CategoryKind;
+  /** True для закрытого периода — показываем итог, не текущий баланс. */
   isClosed: boolean;
 }
 
 /**
- * HeroCard — premium gradient balance card.
+ * HeroCard — Liquid Glass premium balance card. Source: screens.jsx HomeA hero block.
  *
- * Active mode (DSH-01): shows balance.balance_now_cents with label "Баланс".
- * Closed mode (DSH-05): shows period.ending_balance_cents with label "Итог периода".
- * Delta (DSH-02): formatted with sign, coloured by sign (success/danger/muted).
+ * Большая цифра баланса (46px tnum) + 3 nested pill'а (план / факт / в-запасе) под
+ * активный kind. В закрытом периоде показывает period.ending_balance_cents с лейблом
+ * «Итог периода» вместо «Остаток на счёте».
  */
-export function HeroCard({ balance, period, isClosed }: HeroCardProps) {
+export function HeroCard({ balance, period, kind, isClosed }: HeroCardProps) {
   const amountCents = isClosed
     ? period.ending_balance_cents ?? 0
     : balance.balance_now_cents;
-  const amountLabel = isClosed ? 'Итог периода' : 'Баланс';
+  const amountLabel = isClosed ? 'Итог периода' : 'Остаток на счёте';
 
-  const periodRange = formatPeriodRange(period.period_start, period.period_end);
+  const planned = kind === 'expense'
+    ? balance.planned_total_expense_cents
+    : balance.planned_total_income_cents;
+  const actual = kind === 'expense'
+    ? balance.actual_total_expense_cents
+    : balance.actual_total_income_cents;
+  // delta семантика: положительная = хорошо
+  // expense: план − факт (под бюджетом),
+  // income:  факт − план (выше цели).
+  const delta = kind === 'expense' ? planned - actual : actual - planned;
 
-  const delta = balance.delta_total_cents;
+  const deltaLabel = kind === 'expense' ? 'В запасе' : 'Сверх';
   const deltaCls =
-    delta > 0
-      ? styles.deltaPositive
-      : delta < 0
-        ? styles.deltaNegative
-        : styles.deltaZero;
-
-  const deltaLabel = delta > 0 ? 'экономия' : delta < 0 ? 'перерасход' : 'по плану';
+    delta > 0 ? styles.deltaPositive : delta < 0 ? styles.deltaNegative : styles.deltaZero;
 
   return (
     <div className={styles.card}>
-      <div className={styles.glow} aria-hidden />
-      <div className={styles.periodRange}>{periodRange}</div>
-      <div className={styles.amountWrap}>
-        <span className={styles.amountLabel}>{amountLabel}</span>
-        <span className={styles.amount}>{formatKopecks(amountCents)} ₽</span>
+      <div className={styles.kicker}>{amountLabel}</div>
+      <div className={styles.amountRow}>
+        <span className={styles.amount}>{formatKopecks(amountCents)}</span>
+        <span className={styles.currency}>₽</span>
       </div>
-      <div className={styles.deltaWrap}>
-        <span className={`${styles.deltaChip} ${deltaCls}`}>
-          {formatKopecksWithSign(delta)} ₽
-        </span>
-        <span className={styles.deltaLabel}>{deltaLabel}</span>
+      <div className={styles.pills}>
+        <div className={styles.pill}>
+          <div className={styles.pillKicker}>план</div>
+          <div className={styles.pillValue}>{formatKopecks(planned)} ₽</div>
+        </div>
+        <div className={styles.pill}>
+          <div className={styles.pillKicker}>факт</div>
+          <div className={styles.pillValue}>{formatKopecks(actual)} ₽</div>
+        </div>
+        <div className={`${styles.pill} ${styles.pillAccent} ${deltaCls}`}>
+          <div className={styles.pillKicker}>{deltaLabel}</div>
+          <div className={styles.pillValue}>{formatKopecksWithSign(delta)} ₽</div>
+        </div>
       </div>
     </div>
   );
-}
-
-function formatPeriodRange(startISO: string, endISO: string): string {
-  const start = new Date(startISO);
-  const end = new Date(endISO);
-  const startStr = start.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
-  const endStr = end.toLocaleDateString('ru-RU', {
-    day: 'numeric', month: 'short', year: 'numeric',
-  });
-  return `${startStr} – ${endStr}`;
 }

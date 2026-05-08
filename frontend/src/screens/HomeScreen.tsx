@@ -2,14 +2,15 @@ import { useEffect, useMemo, useState } from 'react';
 import { createActual } from '../api/actual';
 import { applyTemplate } from '../api/planned';
 import type { CategoryKind } from '../api/types';
+import { AuroraBg } from '../components/AuroraBg';
 import { TransactionEditor } from '../components/TransactionEditor';
-import { AggrStrip } from '../components/AggrStrip';
 import { BottomSheet } from '../components/BottomSheet';
 import { DashboardCategoryRow } from '../components/DashboardCategoryRow';
 import { Fab } from '../components/Fab';
 import { HeroCard } from '../components/HeroCard';
 import { MainButton } from '../components/MainButton';
 import { PeriodSwitcher } from '../components/PeriodSwitcher';
+import { SubTabBar } from '../components/SubTabBar';
 import { useCategories } from '../hooks/useCategories';
 import { useCurrentPeriod } from '../hooks/useCurrentPeriod';
 import { useDashboard } from '../hooks/useDashboard';
@@ -24,6 +25,11 @@ export interface HomeScreenProps {
   onNavigateToHistory: (categoryId?: number) => void;
 }
 
+const KIND_TABS: { id: CategoryKind; label: string }[] = [
+  { id: 'expense', label: 'Расходы' },
+  { id: 'income', label: 'Доходы' },
+];
+
 export function HomeScreen({ onNavigateToSub, onNavigateToHistory }: HomeScreenProps) {
   const { period: currentPeriod, loading: curLoading } = useCurrentPeriod();
   const { periods } = usePeriods();
@@ -31,7 +37,7 @@ export function HomeScreen({ onNavigateToSub, onNavigateToHistory }: HomeScreenP
   const { settings } = useSettings();
 
   const [selectedPeriodId, setSelectedPeriodId] = useState<number | null>(null);
-  const [activeTab, setActiveTab] = useState<CategoryKind>('expense');
+  const [activeKind, setActiveKind] = useState<CategoryKind>('expense');
   const [sheetOpen, setSheetOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -75,18 +81,18 @@ export function HomeScreen({ onNavigateToSub, onNavigateToHistory }: HomeScreenP
     if (!balance) return [];
     const rowsByCatId = new Map(
       balance.by_category
-        .filter((r) => r.kind === activeTab)
+        .filter((r) => r.kind === activeKind)
         .map((r) => [r.category_id, r]),
     );
     const sorted = categories
-      .filter((c) => c.kind === activeTab && rowsByCatId.has(c.id))
+      .filter((c) => c.kind === activeKind && rowsByCatId.has(c.id))
       .map((c) => rowsByCatId.get(c.id)!)
       .filter((r) => r !== undefined);
     const knownIds = new Set(sorted.map((r) => r.category_id));
     const orphans = balance.by_category
-      .filter((r) => r.kind === activeTab && !knownIds.has(r.category_id));
+      .filter((r) => r.kind === activeKind && !knownIds.has(r.category_id));
     return [...sorted, ...orphans];
-  }, [balance, categories, activeTab]);
+  }, [balance, categories, activeKind]);
 
   const handleApplyTemplate = async () => {
     if (!currentPeriod || busy) return;
@@ -138,11 +144,17 @@ export function HomeScreen({ onNavigateToSub, onNavigateToHistory }: HomeScreenP
   };
 
   if (curLoading) {
-    return <div className={styles.muted}>Загрузка периода…</div>;
+    return (
+      <div className={styles.wrap}>
+        <AuroraBg />
+        <div className={styles.muted}>Загрузка периода…</div>
+      </div>
+    );
   }
   if (!currentPeriod) {
     return (
-      <div className={styles.root}>
+      <div className={styles.wrap}>
+        <AuroraBg />
         <div className={styles.empty}>Сначала завершите onboarding.</div>
       </div>
     );
@@ -150,104 +162,96 @@ export function HomeScreen({ onNavigateToSub, onNavigateToHistory }: HomeScreenP
 
   return (
     <div className={styles.wrap}>
-    <div className={`${styles.root} ${isClosed ? styles.rootClosed : ''}`}>
-      {selectedPeriod && balance && (
-        <div className={styles.heroWrap}>
-          <HeroCard balance={balance} period={selectedPeriod} isClosed={isClosed} />
+      <AuroraBg />
+      <div className={styles.scroll}>
+        {periods.length > 0 && selectedPeriodId !== null && (
+          <PeriodSwitcher
+            periods={periods}
+            selectedId={selectedPeriodId}
+            onSelect={setSelectedPeriodId}
+          />
+        )}
+
+        {selectedPeriod && balance && (
+          <HeroCard
+            balance={balance}
+            period={selectedPeriod}
+            kind={activeKind}
+            isClosed={isClosed}
+          />
+        )}
+
+        <div className={styles.tabsRow}>
+          <SubTabBar<CategoryKind>
+            active={activeKind}
+            onChange={setActiveKind}
+            tabs={KIND_TABS}
+            variant="accent"
+            tint="light"
+          />
         </div>
-      )}
 
-      {periods.length > 0 && selectedPeriodId !== null && (
-        <PeriodSwitcher
-          periods={periods}
-          selectedId={selectedPeriodId}
-          onSelect={setSelectedPeriodId}
-        />
-      )}
+        {balLoading && <div className={styles.muted}>Загрузка дашборда…</div>}
+        {balError && (
+          <div className={styles.error}>
+            Не удалось загрузить данные. Попробуй ещё раз.
+          </div>
+        )}
+        {mutationError && <div className={styles.error}>Ошибка: {mutationError}</div>}
 
-      <div className={styles.tabBar}>
-        <button
-          type="button"
-          onClick={() => setActiveTab('expense')}
-          className={
-            activeTab === 'expense' ? styles.tabActive : styles.tabInactive
-          }
-        >
-          Расходы
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab('income')}
-          className={
-            activeTab === 'income' ? styles.tabActive : styles.tabInactive
-          }
-        >
-          Доходы
-        </button>
+        {!balLoading && balance && isEmpty && (
+          <div className={styles.emptyState}>
+            <div className={styles.emptyHeading}>Бюджет не запланирован</div>
+            <div className={styles.emptyBody}>
+              Примени шаблон или добавь строки вручную
+            </div>
+            <button
+              type="button"
+              onClick={handleApplyTemplate}
+              disabled={busy || !isActiveCurrent}
+              className={styles.ctaPrimary}
+            >
+              {busy ? '…' : 'Применить шаблон'}
+            </button>
+            <button
+              type="button"
+              onClick={handleAddManual}
+              disabled={busy || !isActiveCurrent}
+              className={styles.ctaSecondary}
+            >
+              Добавить вручную
+            </button>
+          </div>
+        )}
+
+        {!balLoading && balance && !isEmpty && (
+          <div className={styles.list}>
+            {visibleRows.map((row, idx) => (
+              <DashboardCategoryRow
+                key={row.category_id}
+                row={row}
+                isFirst={idx === 0}
+                onClick={() => onNavigateToHistory(row.category_id)}
+              />
+            ))}
+            {visibleRows.length === 0 && (
+              <div className={styles.muted}>
+                В этом периоде нет {activeKind === 'expense' ? 'расходов' : 'доходов'}.
+              </div>
+            )}
+          </div>
+        )}
+
+        {isClosed && (
+          <MainButton
+            text="Период закрыт"
+            onClick={() => undefined}
+            enabled={false}
+          />
+        )}
       </div>
 
-      {balance && <AggrStrip balance={balance} kind={activeTab} />}
-
-      {balLoading && <div className={styles.muted}>Загрузка дашборда…</div>}
-      {balError && (
-        <div className={styles.error}>
-          Не удалось загрузить данные. Попробуй ещё раз.
-        </div>
-      )}
-      {mutationError && <div className={styles.error}>Ошибка: {mutationError}</div>}
-
-      {!balLoading && balance && isEmpty && (
-        <div className={styles.emptyState}>
-          <div className={styles.emptyHeading}>Бюджет не запланирован</div>
-          <div className={styles.emptyBody}>
-            Примени шаблон или добавь строки вручную
-          </div>
-          <button
-            type="button"
-            onClick={handleApplyTemplate}
-            disabled={busy || !isActiveCurrent}
-            className={styles.ctaPrimary}
-          >
-            {busy ? '…' : 'Применить шаблон'}
-          </button>
-          <button
-            type="button"
-            onClick={handleAddManual}
-            disabled={busy || !isActiveCurrent}
-            className={styles.ctaSecondary}
-          >
-            Добавить вручную
-          </button>
-        </div>
-      )}
-
-      {!balLoading && balance && !isEmpty && (
-        <div className={styles.list}>
-          {visibleRows.map((row) => (
-            <DashboardCategoryRow
-              key={row.category_id}
-              row={row}
-              onClick={() => onNavigateToHistory(row.category_id)}
-            />
-          ))}
-          {visibleRows.length === 0 && (
-            <div className={styles.muted}>
-              В этом периоде нет {activeTab === 'expense' ? 'расходов' : 'доходов'}.
-            </div>
-          )}
-        </div>
-      )}
-
       {toast && <div className={styles.toast}>{toast}</div>}
-
-      {isClosed && (
-        <MainButton
-          text="Период закрыт"
-          onClick={() => undefined}
-          enabled={false}
-        />
-      )}
-    </div>
 
       {isActiveCurrent && !isClosed && (
         <Fab

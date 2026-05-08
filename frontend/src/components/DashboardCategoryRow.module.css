@@ -1,95 +1,126 @@
+/* DashboardCategoryRow — Liquid Glass категория с icon-tile и progress-bar.
+   Source: screens.jsx HomeA categories list. */
+
 .row {
   display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  padding: var(--space-3) var(--space-4);
-  min-height: 52px;
-  background: var(--color-surface);
-  border: 1px solid transparent;
-  border-radius: var(--radius-md);
-  margin-bottom: var(--space-2);
-}
-
-.rowButton {
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: transparent;
+  border: 0;
+  border-top: 0.5px solid rgba(0, 0, 0, 0.06);
   width: 100%;
   text-align: left;
   font-family: inherit;
+  color: var(--ink);
+}
+
+.rowButton {
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s;
 }
 
 .rowButton:active {
-  background: var(--color-surface-2);
+  background: rgba(0, 0, 0, 0.03);
 }
 
-.rowButton .name::after {
-  content: ' ›';
-  color: var(--color-text-dim);
-  font-size: var(--text-sm);
+.first {
+  border-top: none;
 }
 
-.row.warn {
-  border-color: var(--color-warn);
+.iconTile {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
-.row.overspend {
-  border-color: var(--color-danger);
+.body {
+  flex: 1;
+  min-width: 0;
 }
 
 .topRow {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  gap: var(--space-3);
+  gap: 8px;
 }
 
 .name {
-  font-size: var(--text-base);
-  font-weight: var(--weight-regular);
-  color: var(--color-text);
-  flex: 1;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink);
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .amounts {
   display: inline-flex;
   align-items: baseline;
-  gap: var(--space-1);
-  font-family: var(--font-mono);
-  font-size: var(--text-sm);
+  gap: 6px;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
   flex-shrink: 0;
 }
 
-.actual { color: var(--color-text); }
-.slash { color: var(--color-text-dim); }
-.planned { color: var(--color-text-muted); }
-.currency { color: var(--color-text-muted); margin-left: 2px; }
+.actual {
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.actualOver {
+  font-weight: 600;
+  color: var(--danger);
+}
+
+.planned {
+  color: var(--ink-2);
+  font-weight: 500;
+}
 
 .badge {
-  margin-left: var(--space-2);
-  padding: 2px var(--space-2);
-  border-radius: var(--radius-full);
-  background: var(--color-danger-soft);
-  color: var(--color-danger);
-  font-family: var(--font-sans);
-  font-size: var(--text-sm);
-  font-weight: var(--weight-semibold);
+  margin-left: 6px;
+  padding: 2px 7px;
+  border-radius: 7px;
+  background: var(--danger);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.18);
 }
 
 .bar {
-  height: 4px;
-  border-radius: 2px;
-  background: var(--color-border);
+  margin-top: 6px;
+  height: 6px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.06);
   overflow: hidden;
+  position: relative;
 }
 
-.barFill {
+.fill {
   height: 100%;
-  background: var(--color-primary);
-  transition: width 200ms ease-out;
+  border-radius: 4px;
+  transition: width 0.2s ease-out;
 }
 
-.barFill.barWarn { background: var(--color-warn); }
-.barFill.barOverspend { background: var(--color-danger); }
+.overlay {
+  position: absolute;
+  top: 0;
+  right: 0;
+  height: 100%;
+  background: repeating-linear-gradient(45deg,
+    #D8404B,
+    #D8404B 4px,
+    #FFA08A 4px,
+    #FFA08A 8px);
+  opacity: 0.7;
+}
