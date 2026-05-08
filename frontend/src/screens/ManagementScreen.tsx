@@ -70,7 +70,7 @@ export function ManagementScreen({ onNavigate }: ManagementScreenProps) {
   return (
     <div className={styles.wrap}>
       <AuroraBg />
-      <div className={styles.scroll}>
+      <div className={`${styles.scroll} fade-bottom`}>
         <div className={styles.header}>
           <h2 className={styles.title}>Управление</h2>
           <div className={styles.subtitle}>Подписки, категории, доступ</div>

@@ -201,6 +201,44 @@ a:focus-visible,
 .noscroll::-webkit-scrollbar { display: none; }
 .noscroll { scrollbar-width: none; }
 
+/* ========== Scroll edge fade (Apple HIG-style) ==========
+   Применяется к scroll-контейнерам экранов, у которых внизу плавает BottomNav.
+   Контент растворяется в маске прежде, чем доедет до dock'а — никаких
+   перекрытий через blur. Высоты согласованы с реальной геометрией dock'а:
+   bottom = 18px + safe-area, height ~64px → fade-out полностью к 80px от низа,
+   полностью видим с 130px и выше. */
+.fade-bottom {
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    #000 0,
+    #000 calc(100% - 130px - env(safe-area-inset-bottom, 0px)),
+    transparent calc(100% - 78px - env(safe-area-inset-bottom, 0px))
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    #000 0,
+    #000 calc(100% - 130px - env(safe-area-inset-bottom, 0px)),
+    transparent calc(100% - 78px - env(safe-area-inset-bottom, 0px))
+  );
+}
+
+/* Вариант для AI screen — над dock'ом ещё плавающий input bar
+   (bottom 90 + height ~52 = до ~142). Маска уводит контент выше. */
+.fade-bottom-ai {
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    #000 0,
+    #000 calc(100% - 180px - env(safe-area-inset-bottom, 0px)),
+    transparent calc(100% - 130px - env(safe-area-inset-bottom, 0px))
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    #000 0,
+    #000 calc(100% - 180px - env(safe-area-inset-bottom, 0px)),
+    transparent calc(100% - 130px - env(safe-area-inset-bottom, 0px))
+  );
+}
+
 /* ========== Анимации ========== */
 
 @keyframes screenFade {

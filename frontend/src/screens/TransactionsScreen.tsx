@@ -78,7 +78,7 @@ export function TransactionsScreen({ categoryFilter, onClearFilter, txMutationKe
   return (
     <div className={styles.wrap}>
       <AuroraBg />
-      <div className={styles.scroll}>
+      <div className={`${styles.scroll} fade-bottom`}>
         <div className={styles.titleRow}>
           <div className={styles.title}>Транзакции</div>
           {period && (

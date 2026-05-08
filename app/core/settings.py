@@ -28,6 +28,12 @@ class Settings(BaseSettings):
     INTERNAL_TOKEN: str = "changeme"
     API_BASE_URL: str = "http://api:8000"
 
+    # Phase 17 (v0.6 IOSAUTH-02): native iOS dev token exchange.
+    # Endpoint POST /api/v1/auth/dev-exchange принимает {secret} равный этому
+    # значению и выдаёт long-lived Bearer-токен для OWNER_TG_ID. None = endpoint
+    # отдаёт 503. Не используется для web-фронта (он шлёт TG initData как раньше).
+    DEV_AUTH_SECRET: str | None = None
+
     # Public hosting / Caddy
     PUBLIC_DOMAIN: str = "localhost"
     MINI_APP_URL: str = "https://localhost"

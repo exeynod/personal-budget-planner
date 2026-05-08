@@ -452,3 +452,54 @@ class AiUsageLog(Base):
     __table_args__ = (
         Index("ix_ai_usage_log_user_created", "user_id", "created_at"),
     )
+
+
+# ---- Phase 17 (v0.6): native client auth tokens (IOSAUTH-02) ----
+
+
+class AuthToken(Base):
+    """Long-lived Bearer token для нативных клиентов (iOS).
+
+    Phase 17 (v0.6 IOSAUTH-02): web-фронт продолжает шлать TG initData
+    через X-Telegram-Init-Data; iOS-клиент получает токен через
+    POST /api/v1/auth/dev-exchange (на dev) или TG Login Widget /
+    Sign in with Apple (на prod в Phase 21) и шлёт его как
+    Authorization: Bearer <token>. Расширение get_current_user
+    (Plan 17-03) пробует Bearer первым, fallback на initData.
+
+    Хранится только sha256(token) — plaintext-токен виден один раз
+    в response /auth/dev-exchange, дальше его невозможно прочитать
+    из БД.
+
+    revoked_at = NULL → токен активен. Revocation flow отложен (Phase 18+).
+    last_used_at обновляется на каждой успешной auth — даёт грубый
+    audit-stream и helps detect stale tokens.
+
+    ON DELETE CASCADE: при удалении user (revoke flow Phase 13)
+    auto-purge всех его токенов.
+    """
+
+    __tablename__ = "auth_token"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    token_hash: Mapped[str] = mapped_column(
+        String(64), unique=True, nullable=False, index=True
+    )
+    user_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("app_user.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), server_default=func.now(), nullable=False
+    )
+    last_used_at: Mapped[Optional[datetime]] = mapped_column(
+        TIMESTAMP(timezone=True), nullable=True
+    )
+    revoked_at: Mapped[Optional[datetime]] = mapped_column(
+        TIMESTAMP(timezone=True), nullable=True
+    )
+
+    __table_args__ = (
+        Index("ix_auth_token_user", "user_id"),
+    )

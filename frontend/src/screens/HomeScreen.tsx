@@ -142,7 +142,7 @@ export function HomeScreen({ onNavigateToSub, onNavigateToHistory, txMutationKey
   return (
     <div className={styles.wrap}>
       <AuroraBg />
-      <div className={styles.scroll}>
+      <div className={`${styles.scroll} fade-bottom`}>
         {periods.length > 0 && selectedPeriodId !== null && (
           <PeriodSwitcher
             periods={periods}

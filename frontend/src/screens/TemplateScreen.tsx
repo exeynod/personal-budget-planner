@@ -142,7 +142,7 @@ export function TemplateScreen({ onBack }: TemplateScreenProps) {
   return (
     <div className={styles.wrap}>
       <AuroraBg />
-      <div className={styles.scroll}>
+      <div className={`${styles.scroll} fade-bottom`}>
       <ScreenHeader
         title="Шаблон плана"
         onBack={onBack}

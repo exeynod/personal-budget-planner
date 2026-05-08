@@ -83,7 +83,7 @@ export function SubscriptionsScreen({ onBack }: SubscriptionsScreenProps) {
   return (
     <div className={styles.wrap}>
       <AuroraBg />
-      <div className={styles.scroll}>
+      <div className={`${styles.scroll} fade-bottom`}>
         <ScreenHeader
           title="Подписки"
           subtitle="Регулярные платежи"

@@ -111,7 +111,7 @@ export function SettingsScreen({ onBack }: SettingsScreenProps) {
   return (
     <div className={styles.wrap}>
       <AuroraBg />
-      <div className={styles.scroll}>
+      <div className={`${styles.scroll} fade-bottom`}>
       <ScreenHeader title="Настройки" onBack={onBack} />
 
       {loading && <div className={styles.muted}>Загрузка…</div>}

@@ -83,7 +83,7 @@ export function AnalyticsScreen({ onBack }: AnalyticsScreenProps = {}) {
   return (
     <div className={styles.wrap}>
       <MeshDarkBg />
-      <div className={styles.scroll}>
+      <div className={`${styles.scroll} fade-bottom`}>
         {onBack ? (
           <ScreenHeader
             title="Аналитика"

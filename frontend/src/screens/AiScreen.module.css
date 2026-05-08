@@ -10,8 +10,9 @@
   flex-direction: column;
 }
 
-/* Контент над MeshDarkBg. padding-top 60 — отступ под notch + статус-бар TG.
-   bottom 130 — место под floating input + tabbar. */
+/* Контент над MeshDarkBg. Унифицировано с остальными экранами:
+   16px top — равняется HomeScreen / Transactions / Management. TG safe-area
+   обрабатывается на уровне appWrapper; экрану свой 60px сверху не нужен. */
 .scroll {
   position: relative;
   z-index: 1;
@@ -19,7 +20,7 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
-  padding: 60px 16px 0;
+  padding: 16px 16px 0;
   color: var(--ink-d);
   font-family: var(--font-sans);
   box-sizing: border-box;
@@ -30,7 +31,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0 4px 14px;
+  padding: 0 4px 12px;
   flex-shrink: 0;
 }
 

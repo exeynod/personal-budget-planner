@@ -80,7 +80,7 @@ export function CategoriesScreen({ onBack }: CategoriesScreenProps) {
   return (
     <div className={styles.wrap}>
       <AuroraBg />
-      <div className={styles.scroll}>
+      <div className={`${styles.scroll} fade-bottom`}>
       <ScreenHeader
         title="Категории"
         onBack={onBack}
