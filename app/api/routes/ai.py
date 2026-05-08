@@ -467,6 +467,7 @@ async def _event_stream(
                 # back to the LLM as the tool result (so the model can
                 # acknowledge "подготовил, проверь форму") but with the
                 # internal _proposal flag stripped to keep its context tidy.
+                proposal_short_circuit = False
                 if isinstance(tool_result, dict) and tool_result.get("_proposal"):
                     yield (
                         "data: "
@@ -477,6 +478,7 @@ async def _event_stream(
                         )
                         + "\n\n"
                     )
+                    proposal_short_circuit = True
 
                 tool_result_str = json.dumps(
                     tool_result, ensure_ascii=False, default=str
@@ -508,6 +510,33 @@ async def _event_stream(
                 break
 
             yield f"data: {json.dumps({'type': 'tool_end', 'data': ''})}\n\n"
+
+            # Latency optimisation: when the round produced a propose-event,
+            # skip the second OpenAI round-trip (which would just generate the
+            # canned "Подготовил трату, проверь и подтверди." text per system
+            # prompt) and yield the same string ourselves. Saves ~600-1000ms
+            # of model time per proposal — the user sees the bottom-sheet
+            # already; the model has nothing useful left to add.
+            if proposal_short_circuit:
+                kind_of = (
+                    tool_result.get("kind_of")
+                    if isinstance(tool_result, dict) else None
+                )
+                fixed_text = (
+                    "Подготовил план, проверь и подтверди."
+                    if kind_of == "planned"
+                    else "Подготовил трату, проверь и подтверди."
+                )
+                assistant_content_parts.append(fixed_text)
+                yield (
+                    "data: "
+                    + json.dumps(
+                        {"type": "token", "data": fixed_text},
+                        ensure_ascii=False,
+                    )
+                    + "\n\n"
+                )
+                break  # exit the agent-loop — no follow-up round needed
 
         # AI-03 (Plan 16-05): graceful close if the loop guard tripped —
         # yield user-friendly fallback assistant message + done event so

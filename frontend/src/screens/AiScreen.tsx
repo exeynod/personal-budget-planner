@@ -14,6 +14,8 @@ import { ChatMessage } from '../components/ChatMessage';
 import { PageTitle } from '../components/PageTitle';
 import { ToolUseIndicator } from '../components/ToolUseIndicator';
 import { AiProposalSheet } from '../components/AiProposalSheet';
+import { useCategories } from '../hooks/useCategories';
+import { usePeriods } from '../hooks/usePeriods';
 import type { UseAiConversationResult } from '../hooks/useAiConversation';
 import type { ChatMessageRead } from '../api/types';
 import styles from './AiScreen.module.css';
@@ -42,6 +44,12 @@ export function AiScreen({
   const [input, setInput] = useState('');
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  // Prefetch categories + periods on screen mount so AiProposalSheet
+  // opens instantly with the dropdowns ready — saves the perceptible
+  // ~150-300 ms of round-trip latency when the user accepts a proposal.
+  const { categories: prefetchedCategories } = useCategories(false);
+  const { periods: prefetchedPeriods } = usePeriods();
 
   // Auto-scroll при новых токенах и сообщениях
   useEffect(() => {
@@ -203,8 +211,15 @@ export function AiScreen({
         </button>
       </div>
 
-      {/* AI proposal review sheet — opens when SSE delivered a propose event. */}
-      <AiProposalSheet proposal={proposal} onClose={dismissProposal} />
+      {/* AI proposal review sheet — opens when SSE delivered a propose event.
+          Categories + periods come from screen-level prefetch so the sheet
+          renders immediately without its own loading round-trip. */}
+      <AiProposalSheet
+        proposal={proposal}
+        onClose={dismissProposal}
+        prefetchedCategories={prefetchedCategories}
+        prefetchedPeriods={prefetchedPeriods}
+      />
     </div>
   );
 }

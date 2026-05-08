@@ -20,15 +20,40 @@ export interface AiProposalSheetProps {
   onClose: () => void;
   /** Optional callback fired after a successful save (e.g. show toast). */
   onSaved?: (kind: 'actual' | 'planned') => void;
+  /** Prefetched dropdowns from the parent screen — lets the sheet open
+   *  instantly without an internal load round-trip. Falls back to its own
+   *  fetch if absent (keeps the component reusable from other contexts). */
+  prefetchedCategories?: CategoryRead[];
+  prefetchedPeriods?: PeriodRead[];
 }
 
-export function AiProposalSheet({ proposal, onClose, onSaved }: AiProposalSheetProps) {
-  const [categories, setCategories] = useState<CategoryRead[] | null>(null);
-  const [activePeriod, setActivePeriod] = useState<PeriodRead | null>(null);
+export function AiProposalSheet({
+  proposal,
+  onClose,
+  onSaved,
+  prefetchedCategories,
+  prefetchedPeriods,
+}: AiProposalSheetProps) {
+  const [categories, setCategories] = useState<CategoryRead[] | null>(
+    prefetchedCategories ?? null,
+  );
+  const [activePeriod, setActivePeriod] = useState<PeriodRead | null>(
+    prefetchedPeriods?.find((p) => p.status === 'active') ?? null,
+  );
   const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!proposal) return;
+    // Fast path — parent screen already prefetched. No fetch, no flicker.
+    if (prefetchedCategories && prefetchedPeriods) {
+      setCategories(prefetchedCategories);
+      setActivePeriod(
+        prefetchedPeriods.find((p) => p.status === 'active') ?? null,
+      );
+      setLoadError(null);
+      return;
+    }
+    // Fallback: standalone usage without prefetched props.
     let cancelled = false;
     setLoadError(null);
     setCategories(null);
@@ -48,7 +73,7 @@ export function AiProposalSheet({ proposal, onClose, onSaved }: AiProposalSheetP
     return () => {
       cancelled = true;
     };
-  }, [proposal]);
+  }, [proposal, prefetchedCategories, prefetchedPeriods]);
 
   if (!proposal) return null;
 
