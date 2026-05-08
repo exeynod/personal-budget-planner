@@ -35,9 +35,20 @@ jobs:
     env:
       DATABASE_URL: postgresql+asyncpg://budget:budget@localhost:5432/budget_test
       DATABASE_URL_SYNC: postgresql://budget:budget@localhost:5432/budget_test
+      ADMIN_DATABASE_URL: postgresql+asyncpg://budget:budget@localhost:5432/budget_test
       BOT_TOKEN: "1234567890:test_bot_token_for_testing_only"
       OWNER_TG_ID: "123456789"
       INTERNAL_TOKEN: "test_internal_secret_token"
+      # Required by alembic 0007 (Phase 12 D-11-07-02) — _resolve_app_password
+      # rejects empty/`change_me*` values. CI uses an ephemeral throwaway
+      # postgres service, so this is a hardcoded test placeholder, not a
+      # secret. Production gets the real password via deploy.yml from
+      # GitHub Secrets.
+      BUDGET_APP_PASSWORD: "ci_test_app_password_not_a_secret_just_passes_validator"
+      # Required by validate_production_settings whenever AI is enabled —
+      # backend tests mock OpenAI calls, so a fake-looking key satisfies the
+      # boot-time guard without ever leaving the runner.
+      OPENAI_API_KEY: "sk-test-fake-key-for-ci-only"
 
     steps:
       - uses: actions/checkout@v4
