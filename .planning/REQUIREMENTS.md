@@ -112,8 +112,31 @@
 
 ## Traceability
 
-REQ → Phase mapping будет заполнено roadmapper'ом ниже:
+REQ → Phase mapping (заполнено roadmapper'ом 2026-05-08):
 
-| REQ-ID | Phase |
-|--------|-------|
-| (заполнится после roadmap) | |
+| REQ-ID | Phase | Phase Name |
+|--------|-------|------------|
+| IOSAUTH-01 | 17 | iOS Foundation |
+| IOSAUTH-02 | 17 | iOS Foundation |
+| IOS-01 | 17 | iOS Foundation |
+| IOS-02 | 17 | iOS Foundation |
+| IOS-03 | 17 | iOS Foundation |
+| IOS-04 | 17 | iOS Foundation |
+| IOS-06 | 17 | iOS Foundation |
+| IOS-07 | 17 | iOS Foundation |
+| IOS-10 | 17 | iOS Foundation |
+| IOS-11 | 17 | iOS Foundation |
+| IOS-08 | 18 | iOS Core CRUD |
+| IOS-09 | 18 | iOS Core CRUD |
+| IOS-12 | 18 | iOS Core CRUD |
+| IOS-13 | 18 | iOS Core CRUD |
+| IOS-14 | 18 | iOS Core CRUD |
+| IOS-15 | 19 | iOS Management |
+| IOS-16 | 19 | iOS Management |
+| IOS-05 | 20 | iOS AI |
+| IOSAI-01 | 20 | iOS AI |
+| IOSAI-02 | 20 | iOS AI |
+| IOS-17 | 21 | TestFlight Distribution |
+| IOS-18 | 21 | TestFlight Distribution |
+
+**Coverage:** 22/22 requirements mapped to exactly one phase ✓

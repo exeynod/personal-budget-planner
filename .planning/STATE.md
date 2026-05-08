@@ -3,10 +3,10 @@ gsd_state_version: 1.0
 milestone: v0.6
 milestone_name: iOS App
 status: planning
-last_updated: "2026-05-08T14:09:01.210Z"
+last_updated: "2026-05-08T17:15:00.000Z"
 last_activity: 2026-05-08
 progress:
-  total_phases: 0
+  total_phases: 5
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -17,47 +17,51 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-05-07 — v0.5 milestone started)
+See: .planning/PROJECT.md (updated 2026-05-08 — v0.6 milestone started)
 
-**Core value:** В один тап записать факт-трату и видеть актуальную дельту план/факт по категориям бюджета — быстрее, чем открывать Google-таблицу. После v0.3 — conversational AI-помощник + аналитика; после v0.4 — multi-tenant whitelist + AI cost cap.
-**Current focus:** Phase 16 — Security & AI Hardening (hotfix milestone)
+**Core value:** В один тап записать факт-трату и видеть актуальную дельту план/факт по категориям бюджета — быстрее, чем открывать Google-таблицу. После v0.3 — conversational AI-помощник + аналитика; после v0.4 — multi-tenant whitelist + AI cost cap; v0.6 — native iOS-клиент.
+**Current focus:** Phase 17 — iOS Foundation (planning)
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: Not started — Phase 17 awaiting plan-phase decomposition
 Plan: —
-Status: Defining requirements
-Last activity: 2026-05-08 — Milestone v0.6 started
+Status: Roadmap created, awaiting plan-phase
+Last activity: 2026-05-08 — Milestone v0.6 roadmap drafted (Phases 17-21)
+
+## Milestone v0.6 Phases
+
+| # | Name | Requirements | Status |
+|---|------|--------------|--------|
+| 17 | iOS Foundation | IOSAUTH-01, IOSAUTH-02, IOS-01, IOS-02, IOS-03, IOS-04, IOS-06, IOS-07, IOS-10, IOS-11 | Not started |
+| 18 | iOS Core CRUD | IOS-08, IOS-09, IOS-12, IOS-13, IOS-14 | Not started |
+| 19 | iOS Management | IOS-15, IOS-16 | Not started |
+| 20 | iOS AI | IOS-05, IOSAI-01, IOSAI-02 | Not started |
+| 21 | TestFlight Distribution | IOS-17, IOS-18 | Not started |
+
+**Coverage:** 22/22 requirements mapped ✓
 
 ## Performance Metrics
 
-**Velocity:**
+**Velocity (v0.5 — last shipped milestone):**
 
-- Total plans completed (v0.4): 36
-- Average duration: ~10 min
-- Total execution time: ~6 hours
+- Total plans completed: 9 (Phase 16)
+- Average duration: ~7 min/plan (range 4-15)
+- Total execution time: ~70 min
 
-**By Phase (v0.4):**
+**By Milestone:**
 
-| Phase | Plans | Total | Avg/Plan |
-|-------|-------|-------|----------|
-| 11 | 7 | ~84 min | ~12 min |
-| 12 | 7 | ~95 min | ~14 min |
-| 13 | 8 | ~33 min | ~4 min |
-| 14 | 7 | ~75 min | ~11 min |
-| 15 | 7 | ~80 min | ~11 min |
+| Milestone | Plans | Total | Avg/Plan |
+|-----------|-------|-------|----------|
+| v0.4 (Phases 11-15) | 36 | ~6h | ~10 min |
+| v0.5 (Phase 16) | 9 | ~70 min | ~7 min |
 
-**Recent Trend:**
-
-- Last v0.4 phase (15) — 7 plans, ~80 min total, frontend + backend + admin endpoint, 26/27 new tests green
-- Trend (v0.4): стабильный, ~10 min/plan; live TG smoke consistently deferred
-
-*Updated after each plan completion*
-
-**v0.5 plans (Phase 16) — running tally:**
+**Recent Trend (v0.5):**
 
 - Phase 16 P05: 4 min, 2 tasks, 2 files (`app/api/routes/ai.py` modified, `tests/api/test_ai_chat_tool_loop_guard.py` created)
 - Phase 16 P07: ~10 min, 3 tasks, 4 files (`app/services/spend_cap.py` + `app/api/dependencies.py` + `app/api/routes/ai.py` modified, `tests/test_spend_cap_concurrent.py` created); 2 commits feat + fix + test (d4be381 / 86cfdea / bab91c6)
+
+*Updated after each plan completion*
 
 ## Accumulated Context
 
@@ -65,28 +69,29 @@ Last activity: 2026-05-08 — Milestone v0.6 started
 
 Full decision log в PROJECT.md Key Decisions table.
 
-Recent decisions affecting v0.5 planning:
+Recent decisions affecting v0.6 planning:
+
+- v0.6 (2026-05-08): 5-phase split (Foundation / Core CRUD / Management / AI / TestFlight) derived from natural delivery boundaries — каждая фаза финализирует одну вертикальную возможность, ничего не висит наполовину между фазами
+- v0.6 (2026-05-08): Backend меняется только в Phase 17 — добавляется `POST /auth/dev-exchange` + Bearer-fallback в `get_current_user`. Web-фронт продолжает работать на initData без изменений (защищается regression-тестом в success criterion #1)
+- v0.6 (2026-05-08): IOS-04 (APIClient, все CRUD endpoints) полностью лежит в Phase 17 — сетевой слой готов до начала Phase 18 UI-работы; так UI-фазы не вязнут в добавлении новых endpoint-обёрток
+- v0.6 (2026-05-08): IOS-05 (SSE-клиент) перенесён в Phase 20 (AI), а не в Phase 17 networking — SSE используется только AI-чатом, добавлять его раньше = dead code в Phases 17-19
+- v0.6 (2026-05-08): Локальные UNUserNotifications в Phase 19, APNs server-push отложен в IOS-FUT-07 — pet-app не требует push-инфраструктуры пока подписки == единственный use-case напоминаний
+- v0.6 (2026-05-08): Phase 21 (TestFlight) включает замену dev-token flow на production-auth (TG Login Widget или Sign in with Apple) — нельзя приглашать друга с DEV_AUTH_SECRET, это сразу даёт ему права owner
+
+Recent decisions from v0.5 (preserved for context):
 
 - v0.5 (2026-05-07): Single consolidated Phase 16 для всех 9 atomic fixes — общий delivery boundary («code-review tickets closed»), общие файлы (`app/api/routes/ai.py:_event_stream` для SEC-02 / AI-02 / AI-03), фрагментация на backend/frontend не даёт value
 - v0.5 (2026-05-07): Каждый fix сопровождается регресс-тестом — без теста fix не считается завершённым (pytest для backend, Playwright для XSS, vitest для money-парсера)
-- v0.5 (2026-05-07): Out of scope в v0.5 — миграция `est_cost_usd` Float→BIGINT, embedding cache invalidation на rename категории, CSP-заголовок Caddy (всё ушло в backlog)
-- v0.5 (2026-05-07): CON-02 закрывается per-user `asyncio.Lock` (грубо, но дёшево); полноценный pre-charge token reservation отложен до post-v0.5 если pet-app вырастет
-- v0.5 (2026-05-07): AI-03 — total tool-calls per session ≤ 8 + детект повтора одного tool с одинаковыми args в соседних раундах
-- 16-03 (2026-05-07): AI-01 закрыт через positive-check сразу после try/except парсинга amount_cents в propose_*_transaction (минимальный диф D-16-04, 4 строки кода). Edge-кейс 0.001 rub отвергается естественно через round() → 0 cents → fail. 17 pytest unit-тестов (parametrized + happy/edge), 0 регрессов.
-- 16-02 (2026-05-07): SEC-02 закрыт. Renamed `_humanize_provider_error` -> `humanize_provider_error` (public) для переиспользования между провайдером и `_event_stream`. Outer `except Exception` теперь yield `humanize_provider_error(exc)` + `logger.exception("ai.event_stream_failed user_id=%s", user_id)`. Defense-in-depth на inner SSE error-path: `str()` coercion + generic fallback. Pytest regression `tests/api/test_ai_chat_error_sanitize.py` (2 тест-кейса) проверяет sanitised payload + сохранённый traceback в логах.
-- 16-06 (2026-05-07): CON-01 закрыт. Atomic `UPDATE app_user SET onboarded_at=:now, cycle_start_day=:csd WHERE id=:id AND onboarded_at IS NULL RETURNING onboarded_at` per D-16-03 — заменяет SELECT-then-mutate в `complete_onboarding`. Loser видит claimed_row=None, refresh-ит user, raise AlreadyOnboardedError. Pytest regression `tests/test_onboarding_concurrent.py` (2 теста, asyncio.Barrier(2) для детерминистического race) — verified FAIL pre-fix (IntegrityError на uq_budget_period_user_id_period_start) → PASS post-fix через container rebuild. Race-test pattern переиспользуем для будущих CON-* фиксов.
-- 16-04 (2026-05-07): AI-02 закрыт. Создан `app/ai/tool_args.py` — 6 Pydantic моделей (по одной на tool) extra='forbid' + `TOOL_ARGS_MODELS` mapping. `_event_stream` tool dispatch валидирует raw JSON через `model_validate(raw_kwargs)` → невалидный JSON / mistyped types / extra fields → SSE `tool_error` event + `logger.warning("ai.tool_args_invalid tool=%s err_type=%s err=%s raw_args=%.200s")` + synth `{error: ...}` tool_result message-pair (preserves OpenAI assistant.tool_calls invariant для recovery). Frontend `AiEventType` расширен `tool_error` + `ToolErrorPayload`; `useAiConversation.handleEvent` → `setError(event.data.message)` без abort стрима. Pytest regression `tests/api/test_ai_chat_tool_args_validation.py` (3 теста: bad JSON / mistyped / extra field) — все PASS в integration-контейнере; 0 регрессов в существующих 10 AI-тестах.
-- 16-05 (2026-05-07): AI-03 закрыт. Hardcap MAX_TOTAL_TOOL_CALLS=8 + adjacent-round repeat-detect `(tool_name, frozenset(parsed_kwargs.items()))` в `_event_stream`. Counter инкрементируется ПОСЛЕ args validation и ДО tool_fn(), так что Plan 16-04 tool_error path не консьюмит budget. На trigger — yield token-style fallback "Не удалось завершить, переформулируй запрос" + done. Логи `ai.tool_loop_repeat` / `ai.tool_loop_hardcap` зеркалят `ai.tool_args_invalid` из 16-04. `max_rounds=5` оставлен как outer safety net. Pytest regression `tests/api/test_ai_chat_tool_loop_guard.py` (3 теста: dedup, hardcap, normal) — PASS, 0 регрессов в 13 существующих AI-тестах.
-- 16-07 (2026-05-07): CON-02 закрыт. Per-user `asyncio.Lock` dict (`_user_locks: dict[int, asyncio.Lock]`) в `app/services/spend_cap.py` через `acquire_user_spend_lock` get-or-create под `_user_locks_guard`. `chat()` route оборачивает StreamingResponse в acquire-before / release-in-finally; `enforce_spending_cap_for_user` (новый imperative helper в `app/api/dependencies.py`) делает invalidate_cache + re-check внутри lock — закрывает race между двумя параллельными /ai/chat при cached spend < cap. Router-level dep `enforce_spending_cap` оставлен как fast-path. Pytest regression `tests/test_spend_cap_concurrent.py` (2 теста: same-user race [200, 429] + 1.00 USD total, cross-user isolation [200, 200]) — verified pre-fix FAIL [200, 200] / 1.01 USD через container rebuild со stashed changes; post-fix PASS. 0 регрессов в 17 существующих spend-cap тестах. Lock dict GC отложен (pet-app 5-50 users per PROJECT.md, ~200 bytes per Lock).
 
 ### Pending Todos
 
-None yet.
+None yet — awaiting `/gsd-plan-phase 17` to decompose Phase 17 into atomic plans.
 
 ### Blockers/Concerns
 
-- Q-9 (HLD): Стратегия выноса pg_dump (S3 vs локальный том) — открыто, отложено за scope v0.5
-- v0.4 UAT: 8 live-smoke items (v0.4-U-1..U-8) ждут owner-валидации в реальном TG — НЕ блокируют v0.5 фиксы (изолированный hotfix scope)
+- Q-9 (HLD): Стратегия выноса pg_dump (S3 vs локальный том) — открыто, отложено за scope v0.6
+- v0.4 UAT: 8 live-smoke items (v0.4-U-1..U-8) ждут owner-валидации в реальном TG — НЕ блокируют v0.6 (изолированный iOS scope, web-фронт не трогаем)
+- v0.6 Phase 21 dependency на $99 Apple Developer Account — внешний gating-фактор, ETA регистрации Apple 24-48h после оплаты
 
 ### Quick Tasks Completed
 
@@ -97,7 +102,7 @@ None yet.
 
 ## Deferred Items
 
-Items acknowledged and deferred at v0.4 milestone close on 2026-05-07:
+Items acknowledged and deferred at v0.4 milestone close on 2026-05-07 (carried forward — no v0.6 closure expected to address them):
 
 | Category | Item | Status | Deferred At |
 |----------|------|--------|-------------|
@@ -112,10 +117,22 @@ Items acknowledged and deferred at v0.4 milestone close on 2026-05-07:
 | arch_debt | Pre-charge AI token reservation (vs Lock) | deferred | 2026-05-07 (v0.5 OoS) |
 | arch_debt | Audit pipeline для невалидных tool-call попыток | deferred | 2026-05-07 (v0.5 OoS) |
 
-8 v0.4 UAT items (v0.4-U-1..U-8) consolidated в `v0.4-MILESTONE-AUDIT.md` — owner runs live smoke after rebuilding api/bot/worker containers; не блокирует v0.5.
+8 v0.4 UAT items (v0.4-U-1..U-8) consolidated в `v0.4-MILESTONE-AUDIT.md` — owner runs live smoke after rebuilding api/bot/worker containers; не блокирует v0.6.
+
+v0.6 deferred (acknowledged at planning):
+
+| Category | Item | Status | Reason |
+|----------|------|--------|--------|
+| ios_future | IOS-FUT-01 Apple Watch companion | deferred | Outside MVP scope |
+| ios_future | IOS-FUT-02 iOS Widgets (Home/Lock Screen) | deferred | Требует WidgetKit-кода, отдельная фаза |
+| ios_future | IOS-FUT-03 iPad split-view layout | deferred | Single-tenant pet, фокус на iPhone |
+| ios_future | IOS-FUT-04 Offline режим с SwiftData | deferred | Сильно усложняет state-management |
+| ios_future | IOS-FUT-05 Apple Sign-in for friend access | deferred | Single-tenant до Phase 21 |
+| ios_future | IOS-FUT-06 macOS Catalyst-сборка | deferred | Не запрашивалось |
+| ios_future | IOS-FUT-07 APNs server-push | deferred | Локальные нотификации покрывают use-case |
 
 ## Session Continuity
 
-Last session: 2026-05-07T18:32:00.000Z
-Stopped at: Completed Plan 16-07 (CON-02 per-user asyncio.Lock + 2 pytest concurrent cases). Phase 16 complete (9/9 plans).
+Last session: 2026-05-08T17:15:00.000Z
+Stopped at: Roadmap для v0.6 (Phases 17-21) создан, REQUIREMENTS.md traceability заполнен. Awaiting `/gsd-plan-phase 17`.
 Resume file: None
