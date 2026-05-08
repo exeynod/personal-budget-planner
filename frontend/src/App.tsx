@@ -13,8 +13,17 @@ import { ManagementScreen, type ManagementView } from './screens/ManagementScree
 import { AccessScreen } from './screens/AccessScreen';
 import { AnalyticsScreen } from './screens/AnalyticsScreen';
 import { AiScreen } from './screens/AiScreen';
-import { BottomNav, type TabId } from './components/BottomNav';
+import { BottomNav, type BottomNavTint, type TabId } from './components/BottomNav';
 import styles from './App.module.css';
+
+/** Тон таб-бара под фон экрана. Aurora-экраны — light, Mesh/Sunset — dark. */
+const TAB_TINT: Record<TabId, BottomNavTint> = {
+  home: 'light',
+  transactions: 'light',
+  analytics: 'dark',
+  ai: 'dark',
+  management: 'light',
+};
 
 export default function App() {
   const { user, loading, error, refetch } = useUser();
@@ -133,7 +142,13 @@ export default function App() {
             <ManagementScreen onNavigate={(screen) => setManagementView(screen)} />
           )}
         </div>
-        <BottomNav activeTab={activeTab} onTabChange={handleTabChange} />
+        {!managementView && (
+          <BottomNav
+            activeTab={activeTab}
+            onTabChange={handleTabChange}
+            tint={TAB_TINT[activeTab]}
+          />
+        )}
       </div>
     </div>
   );

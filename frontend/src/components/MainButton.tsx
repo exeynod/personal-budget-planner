@@ -38,6 +38,7 @@ export function MainButton({ text, enabled, onClick }: MainButtonProps) {
   }
 
   // Browser fallback (dev mode): sticky button at the bottom of the page.
+  // Liquid-Glass accent gradient CTA с heavy glow-shadow.
   return (
     <div style={{ padding: '16px 0 8px' }}>
       <button
@@ -47,16 +48,18 @@ export function MainButton({ text, enabled, onClick }: MainButtonProps) {
         style={{
           display: 'block',
           width: '100%',
-          height: 'var(--main-button-height, 54px)',
-          background: 'var(--color-primary)',
+          padding: '16px 0',
+          background: 'linear-gradient(180deg, var(--accent), color-mix(in srgb, var(--accent) 80%, #000 0%))',
           color: '#fff',
           border: 0,
-          borderRadius: 'var(--radius-md, 14px)',
+          borderRadius: 22,
           fontSize: 16,
-          fontWeight: 600,
+          fontWeight: 700,
+          letterSpacing: '-0.01em',
           cursor: enabled ? 'pointer' : 'not-allowed',
-          opacity: enabled ? 1 : 0.5,
-          boxShadow: '0 6px 18px rgba(78,164,255,0.35)',
+          opacity: enabled ? 1 : 0.4,
+          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.4), 0 12px 32px color-mix(in srgb, var(--accent) 40%, transparent)',
+          fontFamily: 'inherit',
         }}
       >
         {text}
