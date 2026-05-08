@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { archiveCategory, createCategory, updateCategory } from '../api/categories';
 import { useCategories, invalidateCategories } from '../hooks/useCategories';
 import type { CategoryKind, CategoryRead } from '../api/types';
+import { AuroraBg } from '../components/AuroraBg';
 import { CategoryRow } from '../components/CategoryRow';
 import { NewCategoryForm } from '../components/NewCategoryForm';
 import { ScreenHeader } from '../components/ScreenHeader';
@@ -77,7 +78,9 @@ export function CategoriesScreen({ onBack }: CategoriesScreenProps) {
   };
 
   return (
-    <div className={styles.root}>
+    <div className={styles.wrap}>
+      <AuroraBg />
+      <div className={styles.scroll}>
       <ScreenHeader
         title="Категории"
         onBack={onBack}
@@ -129,6 +132,7 @@ export function CategoriesScreen({ onBack }: CategoriesScreenProps) {
         />
         <span>Показать архивные</span>
       </label>
+      </div>
     </div>
   );
 }

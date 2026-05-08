@@ -1,11 +1,17 @@
 import { useMemo, useState } from 'react';
 import { useSubscriptions } from '../hooks/useSubscriptions';
 import { useSettings } from '../hooks/useSettings';
+import { AuroraBg } from '../components/AuroraBg';
+import { ScreenHeader } from '../components/ScreenHeader';
 import { SubscriptionEditor } from '../components/SubscriptionEditor';
 import { MainButton } from '../components/MainButton';
 import { formatKopecksWithCurrency } from '../utils/format';
 import { createSubscription, updateSubscription, deleteSubscription } from '../api/subscriptions';
-import type { SubscriptionRead, SubscriptionCreatePayload, SubscriptionUpdatePayload } from '../api/types';
+import type {
+  SubscriptionRead,
+  SubscriptionCreatePayload,
+  SubscriptionUpdatePayload,
+} from '../api/types';
 import styles from './SubscriptionsScreen.module.css';
 
 /**
@@ -24,7 +30,6 @@ function daysUntil(dateStr: string): number {
   const d = parseLocalDate(dateStr);
   return Math.round((d.getTime() - today.getTime()) / 86400000);
 }
-
 
 interface EditorState {
   mode: 'create' | 'edit';
@@ -57,12 +62,15 @@ export function SubscriptionsScreen({ onBack }: SubscriptionsScreenProps) {
     [subscriptions],
   );
 
-  const handleCreate = async (payload: SubscriptionCreatePayload | SubscriptionUpdatePayload) => {
+  const handleCreate = async (
+    payload: SubscriptionCreatePayload | SubscriptionUpdatePayload,
+  ) => {
     await mutate(() => createSubscription(payload as SubscriptionCreatePayload));
   };
 
   const handleUpdate =
-    (id: number) => async (payload: SubscriptionCreatePayload | SubscriptionUpdatePayload) => {
+    (id: number) =>
+    async (payload: SubscriptionCreatePayload | SubscriptionUpdatePayload) => {
       await mutate(() => updateSubscription(id, payload as SubscriptionUpdatePayload));
     };
 
@@ -73,89 +81,90 @@ export function SubscriptionsScreen({ onBack }: SubscriptionsScreenProps) {
   const defaultNotifyDays = settings?.notify_days_before ?? 2;
 
   return (
-    <div className={styles.screen}>
-      {/* Header */}
-      <header className={styles.header}>
-        {onBack && (
-          <button type="button" onClick={onBack} className={styles.backBtn} aria-label="Назад">
-            ←
-          </button>
-        )}
-        <div className={styles.headerTitle}>Подписки</div>
-      </header>
+    <div className={styles.wrap}>
+      <AuroraBg />
+      <div className={styles.scroll}>
+        <ScreenHeader
+          title="Подписки"
+          subtitle="Регулярные платежи"
+          onBack={onBack ?? (() => undefined)}
+        />
 
-      {/* Hero block */}
-      <div className={styles.hero}>
-        <div className={styles.heroTitle}>Сводка</div>
-        <div className={styles.heroStats}>
-          <div>
-            <span className={styles.stat}>{activeCount}</span>
-            <span className={styles.statLabel}>активных</span>
-          </div>
-          <div>
-            <span className={styles.stat}>{formatKopecksWithCurrency(monthlyLoad)}</span>
-            <span className={styles.statLabel}>в месяц</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Upcoming card */}
-      <div className={styles.sectionContent}>
-        <div className={styles.sectionTitle}>Ближайшие списания</div>
-        <Upcoming subscriptions={subscriptions} />
-      </div>
-
-      {/* Subscription list */}
-      <div className={styles.sectionContent}>
-        <div className={styles.sectionTitle}>
-          Все подписки ({subscriptions.length})
-        </div>
-
-        {loading && <div className={styles.empty}>Загрузка…</div>}
-
-        {!loading && subscriptions.length === 0 && (
-          <div className={styles.empty}>Подписок пока нет</div>
-        )}
-
-        {subscriptions.map((s) => {
-          const days = daysUntil(s.next_charge_date);
-          const pillLabel =
-            days < 0
-              ? 'просрочено'
-              : days === 0
-              ? 'сегодня'
-              : `через ${days} дн.`;
-
-          return (
-            <button
-              key={s.id}
-              className={styles.card}
-              onClick={() => setEditor({ mode: 'edit', sub: s })}
-              type="button"
-            >
-              <div className={styles.cardLeft}>
-                <div className={styles.cardName}>{s.name}</div>
-                <div className={styles.cardMeta}>
-                  <span className={styles.cycleBadge}>
-                    {s.cycle === 'monthly' ? 'мес' : 'год'}
-                  </span>
-                  <span className={styles.cardCat}>{s.category.name}</span>
+        {/* Hero block — total monthly + active count + split-bar */}
+        <div className={`glass-light ${styles.hero}`}>
+          <div className={styles.heroBody}>
+            <div className={styles.heroRow}>
+              <div>
+                <div className={styles.heroKicker}>в месяц</div>
+                <div className={styles.heroValue}>
+                  {formatKopecksWithCurrency(monthlyLoad)}
                 </div>
               </div>
-              <div className={styles.cardRight}>
-                <div className={styles.cardAmount}>{formatKopecksWithCurrency(s.amount_cents)}</div>
-                <div className={styles.pill}>{pillLabel}</div>
-              </div>
-            </button>
-          );
-        })}
-      </div>
+              <div className={styles.heroCount}>{activeCount} активных</div>
+            </div>
+            <SplitBar subscriptions={subscriptions.filter((s) => s.is_active)} />
+          </div>
+        </div>
 
-      <MainButton
-        text="+ Добавить подписку"
-        enabled={true}
-        onClick={() => setEditor({ mode: 'create' })}
-      />
+        {/* Upcoming card */}
+        <div className={styles.kicker}>Ближайшие списания</div>
+        <Upcoming subscriptions={subscriptions} />
+
+        {/* Subscription list */}
+        <div className={styles.kicker}>Все подписки · {subscriptions.length}</div>
+
+        {loading && <div className={styles.muted}>Загрузка…</div>}
+
+        {!loading && subscriptions.length === 0 && (
+          <div className={`glass-light ${styles.empty}`}>
+            <div className={styles.emptyText}>Подписок пока нет</div>
+          </div>
+        )}
+
+        {!loading && subscriptions.length > 0 && (
+          <div className={`glass-light ${styles.list}`}>
+            {subscriptions.map((s, idx) => {
+              const days = daysUntil(s.next_charge_date);
+              const pillLabel =
+                days < 0 ? 'просрочено' : days === 0 ? 'сегодня' : `через ${days} дн.`;
+              return (
+                <button
+                  key={s.id}
+                  type="button"
+                  className={`${styles.row} ${idx === 0 ? styles.first : ''} ${
+                    !s.is_active ? styles.inactive : ''
+                  }`}
+                  onClick={() => setEditor({ mode: 'edit', sub: s })}
+                >
+                  <div className={styles.logo}>
+                    {s.name.slice(0, 1).toUpperCase()}
+                  </div>
+                  <div className={styles.rowText}>
+                    <div className={styles.rowName}>{s.name}</div>
+                    <div className={styles.rowMeta}>
+                      <span className={styles.cycleBadge}>
+                        {s.cycle === 'monthly' ? 'мес' : 'год'}
+                      </span>
+                      <span>{s.category.name}</span>
+                      <span>·</span>
+                      <span>{pillLabel}</span>
+                    </div>
+                  </div>
+                  <div className={styles.rowAmount}>
+                    {formatKopecksWithCurrency(s.amount_cents)}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        <MainButton
+          text="+ Добавить подписку"
+          enabled={true}
+          onClick={() => setEditor({ mode: 'create' })}
+        />
+      </div>
 
       {editor && (
         <SubscriptionEditor
@@ -173,6 +182,29 @@ export function SubscriptionsScreen({ onBack }: SubscriptionsScreenProps) {
   );
 }
 
+/* Цветная split-bar над подписками — каждый сегмент пропорционален amt. */
+function SplitBar({ subscriptions }: { subscriptions: SubscriptionRead[] }) {
+  if (subscriptions.length === 0) return null;
+  // Детерминированно подбираем цвет: hash имени → одна из cat-палитр.
+  const palette = ['#F39A4C', '#E36B5A', '#B583E8', '#6CA6E8', '#E26F8E', '#F0C04A', '#7CC68F', '#9C8FE8'];
+  return (
+    <div className={styles.splitBar}>
+      {subscriptions.map((s) => {
+        let h = 0;
+        for (let i = 0; i < s.name.length; i++) h = (h * 31 + s.name.charCodeAt(i)) | 0;
+        const color = palette[Math.abs(h) % palette.length];
+        return (
+          <div
+            key={s.id}
+            className={styles.splitSeg}
+            style={{ flex: s.amount_cents, background: color }}
+          />
+        );
+      })}
+    </div>
+  );
+}
+
 const MONTH_SHORT = ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
 
 interface UpcomingProps {
@@ -180,11 +212,6 @@ interface UpcomingProps {
 }
 
 function Upcoming({ subscriptions }: UpcomingProps) {
-  // "Ближайшие списания" = next 3 active subscriptions by charge date,
-  // capped at a 30-day horizon so the block reflects what's coming up
-  // in the current planning window. notify_days_before is for push
-  // notifications, not the UI list — using it as a filter hid every
-  // subscription whose charge was further than 2 days away.
   const HORIZON_DAYS = 30;
   const items = [...subscriptions]
     .filter((s) => {
@@ -196,19 +223,28 @@ function Upcoming({ subscriptions }: UpcomingProps) {
     .slice(0, 3);
 
   if (items.length === 0) {
-    return <div className={styles.upcomingEmpty}>Нет предстоящих списаний</div>;
+    return (
+      <div className={`glass-light ${styles.upcomingEmpty}`}>
+        <div className={styles.upcomingEmptyText}>Нет предстоящих списаний</div>
+      </div>
+    );
   }
 
   return (
-    <div className={styles.upcomingList}>
-      {items.map((s) => {
+    <div className={`glass-light ${styles.upcomingList}`}>
+      {items.map((s, idx) => {
         const d = parseLocalDate(s.next_charge_date);
         const dateLabel = `${d.getDate()} ${MONTH_SHORT[d.getMonth()]}`;
         return (
-          <div key={s.id} className={styles.upcomingRow}>
+          <div
+            key={s.id}
+            className={`${styles.upcomingRow} ${idx === 0 ? styles.first : ''}`}
+          >
             <div className={styles.upcomingDate}>{dateLabel}</div>
             <div className={styles.upcomingName}>{s.name}</div>
-            <div className={styles.upcomingAmount}>{formatKopecksWithCurrency(s.amount_cents)}</div>
+            <div className={styles.upcomingAmount}>
+              {formatKopecksWithCurrency(s.amount_cents)}
+            </div>
           </div>
         );
       })}

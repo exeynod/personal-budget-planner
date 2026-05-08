@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { AuroraBg } from '../components/AuroraBg';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { SubTabBar, type SubTabItem } from '../components/SubTabBar';
 import { Fab } from '../components/Fab';
@@ -85,13 +86,17 @@ export function AccessScreen({ onBack }: AccessScreenProps) {
   };
 
   return (
-    <div className={styles.root}>
-      <ScreenHeader title="Доступ" onBack={onBack} />
+    <div className={styles.wrap}>
+      <AuroraBg />
+      <div className={styles.scroll}>
+      <ScreenHeader title="Доступ" subtitle="Whitelist и AI usage" onBack={onBack} />
       <div className={styles.tabsWrap}>
         <SubTabBar<AccessTab>
           active={activeTab}
           onChange={setActiveTab}
           tabs={TABS}
+          variant="accent"
+          tint="light"
         />
       </div>
 
@@ -145,6 +150,7 @@ export function AccessScreen({ onBack }: AccessScreenProps) {
           )}
         </div>
       )}
+      </div>
     </div>
   );
 }

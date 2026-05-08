@@ -3,6 +3,7 @@ import { getSettings, updateSettings } from '../api/settings';
 import { Stepper } from '../components/Stepper';
 import { MainButton } from '../components/MainButton';
 import { ScreenHeader } from '../components/ScreenHeader';
+import { AuroraBg } from '../components/AuroraBg';
 import { useUser } from '../hooks/useUser';
 import styles from './SettingsScreen.module.css';
 
@@ -108,7 +109,9 @@ export function SettingsScreen({ onBack }: SettingsScreenProps) {
   }, [dirty, draft, notifyDays, enableAiCat, saving]);
 
   return (
-    <div className={styles.root}>
+    <div className={styles.wrap}>
+      <AuroraBg />
+      <div className={styles.scroll}>
       <ScreenHeader title="Настройки" onBack={onBack} />
 
       {loading && <div className={styles.muted}>Загрузка…</div>}
@@ -196,6 +199,7 @@ export function SettingsScreen({ onBack }: SettingsScreenProps) {
         enabled={dirty && !saving}
         onClick={handleSave}
       />
+      </div>
     </div>
   );
 }

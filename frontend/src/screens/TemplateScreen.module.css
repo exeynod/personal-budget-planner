@@ -1,83 +1,68 @@
-.root {
-  composes: scrollable from '../styles/screen.module.css';
-  padding: var(--space-4) var(--space-4) var(--space-4);
-  background: var(--color-bg);
-  color: var(--color-text);
+/* TemplateScreen — Liquid Glass Aurora.
+   Source: more-screens.jsx TemplateScreen. */
+
+.wrap {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.scroll {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+  padding: 16px 16px 130px;
+  color: var(--ink);
   font-family: var(--font-sans);
 }
 
-.header {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  margin-bottom: var(--space-4);
+.scroll::-webkit-scrollbar { display: none; }
+
+.addBtn {
+  background: linear-gradient(180deg, var(--accent), color-mix(in srgb, var(--accent) 80%, #000 0%));
+  color: #fff;
+  border: 0;
+  border-radius: 12px;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.4),
+    0 4px 12px color-mix(in srgb, var(--accent) 33%, transparent);
 }
 
-.backBtn,
-.addBtn {
-  background: transparent;
-  color: var(--color-primary);
-  border: 0;
-  font-size: var(--text-md);
-  cursor: pointer;
-  padding: 4px 8px;
-  font-family: inherit;
-}
 .addBtn:disabled {
   opacity: 0.4;
   cursor: not-allowed;
 }
 
-.title {
-  font-size: var(--text-lg);
-  font-weight: var(--weight-semibold);
-  flex: 1;
-  text-align: center;
-}
-
 .muted {
-  color: var(--color-text-muted);
-  padding: var(--space-3);
+  color: var(--ink-2);
+  padding: 16px;
+  text-align: center;
+  font-size: 13px;
 }
 
 .error {
-  color: var(--color-danger);
-  background: var(--color-danger-soft);
-  padding: var(--space-3);
-  border-radius: var(--radius-md);
-  margin-bottom: var(--space-3);
+  color: var(--danger);
+  background: var(--danger-soft);
+  padding: 12px;
+  border-radius: 14px;
+  margin-bottom: 12px;
+  font-size: 13px;
 }
 
 .empty {
-  color: var(--color-text-dim);
+  color: var(--ink-2);
   text-align: center;
-  padding: var(--space-8);
-}
-
-
-.categoryGroup {
-  margin-bottom: var(--space-4);
-}
-
-.categoryTitle {
-  font-size: var(--text-base);
-  font-weight: var(--weight-medium);
-  color: var(--color-text);
-  margin: var(--space-2) 0 var(--space-2);
-}
-
-.addInGroup {
-  background: transparent;
-  color: var(--color-primary);
-  border: 1px dashed var(--color-border);
-  border-radius: var(--radius-md);
-  padding: 8px 12px;
-  font-size: var(--text-sm);
-  cursor: pointer;
-  width: 100%;
-  text-align: left;
-  font-family: inherit;
-}
-.addInGroup:hover {
-  background: var(--color-primary-soft);
+  padding: 32px 16px;
+  font-size: 14px;
 }

@@ -1,26 +1,32 @@
+/* UsersList — Liquid Glass Aurora list (на AccessScreen). */
+
 .list {
   list-style: none;
   padding: 0;
   margin: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: 8px;
 }
 
 .row {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-3);
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
+  gap: 12px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.55);
+  backdrop-filter: blur(14px) saturate(140%);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  border-radius: 14px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.6),
+    inset 0 0 0 0.5px rgba(0, 0, 0, 0.04);
 }
 
 .iconWrap {
   flex-shrink: 0;
-  width: 32px;
-  height: 32px;
+  width: 40px;
+  height: 40px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -30,108 +36,99 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
-  background: var(--color-surface-2);
-  color: var(--color-text-muted);
-  border-radius: var(--radius-full);
-  font-size: var(--text-xs);
-  font-family: var(--font-mono);
+  width: 40px;
+  height: 40px;
+  background: linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent) 60%, #000 0%));
+  color: #fff;
+  border-radius: 50%;
+  font-size: 14px;
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4);
 }
 
-.body {
-  flex: 1;
-  min-width: 0;
-}
+.body { flex: 1; min-width: 0; }
 
 .nameLine {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: 8px;
   flex-wrap: wrap;
 }
 
 .name {
-  font-size: var(--text-base);
-  font-weight: var(--weight-medium);
-  color: var(--color-text);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
   font-variant-numeric: tabular-nums;
 }
 
 .badge {
-  font-size: var(--text-xs);
-  padding: 2px var(--space-2);
-  border-radius: var(--radius-full);
-  background: var(--color-surface-2);
-  color: var(--color-text-muted);
+  font-size: 10px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.05);
+  color: var(--ink-2);
   text-transform: lowercase;
-  font-weight: var(--weight-medium);
+  font-weight: 600;
 }
 
 .badgeOwner {
-  background: rgba(255, 209, 102, 0.14);
-  color: var(--color-accent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--accent);
+  box-shadow: inset 0 0 0 0.5px color-mix(in srgb, var(--accent) 30%, transparent);
 }
 
 .badgeRevoked {
-  background: var(--color-danger-soft);
-  color: var(--color-danger);
+  background: var(--danger-soft);
+  color: var(--danger);
+  box-shadow: inset 0 0 0 0.5px color-mix(in srgb, var(--danger) 30%, transparent);
 }
 
 .subLine {
-  font-size: var(--text-xs);
-  color: var(--color-text-muted);
+  font-size: 11px;
+  color: var(--ink-2);
   margin-top: 2px;
 }
 
 .capBtn {
-  background: transparent;
-  border: 1px solid var(--color-border);
-  color: var(--color-text);
-  padding: 4px 10px;
-  border-radius: var(--radius-sm);
-  font-size: var(--text-xs);
-  font-weight: var(--weight-medium);
+  background: rgba(255, 255, 255, 0.6);
+  border: 0;
+  color: var(--ink);
+  padding: 6px 10px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
   cursor: pointer;
+  font-family: inherit;
   -webkit-tap-highlight-color: transparent;
-  transition: background-color 100ms;
+  box-shadow: inset 0 0 0 0.5px rgba(0, 0, 0, 0.06);
 }
 
-.capBtn:hover {
-  background: var(--color-bg-elevated);
-}
-
-.capBtn:active {
-  opacity: 0.7;
-}
+.capBtn:hover { background: rgba(255, 255, 255, 0.8); }
+.capBtn:active { opacity: 0.7; }
 
 .revokeBtn {
   background: transparent;
   border: 0;
-  padding: var(--space-2);
-  color: var(--color-danger);
+  padding: 8px;
+  color: var(--danger);
   cursor: pointer;
-  border-radius: var(--radius-sm);
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
   -webkit-tap-highlight-color: transparent;
-  transition: background-color 100ms;
+  transition: background 0.15s;
 }
 
-.revokeBtn:hover {
-  background: var(--color-danger-soft);
-}
-
-.revokeBtn:active {
-  opacity: 0.7;
-}
+.revokeBtn:hover { background: var(--danger-soft); }
+.revokeBtn:active { opacity: 0.7; }
 
 .empty {
-  color: var(--color-text-muted);
-  font-size: var(--text-sm);
-  padding: var(--space-5) var(--space-4);
+  color: var(--ink-2);
+  font-size: 13px;
+  padding: 24px;
   text-align: center;
   margin: 0;
 }

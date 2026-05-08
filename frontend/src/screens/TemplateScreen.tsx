@@ -16,6 +16,7 @@ import {
   type TransactionEditorSavePayload,
 } from '../components/TransactionEditor';
 import { ScreenHeader } from '../components/ScreenHeader';
+import { AuroraBg } from '../components/AuroraBg';
 import styles from './TemplateScreen.module.css';
 
 export interface TemplateScreenProps {
@@ -139,7 +140,9 @@ export function TemplateScreen({ onBack }: TemplateScreenProps) {
   const loadError = tplError ?? catError;
 
   return (
-    <div className={styles.root}>
+    <div className={styles.wrap}>
+      <AuroraBg />
+      <div className={styles.scroll}>
       <ScreenHeader
         title="Шаблон плана"
         onBack={onBack}
@@ -221,6 +224,7 @@ export function TemplateScreen({ onBack }: TemplateScreenProps) {
           aiEnabled={settings?.enable_ai_categorization ?? false}
         />
       </BottomSheet>
+      </div>
     </div>
   );
 }
