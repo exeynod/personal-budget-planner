@@ -1,98 +1,33 @@
 #!/usr/bin/env bash
-# VPS-side deploy script for personal-budget-planner.
+# VPS-side deploy WRAPPER — kept deliberately minimal.
 #
-# Invoked over SSH by .github/workflows/deploy.yml — the github-deploy key in
-# ~/.ssh/authorized_keys is force-commanded to this script (`command="..."`),
-# so the SSH session can run nothing else regardless of what CI sends.
+# This script is the SSH force-command target in ~/.ssh/authorized_keys
+# (`command="/home/exy/personal-budget-planner/deploy.sh"`). It changes as
+# rarely as possible — typically never — because any change to it has a
+# bootstrap problem: the running process can't pick up its own update mid-run,
+# so a stale wrapper would have to be replaced manually before the new logic
+# could take effect.
 #
-# Sequence:
-#   0. consume optional .env payload from stdin (CI sends one assembled from
-#      GitHub Secrets — manual ops can run this script without piping anything
-#      and it keeps the existing .env)
-#   1. fetch + reset hard to origin/master (no merge conflicts on dirty tree)
-#   2. build api/bot/worker images
-#   3. up -d to recreate them
-#   4. wait until api healthcheck reports `healthy` (alembic migrations run
-#      in entrypoint.sh, can take a few seconds)
-#   5. smoke-test public endpoints — fail deploy if Caddy 403 / SPA / 500 wrong
+# To dodge that, *all* deploy logic lives in deploy_inner.sh. This wrapper
+# does exactly two things:
+#   1. fetch + reset hard to origin/master (so deploy_inner.sh on disk is
+#      always the version pinned by the commit being deployed)
+#   2. exec deploy_inner.sh, replacing the current process and inheriting
+#      stdin/stdout/stderr verbatim — so the .env payload CI pipes in
+#      reaches deploy_inner.sh untouched.
 #
-# Failures bubble out (set -e); CI workflow surfaces them.
+# That means when the CI workflow changes deploy_inner.sh, the very next
+# `ssh deploy` call picks up the new logic on the *first* run with no
+# manual VPS intervention.
 set -euo pipefail
 
 REPO=/home/exy/personal-budget-planner
-COMPOSE=(docker compose -f "$REPO/docker-compose.yml" -f "$REPO/docker-compose.cloudflare.yml")
-LOG_PREFIX="[deploy $(date -u +%FT%TZ)]"
-
-log() { echo "$LOG_PREFIX $*"; }
-die() { echo "$LOG_PREFIX FATAL: $*" >&2; exit 1; }
-
 cd "$REPO"
 
-# .env rotation — optional stdin payload from CI. When CI assembles a fresh
-# .env from GitHub Secrets it pipes it into this script via SSH stdin. We
-# write the new file atomically *before* the build/up steps so docker
-# compose interpolation (DATABASE_URL, OPENAI_API_KEY, …) sees the new
-# values. Empty / no-tty stdin keeps the existing .env untouched, which is
-# what manual `workflow_dispatch` re-deploys and direct `ssh ... deploy`
-# invocations from the operator want.
-if [ ! -t 0 ]; then
-    ENV_PAYLOAD=$(cat || true)
-    if [ -n "${ENV_PAYLOAD:-}" ]; then
-        TS=$(date -u +%FT%H%M%SZ)
-        if [ -f .env ]; then
-            cp -p .env ".env.old.$TS"
-            log "archived current .env → .env.old.$TS"
-        fi
-        umask 077
-        printf '%s\n' "$ENV_PAYLOAD" > .env.new
-        mv .env.new .env
-        log "wrote new .env from CI payload ($(wc -l < .env) lines)"
-
-        # Keep only the 5 most recent .env.old.* archives so the working
-        # tree doesn't accumulate years of rotated secrets on every deploy.
-        ls -1t .env.old.* 2>/dev/null | tail -n +6 | xargs -r rm --
-    fi
-fi
-
-log "fetching origin/master"
+echo "[deploy-wrapper $(date -u +%FT%TZ)] fetching origin/master"
 git fetch --quiet origin master
 git reset --hard origin/master
-SHA=$(git rev-parse --short HEAD)
-log "now at $SHA: $(git log -1 --format=%s)"
 
-log "building images (api, bot, worker)"
-"${COMPOSE[@]}" build api bot worker
-
-log "rolling restart"
-"${COMPOSE[@]}" up -d api bot worker
-
-log "waiting for api health (max 90s)"
-for i in $(seq 1 45); do
-    state=$(docker inspect personal-budget-planner-api-1 --format '{{.State.Health.Status}}' 2>/dev/null || echo missing)
-    if [ "$state" = "healthy" ]; then
-        log "api healthy after ${i}×2s"
-        break
-    fi
-    if [ "$i" -eq 45 ]; then
-        log "api last 30 log lines:"
-        "${COMPOSE[@]}" logs --tail 30 api >&2
-        die "api never reached healthy state"
-    fi
-    sleep 2
-done
-
-log "smoke tests via Caddy on 127.0.0.1:8087"
-check() {
-    local path="$1" expected="$2"
-    local actual
-    actual=$(curl -sS -o /dev/null -w '%{http_code}' "http://127.0.0.1:8087$path")
-    if [ "$actual" != "$expected" ]; then
-        die "$path expected $expected, got $actual"
-    fi
-    log "  $path → $actual ✓"
-}
-check / 200
-check /api/v1/internal/health 403   # blocked by Caddy handle{}
-check /api/v1/me 403                # FastAPI rejects no initData
-
-log "deploy of $SHA done"
+echo "[deploy-wrapper $(date -u +%FT%TZ)] handing off to deploy_inner.sh ($(git rev-parse --short HEAD))"
+chmod +x ./deploy_inner.sh
+exec ./deploy_inner.sh

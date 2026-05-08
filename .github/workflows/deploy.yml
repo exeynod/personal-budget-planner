@@ -121,9 +121,33 @@ jobs:
           EOF
           )
 
-          printf '%s' "$ENV_PAYLOAD" | ssh -p "$SSH_PORT" -i ~/.ssh/id_ed25519 \
-              -o StrictHostKeyChecking=yes \
-              -o BatchMode=yes \
-              -o ConnectTimeout=15 \
-              "$SSH_USER@$SSH_HOST" \
-              deploy
+          do_ssh() {
+              printf '%s' "$ENV_PAYLOAD" | ssh -p "$SSH_PORT" -i ~/.ssh/id_ed25519 \
+                  -o StrictHostKeyChecking=yes \
+                  -o BatchMode=yes \
+                  -o ConnectTimeout=15 \
+                  -o ServerAliveInterval=15 \
+                  "$SSH_USER@$SSH_HOST" \
+                  deploy
+          }
+
+          # Self-healing two-pass deploy. After the first push of the
+          # wrapper-pattern deploy.sh, the VPS still has the old monolithic
+          # deploy.sh as the SSH force-command target. That old script
+          # ignores stdin, runs `git fetch + reset --hard` (which now lands
+          # the new deploy.sh + deploy_inner.sh on disk for next time), and
+          # then proceeds with `compose build/up` against the stale .env —
+          # so the migration fails. We catch that one-time failure and
+          # retry: the second SSH connection invokes the freshly-installed
+          # wrapper, which exec's deploy_inner.sh, which finally reads our
+          # piped .env payload and brings the stack up cleanly.
+          #
+          # Steady state (wrapper already on VPS): pass 1 succeeds and
+          # pass 2 is never attempted. No extra latency on normal deploys.
+          if do_ssh; then
+              echo "deploy succeeded on first pass"
+          else
+              echo "first pass failed (likely stale wrapper bootstrap); retrying once with the freshly-deployed wrapper..."
+              sleep 3
+              do_ssh
+          fi
