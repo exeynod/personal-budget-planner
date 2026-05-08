@@ -117,9 +117,14 @@ async def test_user_role_enum_type_exists(db_session):
 
 
 async def test_category_unique_scoped_per_user(db_session):
-    """MUL-04: scoped unique constraint exists; old global unique НЕ существует."""
-    expected_scoped = {
-        "uq_category_user_id_name",
+    """MUL-04 + 0010: scoped uniqueness exists.
+
+    subscription / budget_period — full UNIQUE constraint.
+    category — partial unique index `WHERE NOT is_archived` (alembic 0010
+    replaced the original UNIQUE constraint, so it lives in pg_indexes,
+    not pg_constraint).
+    """
+    expected_scoped_constraints = {
         "uq_subscription_user_id_name",
         "uq_budget_period_user_id_period_start",
     }
@@ -135,8 +140,34 @@ async def test_category_unique_scoped_per_user(db_session):
     ).all()
     constraint_names = {row[0] for row in rows}
 
-    missing = expected_scoped - constraint_names
-    assert not missing, f"Missing scoped uniques: {missing}; have {constraint_names}"
+    missing = expected_scoped_constraints - constraint_names
+    assert not missing, (
+        f"Missing scoped uniques: {missing}; have {constraint_names}"
+    )
+
+    # 0010: category unique scope is now a partial index (excludes archived).
+    # The old plain UNIQUE constraint must be gone.
+    assert "uq_category_user_id_name" not in constraint_names, (
+        "uq_category_user_id_name should be a partial unique index, "
+        "not a plain UNIQUE constraint (alembic 0010)"
+    )
+    idx_rows = (
+        await db_session.execute(
+            text(
+                "SELECT indexname, indexdef FROM pg_indexes "
+                "WHERE tablename = 'category' "
+                "AND indexname = 'uq_category_user_id_name'"
+            )
+        )
+    ).all()
+    assert len(idx_rows) == 1, (
+        "Expected partial unique index uq_category_user_id_name on category"
+    )
+    indexdef = idx_rows[0][1]
+    assert "UNIQUE" in indexdef.upper(), f"Index not UNIQUE: {indexdef}"
+    assert "is_archived" in indexdef.lower(), (
+        f"Index missing partial filter on is_archived: {indexdef}"
+    )
 
     # Старый глобальный unique uq_budget_period_period_start не должен
     # существовать (drop'нут в alembic 0006).
@@ -146,3 +177,60 @@ async def test_category_unique_scoped_per_user(db_session):
     assert "uq_budget_period_start" not in constraint_names, (
         "Old global unique uq_budget_period_start should be dropped"
     )
+
+
+async def test_category_archived_does_not_block_active_same_name(db_session):
+    """0010 regression: archived category must not block creating an active
+    category with the same name under the same user. This was the latent bug
+    that bit prod 2026-05-08 — soft-deleted 'Прочее' (id=12) collided with
+    re-created active 'Прочее' (id=22) when alembic 0006 added the plain
+    UNIQUE(user_id, name) constraint. Replaced with partial unique index
+    `WHERE NOT is_archived` in 0010.
+    """
+    owner_tg_id = int(os.environ.get("OWNER_TG_ID", "123456789"))
+    await db_session.execute(text("SET LOCAL row_security = off"))
+
+    owner_id = (
+        await db_session.execute(
+            text("SELECT id FROM app_user WHERE tg_user_id = :tg"),
+            {"tg": owner_tg_id},
+        )
+    ).scalar_one_or_none()
+    if owner_id is None:
+        pytest.skip("OWNER юзер не существует — dev_seed не сработал?")
+
+    sentinel = "__partial_uq_regression__"
+    insert_sql = text(
+        "INSERT INTO category (name, kind, is_archived, sort_order, user_id) "
+        "VALUES (:name, 'expense', :archived, 0, :uid)"
+    )
+    cleanup_sql = text("DELETE FROM category WHERE name = :name")
+
+    try:
+        await db_session.execute(
+            cleanup_sql, {"name": sentinel}
+        )
+        # Archived row first.
+        await db_session.execute(
+            insert_sql,
+            {"name": sentinel, "archived": True, "uid": owner_id},
+        )
+        # Active row with same name — should succeed under partial unique index.
+        await db_session.execute(
+            insert_sql,
+            {"name": sentinel, "archived": False, "uid": owner_id},
+        )
+        await db_session.flush()
+
+        # Two active rows must still collide.
+        with pytest.raises(Exception):
+            await db_session.execute(
+                insert_sql,
+                {"name": sentinel, "archived": False, "uid": owner_id},
+            )
+            await db_session.flush()
+    finally:
+        await db_session.rollback()
+        await db_session.execute(text("SET LOCAL row_security = off"))
+        await db_session.execute(cleanup_sql, {"name": sentinel})
+        await db_session.commit()

@@ -29,6 +29,7 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    text,
 )
 from sqlalchemy.dialects.postgresql import ENUM as PgEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -141,7 +142,13 @@ class Category(Base):
     )
 
     __table_args__ = (
-        UniqueConstraint("user_id", "name", name="uq_category_user_id_name"),
+        Index(
+            "uq_category_user_id_name",
+            "user_id",
+            "name",
+            unique=True,
+            postgresql_where=text("NOT is_archived"),
+        ),
     )
 
 
