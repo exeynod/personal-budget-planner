@@ -83,7 +83,7 @@ export function AiProposalSheet({
   return (
     <BottomSheet open={true} onClose={onClose} title={title}>
       {loadError && (
-        <p style={{ color: 'var(--color-danger, #ef4444)' }}>
+        <p style={{ color: 'var(--danger, #D8404B)' }}>
           Не удалось загрузить данные: {loadError}
         </p>
       )}

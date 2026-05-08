@@ -1,17 +1,17 @@
 /**
  * AI Assistant экран — conversational chat с tool-use (AI-01..AI-04).
  *
- * - PageTitle "Budget AI" + Sparkle аватар (AI-01)
- * - 4 suggestion chips при пустой истории (AI-02)
+ * - Liquid Glass MeshDark layout с floating accent send-кнопкой
+ * - Empty state: orb hero + 4 suggestion chips (glass-dark)
  * - Streaming token-by-token через useAiConversation (AI-03)
  * - ToolUseIndicator во время вызова tool (AI-04)
  * - Auto-scroll при каждом токене
  * - Кнопка очистки истории
  */
 import { useEffect, useRef, useState } from 'react';
-import { Sparkle, Trash } from '@phosphor-icons/react';
+import { Sparkle, Trash, CaretRight, PaperPlaneRight } from '@phosphor-icons/react';
 import { ChatMessage } from '../components/ChatMessage';
-import { PageTitle } from '../components/PageTitle';
+import { MeshDarkBg } from '../components/MeshDarkBg';
 import { ToolUseIndicator } from '../components/ToolUseIndicator';
 import { AiProposalSheet } from '../components/AiProposalSheet';
 import { useCategories } from '../hooks/useCategories';
@@ -57,8 +57,6 @@ export function AiScreen({
   }, [messages, streamingText, toolName]);
 
   const autoGrow = (ta: HTMLTextAreaElement) => {
-    // Reset height before measuring scrollHeight, иначе textarea не
-    // умеет уменьшаться при стирании текста.
     ta.style.height = 'auto';
     ta.style.height = `${ta.scrollHeight}px`;
   };
@@ -105,89 +103,107 @@ export function AiScreen({
       : null;
 
   return (
-    <div className={styles.root}>
-      {/* Header */}
-      <div className={styles.header}>
-        <PageTitle title="Budget AI" />
-        {messages.length > 0 && (
-          <button
-            className={styles.clearBtn}
-            onClick={handleClear}
-            disabled={streaming}
-            aria-label="Очистить историю"
-          >
-            <Trash size={20} weight="regular" />
-          </button>
-        )}
-      </div>
-
-      {/* Messages area */}
-      <div className={`${styles.messages} ${isEmpty ? styles.messagesEmpty : ''}`}>
-        {/* Empty state с suggestion chips */}
-        {isEmpty && (
-          <div className={styles.emptyState}>
-            <Sparkle size={48} weight="thin" color="#a78bfa" />
-            <div className={styles.emptyHeading}>Задай вопрос о своём бюджете</div>
-            <div className={styles.chips}>
-              {SUGGESTION_CHIPS.map((chip) => (
-                <button
-                  key={chip}
-                  className={styles.chip}
-                  onClick={() => handleChipClick(chip)}
-                >
-                  {chip}
-                </button>
-              ))}
+    <div className={styles.wrap}>
+      <MeshDarkBg />
+      <div className={styles.scroll}>
+        {/* Header */}
+        <div className={styles.header}>
+          <div className={styles.headerLeft}>
+            <h2 className={styles.headerTitle}>AI помощник</h2>
+            <div className={styles.statusRow}>
+              <span className={styles.statusDot} />
+              онлайн · знает план и историю
             </div>
           </div>
-        )}
+          {messages.length > 0 && (
+            <button
+              type="button"
+              className={styles.clearBtn}
+              onClick={handleClear}
+              disabled={streaming}
+              aria-label="Очистить историю"
+            >
+              <Trash size={16} weight="regular" />
+            </button>
+          )}
+        </div>
 
-        {/* История сообщений. Defence-in-depth: backend уже фильтрует
-            tool/empty assistant в /ai/history, но и тут отрезаем на случай
-            десинхронизации схем — иначе пустой content рисуется как
-            «пустой bubble» рядом с реальным сообщением. */}
-        {messages
-          .filter(
-            (msg) =>
-              (msg.role === 'user' || msg.role === 'assistant') &&
-              (msg.content ?? '').trim() !== '',
-          )
-          .map((msg) => (
-            <ChatMessage key={msg.id} message={msg} />
-          ))}
+        {/* Messages area */}
+        <div className={styles.messages}>
+          {isEmpty && (
+            <div className={styles.empty}>
+              <div className={styles.orbWrap}>
+                <div className={styles.orbGlow} />
+                <div className={styles.orbCore}>
+                  <Sparkle size={38} weight="fill" color="#fff" />
+                </div>
+              </div>
+              <h3 className={styles.emptyHeading}>Спроси что угодно</h3>
+              <p className={styles.emptyHint}>
+                Я отвечу из твоих данных или предложу записать новую трату
+              </p>
+              <div className={styles.chips}>
+                {SUGGESTION_CHIPS.map((chip) => (
+                  <button
+                    key={chip}
+                    type="button"
+                    className={styles.chip}
+                    onClick={() => handleChipClick(chip)}
+                    disabled={streaming}
+                  >
+                    <div className={`glass-dark ${styles.chipInner}`}>
+                      <span className={styles.chipText}>{chip}</span>
+                      <span className={styles.chipChev}>
+                        <CaretRight size={14} weight="bold" />
+                      </span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
-        {/* Tool indicator — между user msg и AI response */}
-        {streaming && toolName && (
-          <ToolUseIndicator toolName={toolName} />
-        )}
+          {/* История сообщений. Defence-in-depth: backend уже фильтрует
+              tool/empty assistant в /ai/history, но и тут отрезаем на случай
+              десинхронизации схем. */}
+          {messages
+            .filter(
+              (msg) =>
+                (msg.role === 'user' || msg.role === 'assistant') &&
+                (msg.content ?? '').trim() !== '',
+            )
+            .map((msg) => (
+              <ChatMessage key={msg.id} message={msg} />
+            ))}
 
-        {/* Streaming ответ AI token-by-token */}
-        {streamingMessage && (
-          <ChatMessage message={streamingMessage} isStreaming={true} />
-        )}
+          {/* Tool indicator — между user msg и AI response */}
+          {streaming && toolName && (
+            <ToolUseIndicator toolName={toolName} />
+          )}
 
-        {/* Индикатор загрузки если streaming без токенов ещё */}
-        {streaming && !streamingText && !toolName && (
-          <div className={styles.thinking}>
-            <span className={styles.dot} />
-            <span className={styles.dot} />
-            <span className={styles.dot} />
-          </div>
-        )}
+          {/* Streaming ответ AI token-by-token */}
+          {streamingMessage && (
+            <ChatMessage message={streamingMessage} isStreaming={true} />
+          )}
 
-        {/* Error state */}
-        {error && !streaming && (
-          <div className={styles.error}>
-            Ошибка: {error}
-          </div>
-        )}
+          {/* Индикатор «думаю» если streaming без токенов */}
+          {streaming && !streamingText && !toolName && (
+            <ToolUseIndicator toolName={null} />
+          )}
 
-        {/* Anchor для auto-scroll */}
-        <div ref={bottomRef} />
+          {/* Error state */}
+          {error && !streaming && (
+            <div className={styles.error}>
+              Ошибка: {error}
+            </div>
+          )}
+
+          <div ref={bottomRef} />
+        </div>
       </div>
 
-      {/* Input bar */}
-      <div className={styles.inputBar}>
+      {/* Floating input bar над таб-баром */}
+      <div className={`glass-dark--high ${styles.inputBar}`}>
         <textarea
           ref={inputRef}
           className={styles.input}
@@ -197,23 +213,22 @@ export function AiScreen({
             autoGrow(e.target);
           }}
           onKeyDown={handleKeyDown}
-          placeholder="Спроси о бюджете..."
+          placeholder="Спроси о бюджете…"
           rows={1}
           disabled={streaming}
         />
         <button
+          type="button"
           className={styles.sendBtn}
           onClick={handleSend}
           disabled={streaming || !input.trim()}
           aria-label="Отправить"
         >
-          <Sparkle size={20} weight="fill" color={streaming || !input.trim() ? '#999' : '#a78bfa'} />
+          <PaperPlaneRight size={18} weight="fill" color="#fff" />
         </button>
       </div>
 
-      {/* AI proposal review sheet — opens when SSE delivered a propose event.
-          Categories + periods come from screen-level prefetch so the sheet
-          renders immediately without its own loading round-trip. */}
+      {/* AI proposal review sheet */}
       <AiProposalSheet
         proposal={proposal}
         onClose={dismissProposal}
