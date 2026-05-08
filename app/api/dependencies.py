@@ -54,12 +54,21 @@ async def _dev_mode_resolve_owner(db: AsyncSession) -> AppUser:
 
     Reads settings.OWNER_TG_ID once for dev convenience — NOT a production
     auth check. This helper is called ONLY when settings.DEV_MODE is True.
+
+    Always upgrades an existing row's role to owner (ON CONFLICT DO UPDATE).
+    Test fixtures sometimes leave an OWNER_TG_ID row with role=member from
+    a prior /me probe before seeding completes; ON CONFLICT DO NOTHING
+    would silently leave that stale role in place and break dev_seed +
+    onboarding flows that rely on the OWNER privilege.
     """
     tg_user_id = settings.OWNER_TG_ID
     stmt = (
         pg_insert(AppUser)
         .values(tg_user_id=tg_user_id, role=UserRole.owner)
-        .on_conflict_do_nothing(index_elements=["tg_user_id"])
+        .on_conflict_do_update(
+            index_elements=["tg_user_id"],
+            set_={"role": UserRole.owner},
+        )
     )
     await db.execute(stmt)
     user = await _resolve_app_user(db, tg_user_id)

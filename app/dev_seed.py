@@ -42,7 +42,7 @@ from app.db.models import (
     PeriodStatus,
     UserRole,
 )
-from app.db.session import AsyncSessionLocal
+from app.db.session import AsyncSessionLocal, set_tenant_scope
 
 logger = structlog.get_logger(__name__)
 
@@ -116,6 +116,14 @@ async def seed_dev_data(owner_tg_id: int) -> None:
                 if user.role != UserRole.owner:
                     user.role = UserRole.owner
 
+            # Phase 11 multi-tenancy: domain tables (category, budget_period,
+            # actual_transaction) carry NOT NULL user_id + RLS policies.
+            # Without app.current_user_id GUC, INSERTs from the budget_app role
+            # are blocked with "new row violates row-level security policy".
+            # Set scope once per session — covers every domain INSERT below.
+            user_pk = user.id
+            await set_tenant_scope(session, user_pk)
+
             # 2. Active period — create one if none exists.
             today = date.today()
             period_start = today.replace(day=1)
@@ -133,6 +141,7 @@ async def seed_dev_data(owner_tg_id: int) -> None:
                 await session.execute(
                     select(BudgetPeriod)
                     .where(BudgetPeriod.status == PeriodStatus.active)
+                    .where(BudgetPeriod.user_id == user_pk)
                     .limit(1)
                 )
             ).scalar_one_or_none()
@@ -142,6 +151,7 @@ async def seed_dev_data(owner_tg_id: int) -> None:
                     period_end=period_end,
                     starting_balance_cents=10_000_000,
                     status=PeriodStatus.active,
+                    user_id=user_pk,
                 )
                 session.add(period)
                 await session.flush()
@@ -149,10 +159,12 @@ async def seed_dev_data(owner_tg_id: int) -> None:
             else:
                 period_start = period.period_start
 
-            # 3. Categories — insert only missing names.
+            # 3. Categories — insert only missing names (scoped to this user).
             existing_names = {
                 row[0] for row in (
-                    await session.execute(select(Category.name))
+                    await session.execute(
+                        select(Category.name).where(Category.user_id == user_pk)
+                    )
                 ).all()
             }
             cats_by_name: dict[str, Category] = {}
@@ -163,15 +175,18 @@ async def seed_dev_data(owner_tg_id: int) -> None:
                     name=name,
                     kind=CategoryKind(kind),
                     sort_order=sort_order,
+                    user_id=user_pk,
                 )
                 session.add(cat)
                 cats_by_name[name] = cat
                 inserted["category"] += 1
             await session.flush()
-            # Re-fetch lookup including pre-existing rows.
+            # Re-fetch lookup including pre-existing rows (scoped to user).
             for row in (
                 await session.execute(
-                    select(Category).where(Category.is_archived.is_(False))
+                    select(Category)
+                    .where(Category.is_archived.is_(False))
+                    .where(Category.user_id == user_pk)
                 )
             ).scalars():
                 cats_by_name.setdefault(row.name, row)
@@ -201,6 +216,7 @@ async def seed_dev_data(owner_tg_id: int) -> None:
                             category_id=cat.id,
                             tx_date=tx_date,
                             source=ActualSource.mini_app,
+                            user_id=user_pk,
                         )
                     )
                     inserted["actual_tx"] += 1
@@ -215,6 +231,7 @@ async def seed_dev_data(owner_tg_id: int) -> None:
                             category_id=salary_cat.id,
                             tx_date=period_start,
                             source=ActualSource.mini_app,
+                            user_id=user_pk,
                         )
                     )
                     inserted["actual_tx"] += 1
