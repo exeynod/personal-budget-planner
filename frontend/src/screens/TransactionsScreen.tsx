@@ -1,7 +1,9 @@
 import { useMemo, useRef, useState } from 'react';
+import { AuroraBg } from '../components/AuroraBg';
 import { SubTabBar } from '../components/SubTabBar';
 import { Fab } from '../components/Fab';
 import { useCategories } from '../hooks/useCategories';
+import { useCurrentPeriod } from '../hooks/useCurrentPeriod';
 import type { CategoryKind } from '../api/types';
 import { HistoryView, type HistoryViewHandle } from './HistoryView';
 import { PlannedView, type PlannedViewHandle } from './PlannedView';
@@ -24,11 +26,19 @@ export interface TransactionsScreenProps {
   onClearFilter?: () => void;
 }
 
+function formatPeriodChip(periodStart: string | undefined): string {
+  if (!periodStart) return '';
+  const d = new Date(periodStart);
+  const m = d.toLocaleDateString('ru-RU', { month: 'long' });
+  return m.charAt(0).toLowerCase() + m.slice(1);
+}
+
 export function TransactionsScreen({ categoryFilter, onClearFilter }: TransactionsScreenProps) {
   const [activeSubTab, setActiveSubTab] = useState<SubTab>('history');
   const [kindFilter, setKindFilter] = useState<CategoryKind>('expense');
   const [localCategoryFilter, setLocalCategoryFilter] = useState<number | null>(null);
   const { categories } = useCategories(false);
+  const { period } = useCurrentPeriod();
   const historyRef = useRef<HistoryViewHandle>(null);
   const plannedRef = useRef<PlannedViewHandle>(null);
 
@@ -64,52 +74,75 @@ export function TransactionsScreen({ categoryFilter, onClearFilter }: Transactio
 
   return (
     <div className={styles.wrap}>
-    <div className={styles.root}>
-      <SubTabBar active={activeSubTab} onChange={handleSubTabChange} tabs={SUB_TABS} />
-      <SubTabBar active={kindFilter} onChange={handleKindChange} tabs={KIND_TABS} />
-
-      {visibleCategories.length > 0 && (
-        <div className={styles.chips}>
-          {visibleCategories.map((cat) => (
-            <button
-              key={cat.id}
-              type="button"
-              className={[
-                styles.chip,
-                effectiveCategoryFilter === cat.id ? styles.chipActive : '',
-              ]
-                .filter(Boolean)
-                .join(' ')}
-              onClick={() => handleChipClick(cat.id)}
-            >
-              {cat.name}
-            </button>
-          ))}
+      <AuroraBg />
+      <div className={styles.scroll}>
+        <div className={styles.titleRow}>
+          <div className={styles.title}>Транзакции</div>
+          {period && (
+            <span className={styles.periodChip}>{formatPeriodChip(period.period_start)}</span>
+          )}
         </div>
-      )}
 
-      {activeSubTab === 'history' && (
-        <HistoryView
-          ref={historyRef}
-          inTransactions
-          categoryFilter={effectiveCategoryFilter}
-          onClearFilter={() => {
-            setLocalCategoryFilter(null);
-            onClearFilter?.();
-          }}
-          activeKindFilter={kindFilter}
-        />
-      )}
-      {activeSubTab === 'plan' && (
-        <PlannedView
-          ref={plannedRef}
-          inTransactions
-          activeKind={kindFilter}
-          categoryFilter={effectiveCategoryFilter}
-        />
-      )}
+        <div className={styles.subTabBlock}>
+          <SubTabBar
+            active={activeSubTab}
+            onChange={handleSubTabChange}
+            tabs={SUB_TABS}
+            variant="plain"
+            tint="light"
+          />
+        </div>
+        <div className={styles.subTabBlock}>
+          <SubTabBar
+            active={kindFilter}
+            onChange={handleKindChange}
+            tabs={KIND_TABS}
+            variant="accent"
+            tint="light"
+          />
+        </div>
 
-    </div>
+        {visibleCategories.length > 0 && (
+          <div className={styles.chips}>
+            {visibleCategories.map((cat) => (
+              <button
+                key={cat.id}
+                type="button"
+                className={[
+                  styles.chip,
+                  effectiveCategoryFilter === cat.id ? styles.chipActive : '',
+                ]
+                  .filter(Boolean)
+                  .join(' ')}
+                onClick={() => handleChipClick(cat.id)}
+              >
+                {cat.name}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {activeSubTab === 'history' && (
+          <HistoryView
+            ref={historyRef}
+            inTransactions
+            categoryFilter={effectiveCategoryFilter}
+            onClearFilter={() => {
+              setLocalCategoryFilter(null);
+              onClearFilter?.();
+            }}
+            activeKindFilter={kindFilter}
+          />
+        )}
+        {activeSubTab === 'plan' && (
+          <PlannedView
+            ref={plannedRef}
+            inTransactions
+            activeKind={kindFilter}
+            categoryFilter={effectiveCategoryFilter}
+          />
+        )}
+      </div>
 
       <Fab
         onClick={handleFab}

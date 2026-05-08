@@ -1,166 +1,219 @@
+/* TransactionEditor — Liquid Glass form внутри BottomSheet (Aurora light tint).
+   Стили инпутов соответствуют glass-light high backdrop основной оболочки sheet. */
+
 .form {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  gap: 14px;
 }
 
 .field {
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
+  gap: 6px;
 }
 
 .label {
-  font-size: var(--text-sm);
-  color: var(--color-text-muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-2);
 }
 
 .select,
 .input,
 .textarea {
-  background: var(--color-surface-2);
-  color: var(--color-text);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  padding: 10px 12px;
-  font-size: var(--text-base);
+  background: rgba(255, 255, 255, 0.55);
+  color: var(--ink);
+  border: 0;
+  border-radius: 12px;
+  padding: 11px 14px;
+  font-size: 15px;
   font-family: var(--font-sans);
   width: 100%;
   box-sizing: border-box;
+  box-shadow: inset 0 0 0 0.5px rgba(0, 0, 0, 0.08);
+  font-variant-numeric: tabular-nums;
 }
+
 .textarea {
   resize: vertical;
   min-height: 56px;
+  font-variant-numeric: normal;
 }
-.input:focus,
+
 .select:focus,
+.input:focus,
 .textarea:focus {
-  outline: 2px solid var(--color-primary);
-  border-color: transparent;
+  outline: none;
+  box-shadow:
+    inset 0 0 0 0.5px color-mix(in srgb, var(--accent) 50%, transparent),
+    0 0 0 3px color-mix(in srgb, var(--accent) 16%, transparent);
 }
 
 .helper {
-  font-size: var(--text-xs);
-  color: var(--color-text-dim);
+  font-size: 11px;
+  color: var(--ink-3);
   margin-top: 2px;
 }
 
 .error {
-  color: var(--color-danger);
-  background: var(--color-danger-soft);
-  padding: var(--space-2) var(--space-3);
-  border-radius: var(--radius-sm);
-  font-size: var(--text-sm);
+  color: var(--danger);
+  background: var(--danger-soft);
+  padding: 8px 12px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 500;
 }
 
 .confirmRow {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-2) var(--space-3);
-  background: var(--color-surface-2);
-  border-radius: var(--radius-md);
-  font-size: var(--text-sm);
+  gap: 8px;
+  padding: 10px 14px;
+  background: rgba(255, 255, 255, 0.45);
+  border-radius: 12px;
+  box-shadow: inset 0 0 0 0.5px rgba(0, 0, 0, 0.06);
+  font-size: 13px;
+  color: var(--ink);
 }
 
 .actions {
   display: flex;
-  gap: var(--space-2);
+  gap: 10px;
   justify-content: flex-end;
-  margin-top: var(--space-2);
+  margin-top: 6px;
 }
 
 .deleteBtn {
-  background: transparent;
-  color: var(--color-danger);
-  border: 1px solid var(--color-danger);
-  border-radius: var(--radius-md);
-  padding: 10px 16px;
-  font-weight: var(--weight-medium);
+  background: rgba(216, 64, 75, 0.10);
+  color: var(--danger);
+  border: 0;
+  border-radius: 14px;
+  padding: 12px 18px;
+  font-weight: 700;
+  font-size: 14px;
+  font-family: inherit;
   cursor: pointer;
   margin-right: auto;
+  box-shadow: inset 0 0 0 0.5px rgba(216, 64, 75, 0.32);
+  -webkit-tap-highlight-color: transparent;
 }
+
 .deleteBtn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
 
 .cancelBtn {
-  background: transparent;
-  color: var(--color-text-muted);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  padding: 10px 16px;
+  background: rgba(255, 255, 255, 0.55);
+  color: var(--ink);
+  border: 0;
+  border-radius: 14px;
+  padding: 12px 18px;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: inherit;
   cursor: pointer;
+  box-shadow: inset 0 0 0 0.5px rgba(0, 0, 0, 0.06);
+  -webkit-tap-highlight-color: transparent;
 }
 
 .saveBtn {
-  background: var(--color-primary);
+  background: linear-gradient(180deg, var(--accent), color-mix(in srgb, var(--accent) 80%, #000 0%));
   color: #fff;
   border: 0;
-  border-radius: var(--radius-md);
-  padding: 10px 18px;
-  font-weight: var(--weight-semibold);
+  border-radius: 14px;
+  padding: 12px 22px;
+  font-size: 14px;
+  font-weight: 700;
+  font-family: inherit;
   cursor: pointer;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.4),
+    0 8px 22px color-mix(in srgb, var(--accent) 33%, transparent);
+  -webkit-tap-highlight-color: transparent;
 }
+
 .saveBtn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
 
 .aiSuggestion {
-  border-left: 3px solid #a78bfa;
-  background: rgba(167, 139, 250, 0.08);
-  padding: 8px 12px;
-  border-radius: 8px;
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  padding: 10px 14px;
+  border-radius: 14px;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   margin-bottom: 4px;
+  box-shadow: inset 0 0 0 0.5px color-mix(in srgb, var(--accent) 30%, transparent);
 }
 
 .aiSuggestionLabel {
-  font-size: 14px;
-  font-weight: 500;
+  font-size: 13px;
+  font-weight: 600;
   flex: 1;
-  color: var(--color-text);
+  color: var(--ink);
 }
 
 .aiSwitchBtn {
-  font-size: 13px;
-  color: #a78bfa;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent);
   background: none;
-  border: none;
+  border: 0;
   cursor: pointer;
-  padding: 2px 8px;
-  border-radius: 6px;
-}
-.aiSwitchBtn:hover {
-  background: rgba(167, 139, 250, 0.12);
+  padding: 4px 10px;
+  border-radius: 10px;
+  font-family: inherit;
 }
 
+.aiSwitchBtn:hover {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+
+/* Расходы / Доходы переключатель — accent segmented (как SubTabBar accent). */
 .kindToggle {
   display: flex;
-  gap: 8px;
-  margin-bottom: var(--space-3);
+  gap: 4px;
+  padding: 4px;
+  margin-bottom: 6px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.45);
+  box-shadow:
+    inset 0 0 0 0.5px rgba(255, 255, 255, 0.7),
+    inset 0 1px 1px rgba(0, 0, 0, 0.03);
 }
+
 .kindBtn {
   flex: 1;
-  padding: 10px;
+  padding: 8px 0;
   cursor: pointer;
-  background: var(--color-surface-2);
-  color: var(--color-text-muted);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  font-size: var(--text-sm);
-  transition: background 100ms, color 100ms;
+  background: transparent;
+  color: var(--ink-2);
+  border: 0;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  transition: background 0.15s, color 0.15s;
 }
+
 .kindBtn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
+
 .kindBtnActive {
-  background: var(--color-accent, var(--color-primary));
-  color: #fff;
-  border-color: var(--color-accent, var(--color-primary));
+  background: linear-gradient(180deg,
+    color-mix(in srgb, var(--accent) 18%, transparent),
+    color-mix(in srgb, var(--accent) 8%, transparent));
+  color: var(--accent);
+  font-weight: 700;
+  box-shadow:
+    inset 0 0 0 0.5px color-mix(in srgb, var(--accent) 33%, transparent),
+    0 1px 2px color-mix(in srgb, var(--accent) 14%, transparent);
 }
