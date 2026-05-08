@@ -197,6 +197,18 @@ export function ActualEditor({
         />
       </label>
 
+      <label className={styles.field}>
+        <span className={styles.label}>Описание</span>
+        <textarea
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          maxLength={500}
+          rows={2}
+          disabled={submitting}
+          className={styles.textarea}
+        />
+      </label>
+
       {aiEnabled && suggestion && suggestion.category_id !== null && showAiSuggestion ? (
         <div className={styles.field}>
           <span className={styles.label}>Категория</span>
@@ -231,18 +243,6 @@ export function ActualEditor({
           </select>
         </label>
       )}
-
-      <label className={styles.field}>
-        <span className={styles.label}>Описание</span>
-        <textarea
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          maxLength={500}
-          rows={2}
-          disabled={submitting}
-          className={styles.textarea}
-        />
-      </label>
 
       <label className={styles.field}>
         <span className={styles.label}>Дата</span>
