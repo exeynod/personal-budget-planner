@@ -1,0 +1,56 @@
+/* MeshDarkBg — тёмный mesh-фон с 3 цветными blob и SVG grid overlay.
+   Source: glass.jsx MeshDarkBg(). Используется на Analytics + AI. */
+
+.root {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  background: radial-gradient(ellipse at top, #1A1A2E 0%, #0B0B14 60%, #050509 100%);
+  z-index: 0;
+}
+
+.blob {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  will-change: transform;
+}
+
+.blobOrange {
+  top: 80px;
+  left: -40px;
+  width: 320px;
+  height: 320px;
+  background: radial-gradient(closest-side, rgba(255, 138, 76, 0.45), rgba(255, 138, 76, 0) 70%);
+  filter: blur(26px);
+}
+
+.blobBlue {
+  top: 320px;
+  right: -60px;
+  width: 300px;
+  height: 300px;
+  background: radial-gradient(closest-side, rgba(80, 140, 255, 0.45), rgba(80, 140, 255, 0) 70%);
+  filter: blur(28px);
+}
+
+.blobPurple {
+  bottom: -100px;
+  left: 60px;
+  width: 340px;
+  height: 340px;
+  background: radial-gradient(closest-side, rgba(200, 90, 255, 0.35), rgba(200, 90, 255, 0) 70%);
+  filter: blur(30px);
+}
+
+.grid {
+  position: absolute;
+  inset: 0;
+  opacity: 0.07;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.5) 0.5px, transparent 0.5px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.5) 0.5px, transparent 0.5px);
+  background-size: 32px 32px;
+  pointer-events: none;
+}

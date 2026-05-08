@@ -7,6 +7,7 @@ import { createRoot } from 'react-dom/client';
 import { init } from '@telegram-apps/sdk-react';
 import App from './App.tsx';
 import './styles/tokens.css';
+import './styles/glass.css';
 
 // Initialise Telegram SDK (best-effort — tolerate missing/altered API surface
 // or running outside Telegram during browser dev).

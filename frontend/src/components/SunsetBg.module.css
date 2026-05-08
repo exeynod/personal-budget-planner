@@ -1,0 +1,46 @@
+/* SunsetBg — закатный градиент purple→magenta→coral→amber + 2 blob + горизонт.
+   Source: glass.jsx SunsetBg(). Используется на Onboarding. */
+
+.root {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  background: linear-gradient(180deg, #2A1530 0%, #6B1F3A 40%, #C24A3D 75%, #E88A4A 100%);
+  z-index: 0;
+}
+
+.blob {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.blobWarm {
+  top: 120px;
+  left: -40px;
+  width: 340px;
+  height: 340px;
+  background: radial-gradient(closest-side, rgba(255, 180, 120, 0.5), rgba(255, 180, 120, 0) 70%);
+  filter: blur(24px);
+}
+
+.blobMagenta {
+  bottom: -100px;
+  right: -60px;
+  width: 380px;
+  height: 380px;
+  background: radial-gradient(closest-side, rgba(120, 40, 90, 0.6), rgba(120, 40, 90, 0) 70%);
+  filter: blur(30px);
+}
+
+.horizon {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 80px;
+  height: 4px;
+  background: linear-gradient(90deg, rgba(255, 200, 140, 0), rgba(255, 220, 180, 0.9), rgba(255, 200, 140, 0));
+  filter: blur(2px);
+  pointer-events: none;
+}

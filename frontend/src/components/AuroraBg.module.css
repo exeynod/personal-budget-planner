@@ -1,0 +1,54 @@
+/* AuroraBg — кремовый фон + 4 цветных blob (orange/pink/lavender/butter).
+   Source: glass.jsx AuroraBg(). */
+
+.root {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  background: var(--bg-cream, #F6EFE6);
+  z-index: 0;
+}
+
+.blob {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  will-change: transform;
+}
+
+.blobOrange {
+  top: -80px;
+  left: -60px;
+  width: 360px;
+  height: 360px;
+  background: radial-gradient(closest-side, #FFB07A 0%, rgba(255, 176, 122, 0) 70%);
+  filter: blur(20px);
+}
+
+.blobPink {
+  top: 180px;
+  right: -80px;
+  width: 320px;
+  height: 320px;
+  background: radial-gradient(closest-side, #F58A8A 0%, rgba(245, 138, 138, 0) 70%);
+  filter: blur(24px);
+}
+
+.blobLavender {
+  bottom: -120px;
+  left: 40px;
+  width: 380px;
+  height: 380px;
+  background: radial-gradient(closest-side, #C8B2FF 0%, rgba(200, 178, 255, 0) 70%);
+  filter: blur(28px);
+}
+
+.blobButter {
+  top: 380px;
+  left: 110px;
+  width: 220px;
+  height: 220px;
+  background: radial-gradient(closest-side, #FFD876 0%, rgba(255, 216, 118, 0) 70%);
+  filter: blur(22px);
+}

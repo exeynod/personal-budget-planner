@@ -1,5 +1,50 @@
 :root {
-  /* Banking-premium dark theme — основной для TG Mini App */
+  /* === Liquid Glass palette (TG Budget redesign) === */
+  /* Accent (coral) */
+  --accent: #FF7A4C;
+  --accent-hover: #FF6E3A;
+  --accent-2: #FFB07A;
+  --accent-soft: rgba(255, 122, 76, 0.14);
+
+  /* Ink (на light Aurora) */
+  --ink: #1a1410;
+  --ink-2: rgba(26, 20, 16, 0.6);
+  --ink-3: rgba(26, 20, 16, 0.4);
+
+  /* Ink (на Mesh/Sunset тёмных фонах) */
+  --ink-d: #ffffff;
+  --ink-d-2: rgba(255, 255, 255, 0.65);
+  --ink-d-3: rgba(255, 255, 255, 0.4);
+
+  /* Cream Aurora background base */
+  --bg-cream: #F6EFE6;
+
+  /* Semantic */
+  --success: #1F8A5B;
+  --success-soft: rgba(31, 138, 91, 0.14);
+  --danger: #D8404B;
+  --danger-soft: rgba(216, 64, 75, 0.14);
+  --warn: #F0C04A;
+
+  /* Categories — warm-leaning palette */
+  --cat-food:    #F39A4C;
+  --cat-cafe:    #E36B5A;
+  --cat-home:    #B583E8;
+  --cat-transit: #6CA6E8;
+  --cat-health:  #E26F8E;
+  --cat-fun:     #F0C04A;
+  --cat-gifts:   #7CC68F;
+  --cat-subs:    #9C8FE8;
+  --cat-salary:  #7CC68F;
+  --cat-side:    #F0C04A;
+
+  /* Glass parameters */
+  --glass-blur: 22px;
+  --glass-saturate: 175%;
+  --glass-alpha-light: 0.82;
+  --glass-alpha-dark: 0.82;
+
+  /* === LEGACY tokens (postponed for removal until sweep complete) === */
   --color-bg: #0e1116;
   --color-bg-elevated: #161a22;
   --color-surface: #1c2230;
@@ -23,7 +68,6 @@
   --color-danger-soft: rgba(255, 93, 93, 0.14);
   --color-warn: #ffb547;
 
-  /* Hero gradients — premium feel */
   --gradient-hero: linear-gradient(135deg, #1d2740 0%, #2d1d40 100%);
   --gradient-hero-glow: radial-gradient(circle at 20% 0%, rgba(78,164,255,0.25), transparent 60%);
 

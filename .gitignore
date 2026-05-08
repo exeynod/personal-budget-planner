@@ -69,3 +69,10 @@ frontend/tests/ui-audit-screenshots/
 # Claude Code worktree metadata (managed by GSD agents)
 # =====================================================================
 .claude/worktrees/
+
+# =====================================================================
+# Design handoff bundles (Claude Design экспорты — лежат в корне для разбора,
+# в репо не пушим — большие и не нужны в истории)
+# =====================================================================
+*-handoff.zip
+*handoff.zip
