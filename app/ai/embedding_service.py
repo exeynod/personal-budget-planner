@@ -20,6 +20,7 @@ cache semantics (per-text key, same normalisation).
 """
 from __future__ import annotations
 
+import re
 from collections import OrderedDict
 from functools import lru_cache
 from typing import TYPE_CHECKING
@@ -46,7 +47,7 @@ SUGGEST_THRESHOLD = 0.35
 # capitalization. Categories without a default pack just use the bare
 # name — no breakage, only suboptimal recall on short input.
 _CATEGORY_SYNONYMS: dict[str, str] = {
-    "продукты": "еда, магазин, пятёрочка, перекрёсток, лента, ашан, магнит, продуктовый",
+    "продукты": "еда, магазин, пятёрочка, перекрёсток, лента, ашан, магнит, продуктовый, самокат, лавка, яндекс лавка, вкусвилл, азбука вкуса, доставка продуктов, деливери, delivery, сбермаркет, igooods, утконос",
     "кафе и рестораны": "кафе, ресторан, кофе, обед, ужин, завтрак, бар, доставка еды",
     "транспорт": "такси, бензин, метро, автобус, парковка, проезд, автобусный, поездка",
     "развлечения": "кино, концерт, парк, аттракционы, шоу, ивент, билеты на мероприятие",
@@ -176,6 +177,71 @@ class EmbeddingService:
         )
         await db.execute(stmt)
 
+    async def _substring_synonym_match(
+        self,
+        db: AsyncSession,
+        description: str,
+        *,
+        user_id: int,
+    ) -> dict | None:
+        """Word-boundary substring scan over user categories' synonym packs.
+
+        Iterates the user's active categories, looks each up in
+        _CATEGORY_SYNONYMS by lowercased name, and checks whether any
+        synonym token (or the category name itself) appears as a whole
+        word in the description. Whole-word match avoids false hits like
+        "ёлка" matching "лавка"-substring inside another word. Returns
+        the first hit with confidence=1.0; no match → None (caller falls
+        back to embedding similarity).
+        """
+        # Normalise ё→е on both sides so "пятёрочка" matches "пятерочка"
+        # — Russian users routinely drop the diaeresis in casual writing.
+        def _yofy(s: str) -> str:
+            return s.lower().replace("ё", "е")
+
+        norm = _yofy(description)
+        rows = (
+            await db.execute(
+                select(Category.id, Category.name)
+                .where(Category.user_id == user_id)
+                .where(Category.is_archived.is_(False))
+            )
+        ).all()
+        if not rows:
+            return None
+
+        # Build candidate token set per category: bare name + synonym pack
+        # (split on commas, strip whitespace, drop empties). Both ends are
+        # ё-normalised so dialect spelling differences don't break the match.
+        for cid, cname in rows:
+            tokens: list[str] = [_yofy(cname.strip())]
+            pack = _CATEGORY_SYNONYMS.get(cname.lower().strip())
+            if pack:
+                tokens.extend(_yofy(t.strip()) for t in pack.split(","))
+            for tok in tokens:
+                if not tok or len(tok) < 3:
+                    continue
+                # Word-start stem match. Russian is inflected — "самокат"
+                # vs "самокате/самокатом", "лавка" vs "лавке/лавки/лавок".
+                # Strategy: anchor at \b on the left; if the token is ≥5
+                # chars and ends in a vowel, drop the trailing vowel so the
+                # remainder still matches the stem of the inflected form.
+                # No right-boundary, so "самокат" → \bсамокат covers
+                # "самокат, самокате, самокатом". For "лавка" → \bлавк
+                # covers "лавка, лавке, лавки, лавок". Cheaper than pulling
+                # in pymorphy for a ~15-entry synonym list per category.
+                stem = tok
+                if len(stem) >= 5 and stem[-1] in "аеёиоуыэюя":
+                    stem = stem[:-1]
+                pattern = r"\b" + re.escape(stem)
+                if re.search(pattern, norm):
+                    return {
+                        "category_id": cid,
+                        "name": cname,
+                        "confidence": 1.0,
+                    }
+        return None
+
     async def suggest_category(
         self,
         db: AsyncSession,
@@ -193,7 +259,21 @@ class EmbeddingService:
         confidence = 1 - cosine_distance.
         Возвращает {category_id, name, confidence} если confidence >= SUGGEST_THRESHOLD,
         иначе None.
+
+        Substring pre-check: text-embedding-3-small struggles with isolated
+        Russian brand names ("самокат", "лавка", "вкусвилл") — confidence
+        drops below SUGGEST_THRESHOLD even when the synonym-pack lists them.
+        Before paying for an embedding call, scan the description for any
+        synonym token from _CATEGORY_SYNONYMS that matches one of the user's
+        categories — if found, skip the embedding step and return that
+        category with confidence=1.0. Deterministic, free, and avoids the
+        single-word-brand-name false-negative.
         """
+        # Substring fast-path — keyword hit on synonym-pack.
+        sub_match = await self._substring_synonym_match(db, description, user_id=user_id)
+        if sub_match is not None:
+            return sub_match
+
         # Phase 10.1: маршрутизируем через embed_text, чтобы повторные
         # описания обслуживались из LRU-кэша.
         query_vec = await self.embed_text(description)
