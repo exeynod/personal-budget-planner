@@ -1,6 +1,6 @@
 """category: replace uq_category_user_id_name UNIQUE with partial index excluding is_archived
 
-Revision ID: 0010_category_unique_partial_active
+Revision ID: 0010_category_uq_active
 Revises: 0009_cap_default_1usd
 Create Date: 2026-05-08
 
@@ -30,7 +30,7 @@ from alembic import op
 import sqlalchemy as sa
 
 
-revision = "0010_category_unique_partial_active"
+revision = "0010_category_uq_active"
 down_revision = "0009_cap_default_1usd"
 branch_labels = None
 depends_on = None
