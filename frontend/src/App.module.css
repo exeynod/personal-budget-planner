@@ -40,12 +40,16 @@
 }
 
 /* Главный flex-ребёнок: фон экрана + контент. Пустой контейнер,
-   куда экран рендерит свой <AuroraBg/> + <div class="screenInner"> */
+   куда экран рендерит свой <AuroraBg/> + <div class="screenInner">
+   ВАЖНО: display:flex column обязателен — иначе flex:1 у screenSlot не работает,
+   screenSlot сжимается до content height и внутренний overflow-y:auto умирает. */
 .screenContainer {
   position: relative;
   flex: 1;
   min-height: 0;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 /* screenSlot — обёртка с key={managementView ?? activeTab}, при смене ключа

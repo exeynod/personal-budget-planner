@@ -103,39 +103,18 @@ export function AccessScreen({ onBack }: AccessScreenProps) {
       {toast && <div className={styles.toast} role="status">{toast}</div>}
 
       {activeTab === 'users' && (
-        <div className={styles.fabWrap}>
-          <div className={styles.content}>
-            {usersHook.loading && <p className={styles.muted}>Загрузка…</p>}
-            {usersHook.error && (
-              <p className={styles.error}>Ошибка: {usersHook.error}</p>
-            )}
-            {!usersHook.loading && !usersHook.error && (
-              <UsersList
-                users={usersHook.users}
-                onRevoke={setRevokeTarget}
-                onEditCap={setCapEditTarget}
-              />
-            )}
-          </div>
-          <Fab
-            onClick={() => setInviteOpen(true)}
-            ariaLabel="Пригласить пользователя"
-          />
-          <InviteSheet
-            open={inviteOpen}
-            onClose={() => setInviteOpen(false)}
-            onSubmit={handleInvite}
-          />
-          <RevokeConfirmDialog
-            target={revokeTarget}
-            onConfirm={handleRevokeConfirm}
-            onCancel={() => setRevokeTarget(null)}
-          />
-          <CapEditSheet
-            target={capEditTarget}
-            onClose={() => setCapEditTarget(null)}
-            onSubmit={handleUpdateCap}
-          />
+        <div className={styles.content}>
+          {usersHook.loading && <p className={styles.muted}>Загрузка…</p>}
+          {usersHook.error && (
+            <p className={styles.error}>Ошибка: {usersHook.error}</p>
+          )}
+          {!usersHook.loading && !usersHook.error && (
+            <UsersList
+              users={usersHook.users}
+              onRevoke={setRevokeTarget}
+              onEditCap={setCapEditTarget}
+            />
+          )}
         </div>
       )}
 
@@ -151,6 +130,29 @@ export function AccessScreen({ onBack }: AccessScreenProps) {
         </div>
       )}
       </div>
+
+      {activeTab === 'users' && (
+        <Fab
+          onClick={() => setInviteOpen(true)}
+          ariaLabel="Пригласить пользователя"
+        />
+      )}
+
+      <InviteSheet
+        open={inviteOpen}
+        onClose={() => setInviteOpen(false)}
+        onSubmit={handleInvite}
+      />
+      <RevokeConfirmDialog
+        target={revokeTarget}
+        onConfirm={handleRevokeConfirm}
+        onCancel={() => setRevokeTarget(null)}
+      />
+      <CapEditSheet
+        target={capEditTarget}
+        onClose={() => setCapEditTarget(null)}
+        onSubmit={handleUpdateCap}
+      />
     </div>
   );
 }

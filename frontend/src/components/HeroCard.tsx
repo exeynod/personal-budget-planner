@@ -49,15 +49,15 @@ export function HeroCard({ balance, period, kind, isClosed }: HeroCardProps) {
       <div className={styles.pills}>
         <div className={styles.pill}>
           <div className={styles.pillKicker}>план</div>
-          <div className={styles.pillValue}>{formatKopecks(planned)} ₽</div>
+          <div className={styles.pillValue}>{formatKopecks(planned)}</div>
         </div>
         <div className={styles.pill}>
           <div className={styles.pillKicker}>факт</div>
-          <div className={styles.pillValue}>{formatKopecks(actual)} ₽</div>
+          <div className={styles.pillValue}>{formatKopecks(actual)}</div>
         </div>
         <div className={`${styles.pill} ${styles.pillAccent} ${deltaCls}`}>
           <div className={styles.pillKicker}>{deltaLabel}</div>
-          <div className={styles.pillValue}>{formatKopecksWithSign(delta)} ₽</div>
+          <div className={styles.pillValue}>{formatKopecksWithSign(delta)}</div>
         </div>
       </div>
     </div>

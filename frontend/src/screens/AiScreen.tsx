@@ -128,8 +128,9 @@ export function AiScreen({
           )}
         </div>
 
-        {/* Messages area */}
-        <div className={styles.messages}>
+        {/* Messages area — при empty отдельный класс без padding-bottom 130,
+            чтобы orb центрировался по геометрическому центру (а не выше). */}
+        <div className={`${styles.messages} ${isEmpty ? styles.messagesEmpty : ''}`}>
           {isEmpty && (
             <div className={styles.empty}>
               <div className={styles.orbWrap}>

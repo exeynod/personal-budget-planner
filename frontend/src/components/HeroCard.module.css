@@ -73,11 +73,12 @@
 
 .pill {
   flex: 1;
-  padding: 10px 12px;
+  padding: 10px 10px;
   border-radius: 16px;
   background: rgba(255, 255, 255, 0.45);
   box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.7);
   min-width: 0;
+  overflow: hidden;
 }
 
 .pillAccent {
@@ -96,14 +97,20 @@
 }
 
 .pillValue {
-  font-size: 17px;
-  font-weight: 600;
+  font-size: 14px;
+  font-weight: 700;
   margin-top: 2px;
   font-variant-numeric: tabular-nums;
   color: var(--ink);
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  letter-spacing: -0.01em;
+  /* Без ellipsis — формат числа без ₽ короче, помещается в pill 1/3 шириной.
+     Если всё-таки уехало — пусть auto-shrink через clamp ниже. */
+}
+
+/* Auto-shrink на узких viewport (<375px iPhone SE) — съедаем до 12px. */
+@media (max-width: 380px) {
+  .pillValue { font-size: 12px; }
 }
 
 .pillAccent .pillValue {

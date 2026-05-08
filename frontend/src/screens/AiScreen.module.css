@@ -104,6 +104,13 @@
   padding: 4px 0 130px;
 }
 
+/* На empty state — убираем padding-bottom, чтобы flex-центрирование
+   .empty внутри (justify-content: center) попадало в геометрический центр,
+   а не сдвигалось вверх на 65 = 130/2. */
+.messagesEmpty {
+  padding-bottom: 16px;
+}
+
 .messages::-webkit-scrollbar {
   display: none;
 }
