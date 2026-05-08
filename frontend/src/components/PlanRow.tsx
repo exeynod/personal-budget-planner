@@ -21,6 +21,12 @@ function formatRubles(cents: number): string {
 /**
  * Single plan-row (sketch 005-B): used by both TemplateScreen and PlannedView.
  *
+ * Layout mirrors HistoryView row to keep history/plan visually unified —
+ * amount on the left (fixed min-width, mono), description on the right
+ * (muted, ellipsis), badges (День N / planned date / 🔁 Подписка) trailing.
+ * Category name is intentionally absent: the parent group title already
+ * shows it, so duplicating it inside the row was visual noise.
+ *
  * Behaviours:
  *  - Tap anywhere on the row → `onOpenEditor()` (parent shows BottomSheet).
  *    Inline amount-edit was removed in favour of a single, predictable click
@@ -28,16 +34,11 @@ function formatRubles(cents: number): string {
  *  - For planned rows with `source === 'subscription_auto'` (D-37, PLN-03):
  *    read-only — row tap does not fire; rendered with "🔁 Подписка" badge
  *    and dimmed opacity.
- *  - For template rows with `day_of_period` set: badge "День N".
- *  - For planned rows with `planned_date` set: badge with localised "DD MMM".
  */
 export function PlanRow({ item, category, onOpenEditor }: PlanRowProps) {
   const isSubAuto = item.kind === 'planned' && item.row.source === 'subscription_auto';
   const readOnly = isSubAuto;
 
-  // category is still accepted for archive-detection (callers pre-resolve),
-  // but never displayed inside the row — the parent group already shows it
-  // as the section title, so duplicating it here is noise.
   void category;
 
   const dayBadge =
@@ -51,36 +52,23 @@ export function PlanRow({ item, category, onOpenEditor }: PlanRowProps) {
         : null;
 
   const cls = [styles.row, readOnly ? styles.readOnly : ''].filter(Boolean).join(' ');
-
   const description = item.row.description?.trim() ?? '';
 
   return (
-    <div
+    <button
+      type="button"
       className={cls}
       onClick={readOnly ? undefined : onOpenEditor}
-      role="button"
       aria-disabled={readOnly}
     >
-      <div className={styles.amountZone}>
-        <span className={styles.amount}>{formatRubles(item.row.amount_cents)} ₽</span>
-      </div>
-      <div className={styles.metaZone}>
-        {/* Show description only when present and non-empty — never fall back
-            to the category name (parent group title already shows it; the
-            duplicate produced rows like "Кредиты / Кредиты"). */}
-        {description !== '' && (
-          <div className={styles.description}>{description}</div>
-        )}
-        <div className={styles.badges}>
-          {/* Source badge dropped: "Вручную" / "Шаблон" was visible noise
-              on every plan row and didn't differentiate enough from the
-              actual-tx card. Subscription auto-rows still get a marker
-              because they're read-only and the user needs to know why
-              they can't edit the amount. */}
+      <span className={styles.amount}>{formatRubles(item.row.amount_cents)} ₽</span>
+      {description !== '' && <span className={styles.description}>{description}</span>}
+      {(isSubAuto || dayBadge) && (
+        <span className={styles.badges}>
           {isSubAuto && <span className={styles.subBadge}>🔁 Подписка</span>}
           {dayBadge && <span className={styles.dayBadge}>{dayBadge}</span>}
-        </div>
-      </div>
-    </div>
+        </span>
+      )}
+    </button>
   );
 }
