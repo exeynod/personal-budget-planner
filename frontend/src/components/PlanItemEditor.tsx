@@ -1,6 +1,7 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { CategoryRead } from '../api/types';
 import { useDateInput } from '../hooks/useDateInput';
+import { useAiCategorize } from '../hooks/useAiCategorize';
 import { parseRublesToKopecks } from '../utils/format';
 import styles from './PlanItemEditor.module.css';
 
@@ -40,6 +41,8 @@ export interface PlanItemEditorProps {
   /** Provide for edit modes; omit for create modes. */
   onDelete?: () => Promise<void>;
   onCancel: () => void;
+  /** Enable AI category suggestion (mirrors ActualEditor). Default false. */
+  aiEnabled?: boolean;
 }
 
 function formatKopecksToRubles(cents: number | undefined | null): string {
@@ -70,6 +73,7 @@ export function PlanItemEditor({
   onSave,
   onDelete,
   onCancel,
+  aiEnabled = false,
 }: PlanItemEditorProps) {
   const isTemplate = mode === 'create-template' || mode === 'edit-template';
   const isEdit = mode === 'edit-template' || mode === 'edit-planned';
@@ -87,6 +91,9 @@ export function PlanItemEditor({
   const { iso: plannedDate, display: plannedDateDisplay, handleChange: handlePlannedDateChange } = useDateInput(initial?.planned_date ?? '');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showAiSuggestion, setShowAiSuggestion] = useState(true);
+
+  const { suggestion } = useAiCategorize(description, aiEnabled);
 
   const expenseCats = useMemo(
     () => categories.filter((c) => c.kind === 'expense' && !c.is_archived),
@@ -96,6 +103,25 @@ export function PlanItemEditor({
     () => categories.filter((c) => c.kind === 'income' && !c.is_archived),
     [categories],
   );
+
+  // Reset AI panel visibility on every description change — fresh suggestion incoming.
+  useEffect(() => {
+    setShowAiSuggestion(true);
+  }, [description]);
+
+  // Auto-fill category when AI suggestion arrives (only if user hasn't picked one).
+  useEffect(() => {
+    if (
+      aiEnabled &&
+      suggestion &&
+      suggestion.category_id !== null &&
+      showAiSuggestion &&
+      categoryId === ''
+    ) {
+      const cat = categories.find((c) => c.id === suggestion.category_id);
+      if (cat) setCategoryId(suggestion.category_id);
+    }
+  }, [suggestion, aiEnabled, showAiSuggestion, categories, categoryId]);
 
   const amountCents = parseRublesToKopecks(amountStr);
   const canSubmit =
@@ -138,40 +164,10 @@ export function PlanItemEditor({
     }
   };
 
+  const aiSuggestionName = suggestion?.name ?? '';
+
   return (
     <div className={styles.form}>
-      <label className={styles.field}>
-        <span className={styles.label}>Категория</span>
-        <select
-          value={categoryId}
-          onChange={(e) =>
-            setCategoryId(e.target.value === '' ? '' : Number(e.target.value))
-          }
-          className={styles.select}
-          disabled={submitting}
-        >
-          <option value="">— выберите —</option>
-          {expenseCats.length > 0 && (
-            <optgroup label="Расходы">
-              {expenseCats.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </optgroup>
-          )}
-          {incomeCats.length > 0 && (
-            <optgroup label="Доходы">
-              {incomeCats.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </optgroup>
-          )}
-        </select>
-      </label>
-
       <label className={styles.field}>
         <span className={styles.label}>Сумма (₽)</span>
         <input
@@ -196,6 +192,54 @@ export function PlanItemEditor({
           className={styles.textarea}
         />
       </label>
+
+      {aiEnabled && suggestion && suggestion.category_id !== null && showAiSuggestion ? (
+        <div className={styles.field}>
+          <span className={styles.label}>Категория</span>
+          <div className={styles.aiSuggestion}>
+            <span className={styles.aiSuggestionLabel}>AI: {aiSuggestionName}</span>
+            <button
+              type="button"
+              onClick={() => setShowAiSuggestion(false)}
+              className={styles.aiSwitchBtn}
+            >
+              Сменить
+            </button>
+          </div>
+        </div>
+      ) : (
+        <label className={styles.field}>
+          <span className={styles.label}>Категория</span>
+          <select
+            value={categoryId}
+            onChange={(e) =>
+              setCategoryId(e.target.value === '' ? '' : Number(e.target.value))
+            }
+            className={styles.select}
+            disabled={submitting}
+          >
+            <option value="">— выберите —</option>
+            {expenseCats.length > 0 && (
+              <optgroup label="Расходы">
+                {expenseCats.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </optgroup>
+            )}
+            {incomeCats.length > 0 && (
+              <optgroup label="Доходы">
+                {incomeCats.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </optgroup>
+            )}
+          </select>
+        </label>
+      )}
 
       {isTemplate ? (
         <label className={styles.field}>

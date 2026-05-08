@@ -216,6 +216,10 @@ export const HistoryView = forwardRef<HistoryViewHandle, HistoryViewProps>(
           title={sheet.mode === 'edit' ? 'Изменить транзакцию' : 'Новая транзакция'}
         >
           <ActualEditor
+            // Force-remount on each open so internal useState reflects the
+            // fresh `initial` — previously a fresh "+" after editing a row
+            // inherited that row's date / description / amount.
+            key={sheet.open ? `actual-${sheet.item?.id ?? 'new'}` : 'closed'}
             initial={sheet.item ? {
               kind: sheet.item.kind,
               amount_cents: sheet.item.amount_cents,

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { archiveCategory, createCategory, updateCategory } from '../api/categories';
-import { useCategories } from '../hooks/useCategories';
+import { useCategories, invalidateCategories } from '../hooks/useCategories';
 import type { CategoryKind, CategoryRead } from '../api/types';
 import { CategoryRow } from '../components/CategoryRow';
 import { NewCategoryForm } from '../components/NewCategoryForm';
@@ -48,6 +48,10 @@ export function CategoriesScreen({ onBack }: CategoriesScreenProps) {
     try {
       await fn();
       await refetch();
+      // Notify every other useCategories instance (Home, Plan, Template,
+      // Transactions, Subscriptions) so archived/renamed categories vanish
+      // immediately instead of after a full page reload.
+      invalidateCategories();
     } catch (e) {
       setMutationError(e instanceof Error ? e.message : String(e));
     }

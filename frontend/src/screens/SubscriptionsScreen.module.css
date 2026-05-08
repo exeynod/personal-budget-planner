@@ -93,7 +93,11 @@
 .upcomingDate {
   font-size: var(--text-sm);
   font-weight: var(--weight-medium);
-  min-width: 48px;
+  /* Fixed width — narrower dates ("3 июн") were rendering shorter than
+     wider ones ("20 май"), shifting the .upcomingName text left/right
+     between rows. flex-basis + flex-shrink:0 keeps every pill the same
+     box regardless of inner content. */
+  flex: 0 0 64px;
   padding: 2px 8px;
   border-radius: var(--radius-full);
   text-align: center;

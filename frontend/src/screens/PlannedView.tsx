@@ -10,6 +10,7 @@ import { useCurrentPeriod } from '../hooks/useCurrentPeriod';
 import { usePlanned } from '../hooks/usePlanned';
 import { useTemplate } from '../hooks/useTemplate';
 import { useCategories } from '../hooks/useCategories';
+import { useSettings } from '../hooks/useSettings';
 import type { CategoryKind, PlannedRead } from '../api/types';
 import { type PlanRowItem } from '../components/PlanRow';
 import { PlanGroupView, type CategoryEntry } from '../components/PlanGroupView';
@@ -65,6 +66,7 @@ export const PlannedView = forwardRef<PlannedViewHandle, PlannedViewProps>(
     } = usePlanned(period?.id ?? null);
     const { items: templateItems } = useTemplate();
     const { categories } = useCategories(false);
+    const { settings } = useSettings();
 
     const [mockRows, setMockRows] = useState<PlannedRead[]>([]);
     const [sheet, setSheet] = useState<SheetState>(CLOSED_SHEET);
@@ -326,6 +328,16 @@ export const PlannedView = forwardRef<PlannedViewHandle, PlannedViewProps>(
           }
         >
           <PlanItemEditor
+            // Force-remount on every open so internal useState picks up the
+            // fresh `initial` values. Without the key, React re-uses the
+            // previous instance: presetCategoryId from "+ в Категория" is
+            // ignored, and the date / description from the last edited row
+            // leak into the next create-row form.
+            key={
+              sheet.open
+                ? `planned-${sheet.item?.id ?? 'new'}-${sheet.presetCategoryId ?? 0}`
+                : 'closed'
+            }
             mode={sheet.mode}
             initial={
               sheet.item
@@ -344,6 +356,7 @@ export const PlannedView = forwardRef<PlannedViewHandle, PlannedViewProps>(
             onSave={handleSave}
             onDelete={sheet.mode === 'edit-planned' ? handleDelete : undefined}
             onCancel={() => setSheet(CLOSED_SHEET)}
+            aiEnabled={settings?.enable_ai_categorization ?? false}
           />
         </BottomSheet>
       </div>

@@ -6,6 +6,7 @@ import {
 } from '../api/templates';
 import { useTemplate } from '../hooks/useTemplate';
 import { useCategories } from '../hooks/useCategories';
+import { useSettings } from '../hooks/useSettings';
 import type { CategoryKind, TemplateItemRead } from '../api/types';
 import { type PlanRowItem } from '../components/PlanRow';
 import { PlanGroupView, type CategoryEntry } from '../components/PlanGroupView';
@@ -43,6 +44,7 @@ const CLOSED_SHEET: SheetState = { open: false, mode: 'create-template' };
 export function TemplateScreen({ onBack }: TemplateScreenProps) {
   const { items, loading: tplLoading, error: tplError, refetch } = useTemplate();
   const { categories, loading: catLoading, error: catError } = useCategories(false);
+  const { settings } = useSettings();
   const [sheet, setSheet] = useState<SheetState>(CLOSED_SHEET);
   const [mutationError, setMutationError] = useState<string | null>(null);
 
@@ -179,6 +181,12 @@ export function TemplateScreen({ onBack }: TemplateScreenProps) {
         }
       >
         <PlanItemEditor
+          // Force-remount on every open — see PlannedView for the rationale.
+          key={
+            sheet.open
+              ? `template-${sheet.item?.id ?? 'new'}-${sheet.presetCategoryId ?? 0}`
+              : 'closed'
+          }
           mode={sheet.mode}
           initial={
             sheet.item
@@ -197,6 +205,7 @@ export function TemplateScreen({ onBack }: TemplateScreenProps) {
           onSave={handleSave}
           onDelete={sheet.mode === 'edit-template' ? handleDelete : undefined}
           onCancel={() => setSheet(CLOSED_SHEET)}
+          aiEnabled={settings?.enable_ai_categorization ?? false}
         />
       </BottomSheet>
     </div>

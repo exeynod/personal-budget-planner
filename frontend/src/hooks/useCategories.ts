@@ -54,5 +54,23 @@ export function useCategories(includeArchived: boolean): UseCategoriesResult {
     };
   }, [includeArchived]);
 
+  // Cross-screen invalidation: any mutation that changes categories (create,
+  // rename, archive, unarchive) dispatches `categories:invalidate` on window.
+  // Every mounted useCategories listener refetches — fixes "archive doesn't
+  // show on Home/Plan/Transactions until full reload" since each screen had
+  // its own isolated instance with no shared state.
+  useEffect(() => {
+    const onInvalidate = () => { void refetch(); };
+    window.addEventListener('categories:invalidate', onInvalidate);
+    return () => window.removeEventListener('categories:invalidate', onInvalidate);
+  }, [refetch]);
+
   return { categories, loading, error, refetch };
+}
+
+/** Broadcast invalidation — call after any category mutation. */
+export function invalidateCategories(): void {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('categories:invalidate'));
+  }
 }
