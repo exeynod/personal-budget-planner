@@ -15,7 +15,11 @@ jobs:
 
     services:
       postgres:
-        image: postgres:16-alpine
+        # pgvector/pgvector:pg16 — postgres:16 base + pgvector extension
+        # preinstalled. Required by alembic 0004 (CREATE EXTENSION vector)
+        # and the AI categorization tests; postgres:16-alpine doesn't
+        # ship the extension and the migration would fail on CI bring-up.
+        image: pgvector/pgvector:pg16
         env:
           POSTGRES_DB: budget_test
           POSTGRES_USER: budget
