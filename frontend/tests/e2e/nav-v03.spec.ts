@@ -243,9 +243,9 @@ test('txn-02: История группирует по дням с day-total', a
 });
 
 // ============================================================
-// TXN-03: Под-таб План показывает source-badge
+// TXN-03: Под-таб План показывает строки плана
 // ============================================================
-test('txn-03: Под-таб план показывает source-badge', async ({ page }) => {
+test('txn-03: Под-таб план показывает строки плана', async ({ page }) => {
   await mockApiRich(page);
   await page.goto('/');
   await waitForLoad(page);
@@ -257,9 +257,11 @@ test('txn-03: Под-таб план показывает source-badge', async (
   await page.click('button:has-text("План")');
   await page.waitForTimeout(400);
 
-  // Source badges should be visible (template / manual / subscription)
-  const badge = page.locator('[class*="badge"], [class*="source"]').first();
-  await expect(badge).toBeVisible({ timeout: 5000 });
+  // Plan rows render amount in ₽; check that at least one is visible.
+  // (sourceBadge "Шаблон"/"Вручную" was intentionally dropped — visible
+  // noise on every plan row.)
+  const planAmount = page.locator('[class*="amount"]', { hasText: /\d.*₽/ }).first();
+  await expect(planAmount).toBeVisible({ timeout: 5000 });
 });
 
 // ============================================================
