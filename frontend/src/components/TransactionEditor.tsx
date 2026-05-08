@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { CategoryKind, CategoryRead } from '../api/types';
-import { useDateInput } from '../hooks/useDateInput';
 import { useAiCategorize } from '../hooks/useAiCategorize';
 import { parseRublesToKopecks } from '../utils/format';
+import { CategoryPicker } from './CategoryPicker';
+import { DatePicker } from './DatePicker';
 import styles from './TransactionEditor.module.css';
 
 export type TransactionEntity = 'actual' | 'template' | 'planned';
@@ -76,8 +77,8 @@ export function TransactionEditor({
   initial,
   categories,
   kind: lockedKind,
-  maxTxDate: _maxTxDate,
-  periodBounds: _periodBounds,
+  maxTxDate,
+  periodBounds,
   aiEnabled = false,
   onSave,
   onDelete,
@@ -101,7 +102,7 @@ export function TransactionEditor({
   const [amountStr, setAmountStr] = useState<string>(formatKopecksToRubles(initial?.amount_cents));
   const [description, setDescription] = useState<string>(initial?.description ?? '');
 
-  const { iso: txDate, display: txDateDisplay, handleChange: handleTxDateChange } = useDateInput(
+  const [txDate, setTxDate] = useState<string>(
     isActual ? (initial?.tx_date ?? todayInMoscow()) : '',
   );
   const [dayOfPeriod, setDayOfPeriod] = useState<string>(
@@ -109,8 +110,7 @@ export function TransactionEditor({
       ? String(initial.day_of_period)
       : '',
   );
-  const { iso: plannedDate, display: plannedDateDisplay, handleChange: handlePlannedDateChange } =
-    useDateInput(initial?.planned_date ?? '');
+  const [plannedDate, setPlannedDate] = useState<string>(initial?.planned_date ?? '');
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -163,22 +163,14 @@ export function TransactionEditor({
     categoryId,
   ]);
 
-  // Category select source.
+  // Category source for picker:
   // - actual: filter by internalKind, no optgroups.
-  // - template/planned with lockedKind: filter by lockedKind, no optgroups.
-  // - template/planned without lockedKind: show optgroups for both kinds.
+  // - template/planned с lockedKind: filter by lockedKind, no optgroups.
+  // - template/planned без lockedKind: показать optgroups (CategoryPicker сам разделит).
   const showOptgroups = !isActual && !lockedKind;
   const filteredCats = useMemo(
     () => categories.filter((c) => c.kind === activeKind && !c.is_archived),
     [categories, activeKind],
-  );
-  const expenseCats = useMemo(
-    () => categories.filter((c) => c.kind === 'expense' && !c.is_archived),
-    [categories],
-  );
-  const incomeCats = useMemo(
-    () => categories.filter((c) => c.kind === 'income' && !c.is_archived),
-    [categories],
   );
 
   const amountCents = parseRublesToKopecks(amountStr);
@@ -299,62 +291,28 @@ export function TransactionEditor({
           </div>
         </div>
       ) : (
-        <label className={styles.field}>
+        <div className={styles.field}>
           <span className={styles.label}>Категория</span>
-          <select
+          <CategoryPicker
             value={categoryId}
-            onChange={(e) =>
-              setCategoryId(e.target.value === '' ? '' : Number(e.target.value))
-            }
-            className={styles.select}
+            onChange={setCategoryId}
+            categories={showOptgroups ? categories : filteredCats}
+            showOptgroups={showOptgroups}
             disabled={submitting}
-          >
-            <option value="">— выберите —</option>
-            {showOptgroups ? (
-              <>
-                {expenseCats.length > 0 && (
-                  <optgroup label="Расходы">
-                    {expenseCats.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </optgroup>
-                )}
-                {incomeCats.length > 0 && (
-                  <optgroup label="Доходы">
-                    {incomeCats.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </optgroup>
-                )}
-              </>
-            ) : (
-              filteredCats.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))
-            )}
-          </select>
-        </label>
+          />
+        </div>
       )}
 
       {isActual && (
-        <label className={styles.field}>
+        <div className={styles.field}>
           <span className={styles.label}>Дата</span>
-          <input
-            type="text"
-            inputMode="numeric"
-            value={txDateDisplay}
-            onChange={(e) => handleTxDateChange(e.target.value)}
-            placeholder="ДД.ММ.ГГГГ"
+          <DatePicker
+            value={txDate || null}
+            onChange={(iso) => setTxDate(iso ?? '')}
             disabled={submitting}
-            className={styles.input}
+            max={maxTxDate}
           />
-        </label>
+        </div>
       )}
 
       {isTemplate && (
@@ -375,18 +333,18 @@ export function TransactionEditor({
       )}
 
       {isPlanned && (
-        <label className={styles.field}>
+        <div className={styles.field}>
           <span className={styles.label}>Дата (опц.)</span>
-          <input
-            type="text"
-            inputMode="numeric"
-            value={plannedDateDisplay}
-            onChange={(e) => handlePlannedDateChange(e.target.value)}
+          <DatePicker
+            value={plannedDate || null}
+            onChange={(iso) => setPlannedDate(iso ?? '')}
             placeholder="ДД.ММ.ГГГГ (опц.)"
+            clearable
             disabled={submitting}
-            className={styles.input}
+            min={periodBounds?.start}
+            max={periodBounds?.end}
           />
-        </label>
+        </div>
       )}
 
       {error && <div className={styles.error}>Ошибка: {error}</div>}
