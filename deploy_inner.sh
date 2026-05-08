@@ -54,11 +54,21 @@ fi
 SHA=$(git rev-parse --short HEAD)
 log "now at $SHA: $(git log -1 --format=%s)"
 
-log "building images (api, bot, worker)"
-"${COMPOSE[@]}" build api bot worker
+log "building images (api, bot, worker, frontend)"
+"${COMPOSE[@]}" build api bot worker frontend
 
 log "rolling restart"
 "${COMPOSE[@]}" up -d api bot worker
+
+# Frontend is a one-shot exporter that copies built SPA assets into the
+# `frontend_dist` named volume; caddy serves that volume read-only. Without
+# this step, every deploy rebuilt the api image but left the SPA stuck on
+# whatever was in the volume from the very first `compose up` (incident
+# 2026-05-08: users saw the old UI for days). `run --rm` blocks until the
+# copy completes, so smoke tests below see the fresh assets. `--no-deps`
+# avoids restarting db.
+log "refreshing SPA assets in frontend_dist volume"
+"${COMPOSE[@]}" run --rm --no-deps frontend
 
 log "waiting for api health (max 90s)"
 for i in $(seq 1 45); do
