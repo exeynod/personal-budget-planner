@@ -33,14 +33,14 @@
 }
 
 .categoryGroup {
-  margin-bottom: var(--space-4);
+  margin-bottom: var(--space-3);
 }
 
 .categoryTitle {
   font-size: var(--text-base);
   font-weight: var(--weight-medium);
   color: var(--color-text);
-  margin: var(--space-2) 0 var(--space-2);
+  margin: 0 0 8px;
 }
 
 .addInGroup {
@@ -48,7 +48,8 @@
   color: var(--color-primary);
   border: 1px dashed var(--color-border);
   border-radius: var(--radius-md);
-  padding: 8px 12px;
+  padding: 6px 12px;
+  margin-top: 4px;
   font-size: var(--text-sm);
   cursor: pointer;
   width: 100%;
