@@ -1,7 +1,7 @@
 import { forwardRef, useImperativeHandle, useState } from 'react';
 import { createActual, deleteActual, updateActual } from '../api/actual';
 import type { ActualRead, CategoryKind } from '../api/types';
-import { ActualEditor } from '../components/ActualEditor';
+import { TransactionEditor } from '../components/TransactionEditor';
 import { BottomSheet } from '../components/BottomSheet';
 import { useActual } from '../hooks/useActual';
 import { useCategories } from '../hooks/useCategories';
@@ -99,19 +99,30 @@ export const HistoryView = forwardRef<HistoryViewHandle, HistoryViewProps>(
       : null;
 
     const handleSave = async (data: {
-      kind: CategoryKind;
+      kind?: CategoryKind;
       category_id: number;
       amount_cents: number;
       description: string | null;
-      tx_date: string;
+      tx_date?: string;
     }) => {
       setMutationError(null);
+      if (!data.kind || !data.tx_date) {
+        setMutationError('Внутренняя ошибка: не заполнены kind/tx_date');
+        return;
+      }
+      const payload = {
+        kind: data.kind,
+        category_id: data.category_id,
+        amount_cents: data.amount_cents,
+        description: data.description,
+        tx_date: data.tx_date,
+      };
       try {
         if (sheet.mode === 'create') {
-          await createActual(data);
+          await createActual(payload);
           showToast('Транзакция добавлена');
         } else if (sheet.item) {
-          await updateActual(sheet.item.id, data);
+          await updateActual(sheet.item.id, payload);
           showToast('Транзакция обновлена');
         }
         setSheet(CLOSED_SHEET);
@@ -215,11 +226,13 @@ export const HistoryView = forwardRef<HistoryViewHandle, HistoryViewProps>(
           onClose={() => setSheet(CLOSED_SHEET)}
           title={sheet.mode === 'edit' ? 'Изменить транзакцию' : 'Новая транзакция'}
         >
-          <ActualEditor
+          <TransactionEditor
+            entity="actual"
             // Force-remount on each open so internal useState reflects the
             // fresh `initial` — previously a fresh "+" after editing a row
             // inherited that row's date / description / amount.
             key={sheet.open ? `actual-${sheet.item?.id ?? 'new'}` : 'closed'}
+            isEdit={sheet.mode === 'edit'}
             initial={sheet.item ? {
               kind: sheet.item.kind,
               amount_cents: sheet.item.amount_cents,

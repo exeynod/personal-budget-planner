@@ -53,6 +53,16 @@
   font-size: var(--text-sm);
 }
 
+.confirmRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-surface-2);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+}
+
 .actions {
   display: flex;
   gap: var(--space-2);
@@ -98,8 +108,6 @@
   cursor: not-allowed;
 }
 
-/* AI suggestion box (AICAT-02) */
-
 .aiSuggestion {
   border-left: 3px solid #a78bfa;
   background: rgba(167, 139, 250, 0.08);
@@ -131,7 +139,28 @@
   background: rgba(167, 139, 250, 0.12);
 }
 
-.kindToggle { display: flex; gap: 8px; margin-bottom: var(--space-3); }
-.kindBtn { flex: 1; padding: 10px; cursor: pointer; background: var(--color-surface-2); color: var(--color-text-muted); border: 1px solid var(--color-border); border-radius: var(--radius-md); font-size: var(--text-sm); transition: background 100ms, color 100ms; }
-.kindBtn:disabled { opacity: 0.5; cursor: not-allowed; }
-.kindBtnActive { background: var(--color-accent, var(--color-primary)); color: #fff; border-color: var(--color-accent, var(--color-primary)); }
+.kindToggle {
+  display: flex;
+  gap: 8px;
+  margin-bottom: var(--space-3);
+}
+.kindBtn {
+  flex: 1;
+  padding: 10px;
+  cursor: pointer;
+  background: var(--color-surface-2);
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  transition: background 100ms, color 100ms;
+}
+.kindBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.kindBtnActive {
+  background: var(--color-accent, var(--color-primary));
+  color: #fff;
+  border-color: var(--color-accent, var(--color-primary));
+}

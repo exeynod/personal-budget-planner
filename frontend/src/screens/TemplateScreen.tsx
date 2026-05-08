@@ -11,7 +11,10 @@ import type { CategoryKind, TemplateItemRead } from '../api/types';
 import { type PlanRowItem } from '../components/PlanRow';
 import { PlanGroupView, type CategoryEntry } from '../components/PlanGroupView';
 import { BottomSheet } from '../components/BottomSheet';
-import { PlanItemEditor, type EditorSavePayload } from '../components/PlanItemEditor';
+import {
+  TransactionEditor,
+  type TransactionEditorSavePayload,
+} from '../components/TransactionEditor';
 import { ScreenHeader } from '../components/ScreenHeader';
 import styles from './TemplateScreen.module.css';
 
@@ -92,7 +95,7 @@ export function TemplateScreen({ onBack }: TemplateScreenProps) {
     await wrap(() => updateTemplateItem(item.row.id, { amount_cents: newAmountCents }));
   };
 
-  const handleSave = async (data: EditorSavePayload) => {
+  const handleSave = async (data: TransactionEditorSavePayload) => {
     if (sheet.mode === 'create-template') {
       await createTemplateItem({
         category_id: data.category_id,
@@ -180,14 +183,24 @@ export function TemplateScreen({ onBack }: TemplateScreenProps) {
             : 'Новая строка шаблона'
         }
       >
-        <PlanItemEditor
+        <TransactionEditor
+          entity="template"
           // Force-remount on every open — see PlannedView for the rationale.
           key={
             sheet.open
               ? `template-${sheet.item?.id ?? 'new'}-${sheet.presetCategoryId ?? 0}`
               : 'closed'
           }
-          mode={sheet.mode}
+          isEdit={sheet.mode === 'edit-template'}
+          // Lock select to the row's/preset category kind. Without preset, leave
+          // unset so both kinds appear (no active tab in TemplateScreen).
+          kind={
+            sheet.item
+              ? categories.find((c) => c.id === sheet.item!.category_id)?.kind
+              : sheet.presetCategoryId
+                ? categories.find((c) => c.id === sheet.presetCategoryId)?.kind
+                : undefined
+          }
           initial={
             sheet.item
               ? {

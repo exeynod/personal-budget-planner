@@ -1,9 +1,10 @@
 /**
  * Bottom-sheet that surfaces an AI-prepared transaction proposal for
- * user review/approval. Reuses ActualEditor (для actual) и PlanItemEditor
- * (для planned), pre-filling them from the proposal payload streamed via
- * the SSE 'propose' event. The user edits as needed and confirms via the
- * normal POST endpoints — AI never silently writes to the DB.
+ * user review/approval. Reuses the unified TransactionEditor (entity="actual"
+ * для actual, entity="planned" для planned), pre-filling it from the
+ * proposal payload streamed via the SSE 'propose' event. The user edits as
+ * needed and confirms via the normal POST endpoints — AI never silently
+ * writes to the DB.
  */
 import { useEffect, useState } from 'react';
 import type { ProposalPayload, CategoryRead, PeriodRead } from '../api/types';
@@ -12,8 +13,7 @@ import { listPeriods } from '../api/periods';
 import { createActual } from '../api/actual';
 import { createPlanned } from '../api/planned';
 import { BottomSheet } from './BottomSheet';
-import { ActualEditor } from './ActualEditor';
-import { PlanItemEditor } from './PlanItemEditor';
+import { TransactionEditor } from './TransactionEditor';
 
 export interface AiProposalSheetProps {
   proposal: ProposalPayload | null;
@@ -89,7 +89,8 @@ export function AiProposalSheet({
       )}
       {!loadError && categories === null && <p>Загрузка…</p>}
       {!loadError && categories !== null && proposal.kind_of === 'actual' && (
-        <ActualEditor
+        <TransactionEditor
+          entity="actual"
           initial={{
             kind: proposal.txn.kind,
             amount_cents: proposal.txn.amount_cents,
@@ -99,6 +100,7 @@ export function AiProposalSheet({
           }}
           categories={categories}
           onSave={async (data) => {
+            if (!data.kind || !data.tx_date) return;
             await createActual({
               kind: data.kind,
               amount_cents: data.amount_cents,
@@ -117,8 +119,9 @@ export function AiProposalSheet({
         activePeriod === null ? (
           <p>Активный период не найден — план добавить нельзя.</p>
         ) : (
-          <PlanItemEditor
-            mode="create-planned"
+          <TransactionEditor
+            entity="planned"
+            kind={proposal.txn.kind}
             initial={{
               category_id: proposal.txn.category_id ?? undefined,
               amount_cents: proposal.txn.amount_cents,
@@ -155,7 +158,7 @@ export function AiProposalSheet({
 /** Build an ISO date inside the active period from a 1-based day-of-month. */
 function buildPlannedDate(periodStart: string, day: number): string {
   // periodStart is YYYY-MM-DD; replace last two digits with the desired day,
-  // clamped into the period's month. PlanItemEditor will validate against
+  // clamped into the period's month. TransactionEditor will validate against
   // periodBounds and surface an error if we somehow drift outside.
   const [y, m] = periodStart.split('-');
   const dd = String(Math.max(1, Math.min(31, day))).padStart(2, '0');

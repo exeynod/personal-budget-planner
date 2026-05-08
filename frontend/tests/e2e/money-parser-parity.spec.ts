@@ -2,10 +2,10 @@ import { test, expect, type Page } from '@playwright/test';
 
 /**
  * CODE-01 e2e parity:
- *  - Open ActualEditor (Транзакции → История → Fab "Добавить транзакцию"),
+ *  - Open TransactionEditor (actual) (Транзакции → История → Fab "Добавить транзакцию"),
  *    type "100,50", submit, intercept POST /api/v1/actual,
  *    capture amount_cents.
- *  - Open PlanItemEditor (Транзакции → План → Fab "Добавить строку плана"),
+ *  - Open TransactionEditor (planned) (Транзакции → План → Fab "Добавить строку плана"),
  *    type "100,50", submit, intercept POST /api/v1/periods/{id}/planned,
  *    capture amount_cents.
  *  - Assert both amounts equal (and equal to 10050).
@@ -164,7 +164,7 @@ async function mockApi(page: Page, captured: CapturedAmounts) {
   });
 }
 
-test('CODE-01: parseRublesToKopecks parity across ActualEditor and PlanItemEditor', async ({ page }) => {
+test('CODE-01: parseRublesToKopecks parity across TransactionEditor (actual) and TransactionEditor (planned)', async ({ page }) => {
   const captured: CapturedAmounts = { actual: null, planned: null };
   await mockApi(page, captured);
 
@@ -175,8 +175,8 @@ test('CODE-01: parseRublesToKopecks parity across ActualEditor and PlanItemEdito
   await page.click('button[aria-label="Транзакции"]');
   await page.waitForTimeout(300);
 
-  // ---- ActualEditor flow (sub-tab «История» is default) ----
-  // Tap Fab to open BottomSheet with ActualEditor
+  // ---- TransactionEditor (actual) flow (sub-tab «История» is default) ----
+  // Tap Fab to open BottomSheet with TransactionEditor (actual)
   const addActualFab = page.locator('button[aria-label="Добавить транзакцию"]');
   await expect(addActualFab).toBeVisible({ timeout: 5000 });
   await addActualFab.click();
@@ -187,7 +187,7 @@ test('CODE-01: parseRublesToKopecks parity across ActualEditor and PlanItemEdito
   await expect(actualAmountInput).toBeVisible({ timeout: 3000 });
   await actualAmountInput.fill('100,50');
 
-  // Select category — only category select is visible in ActualEditor
+  // Select category — only category select is visible in TransactionEditor (actual)
   await page.locator('select').first().selectOption({ value: '1' });
 
   // Submit
@@ -197,7 +197,7 @@ test('CODE-01: parseRublesToKopecks parity across ActualEditor and PlanItemEdito
   // Wait for sheet to close
   await page.waitForTimeout(400);
 
-  // ---- PlanItemEditor flow (sub-tab «План») ----
+  // ---- TransactionEditor (planned) flow (sub-tab «План») ----
   await page.click('button:has-text("План")');
   await page.waitForTimeout(300);
 
@@ -206,7 +206,7 @@ test('CODE-01: parseRublesToKopecks parity across ActualEditor and PlanItemEdito
   await addPlanFab.click();
   await page.waitForTimeout(300);
 
-  // PlanItemEditor: select first, then amount
+  // TransactionEditor (planned): select first, then amount
   await page.locator('select').first().selectOption({ value: '1' });
 
   const planAmountInput = page.locator('input[inputMode="decimal"]').first();

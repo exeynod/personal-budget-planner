@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { createActual } from '../api/actual';
 import { applyTemplate } from '../api/planned';
 import type { CategoryKind } from '../api/types';
-import { ActualEditor } from '../components/ActualEditor';
+import { TransactionEditor } from '../components/TransactionEditor';
 import { AggrStrip } from '../components/AggrStrip';
 import { BottomSheet } from '../components/BottomSheet';
 import { DashboardCategoryRow } from '../components/DashboardCategoryRow';
@@ -118,13 +118,20 @@ export function HomeScreen({ onNavigateToSub, onNavigateToHistory }: HomeScreenP
   })();
 
   const handleSaveActual = async (data: {
-    kind: CategoryKind;
+    kind?: CategoryKind;
     category_id: number;
     amount_cents: number;
     description: string | null;
-    tx_date: string;
+    tx_date?: string;
   }) => {
-    await createActual(data);
+    if (!data.kind || !data.tx_date) return;
+    await createActual({
+      kind: data.kind,
+      category_id: data.category_id,
+      amount_cents: data.amount_cents,
+      description: data.description,
+      tx_date: data.tx_date,
+    });
     setSheetOpen(false);
     showToast('Транзакция добавлена');
     await refetchDashboard();
@@ -254,7 +261,8 @@ export function HomeScreen({ onNavigateToSub, onNavigateToHistory }: HomeScreenP
         onClose={() => setSheetOpen(false)}
         title="Новая транзакция"
       >
-        <ActualEditor
+        <TransactionEditor
+          entity="actual"
           categories={categories}
           onSave={handleSaveActual}
           onCancel={() => setSheetOpen(false)}

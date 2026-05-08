@@ -1,8 +1,8 @@
 /**
  * Money formatting helpers — central utility used by Phase 5 dashboard
  * components (HeroCard, AggrStrip, DashboardCategoryRow). New components
- * import from here; existing PlanRow/PlanItemEditor/ActualEditor inline
- * formatters are NOT refactored in this plan (deferred).
+ * import from here; PlanRow and TransactionEditor still keep their own
+ * inline kopeck-to-ruble formatter for the editor amount field.
  *
  * All amounts are kopecks (BIGINT in DB, number in JS — within
  * Number.MAX_SAFE_INTEGER for amounts up to ~90 trillion rubles).

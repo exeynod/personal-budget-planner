@@ -16,9 +16,9 @@ import { type PlanRowItem } from '../components/PlanRow';
 import { PlanGroupView, type CategoryEntry } from '../components/PlanGroupView';
 import { BottomSheet } from '../components/BottomSheet';
 import {
-  PlanItemEditor,
-  type EditorSavePayload,
-} from '../components/PlanItemEditor';
+  TransactionEditor,
+  type TransactionEditorSavePayload,
+} from '../components/TransactionEditor';
 import { ScreenHeader } from '../components/ScreenHeader';
 import styles from './PlannedView.module.css';
 
@@ -187,7 +187,7 @@ export const PlannedView = forwardRef<PlannedViewHandle, PlannedViewProps>(
       }
     };
 
-    const handleSave = async (data: EditorSavePayload) => {
+    const handleSave = async (data: TransactionEditorSavePayload) => {
       if (!period) return;
       if (sheet.mode === 'create-planned') {
         const cat = categories.find((c) => c.id === data.category_id);
@@ -327,7 +327,8 @@ export const PlannedView = forwardRef<PlannedViewHandle, PlannedViewProps>(
               : 'Новая строка плана'
           }
         >
-          <PlanItemEditor
+          <TransactionEditor
+            entity="planned"
             // Force-remount on every open so internal useState picks up the
             // fresh `initial` values. Without the key, React re-uses the
             // previous instance: presetCategoryId from "+ в Категория" is
@@ -338,7 +339,17 @@ export const PlannedView = forwardRef<PlannedViewHandle, PlannedViewProps>(
                 ? `planned-${sheet.item?.id ?? 'new'}-${sheet.presetCategoryId ?? 0}`
                 : 'closed'
             }
-            mode={sheet.mode}
+            isEdit={sheet.mode === 'edit-planned'}
+            // Lock category select to the active tab's kind (Расходы/Доходы).
+            // For edit, pin to the existing row's kind. For preset, pin to the
+            // chosen category's kind. Otherwise inherit from the screen tab.
+            kind={
+              sheet.item
+                ? categories.find((c) => c.id === sheet.item!.category_id)?.kind ?? activeKind
+                : sheet.presetCategoryId
+                  ? categories.find((c) => c.id === sheet.presetCategoryId)?.kind ?? activeKind
+                  : activeKind
+            }
             initial={
               sheet.item
                 ? {
