@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-05-07 — v0.5 milestone started)
 Phase: 16 of 16 (Security & AI Hardening) — COMPLETE
 Plan: 16-07 complete (CON-02 per-user asyncio.Lock); ALL 9 plans closed (16-01..16-09).
 Status: Phase complete — milestone v0.5 ready for close.
-Last activity: 2026-05-08 — Quick task 260508-fgq: унифицирован редактор транзакций (TransactionEditor) для actual/template/planned, синхронизирована раскладка PlanRow с HistoryView row, исправлен фильтр категорий по kind на вкладке «Доходы» в плане.
+Last activity: 2026-05-08 — Quick task 260508-fib: UI rework handoff package (18 mobile screenshots + user-stories.md + README) собран в .planning/ui-rework/ для передачи в Claude Design. Awaiting human-verify checkpoint.
 
 Progress: [██████████] 100%
 
@@ -96,6 +96,7 @@ None yet.
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 260508-fgq | Унифицирован редактор транзакций (план/факт) и карточка плана | 2026-05-08 | 781961b | [260508-fgq-unify-transaction-editor](./quick/260508-fgq-unify-transaction-editor/) |
+| 260508-fib | UI rework handoff: 18 mobile screenshots + user-stories.md + README для Claude Design | 2026-05-08 | 3447760 | [260508-fib-tma-playwright-mobile-viewport-dev-mode-](./quick/260508-fib-tma-playwright-mobile-viewport-dev-mode-/) |
 
 ## Deferred Items
 
