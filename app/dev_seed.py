@@ -241,5 +241,27 @@ async def seed_dev_data(owner_tg_id: int) -> None:
                 logger.info("dev.seed.merged", **inserted)
             else:
                 logger.info("dev.seed.noop", reason="db_already_complete")
+
+            # Embedding backfill — must run AFTER commit so the
+            # CategoryEmbedding upserts see freshly-flushed Category rows
+            # (and so a provider failure can't roll back the seed).
+            # Same idempotent helper that onboarding uses (D-14-03);
+            # skips categories that already have an embedding row.
+            try:
+                from app.services.ai_embedding_backfill import (
+                    backfill_user_embeddings,
+                )
+                async with AsyncSessionLocal() as embed_session:
+                    await set_tenant_scope(embed_session, user_pk)
+                    embedded = await backfill_user_embeddings(
+                        embed_session, user_id=user_pk
+                    )
+                    await embed_session.commit()
+                if embedded:
+                    logger.info("dev.seed.embeddings_backfilled", count=embedded)
+            except Exception:
+                logger.warning(
+                    "dev.seed.embedding_backfill_failed", exc_info=True
+                )
     except Exception:
         logger.warning("dev.seed.failed", exc_info=True)
