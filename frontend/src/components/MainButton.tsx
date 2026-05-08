@@ -52,7 +52,7 @@ export function MainButton({ text, enabled, onClick }: MainButtonProps) {
           background: 'linear-gradient(180deg, var(--accent), color-mix(in srgb, var(--accent) 80%, #000 0%))',
           color: '#fff',
           border: 0,
-          borderRadius: 22,
+          borderRadius: 14,
           fontSize: 16,
           fontWeight: 700,
           letterSpacing: '-0.01em',

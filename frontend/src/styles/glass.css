@@ -129,6 +129,21 @@ button:active:not(:disabled) {
   transform: scale(0.96);
 }
 
+/* ========== Keyboard navigation visibility ==========
+   :focus-visible активируется только при keyboard-навигации (не на mouse-click).
+   Accent-outline хорошо виден на light Aurora и dark Mesh фонах. */
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+a:focus-visible,
+[role="button"]:focus-visible,
+[role="tab"]:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 /* ========== Утилиты ========== */
 
 .tnum {

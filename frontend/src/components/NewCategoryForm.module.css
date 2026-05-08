@@ -8,7 +8,7 @@
     rgba(248, 240, 232, 0.74));
   backdrop-filter: blur(22px) saturate(175%);
   -webkit-backdrop-filter: blur(22px) saturate(175%);
-  border-radius: 18px;
+  border-radius: 22px;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.55),
     inset 0 0 0 0.5px color-mix(in srgb, var(--accent) 30%, transparent);
@@ -16,7 +16,7 @@
 
 .nameInput {
   width: 100%;
-  padding: 11px 14px;
+  padding: 12px 14px;
   background: rgba(255, 255, 255, 0.6);
   border: 0;
   color: var(--ink);
@@ -60,7 +60,7 @@
 
 .submitBtn {
   flex: 1;
-  padding: 14px 18px;
+  padding: 12px 22px;
   background: linear-gradient(180deg, var(--accent), color-mix(in srgb, var(--accent) 80%, #000 0%));
   color: #fff;
   border: 0;

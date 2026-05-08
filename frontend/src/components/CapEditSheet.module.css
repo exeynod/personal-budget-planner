@@ -54,7 +54,7 @@
 }
 
 .submit {
-  padding: 14px 16px;
+  padding: 12px 22px;
   background: linear-gradient(180deg, var(--accent), color-mix(in srgb, var(--accent) 80%, #000 0%));
   color: #fff;
   border: 0;
