@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-05-07 — v0.5 milestone started)
 Phase: 16 of 16 (Security & AI Hardening) — COMPLETE
 Plan: 16-07 complete (CON-02 per-user asyncio.Lock); ALL 9 plans closed (16-01..16-09).
 Status: Phase complete — milestone v0.5 ready for close.
-Last activity: 2026-05-07 — Plan 16-07 CON-02 closed (per-user asyncio.Lock dict + enforce_spending_cap_for_user in-lock helper + 2 pytest concurrent cases verified pre-fix FAILS, post-fix PASSES).
+Last activity: 2026-05-08 — Quick task 260508-fgq: унифицирован редактор транзакций (TransactionEditor) для actual/template/planned, синхронизирована раскладка PlanRow с HistoryView row, исправлен фильтр категорий по kind на вкладке «Доходы» в плане.
 
 Progress: [██████████] 100%
 
@@ -90,6 +90,12 @@ None yet.
 
 - Q-9 (HLD): Стратегия выноса pg_dump (S3 vs локальный том) — открыто, отложено за scope v0.5
 - v0.4 UAT: 8 live-smoke items (v0.4-U-1..U-8) ждут owner-валидации в реальном TG — НЕ блокируют v0.5 фиксы (изолированный hotfix scope)
+
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 260508-fgq | Унифицирован редактор транзакций (план/факт) и карточка плана | 2026-05-08 | 781961b | [260508-fgq-unify-transaction-editor](./quick/260508-fgq-unify-transaction-editor/) |
 
 ## Deferred Items
 
