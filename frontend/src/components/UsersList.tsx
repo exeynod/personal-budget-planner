@@ -55,7 +55,7 @@ export function UsersList({ users, onRevoke, onEditCap }: UsersListProps) {
           <li key={u.id} className={styles.row}>
             <span className={styles.iconWrap} aria-hidden="true">
               {isOwner ? (
-                <Crown size={18} weight="fill" color="var(--color-accent)" />
+                <Crown size={18} weight="fill" color="var(--accent)" />
               ) : (
                 <span className={styles.iconCircle}>
                   {String(u.tg_user_id).slice(-2)}

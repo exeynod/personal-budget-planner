@@ -1,37 +1,47 @@
+/* ForecastCard — встроенный в AnalyticsScreen forecast hero. Mesh dark текст. */
+
 .card {
   background: transparent;
   padding: 0;
 }
+
 .label {
-  font-size: var(--text-sm);
-  color: var(--color-text-muted);
-  font-weight: var(--weight-medium);
-  margin-bottom: var(--space-2);
+  font-size: 13px;
+  color: var(--ink-d-2);
+  font-weight: 500;
+  margin-bottom: 8px;
 }
+
 .headlineLabel {
-  font-size: var(--text-sm);
-  color: var(--color-text-muted);
+  font-size: 13px;
+  color: var(--ink-d-2);
   margin-bottom: 4px;
 }
+
 .value {
-  font-size: 1.6rem;
-  font-weight: var(--weight-semibold);
+  font-size: 26px;
+  font-weight: 700;
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: 8px;
   font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  color: var(--ink-d);
 }
-.valueDanger { color: var(--color-danger); }
-.valueSuccess { color: var(--color-primary); }
+
+.valueDanger { color: #FF9F8A; }
+.valueSuccess { color: var(--accent); }
+
 .noData {
-  font-size: var(--text-sm);
-  color: var(--color-text-muted);
+  font-size: 13px;
+  color: var(--ink-d-2);
   font-style: italic;
 }
+
 .sub {
-  font-size: var(--text-sm);
-  color: var(--color-text-muted);
-  margin-top: var(--space-2);
+  font-size: 13px;
+  color: var(--ink-d-2);
+  margin-top: 8px;
 }
 
 /* Breakdown lines for 1M forecast */
@@ -40,25 +50,30 @@
   flex-direction: column;
   gap: 6px;
 }
+
 .row {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  gap: var(--space-3);
+  gap: 12px;
 }
+
 .rowLabel {
-  font-size: var(--text-sm);
-  color: var(--color-text-muted);
+  font-size: 13px;
+  color: var(--ink-d-2);
 }
+
 .rowValue {
-  font-size: var(--text-sm);
-  color: var(--color-text);
+  font-size: 13px;
+  color: var(--ink-d);
   font-variant-numeric: tabular-nums;
 }
-.rowValuePos { color: var(--color-success); }
-.rowValueNeg { color: var(--color-danger); }
+
+.rowValuePos { color: #7CC68F; }
+.rowValueNeg { color: #FF9F8A; }
+
 .divider {
   height: 1px;
-  background: var(--color-border);
-  margin: var(--space-3) 0;
+  background: rgba(255, 255, 255, 0.08);
+  margin: 12px 0;
 }

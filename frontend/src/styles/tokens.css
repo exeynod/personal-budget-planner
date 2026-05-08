@@ -1,12 +1,13 @@
 :root {
   /* === Liquid Glass palette (TG Budget redesign) === */
+
   /* Accent (coral) */
   --accent: #FF7A4C;
   --accent-hover: #FF6E3A;
   --accent-2: #FFB07A;
   --accent-soft: rgba(255, 122, 76, 0.14);
 
-  /* Ink (на light Aurora) */
+  /* Ink (на light Aurora фонах) */
   --ink: #1a1410;
   --ink-2: rgba(26, 20, 16, 0.6);
   --ink-3: rgba(26, 20, 16, 0.4);
@@ -26,7 +27,7 @@
   --danger-soft: rgba(216, 64, 75, 0.14);
   --warn: #F0C04A;
 
-  /* Categories — warm-leaning palette */
+  /* Categories — warm-leaning palette (см. utils/categoryVisuals.ts) */
   --cat-food:    #F39A4C;
   --cat-cafe:    #E36B5A;
   --cat-home:    #B583E8;
@@ -38,42 +39,14 @@
   --cat-salary:  #7CC68F;
   --cat-side:    #F0C04A;
 
-  /* Glass parameters */
+  /* Glass parameters (используются в glass.css) */
   --glass-blur: 22px;
   --glass-saturate: 175%;
   --glass-alpha-light: 0.82;
   --glass-alpha-dark: 0.82;
 
-  /* === LEGACY tokens (postponed for removal until sweep complete) === */
-  --color-bg: #0e1116;
-  --color-bg-elevated: #161a22;
-  --color-surface: #1c2230;
-  --color-surface-2: #232a3a;
-  --color-border: #2a3142;
-  --color-border-subtle: #1f2532;
-
-  --color-text: #f3f5f9;
-  --color-text-muted: #8e98ad;
-  --color-text-dim: #5d6577;
-
-  --color-primary: #4ea4ff;
-  --color-primary-hover: #2e90ff;
-  --color-primary-soft: rgba(78, 164, 255, 0.12);
-
-  --color-accent: #ffd166;
-
-  --color-success: #2ecc71;
-  --color-success-soft: rgba(46, 204, 113, 0.14);
-  --color-danger: #ff5d5d;
-  --color-danger-soft: rgba(255, 93, 93, 0.14);
-  --color-warn: #ffb547;
-
-  --gradient-hero: linear-gradient(135deg, #1d2740 0%, #2d1d40 100%);
-  --gradient-hero-glow: radial-gradient(circle at 20% 0%, rgba(78,164,255,0.25), transparent 60%);
-
   /* Typography */
   --font-sans: 'Inter', -apple-system, 'Segoe UI', system-ui, sans-serif;
-  --font-mono: 'Inter', -apple-system, system-ui, sans-serif;
 
   --text-xs: 11px;
   --text-sm: 13px;
@@ -107,20 +80,6 @@
   --radius-xl: 28px;
   --radius-full: 9999px;
 
-  /* Shadows / elevation */
-  --shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
-  --shadow-md: 0 8px 16px rgba(0,0,0,0.35);
-  --shadow-lg: 0 16px 40px rgba(0,0,0,0.45);
-  --shadow-glow: 0 0 30px rgba(78,164,255,0.25);
-
-  /* Chart palette — Phase 8 Analytics (ANL-07) */
-  --chart-1: #4ea4ff;
-  --chart-2: #2ecc71;
-  --chart-3: #ffd166;
-  --chart-4: #ff5d5d;
-  --chart-5: #a78bfa;
-  --chart-6: #38bdf8;
-
   /* Layout */
   --tg-viewport: 375px;
   --col-width: 420px;
@@ -136,35 +95,10 @@
 html, body {
   font-family: var(--font-sans);
   font-size: var(--text-base);
-  color: var(--color-text);
-  background: var(--color-bg);
+  color: var(--ink);
+  background: var(--bg-cream);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   margin: 0;
   padding: 0;
-}
-
-
-/* Light theme override (опционально, переключатель в toolbar) */
-[data-theme="light"] {
-  --color-bg: #f3f5f9;
-  --color-bg-elevated: #ffffff;
-  --color-surface: #ffffff;
-  --color-surface-2: #f8fafc;
-  --color-border: #e2e8f0;
-  --color-border-subtle: #eef2f7;
-
-  --color-text: #0e1116;
-  --color-text-muted: #5d6577;
-  --color-text-dim: #8e98ad;
-
-  --color-primary-soft: rgba(78, 164, 255, 0.10);
-  --color-success-soft: rgba(46, 204, 113, 0.10);
-  --color-danger-soft: rgba(255, 93, 93, 0.10);
-
-  --gradient-hero: linear-gradient(135deg, #2563eb 0%, #6d28d9 100%);
-  --gradient-hero-glow: radial-gradient(circle at 20% 0%, rgba(255,255,255,0.18), transparent 60%);
-
-  --shadow-md: 0 8px 24px rgba(15, 23, 42, 0.10);
-  --shadow-lg: 0 20px 50px rgba(15, 23, 42, 0.12);
 }
