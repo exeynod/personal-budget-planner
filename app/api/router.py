@@ -52,6 +52,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.dependencies import get_current_user, get_db, verify_internal_token
 from app.api.routes.actual import actual_router
 from app.api.routes.admin import admin_router
+from app.api.routes.auth import auth_router
 from app.api.routes.categories import categories_router
 from app.api.routes.internal_bot import internal_bot_router
 from app.api.routes.internal_telegram import internal_telegram_router
@@ -150,6 +151,11 @@ public_router.include_router(ai_suggest_router, prefix="/ai")
 # Phase 13 sub-router — admin whitelist CRUD (require_owner gated, ADM-03..06).
 # Plan 13-05 will extend the same admin_router with /admin/ai-usage breakdown.
 public_router.include_router(admin_router)
+
+# Phase 17 (v0.6) — native iOS dev-token exchange (IOSAUTH-02). Не требует
+# initData (это и есть точка входа без него). Endpoint защищён shared secret
+# и сам идентифицирует пользователя как OWNER_TG_ID.
+public_router.include_router(auth_router)
 
 
 # ---- Internal router (requires X-Internal-Token) ----

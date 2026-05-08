@@ -145,6 +145,10 @@ services:
       LLM_MODEL: ${LLM_MODEL:-gpt-4.1-mini}
       AI_MAX_CONTEXT_MESSAGES: ${AI_MAX_CONTEXT_MESSAGES:-8}
       ENABLE_AI_CATEGORIZATION: ${ENABLE_AI_CATEGORIZATION:-true}
+      # Phase 17 (v0.6 IOSAUTH-02): native iOS dev-token exchange. Optional —
+      # endpoint отдаёт 503 если переменная не задана. Plaintext-токен виден
+      # один раз в response, дальше БД хранит только sha256-hash.
+      DEV_AUTH_SECRET: ${DEV_AUTH_SECRET:-}
     labels:
       monitoring.alerts: "true"   # picked up by /home/exy/dockerlog2tg sidecar
     networks:

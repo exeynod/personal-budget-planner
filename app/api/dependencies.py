@@ -24,9 +24,11 @@ from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from datetime import datetime, timezone
+
 from app.core.auth import validate_init_data
 from app.core.settings import settings
-from app.db.models import AppUser, UserRole
+from app.db.models import AppUser, AuthToken, UserRole
 from app.db.session import AsyncSessionLocal, set_tenant_scope
 
 
@@ -80,13 +82,71 @@ async def _dev_mode_resolve_owner(db: AsyncSession) -> AppUser:
     return user
 
 
+async def _resolve_bearer(
+    db: AsyncSession, raw_authorization: str
+) -> AppUser | None:
+    """Phase 17 (v0.6 IOSAUTH-01): Bearer token → AppUser.
+
+    Возвращает AppUser если токен:
+    - Имеет формат `Bearer <hex>` (при несовпадении — None, fallback на initData).
+    - Найден в auth_token (по sha256 hash), не revoked.
+    - Привязанный user не revoked.
+
+    Side effect: обновляет last_used_at на каждой успешной auth (грубый
+    audit-stream). Без Index update — таблица маленькая, write-amp низкий.
+
+    Возвращает None если токен невалиден — caller (get_current_user) тогда
+    либо fallback'ит на initData, либо рейзит 403.
+    """
+    import hashlib
+
+    parts = raw_authorization.split(None, 1)
+    if len(parts) != 2 or parts[0].lower() != "bearer":
+        return None
+
+    plaintext = parts[1].strip()
+    if not plaintext:
+        return None
+
+    token_hash = hashlib.sha256(plaintext.encode("utf-8")).hexdigest()
+
+    result = await db.execute(
+        select(AppUser, AuthToken)
+        .join(AuthToken, AuthToken.user_id == AppUser.id)
+        .where(AuthToken.token_hash == token_hash)
+        .where(AuthToken.revoked_at.is_(None))
+    )
+    row = result.first()
+    if row is None:
+        return None
+
+    user, token = row
+    if user.role == UserRole.revoked:
+        return None
+    if user.role not in (UserRole.owner, UserRole.member):
+        return None
+
+    token.last_used_at = datetime.now(timezone.utc)
+    await db.flush()
+
+    return user
+
+
 async def get_current_user(
     x_telegram_init_data: Annotated[str | None, Header()] = None,
+    authorization: Annotated[str | None, Header()] = None,
     db: Annotated[AsyncSession, Depends(get_db)] = None,  # type: ignore[assignment]
 ) -> AppUser:
-    """Validate Telegram initData and return AppUser ORM (Phase 12 ROLE-02/03).
+    """Validate auth credentials and return AppUser ORM (Phase 12 ROLE-02/03,
+    extended in Phase 17 IOSAUTH-01 для Bearer-токенов от нативных клиентов).
 
-    Behaviour:
+    Auth precedence (Phase 17, v0.6):
+    1. Authorization: Bearer <token> — нативный iOS-клиент. Lookup в
+       auth_token, проверка revoked_at IS NULL, role IN (owner, member).
+    2. X-Telegram-Init-Data — web Mini App. HMAC + role-based whitelist
+       (legacy path, не сломан Phase 17 changes).
+
+    DEV_MODE поведение (без изменений Phase 17):
     - DEV_MODE=true: skip HMAC, upsert OWNER row with role=owner, return ORM.
     - HMAC valid → resolve AppUser by tg_user_id:
         * row not found → 403 (Phase 14 onboarding will pre-create invitees).
@@ -96,6 +156,15 @@ async def get_current_user(
 
     Returns: AppUser ORM. Downstream deps may read .id, .role, .tg_user_id, etc.
     """
+    # ---------- Phase 17: Bearer token (native iOS) ----------
+    # Try Bearer first when Authorization header present. На успехе — return.
+    # На неудаче — fallback на legacy initData paths (web-фронт остаётся жить).
+    if authorization:
+        bearer_user = await _resolve_bearer(db, authorization)
+        if bearer_user is not None:
+            return bearer_user
+
+
     # ---------- DEV_MODE: bypass HMAC, upsert OWNER row ----------
     # NOTE: OWNER_TG_ID is referenced from _dev_mode_resolve_owner (dev-only helper).
     # The production path below does NOT use OWNER_TG_ID — auth is role-based.
