@@ -41,11 +41,13 @@ struct MainShell: View {
                 }
                 .tag(AppTab.transactions)
 
-            ComingSoonView(title: "AI", phase: 20)
-                .tabItem {
-                    Label(AppTab.ai.label, systemImage: AppTab.ai.systemImage)
-                }
-                .tag(AppTab.ai)
+            NavigationStack {
+                AIChatView()
+            }
+            .tabItem {
+                Label(AppTab.ai.label, systemImage: AppTab.ai.systemImage)
+            }
+            .tag(AppTab.ai)
 
             ManagementView()
                 .tabItem {
