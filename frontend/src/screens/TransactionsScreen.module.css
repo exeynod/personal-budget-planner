@@ -35,6 +35,7 @@
   align-items: center;
   margin-bottom: 12px;
   padding: 0 4px;
+  flex-shrink: 0;
 }
 
 .title {
@@ -63,6 +64,7 @@
 /* === Sub-tab spacing === */
 .subTabBlock {
   margin-bottom: 6px;
+  flex-shrink: 0;
 }
 
 /* === Category chip rail === */
@@ -73,6 +75,10 @@
   margin-bottom: 14px;
   padding: 2px 0;
   scrollbar-width: none;
+  /* В .scroll (flex-column) дочерние элементы по дефолту flex-shrink: 1
+     и под нагрузкой (длинная история транзакций) могут схлопнуться
+     в 0px — чипы пропадают, остаются только тонкие линии границ. */
+  flex-shrink: 0;
 }
 
 .chips::-webkit-scrollbar {

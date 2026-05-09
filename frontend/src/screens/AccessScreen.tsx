@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { AuroraBg } from '../components/AuroraBg';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { SubTabBar, type SubTabItem } from '../components/SubTabBar';
-import { Fab } from '../components/Fab';
 import { UsersList } from '../components/UsersList';
+import { useFabAction } from '../hooks/useFabAction';
 import { InviteSheet } from '../components/InviteSheet';
 import { RevokeConfirmDialog } from '../components/RevokeConfirmDialog';
 import { CapEditSheet } from '../components/CapEditSheet';
@@ -70,6 +70,11 @@ export function AccessScreen({ onBack }: AccessScreenProps) {
     showToast('Лимит обновлён');
   };
 
+  // Central FAB на вкладке «Пользователи» открывает invite-sheet вместо
+  // дефолтного «Новая транзакция». На вкладке «AI Usage» FAB сбрасывается.
+  const openInvite = useCallback(() => setInviteOpen(true), []);
+  useFabAction(activeTab === 'users', openInvite, 'Пригласить пользователя');
+
   const handleRevokeConfirm = async () => {
     if (!revokeTarget) return;
     try {
@@ -130,13 +135,6 @@ export function AccessScreen({ onBack }: AccessScreenProps) {
         </div>
       )}
       </div>
-
-      {activeTab === 'users' && (
-        <Fab
-          onClick={() => setInviteOpen(true)}
-          ariaLabel="Пригласить пользователя"
-        />
-      )}
 
       <InviteSheet
         open={inviteOpen}

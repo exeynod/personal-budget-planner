@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useUser } from './hooks/useUser';
 import { OnboardingRequiredError } from './api/client';
 import { useAiConversation } from './hooks/useAiConversation';
 import { useCategories } from './hooks/useCategories';
 import { useSettings } from './hooks/useSettings';
+import { FabActionContext } from './hooks/useFabAction';
 import { createActual } from './api/actual';
 import type { CategoryKind } from './api/types';
 import { OnboardingScreen } from './screens/OnboardingScreen';
@@ -58,6 +59,15 @@ export default function App() {
   const [txMutationKey, setTxMutationKey] = useState(0);
   const { categories } = useCategories(false);
   const { settings } = useSettings();
+
+  // Context-aware FAB: экраны (Транзакции>План, Доступ>Пользователи) могут
+  // подменять дефолтное действие центрального FAB через FabActionContext.
+  // Нет регистрации — FAB открывает Add-Transaction sheet (default).
+  const [fabAction, setFabAction] = useState<{ run: () => void; label: string } | null>(null);
+  const setAction = useCallback(
+    (a: { run: () => void; label: string } | null) => setFabAction(a),
+    [],
+  );
 
   useEffect(() => {
     function onUnhandled(ev: PromiseRejectionEvent) {
@@ -149,6 +159,7 @@ export default function App() {
   const screenKey = managementView ?? activeTab;
 
   return (
+    <FabActionContext.Provider value={{ setAction }}>
     <div className={styles.appWrapper}>
       <div className={styles.appRoot}>
         <div className={styles.screenContainer}>
@@ -207,7 +218,11 @@ export default function App() {
         <BottomNav
           activeTab={activeTab}
           onTabChange={handleTabChange}
-          onFabClick={() => setAddTxOpen(true)}
+          onFabClick={() => {
+            if (fabAction) fabAction.run();
+            else setAddTxOpen(true);
+          }}
+          fabAriaLabel={fabAction?.label ?? 'Добавить транзакцию'}
           tint={tabbarTint}
         />
 
@@ -228,5 +243,6 @@ export default function App() {
         </BottomSheet>
       </div>
     </div>
+    </FabActionContext.Provider>
   );
 }

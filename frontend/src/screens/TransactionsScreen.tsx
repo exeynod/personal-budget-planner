@@ -1,9 +1,9 @@
-import { useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { AuroraBg } from '../components/AuroraBg';
 import { SubTabBar } from '../components/SubTabBar';
-import { Fab } from '../components/Fab';
 import { useCategories } from '../hooks/useCategories';
 import { useCurrentPeriod } from '../hooks/useCurrentPeriod';
+import { useFabAction } from '../hooks/useFabAction';
 import type { CategoryKind } from '../api/types';
 import { HistoryView, type HistoryViewHandle } from './HistoryView';
 import { PlannedView, type PlannedViewHandle } from './PlannedView';
@@ -51,14 +51,12 @@ export function TransactionsScreen({ categoryFilter, onClearFilter, txMutationKe
 
   const effectiveCategoryFilter = categoryFilter ?? localCategoryFilter;
 
-  // FAB на этом экране показывается ТОЛЬКО на sub-tab=План — для создания
-  // строки плана. На sub-tab=История пользователь использует central FAB
-  // в bottom nav (app-level Add-Transaction sheet).
-  const handleFab = () => {
-    if (activeSubTab === 'plan') {
-      plannedRef.current?.openCreateSheet();
-    }
-  };
+  // На sub-tab=План центральный FAB вместо «Новая транзакция» открывает
+  // «Новая строка плана». На sub-tab=История FAB остаётся дефолтным.
+  const openPlanSheet = useCallback(() => {
+    plannedRef.current?.openCreateSheet();
+  }, []);
+  useFabAction(activeSubTab === 'plan', openPlanSheet, 'Добавить строку плана');
 
   const handleSubTabChange = (tab: SubTab) => {
     setActiveSubTab(tab);
@@ -147,10 +145,6 @@ export function TransactionsScreen({ categoryFilter, onClearFilter, txMutationKe
           />
         )}
       </div>
-
-      {activeSubTab === 'plan' && (
-        <Fab onClick={handleFab} ariaLabel="Добавить строку плана" />
-      )}
     </div>
   );
 }
