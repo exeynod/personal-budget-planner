@@ -4,6 +4,42 @@ History of shipped versions. Each entry summarizes what was delivered and links 
 
 ---
 
+## v0.6 — iOS App
+
+**Shipped:** 2026-05-09 (status: human_needed для verification — функциональная валидация на iPhone Denis)
+**Phases:** 17-21 (5 phases) + wise-tide UI/UX refactor
+**Branch:** `v0.6-ios-app`
+**Known deferred items at close:** 8 (5 verification gaps Phase 17-21 — `human_needed`; 3 quick tasks из v0.4-v0.5 — нерелевантны iOS scope; см. STATE.md Deferred Items)
+
+### Delivered
+
+Native iOS-приложение `BudgetPlanner` (SwiftUI, iOS 26+, Swift 5.10) — feature-parity с web Mini App. Backend остался без изменений архитектурно: добавлен `POST /auth/dev-exchange` + Bearer-fallback в `get_current_user` (web initData продолжает работать). После исходного pixel-perfect web-port под TG Mini App стиль (peach aurora + 6-layer fake glass + Material Design FAB) сделан второй проход — **wise-tide refactor 2026-05-09** — полная переработка под Apple iOS 26 native: `.glassEffect()` API, `.tabBarMinimizeBehavior(.onScrollDown)`, semantic typography, system materials, `Form/List(.insetGrouped)` везде. Установка на iPhone Denis работает через free Apple ID (Personal Team, 7-day profile) с локальным backend по WiFi. TestFlight distribution отложен — требует $99 Apple Developer Account.
+
+### Key Accomplishments
+
+1. **Phase 17 — iOS Foundation:** Xcode-проект `/ios/` (XcodeGen из `project.yml`), `APIClient` URLSession+Codable со всеми CRUD endpoints, `AuthStore` + `KeychainStore` с fallback в UserDefaults для unsigned simulator-сборок, backend endpoint `POST /auth/dev-exchange` (Alembic 0011 + AppUser.role=owner upsert + sha256 token), Bearer-аутентификация в `get_current_user` без поломки web-фронта.
+2. **Phase 18 — iOS Core CRUD:** `HomeView` с hero balance + categories list, `TransactionsView` с History/Plan sections, `TransactionEditor` sheet, `CategoriesView` CRUD + archive, `SettingsView`. Domain port — `Period.swift` с `Calendar(timeZone: Europe/Moscow)`, `MoneyParser`/`MoneyFormatter` с XCTest на парсинг "1 500,50" → 150050.
+3. **Phase 19 — iOS Management:** `SubscriptionsView` + `SubscriptionEditor` с UNUserNotifications scheduling, `TemplateView` apply-to-period, `AnalyticsView` через native SwiftUI Charts.
+4. **Phase 20 — iOS AI:** `SSEClient` через `URLSession.bytes(for:)` с AsyncStream<SSEEvent>, `AIChatView` со streaming UI + ToolUseIndicator, `AIProposalSheet` write-flow для propose_actual_transaction.
+5. **Phase 21 (partial) — Distribution:** PrivacyInfo.xcprivacy manifest, AppIcon. **Free Apple ID install на iPhone Denis работает** (Personal Team, профиль 7 дней). TestFlight + Apple Developer Program отложены — внешний gating $99/год.
+6. **wise-tide refactor (2026-05-09):** UI/UX полная переработка под iOS 26 native (commits `9c204be → 4fa91d4`, ~−500 LOC net). Удалена web-port реализация (peach `Tokens.Background.cream`, custom `LiquidGlass` UIViewRepresentable с 6-layer composition, custom BottomBar+FAB, hardcoded `.system(size:)` typography). Заменено на native `.glassEffect()` API, `TabView { Tab() }` с `.tabBarMinimizeBehavior(.onScrollDown)`, semantic typography (`.body`/`.headline`/`.largeTitle.monospacedDigit()`), `.systemGroupedBackground` фон, Robinhood-style branded orange как `Color.accentColor`. Все 12 экранов проходят через `Form { Section }` или `List(.insetGrouped)` с native swipeActions/toolbar/Picker/DatePicker.
+
+### Tech Debt / Known Issues
+
+- 5 phase verifications в статусе `human_needed` — функциональная валидация iOS app на физическом iPhone засчитывается, но automated `*-VERIFICATION.md` script для iOS не реализован.
+- TestFlight distribution отложен — требует оплаты Apple Developer Program $99/год; sign-in-with-apple/TG Login Widget не реализованы (dev-token flow остаётся).
+- Backend для outdoor-доступа требует ngrok / Cloudflare Tunnel — сейчас работает только в LAN с Mac (память `infra-deploy.md`).
+- 3 quick tasks (`deploy-fixes`, `ux-fixes`, `tma-playwright`) из v0.4/v0.5 не закрыты formally — артефакты прошлых сессий, к v0.6 iOS не относятся.
+- Web Mini App продолжает работать параллельно — v0.6 не заменил web, оба клиента сосуществуют.
+
+### Archive
+
+- [v0.6-ROADMAP.md](milestones/v0.6-ROADMAP.md)
+- [v0.6-REQUIREMENTS.md](milestones/v0.6-REQUIREMENTS.md)
+- Branch: `v0.6-ios-app` (~25 коммитов)
+
+---
+
 ## v0.4 — Multi-Tenant & Admin
 
 **Shipped:** 2026-05-07 (status: human_needed — live TG smoke deferred to user UAT)

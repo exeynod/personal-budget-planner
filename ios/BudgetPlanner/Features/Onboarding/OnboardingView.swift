@@ -3,126 +3,181 @@ import SwiftUI
 @MainActor
 @Observable
 final class OnboardingState {
-    var step: Int = 0
-    var name: String = ""
+    var balanceText: String = ""
     var cycleStartDay: Int = 5
-    var startingBalanceText: String = ""
     var seedDefaultCategories: Bool = true
     var isSubmitting: Bool = false
     var errorMessage: String?
 
-    var startingBalanceCents: Int? {
-        let trimmed = startingBalanceText.trimmingCharacters(in: .whitespaces)
-        if trimmed.isEmpty { return 0 }
+    var balanceCents: Int? {
+        let trimmed = balanceText.trimmingCharacters(in: .whitespaces)
+        if trimmed.isEmpty { return nil }
         return MoneyParser.parseToCents(trimmed)
     }
 
-    var canProceed: Bool {
-        switch step {
-        case 0: return !name.trimmingCharacters(in: .whitespaces).isEmpty
-        case 1: return (1...28).contains(cycleStartDay)
-        case 2: return startingBalanceCents != nil
-        default: return true
-        }
+    var canSubmit: Bool {
+        balanceCents != nil
+            && (1...28).contains(cycleStartDay)
+            && !isSubmitting
     }
 }
 
+private let CYCLE_PRESETS: [Int] = [1, 5, 10, 15, 20, 25, 28]
+private let BOT_USERNAME = "tg_budget_planner_bot"
+
+/// Onboarding — native iOS Form layout.
+///   - Hero header (SF Symbol rublesign + tagline) — простой Section header
+///   - 4 Sections: Баланс, День цикла, Подключить бота, Категории
+///   - "Начать" Button(.borderedProminent) в .toolbar
 struct OnboardingView: View {
     @Environment(AuthStore.self) private var authStore
-    @State private var stateModel = OnboardingState()
+    @State private var state = OnboardingState()
     let initialUser: UserDTO
 
-    var body: some View {
-        ZStack {
-            AdaptiveBackground()
-
-            VStack(spacing: 0) {
-                ProgressIndicator(step: stateModel.step, total: 4)
-                    .padding(.top, Tokens.Spacing.xl)
-                    .padding(.horizontal, Tokens.Spacing.xl)
-
-                TabView(selection: $stateModel.step) {
-                    NameStep(state: stateModel).tag(0)
-                    CycleStep(state: stateModel).tag(1)
-                    BalanceStep(state: stateModel).tag(2)
-                    PromoStep(state: stateModel).tag(3)
-                }
-                .tabViewStyle(.page(indexDisplayMode: .never))
-                .animation(.easeInOut, value: stateModel.step)
-
-                if let error = stateModel.errorMessage {
-                    Text(error)
-                        .font(.appLabel)
-                        .foregroundStyle(.red)
-                        .padding(.horizontal, Tokens.Spacing.xl)
-                }
-
-                HStack(spacing: Tokens.Spacing.md) {
-                    if stateModel.step > 0 {
-                        Button("Назад") {
-                            withAnimation { stateModel.step -= 1 }
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, Tokens.Spacing.base)
-                        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: Tokens.Radius.md))
-                    }
-
-                    Button(stateModel.step == 3 ? "Готово" : "Далее") {
-                        advance()
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, Tokens.Spacing.base)
-                    .background(Tokens.Accent.primary, in: RoundedRectangle(cornerRadius: Tokens.Radius.md))
-                    .foregroundStyle(.white)
-                    .font(.appLabel.weight(.semibold))
-                    .disabled(!stateModel.canProceed || stateModel.isSubmitting)
-                }
-                .padding(.horizontal, Tokens.Spacing.xl)
-                .padding(.vertical, Tokens.Spacing.lg)
-            }
-        }
+    private var headingText: String {
+        initialUser.role == "member" ? "Добро пожаловать в команду" : "Бюджет в одном касании"
     }
 
-    private func advance() {
-        if stateModel.step < 3 {
-            withAnimation { stateModel.step += 1 }
-        } else {
-            submit()
+    private var subtitleText: String {
+        initialUser.role == "member"
+            ? "Несколько шагов и вы готовы вести бюджет"
+            : "Запиши траты, держи план, смотри тренды."
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    VStack(spacing: 12) {
+                        Image(systemName: "rublesign.circle.fill")
+                            .font(.system(size: 60))
+                            .foregroundStyle(Tokens.Accent.primary)
+                        Text(headingText)
+                            .font(.title2.weight(.bold))
+                            .multilineTextAlignment(.center)
+                        Text(subtitleText)
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 24)
+                    .listRowBackground(Color.clear)
+                }
+
+                Section {
+                    HStack {
+                        Text("Стартовый баланс")
+                        Spacer()
+                        TextField("0", text: $state.balanceText)
+                            .keyboardType(.numbersAndPunctuation)
+                            .multilineTextAlignment(.trailing)
+                            .monospacedDigit()
+                            .frame(maxWidth: 140)
+                        Text("₽").foregroundStyle(.secondary)
+                    }
+                } footer: {
+                    Text("Можно ввести 0 или отрицательное (долг).")
+                }
+
+                Section {
+                    Stepper(value: $state.cycleStartDay, in: 1...28) {
+                        LabeledContent("День начала бюджета") {
+                            Text("\(state.cycleStartDay)").monospacedDigit()
+                        }
+                    }
+                    HStack(spacing: 8) {
+                        ForEach(CYCLE_PRESETS, id: \.self) { day in
+                            Button("\(day)") {
+                                state.cycleStartDay = day
+                            }
+                            .buttonStyle(.bordered)
+                            .controlSize(.small)
+                            .tint(state.cycleStartDay == day ? Tokens.Accent.primary : .secondary)
+                        }
+                    }
+                } footer: {
+                    Text("Например, день зарплаты.")
+                }
+
+                Section {
+                    Toggle("Готовые категории", isOn: $state.seedDefaultCategories)
+                } footer: {
+                    Text("Добавить 14 преднастроенных категорий (Продукты, Дом, Транспорт и т.д.) — можно отредактировать позже.")
+                }
+
+                Section {
+                    if initialUser.tgChatId != nil {
+                        Label {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Бот подключён")
+                                    .font(.body)
+                                Text("@\(BOT_USERNAME)")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        } icon: {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundStyle(.green)
+                        }
+                    } else {
+                        Button {
+                            openTelegramBot()
+                        } label: {
+                            Label("Открыть @\(BOT_USERNAME)", systemImage: "paperplane.fill")
+                        }
+                    }
+                } header: {
+                    Text("Telegram-бот")
+                } footer: {
+                    Text("Нужен для напоминаний и быстрого ввода трат.")
+                }
+
+                if let err = state.errorMessage {
+                    Section {
+                        Label(err, systemImage: "exclamationmark.triangle")
+                            .foregroundStyle(.red)
+                    }
+                }
+            }
+            .navigationBarHidden(true)
+            .safeAreaInset(edge: .bottom) {
+                Button(state.isSubmitting ? "Сохранение…" : "Начать") {
+                    submit()
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
+                .disabled(!state.canSubmit)
+                .frame(maxWidth: .infinity)
+                .padding(.horizontal, 16)
+                .padding(.bottom, 8)
+            }
         }
     }
 
     private func submit() {
+        guard let cents = state.balanceCents else { return }
         Task {
-            stateModel.isSubmitting = true
-            stateModel.errorMessage = nil
+            state.isSubmitting = true
+            state.errorMessage = nil
             do {
                 _ = try await OnboardingAPI.complete(
                     OnboardingCompleteRequest(
-                        startingBalanceCents: stateModel.startingBalanceCents ?? 0,
-                        cycleStartDay: stateModel.cycleStartDay,
-                        seedDefaultCategories: stateModel.seedDefaultCategories
+                        startingBalanceCents: cents,
+                        cycleStartDay: state.cycleStartDay,
+                        seedDefaultCategories: state.seedDefaultCategories
                     )
                 )
                 await authStore.refreshUser()
             } catch {
-                stateModel.errorMessage = error.localizedDescription
+                state.errorMessage = error.localizedDescription
             }
-            stateModel.isSubmitting = false
+            state.isSubmitting = false
         }
     }
-}
 
-private struct ProgressIndicator: View {
-    let step: Int
-    let total: Int
-
-    var body: some View {
-        HStack(spacing: Tokens.Spacing.sm) {
-            ForEach(0..<total, id: \.self) { i in
-                Capsule()
-                    .fill(i <= step ? Tokens.Accent.primary : Color.gray.opacity(0.2))
-                    .frame(height: 4)
-            }
-        }
+    private func openTelegramBot() {
+        guard let url = URL(string: "https://t.me/\(BOT_USERNAME)?start=onboard") else { return }
+        UIApplication.shared.open(url)
     }
 }

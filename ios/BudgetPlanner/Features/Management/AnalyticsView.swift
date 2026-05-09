@@ -14,151 +14,173 @@ final class AnalyticsViewModel {
     func load() async {
         isLoading = true
         errorMessage = nil
+        defer { isLoading = false }
         do {
             async let topTask = AnalyticsAPI.topCategories(range: range)
             async let forecastTask: ForecastResponse? = try? await AnalyticsAPI.forecast()
-            async let trendTask: TrendResponse? = try? await AnalyticsAPI.trend(range: "3M")
+            async let trendTask: TrendResponse? = try? await AnalyticsAPI.trend(range: range)
             self.topCategories = try await topTask
             self.forecast = await forecastTask
             self.trend = await trendTask
         } catch {
             errorMessage = error.localizedDescription
         }
-        isLoading = false
     }
 }
 
+private let RANGE_TABS: [(id: String, label: String)] = [
+    ("1M", "1М"), ("3M", "3М"), ("6M", "6М"), ("12M", "12М"),
+]
+
+/// Analytics — native iOS Form-style layout.
+///   - Top section: Picker(.segmented) для range
+///   - Forecast section: balance + Chart (LineMark)
+///   - Top categories section: native Chart (BarMark) или LabeledContent
 struct AnalyticsView: View {
     @State private var viewModel = AnalyticsViewModel()
 
     var body: some View {
-        ZStack {
-            MeshDarkBackground()
-
-            ScrollView {
-                VStack(spacing: Tokens.Spacing.lg) {
-                    Picker("Период", selection: $viewModel.range) {
-                        Text("1М").tag("1M")
-                        Text("3М").tag("3M")
-                        Text("6М").tag("6M")
-                        Text("12М").tag("12M")
-                    }
-                    .pickerStyle(.segmented)
-                    .onChange(of: viewModel.range) { _, _ in
-                        Task { await viewModel.load() }
-                    }
-
-                    if let f = viewModel.forecast {
-                        ForecastSection(forecast: f)
-                    }
-
-                    if let trend = viewModel.trend, !trend.points.isEmpty {
-                        TrendSection(trend: trend)
-                    }
-
-                    if let top = viewModel.topCategories, !top.categories.isEmpty {
-                        TopCategoriesChart(top: top)
+        List {
+            Section {
+                Picker("Период", selection: $viewModel.range) {
+                    ForEach(RANGE_TABS, id: \.id) { t in
+                        Text(t.label).tag(t.id)
                     }
                 }
-                .padding(Tokens.Spacing.xl)
-                .padding(.bottom, 60)
+                .pickerStyle(.segmented)
+                .listRowBackground(Color.clear)
+                .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 8, trailing: 16))
+                .listRowSeparator(.hidden)
             }
-            .refreshable { await viewModel.load() }
+
+            if viewModel.isLoading {
+                Section { ProgressView() }
+            }
+
+            if let err = viewModel.errorMessage {
+                Section {
+                    Label(err, systemImage: "exclamationmark.triangle")
+                        .foregroundStyle(.red)
+                }
+            }
+
+            forecastSection
+            topCategoriesSection
         }
+        .listStyle(.insetGrouped)
         .navigationTitle("Аналитика")
-        .navigationBarTitleDisplayMode(.inline)
         .task { await viewModel.load() }
+        .onChange(of: viewModel.range) { _, _ in
+            Task { await viewModel.load() }
+        }
     }
-}
 
-private struct ForecastSection: View {
-    let forecast: ForecastResponse
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: Tokens.Spacing.sm) {
-            Text("Прогноз").font(.appLabel).foregroundStyle(.secondary)
-
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Расход на конец")
-                        .font(.appCaption).foregroundStyle(.secondary)
-                    Text(MoneyFormatter.formatWithSymbol(cents: forecast.projectedExpenseCents))
-                        .font(.appNumber)
+    @ViewBuilder
+    private var forecastSection: some View {
+        Section {
+            if let f = viewModel.forecast {
+                LabeledContent("Прогноз баланса") {
+                    Text(MoneyFormatter.formatWithSymbol(cents: f.projectedBalanceCents))
+                        .monospacedDigit()
+                        .foregroundStyle(f.projectedBalanceCents < 0 ? .red : .primary)
                 }
-                Spacer()
-                VStack(alignment: .trailing, spacing: 4) {
-                    Text("Баланс на конец")
-                        .font(.appCaption).foregroundStyle(.secondary)
-                    Text(MoneyFormatter.formatWithSymbol(cents: forecast.projectedBalanceCents))
-                        .font(.appNumber)
-                        .foregroundStyle(forecast.projectedBalanceCents >= 0 ? .green : .red)
+                LabeledContent("Прогноз расходов") {
+                    Text(MoneyFormatter.formatWithSymbol(cents: f.projectedExpenseCents))
+                        .monospacedDigit()
+                }
+                LabeledContent("Сжигание/день") {
+                    Text(MoneyFormatter.formatWithSymbol(cents: f.runRateCentsPerDay))
+                        .monospacedDigit()
+                }
+                LabeledContent("Дней осталось") {
+                    Text("\(f.daysRemaining)")
+                        .monospacedDigit()
+                }
+            } else if !viewModel.isLoading {
+                Text("Нет данных для прогноза")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            }
+
+            if let trend = viewModel.trend, trend.points.count > 1 {
+                Chart {
+                    ForEach(Array(trend.points.enumerated()), id: \.offset) { idx, point in
+                        LineMark(
+                            x: .value("Период", idx),
+                            y: .value("Расход", Double(point.actualExpenseCents) / 100.0),
+                            series: .value("series", "actual")
+                        )
+                        .foregroundStyle(Tokens.Accent.primary)
+                        .interpolationMethod(.catmullRom)
+
+                        LineMark(
+                            x: .value("Период", idx),
+                            y: .value("План", Double(point.plannedExpenseCents) / 100.0),
+                            series: .value("series", "plan")
+                        )
+                        .foregroundStyle(Color.secondary)
+                        .lineStyle(StrokeStyle(lineWidth: 1, dash: [4]))
+                        .interpolationMethod(.catmullRom)
+                    }
+                }
+                .frame(height: 180)
+                .chartXAxis {
+                    AxisMarks(values: .stride(by: 1)) { value in
+                        if let idx = value.as(Int.self), idx < trend.points.count {
+                            AxisValueLabel {
+                                Text(monthLabel(for: trend.points[idx].periodStart))
+                                    .font(.caption2)
+                            }
+                        }
+                        AxisGridLine()
+                    }
+                }
+                .chartYAxis {
+                    AxisMarks(values: .automatic(desiredCount: 3))
+                }
+                .padding(.vertical, 8)
+            }
+        } header: {
+            Text("Прогноз")
+        } footer: {
+            Text("Данные на основе текущего активного периода и истории расходов.")
+        }
+    }
+
+    @ViewBuilder
+    private var topCategoriesSection: some View {
+        if let top = viewModel.topCategories, !top.categories.isEmpty {
+            Section("Топ категорий") {
+                ForEach(top.categories) { cat in
+                    HStack(spacing: 12) {
+                        let v = Tokens.Categories.visual(for: cat.categoryName)
+                        Image(systemName: v.icon)
+                            .foregroundStyle(v.color)
+                            .frame(width: 24)
+                        Text(cat.categoryName)
+                            .foregroundStyle(.primary)
+                        Spacer()
+                        Text(MoneyFormatter.formatWithSymbol(cents: cat.totalCents))
+                            .monospacedDigit()
+                            .foregroundStyle(.primary)
+                    }
                 }
             }
-
-            HStack(spacing: Tokens.Spacing.sm) {
-                Label("\(MoneyFormatter.formatWithSymbol(cents: forecast.runRateCentsPerDay))/день",
-                      systemImage: "speedometer")
-                    .font(.appCaption).foregroundStyle(.secondary)
-                Spacer()
-                Label("\(forecast.daysRemaining) дн. осталось",
-                      systemImage: "calendar")
-                    .font(.appCaption).foregroundStyle(.secondary)
+        } else if !viewModel.isLoading {
+            Section {
+                Text("Нет расходов за выбранный период.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            } header: {
+                Text("Топ категорий")
             }
         }
-        .padding(Tokens.Spacing.lg)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .glassCard()
     }
-}
 
-private struct TrendSection: View {
-    let trend: TrendResponse
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: Tokens.Spacing.sm) {
-            Text("Тренд расходов").font(.appLabel).foregroundStyle(.secondary)
-
-            Chart(Array(trend.points.enumerated()), id: \.offset) { index, point in
-                LineMark(
-                    x: .value("Период", DateFormatters.displayDayShort.string(from: point.periodStart)),
-                    y: .value("Факт", Double(point.actualExpenseCents) / 100.0)
-                )
-                .foregroundStyle(Tokens.Accent.primary)
-                .symbol(Circle())
-
-                LineMark(
-                    x: .value("Период", DateFormatters.displayDayShort.string(from: point.periodStart)),
-                    y: .value("План", Double(point.plannedExpenseCents) / 100.0)
-                )
-                .foregroundStyle(.gray)
-                .lineStyle(StrokeStyle(lineWidth: 1, dash: [4]))
-            }
-            .frame(height: 200)
-        }
-        .padding(Tokens.Spacing.lg)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .glassCard()
-    }
-}
-
-private struct TopCategoriesChart: View {
-    let top: TopCategoriesResponse
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: Tokens.Spacing.sm) {
-            Text("Топ категорий").font(.appLabel).foregroundStyle(.secondary)
-
-            Chart(top.categories) { row in
-                BarMark(
-                    x: .value("Сумма", Double(row.totalCents) / 100.0),
-                    y: .value("Категория", row.categoryName)
-                )
-                .foregroundStyle(Tokens.Categories.color(for: row.categoryName))
-            }
-            .frame(height: CGFloat(top.categories.count) * 36 + 24)
-        }
-        .padding(Tokens.Spacing.lg)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .glassCard()
+    private func monthLabel(for date: Date) -> String {
+        let fmt = DateFormatter()
+        fmt.locale = Locale(identifier: "ru_RU")
+        fmt.dateFormat = "LLL"
+        return String(fmt.string(from: date).prefix(3)).capitalized
     }
 }

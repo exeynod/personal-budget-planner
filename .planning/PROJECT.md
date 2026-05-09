@@ -10,9 +10,9 @@ Telegram Mini App для планирования и ведения месячн
 
 ## Current State
 
-**Shipped:** v0.5 (2026-05-07) — Security & AI Hardening (Phase 16, 9 plans, 2 CRITICAL + 7 HIGH closed)
+**Shipped:** v0.6 (2026-05-09) — iOS App (Phases 17-21 + wise-tide UI/UX refactor под Apple iOS 26 native).
 
-**Active milestone:** v0.6 — iOS App (planning)
+**Active milestone:** none — awaiting next milestone planning.
 
 **Codebase:**
 - Backend: Python 3.12 / FastAPI / SQLAlchemy 2.x async / Pydantic v2
@@ -38,7 +38,21 @@ Telegram Mini App для планирования и ведения месячн
 - AI cost cap не enforced (только observability через `GET /ai/usage`)
 - 11 deferred items (UAT/verification gaps, см. STATE.md)
 
-## Current Milestone: v0.6 iOS App
+## Next Milestone Goals
+
+После v0.6 (iOS App ship + wise-tide UI/UX refactor) приложение существует параллельно с web Mini App. Возможные направления для следующего milestone — выбираются через `/gsd-new-milestone`:
+
+- **TestFlight distribution** — оплатить $99 Apple Developer Program, заменить dev-token flow на TG Login Widget или Sign in with Apple, загрузить через App Store Connect, добавить friend как internal-tester.
+- **Outdoor-доступ к backend** — ngrok / Cloudflare Tunnel / VPS deploy чтобы iOS работал не только в LAN с Mac.
+- **iOS feature parity backlog** — Apple Watch companion, iOS Widgets (Home/Lock screen), iPad split-view, offline-режим через SwiftData.
+- **Web Mini App polish** — wise-tide refactor показал что web-стиль (peach aurora) выглядит «детской игрушкой» относительно Apple HIG. Возможный re-design web-стороны.
+
+---
+
+## Previous Milestone: v0.6 iOS App (Shipped 2026-05-09)
+
+<details>
+<summary>v0.6 archived details</summary>
 
 **Goal:** Native iOS-приложение (SwiftUI), эквивалентное существующему TG Mini App. Backend остаётся неизменным — добавляется только альтернативный auth-механизм для нативного клиента (Bearer token вместо TG initData). MVP — личное использование на iPhone владельца через Free Provisioning, расширение до TestFlight для друга после оплаты Apple Developer Account.
 
@@ -68,7 +82,9 @@ Telegram Mini App для планирования и ведения месячн
 - Offline-режим с локальной БД (SwiftData / Core Data) — на старте полная зависимость от API.
 - Замена web-фронта на iOS — оба клиента продолжают работать параллельно.
 
-**Контекст и план:** `~/.claude/plans/tender-hopping-simon.md`
+**Контекст и план:** `~/.claude/plans/tender-hopping-simon.md` + wise-tide UI/UX refactor `~/.claude/plans/ui-ux-wise-tide.md`
+
+</details>
 
 ## Requirements
 
@@ -116,18 +132,20 @@ Telegram Mini App для планирования и ведения месячн
 - ✓ DB-01 — `set_tenant_scope` unify в spend_cap.py — v0.5 (Phase 16)
 - ✓ CODE-01 — `parseRublesToKopecks` dedup в utils/format.ts — v0.5 (Phase 16)
 
-### Active (v0.6 — iOS App)
+#### v0.6 — iOS App
+- ✓ IOSAUTH-01..02 — Bearer-fallback в `get_current_user` + `POST /auth/dev-exchange` — v0.6 (Phase 17)
+- ✓ IOS-01..04 — Xcode-проект, дизайн-токены, native iOS 26 Liquid Glass, APIClient — v0.6 (Phase 17 + wise-tide)
+- ✓ IOS-05 — SSE-клиент через URLSession.bytes — v0.6 (Phase 20)
+- ✓ IOS-06..07 — DevTokenSetup + Keychain/UserDefaults fallback + 401 invalidation — v0.6 (Phase 17)
+- ✓ IOS-08..09 — Period.swift port + MoneyParser/MoneyFormatter — v0.6 (Phase 18)
+- ✓ IOS-10..11 — Onboarding + Home (после wise-tide: native Form / List(.insetGrouped) + .navigationTitle large) — v0.6
+- ✓ IOS-12..14 — TransactionsView + TransactionEditor + Categories + Settings (native Form/List) — v0.6 (Phase 18 + wise-tide)
+- ✓ IOS-15..16 — Subscriptions + UNUserNotifications + Template + Analytics (native SwiftUI Charts) — v0.6 (Phase 19)
+- ✓ IOSAI-01..02 — AIChatView streaming + AIProposalSheet write-flow — v0.6 (Phase 20)
 
-> Detailed requirements будут зафиксированы в REQUIREMENTS.md ниже в этом milestone. Below — high-level intent.
+### Active (next milestone — TBD)
 
-- [ ] iOS-foundation: SwiftUI-проект `/ios/`, дизайн-токены порт, glass-эффекты, Aurora/Mesh фоны
-- [ ] Networking: URLSession + Codable + AsyncStream SSE-клиент; покрытие всех существующих endpoints
-- [ ] Auth: backend `POST /api/v1/auth/dev-exchange` + Bearer-fallback в `get_current_user`; iOS Keychain хранение
-- [ ] Onboarding (4-step) + Home (баланс, top-categories, period switcher, forecast)
-- [ ] Transactions (History + Planned + Editor bottom-sheet) + Categories CRUD + Settings
-- [ ] Subscriptions + локальные UNUserNotifications, Template apply, Analytics через Swift Charts
-- [ ] AI-чат: SSE consumption, streaming UI, AIProposalSheet write-flow
-- [ ] TestFlight: $99 Apple Developer Account, App Store Connect, internal-tester для друга
+> Будет зафиксировано через `/gsd-new-milestone`. Возможные направления см. «Next Milestone Goals» выше.
 
 ### Out of Scope (post v0.3)
 
@@ -209,6 +227,11 @@ Telegram Mini App для планирования и ведения месячн
 | **v0.4 Admin через UI, не бот-команды** | UI по скетчам 010-admin-whitelist | — Pending |
 | **v0.4 AI cost cap per user** ($5/month default) | Защита от случайного infinite-loop в чате | — Pending |
 | **v0.4 Onboarding для приглашённых: сам выбирает starting_balance + cycle_start_day** | Бюджет — личный, не управляется owner'ом | — Pending |
+| **v0.6 iOS deployment target = 26+** | После wise-tide refactor: native Liquid Glass (`.glassEffect()`) и `.tabBarMinimizeBehavior` доступны только на iOS 26. iPhone владельца + друга оба support iOS 26 | ✓ Good — Apple HIG-native стилистика |
+| **v0.6 Без сторонних libs (vanilla URLSession + Codable + SwiftUI)** | Pet-проект, простота важнее convenience-обёрток | ✓ Good — 0 dependencies, чистый XcodeGen |
+| **v0.6 Pixel-perfect web port → wise-tide native rewrite** | Изначально портировали 1:1 web стиль (peach aurora + 6-layer fake glass + FAB), пользователь оценил как "детская игрушка" — переделка под Apple HIG (system materials, semantic typography, native TabView, Form/List(.insetGrouped)) | ✓ Good — −500 LOC, native iOS 26 feel |
+| **v0.6 Branded orange как Color.accentColor** | Сохраняем brand identity в Apple-native shell (Robinhood-style); один accent + system grays, без custom palette | ✓ Good |
+| **v0.6 Free Apple ID для install** | Личный pet, $99/год Apple Developer Program не оправдан пока friend не востребует TestFlight | ⚠️ Revisit — 7-day profile cycle требует переподписи через Mac |
 
 ## Evolution
 
@@ -228,4 +251,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-08 — v0.6 milestone started (iOS App)*
+*Last updated: 2026-05-09 after v0.6 milestone (iOS App + wise-tide UI/UX refactor)*

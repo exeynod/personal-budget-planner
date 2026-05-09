@@ -17,7 +17,7 @@ struct AIProposalSheet: View {
             Form {
                 Section("Предложено AI") {
                     Text(proposal.kind == .actual ? "Создать факт-транзакцию" : "Создать план")
-                        .font(.appBody)
+                        .font(.body)
                 }
 
                 Section("Сумма") {

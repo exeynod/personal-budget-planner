@@ -1,16 +1,13 @@
 import SwiftUI
 
-/// Management hub — pixel-perfect port web `frontend/src/screens/ManagementScreen.tsx`.
-///
-/// Layout: aurora background + scrollable column со следующими блоками
-///  1. Header `Управление` 28pt + сабтайтл
-///  2. Profile card (liquid glass) — аватар-инициал + имя + role · @handle
-///  3. List card (liquid glass) — 6 строк-навигаций с pastel-icon tile + chevron
-///
-/// Пункт `Доступ` owner-only (как на web — UX gate, не security). Backend
-/// `/me` не возвращает `tg_username` поэтому используем фолбэк "Пользователь / —".
+/// Management hub — native iOS 26 layout.
+///   - NavigationStack + .navigationTitle("Управление") large title
+///   - List(.insetGrouped) с Section "Профиль" + Section "Меню"
+///   - NavigationLink(value:) Label rows для sub-screens
+///   - Доступ — owner-only, OWNER capsule badge
 struct ManagementView: View {
     @Environment(AuthStore.self) private var authStore
+    @State private var path = NavigationPath()
 
     private var user: UserDTO? {
         if case .authenticated(let user) = authStore.state { return user }
@@ -24,100 +21,87 @@ struct ManagementView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            ZStack {
-                AdaptiveBackground()
-
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 14) {
-                        header
-                        profileCard
-                        listCard
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.top, 16)
-                    .padding(.bottom, 130)
+        NavigationStack(path: $path) {
+            List {
+                Section {
+                    profileRow
                 }
-                .scrollIndicators(.hidden)
+
+                Section("Меню") {
+                    ForEach(visibleItems) { item in
+                        NavigationLink(value: item.id) {
+                            row(for: item)
+                        }
+                    }
+                }
             }
-            .navigationBarHidden(true)
+            .listStyle(.insetGrouped)
+            .navigationTitle("Управление")
+            .navigationDestination(for: ManagementItem.ID.self) { id in
+                destination(for: id)
+            }
+            .onAppear { handleDevAutoNav() }
         }
     }
 
-    private var header: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text("Управление")
-                .font(.system(size: 28, weight: .bold))
-                .tracking(-0.56)
-                .foregroundStyle(Tokens.Ink.primary)
-                .lineSpacing(0)
-            Text("Подписки, категории, доступ")
-                .font(.system(size: 13))
-                .foregroundStyle(Tokens.Ink.secondary)
-        }
-        .padding(.horizontal, 4)
-        .padding(.bottom, 0)
-    }
-
-    private var profileCard: some View {
-        let initial = "У"
-        let displayName = "Пользователь"
-        let role = user?.role ?? "—"
-        let handle = "—"
-
-        return HStack(spacing: 12) {
-            ZStack {
-                Circle()
-                    .fill(
-                        LinearGradient(
-                            colors: [
-                                Tokens.Accent.primary,
-                                Tokens.Accent.primary.opacity(0.6)
-                            ],
-                            startPoint: .topLeading, endPoint: .bottomTrailing
-                        )
-                    )
-                Circle()
-                    .strokeBorder(Color.white.opacity(0.4), lineWidth: 1)
-                    .blendMode(.overlay)
-                Text(initial)
-                    .font(.system(size: 20, weight: .bold))
-                    .foregroundStyle(.white)
+    private var profileRow: some View {
+        HStack(spacing: 12) {
+            Circle()
+                .fill(Tokens.Accent.primary.opacity(0.18))
+                .overlay(
+                    Text("У")
+                        .font(.headline)
+                        .foregroundStyle(Tokens.Accent.primary)
+                )
+                .frame(width: 40, height: 40)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Пользователь")
+                    .font(.body)
+                    .foregroundStyle(.primary)
+                Text(roleSubtitle)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
-            .frame(width: 48, height: 48)
-            .shadow(
-                color: Tokens.Accent.primary.opacity(0.27),
-                radius: 8, x: 0, y: 6
-            )
-
-            VStack(alignment: .leading, spacing: 0) {
-                Text(displayName)
-                    .font(.system(size: 15, weight: .bold))
-                    .foregroundStyle(Tokens.Ink.primary)
-                Text("\(role) · \(handle)")
-                    .font(.system(size: 12))
-                    .foregroundStyle(Tokens.Ink.secondary)
-            }
-
             Spacer(minLength: 0)
         }
-        .padding(14)
-        .liquidGlass(radius: 24)
+        .padding(.vertical, 4)
     }
 
-    private var listCard: some View {
-        VStack(spacing: 0) {
-            ForEach(Array(visibleItems.enumerated()), id: \.element.id) { idx, item in
-                NavigationLink {
-                    destination(for: item.id)
-                } label: {
-                    ManagementListRow(item: item, isFirst: idx == 0)
+    private var roleSubtitle: String {
+        let role = user?.role ?? "—"
+        return "\(role) · —"
+    }
+
+    private func row(for item: ManagementItem) -> some View {
+        HStack(spacing: 6) {
+            Label {
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 6) {
+                        Text(item.label)
+                            .font(.body)
+                            .foregroundStyle(.primary)
+                        if item.ownerOnly {
+                            ownerBadge
+                        }
+                    }
+                    Text(item.description)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
-                .buttonStyle(ManagementRowButtonStyle())
+            } icon: {
+                Image(systemName: item.icon)
+                    .foregroundStyle(Tokens.Accent.primary)
             }
         }
-        .padding(4)
-        .liquidGlass(radius: 22)
+    }
+
+    private var ownerBadge: some View {
+        Text("OWNER")
+            .font(.caption2.weight(.bold))
+            .foregroundStyle(Tokens.Accent.primary)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .background(Tokens.Accent.primary.opacity(0.15), in: Capsule())
     }
 
     @ViewBuilder
@@ -129,6 +113,15 @@ struct ManagementView: View {
         case .categories: CategoriesView()
         case .settings: SettingsView()
         case .access: AccessView()
+        }
+    }
+
+    private func handleDevAutoNav() {
+        let defaults = UserDefaults.standard
+        if let target = defaults.string(forKey: "DEV_OPEN_MANAGEMENT_SCREEN"),
+           let id = ManagementItem.ID(rawValue: target),
+           path.isEmpty {
+            path.append(id)
         }
     }
 }
@@ -164,101 +157,6 @@ struct ManagementItem: Identifiable, Hashable {
               icon: "gearshape.fill", ownerOnly: false),
         .init(id: .access, label: "Доступ",
               description: "Whitelist пользователей и AI usage",
-              icon: "rublesign.circle.fill", ownerOnly: true),
+              icon: "person.2.fill", ownerOnly: true),
     ]
-}
-
-// MARK: - Row
-
-private struct ManagementListRow: View {
-    let item: ManagementItem
-    let isFirst: Bool
-
-    var body: some View {
-        VStack(spacing: 0) {
-            if !isFirst {
-                Rectangle()
-                    .fill(Color.black.opacity(0.06))
-                    .frame(height: 0.5)
-                    .padding(.horizontal, 12)
-            }
-
-            HStack(spacing: 14) {
-                iconTile
-
-                VStack(alignment: .leading, spacing: 1) {
-                    HStack(spacing: 8) {
-                        Text(item.label)
-                            .font(.system(size: 15, weight: .semibold))
-                            .foregroundStyle(Tokens.Ink.primary)
-                        if item.ownerOnly {
-                            ownerChip
-                        }
-                    }
-                    Text(item.description)
-                        .font(.system(size: 12))
-                        .foregroundStyle(Tokens.Ink.secondary)
-                        .lineLimit(2)
-                }
-
-                Spacer(minLength: 8)
-
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 11, weight: .bold))
-                    .foregroundStyle(Tokens.Ink.secondary)
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 14)
-        }
-    }
-
-    private var iconTile: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 11, style: .continuous)
-                .fill(
-                    LinearGradient(
-                        colors: [
-                            Tokens.Accent.primary.opacity(0.30),
-                            Tokens.Accent.primary.opacity(0.14)
-                        ],
-                        startPoint: .topLeading, endPoint: .bottomTrailing
-                    )
-                )
-            RoundedRectangle(cornerRadius: 11, style: .continuous)
-                .strokeBorder(Tokens.Accent.primary.opacity(0.35), lineWidth: 0.5)
-            Image(systemName: item.icon)
-                .font(.system(size: 18, weight: .regular))
-                .foregroundStyle(Tokens.Accent.primary)
-        }
-        .frame(width: 38, height: 38)
-    }
-
-    private var ownerChip: some View {
-        Text("OWNER")
-            .font(.system(size: 9, weight: .bold))
-            .tracking(0.36)
-            .foregroundStyle(Tokens.Accent.primary)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
-            .background(
-                RoundedRectangle(cornerRadius: 5)
-                    .fill(Tokens.Accent.primary.opacity(0.14))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 5)
-                    .strokeBorder(Tokens.Accent.primary.opacity(0.24), lineWidth: 0.5)
-            )
-    }
-}
-
-private struct ManagementRowButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .background(
-                Color.black
-                    .opacity(configuration.isPressed ? 0.03 : 0)
-                    .animation(.easeOut(duration: 0.15), value: configuration.isPressed)
-            )
-            .scaleEffect(configuration.isPressed ? 0.985 : 1.0)
-    }
 }

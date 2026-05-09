@@ -28,72 +28,158 @@ final class HomeViewModel {
             state = .error(error.localizedDescription)
         }
     }
+
+    var loadedCategories: [CategoryDTO] {
+        if case .loaded(_, _, let cats) = state { return cats }
+        return []
+    }
 }
 
+/// Home dashboard — native iOS 26 layout.
+///   - NavigationStack + large title "Главная"
+///   - Hero balance section (Section with custom header content)
+///   - Расходы/Доходы segmented Picker
+///   - Categories rows в `List(.insetGrouped)`
+///   - "+" в toolbar открывает TransactionEditor sheet (FAB-replacement)
 struct HomeView: View {
     @State private var viewModel = HomeViewModel()
+    @State private var showingEditor = false
 
     var body: some View {
-        ZStack {
-            AuroraBackground()
-
-            ScrollView {
-                VStack(spacing: Tokens.Spacing.md) {
-                    contentView
+        NavigationStack {
+            content
+                .navigationTitle("Главная")
+                .toolbar {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button {
+                            showingEditor = true
+                        } label: {
+                            Image(systemName: "plus")
+                        }
+                        .accessibilityLabel("Новая транзакция")
+                    }
                 }
-                .padding(.horizontal, Tokens.Spacing.base)
-                .padding(.top, Tokens.Spacing.lg)
-                .padding(.bottom, 16)
-            }
-            .refreshable { await viewModel.load() }
         }
         .task {
             await viewModel.load()
+            // Dev hook: forces TransactionEditor on launch (UI debugging).
+            // xcrun simctl spawn booted defaults write com.exeynod.BudgetPlanner DEV_OPEN_TX_SHEET 1
+            if UserDefaults.standard.bool(forKey: "DEV_OPEN_TX_SHEET") {
+                showingEditor = true
+            }
+        }
+        .sheet(isPresented: $showingEditor) {
+            TransactionEditor(
+                mode: .createActual,
+                categories: viewModel.loadedCategories,
+                onSaved: { await viewModel.load() }
+            )
         }
     }
 
     @ViewBuilder
-    private var contentView: some View {
+    private var content: some View {
         switch viewModel.state {
         case .idle, .loading:
-            ProgressView().padding(.top, 80)
+            ProgressView().controlSize(.large)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+
         case .loaded(let period, let balance, let categories):
-            HeroCard(balance: balance, period: period, kind: viewModel.activeKind)
-            HomeKindTabs(selection: $viewModel.activeKind)
-            CategoriesList(
+            HomeList(
                 balance: balance,
+                period: period,
                 categories: categories,
-                kind: viewModel.activeKind
+                kind: $viewModel.activeKind,
+                onRefresh: { await viewModel.load() }
             )
+
         case .noActivePeriod:
-            EmptyState(
-                title: "Нет активного периода",
-                subtitle: "Завершите onboarding, чтобы создать первый период."
+            ContentUnavailableView(
+                "Нет активного периода",
+                systemImage: "calendar.badge.exclamationmark",
+                description: Text("Завершите onboarding, чтобы создать первый период.")
             )
+
         case .error(let message):
-            VStack(spacing: Tokens.Spacing.md) {
-                Text("Не удалось загрузить").font(.appTitle)
-                Text(message).font(.appBody).foregroundStyle(.secondary)
+            ContentUnavailableView {
+                Label("Не удалось загрузить", systemImage: "exclamationmark.triangle")
+            } description: {
+                Text(message)
+            } actions: {
                 Button("Повторить") { Task { await viewModel.load() } }
                     .buttonStyle(.borderedProminent)
-                    .tint(Tokens.Accent.primary)
             }
-            .padding(.top, 80)
         }
     }
 }
 
-// MARK: - HeroCard (porting frontend/src/components/HeroCard.tsx)
+// MARK: - List
 
-struct HeroCard: View {
+private struct HomeList: View {
+    let balance: BalanceResponse
+    let period: PeriodDTO
+    let categories: [CategoryDTO]
+    @Binding var kind: CategoryKind
+    var onRefresh: (() async -> Void)? = nil
+
+    var body: some View {
+        List {
+            Section {
+                BalanceHeroRow(balance: balance, period: period, kind: kind)
+                    .listRowInsets(EdgeInsets(top: 12, leading: 16, bottom: 12, trailing: 16))
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+            }
+
+            Section {
+                Picker("Тип", selection: $kind) {
+                    Text("Расходы").tag(CategoryKind.expense)
+                    Text("Доходы").tag(CategoryKind.income)
+                }
+                .pickerStyle(.segmented)
+                .listRowBackground(Color.clear)
+                .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 8, trailing: 16))
+                .listRowSeparator(.hidden)
+            }
+
+            Section("Категории") {
+                let rows = filteredRows
+                if rows.isEmpty {
+                    Text("Нет категорий")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(rows) { row in
+                        CategoryListRow(row: row)
+                    }
+                }
+            }
+        }
+        .listStyle(.insetGrouped)
+        .refreshable {
+            await onRefresh?()
+        }
+    }
+
+    private var filteredRows: [BalanceCategoryRow] {
+        let sortedById = Dictionary(uniqueKeysWithValues: categories.map { ($0.id, $0.sortOrder) })
+        return balance.byCategory
+            .filter { $0.kind == kind }
+            .sorted { (sortedById[$0.categoryId] ?? Int.max) < (sortedById[$1.categoryId] ?? Int.max) }
+    }
+}
+
+// MARK: - Balance hero row
+
+private struct BalanceHeroRow: View {
     let balance: BalanceResponse
     let period: PeriodDTO
     let kind: CategoryKind
 
     private var amountCents: Int {
         period.status == .closed
-        ? (period.endingBalanceCents ?? 0)
-        : balance.balanceNowCents
+            ? (period.endingBalanceCents ?? 0)
+            : balance.balanceNowCents
     }
 
     private var amountLabel: String {
@@ -117,151 +203,71 @@ struct HeroCard: View {
     }
 
     private var deltaColor: Color {
-        if delta > 0 { return Tokens.Accent.primary }
+        if delta > 0 { return .green }
         if delta < 0 { return .red }
-        return Tokens.Ink.secondary
+        return .secondary
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Text(amountLabel.uppercased())
-                .font(.system(size: 11, weight: .semibold))
-                .tracking(0.55)
-                .foregroundStyle(Tokens.Ink.secondary)
-
-            HStack(alignment: .lastTextBaseline, spacing: 6) {
-                Text(MoneyFormatter.format(cents: amountCents))
-                    .font(.system(size: 46, weight: .bold))
-                    .monospacedDigit()
-                    .tracking(-1)
-                    .foregroundStyle(Tokens.Ink.primary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.5)
-                Text("₽")
-                    .font(.system(size: 26, weight: .medium))
-                    .foregroundStyle(Tokens.Ink.secondary)
+        VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(amountLabel)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                HStack(alignment: .lastTextBaseline, spacing: 4) {
+                    Text(MoneyFormatter.format(cents: amountCents))
+                        .font(.system(.largeTitle, design: .default, weight: .bold).monospacedDigit())
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.5)
+                    Text("₽")
+                        .font(.title3)
+                        .foregroundStyle(.secondary)
+                }
             }
-            .padding(.top, 2)
 
-            HStack(spacing: 10) {
-                MetricPill(kicker: "план", value: MoneyFormatter.format(cents: planned),
-                           accent: false, color: Tokens.Ink.primary)
-                MetricPill(kicker: "факт", value: MoneyFormatter.format(cents: actual),
-                           accent: false, color: Tokens.Ink.primary)
-                MetricPill(kicker: deltaLabel.lowercased(),
-                           value: signedFormat(cents: delta),
-                           accent: true, color: deltaColor)
+            HStack(spacing: 12) {
+                MetricCell(label: "План", value: planned, color: .primary)
+                MetricCell(label: "Факт", value: actual, color: .primary)
+                MetricCell(label: deltaLabel, value: delta, color: deltaColor, signed: true)
             }
-            .padding(.top, 14)
         }
-        .padding(EdgeInsets(top: 22, leading: 22, bottom: 20, trailing: 22))
         .frame(maxWidth: .infinity, alignment: .leading)
-        .liquidGlass(radius: 32)
-    }
-
-    private func signedFormat(cents: Int) -> String {
-        let prefix = cents > 0 ? "+" : ""
-        return prefix + MoneyFormatter.format(cents: cents)
+        .padding(20)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: Tokens.Radius.large, style: .continuous))
     }
 }
 
-private struct MetricPill: View {
-    let kicker: String
-    let value: String
-    let accent: Bool
+private struct MetricCell: View {
+    let label: String
+    let value: Int
     let color: Color
+    var signed: Bool = false
+
+    private var formatted: String {
+        let prefix = signed && value > 0 ? "+" : ""
+        return prefix + MoneyFormatter.format(cents: value)
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text(kicker.uppercased())
-                .font(.system(size: 10, weight: .semibold))
-                .tracking(0.4)
-                .foregroundStyle(Tokens.Ink.secondary)
-            Text(value)
-                .font(.system(size: 14, weight: .bold))
-                .monospacedDigit()
+            Text(label)
+                .font(.caption2)
+                .textCase(.uppercase)
+                .foregroundStyle(.secondary)
+            Text(formatted)
+                .font(.subheadline.monospacedDigit().weight(.semibold))
                 .foregroundStyle(color)
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(10)
-        .liquidGlassPill(radius: 16, accent: accent)
     }
 }
 
-// MARK: - Sub-tabs Расходы/Доходы
+// MARK: - Category row
 
-struct HomeKindTabs: View {
-    @Binding var selection: CategoryKind
-
-    var body: some View {
-        HStack(spacing: 6) {
-            tabButton("Расходы", kind: .expense)
-            tabButton("Доходы", kind: .income)
-        }
-        .padding(4)
-        .background(
-            ZStack {
-                LiquidGlass(style: .systemThinMaterial)
-                Color.white.opacity(0.32)
-            }
-            .clipShape(Capsule())
-        )
-        .overlay(Capsule().strokeBorder(Color.white.opacity(0.75), lineWidth: 0.5))
-    }
-
-    private func tabButton(_ title: String, kind: CategoryKind) -> some View {
-        Button {
-            withAnimation(.easeInOut(duration: 0.2)) {
-                selection = kind
-            }
-        } label: {
-            Text(title)
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(selection == kind ? Tokens.Ink.primary : Tokens.Ink.secondary)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 9)
-                .background {
-                    if selection == kind {
-                        Tokens.Accent.primary.opacity(0.18).clipShape(Capsule())
-                    } else {
-                        Color.clear.clipShape(Capsule())
-                    }
-                }
-        }
-        .buttonStyle(.plain)
-    }
-}
-
-// MARK: - Category list
-
-private struct CategoriesList: View {
-    let balance: BalanceResponse
-    let categories: [CategoryDTO]
-    let kind: CategoryKind
-
-    var rows: [BalanceCategoryRow] {
-        let filtered = balance.byCategory.filter { $0.kind == kind }
-        let sortedById = Dictionary(uniqueKeysWithValues: categories.map { ($0.id, $0.sortOrder) })
-        return filtered.sorted { lhs, rhs in
-            (sortedById[lhs.categoryId] ?? Int.max) < (sortedById[rhs.categoryId] ?? Int.max)
-        }
-    }
-
-    var body: some View {
-        VStack(spacing: 6) {
-            ForEach(rows) { row in
-                CategoryDashboardRow(row: row)
-            }
-            if rows.isEmpty {
-                Text("Нет категорий").font(.appBody).foregroundStyle(.secondary).padding(.top, 24)
-            }
-        }
-    }
-}
-
-struct CategoryDashboardRow: View {
+private struct CategoryListRow: View {
     let row: BalanceCategoryRow
 
     private var visual: Tokens.Categories.Visual {
@@ -270,89 +276,44 @@ struct CategoryDashboardRow: View {
 
     private var hasPlan: Bool { row.plannedCents > 0 }
 
-    private var progress: Double {
-        guard hasPlan else { return 0 }
-        return min(1.0, max(0.0, Double(row.actualCents) / Double(row.plannedCents)))
-    }
-
     var body: some View {
-        HStack(alignment: .center, spacing: 12) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(visual.color.opacity(0.18))
-                Image(systemName: visual.icon)
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(visual.color)
-            }
-            .frame(width: 40, height: 40)
+        HStack(spacing: 12) {
+            Image(systemName: visual.icon)
+                .font(.body)
+                .foregroundStyle(visual.color)
+                .frame(width: 28, height: 28)
+                .background(visual.color.opacity(0.15), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
 
-            VStack(alignment: .leading, spacing: 4) {
-                HStack(alignment: .firstTextBaseline) {
-                    Text(row.name)
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundStyle(Tokens.Ink.primary)
-                        .lineLimit(1)
-                    Spacer(minLength: 8)
-                    if hasPlan {
-                        HStack(spacing: 4) {
-                            Text(MoneyFormatter.format(cents: row.actualCents))
-                                .font(.system(size: 13, weight: .semibold))
-                                .monospacedDigit()
-                            Text("/")
-                                .font(.system(size: 13, weight: .regular))
-                                .foregroundStyle(Tokens.Ink.tertiary)
-                            Text(MoneyFormatter.format(cents: row.plannedCents))
-                                .font(.system(size: 13, weight: .regular))
-                                .foregroundStyle(Tokens.Ink.secondary)
-                                .monospacedDigit()
-                        }
-                    } else {
-                        HStack(spacing: 6) {
-                            Text(MoneyFormatter.format(cents: row.actualCents))
-                                .font(.system(size: 13, weight: .semibold))
-                                .monospacedDigit()
-                            Text("Без плана")
-                                .font(.system(size: 11, weight: .semibold))
-                                .foregroundStyle(.white)
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 3)
-                                .background(Tokens.Accent.primary, in: Capsule())
-                        }
-                    }
-                }
-
+            VStack(alignment: .leading, spacing: 2) {
+                Text(row.name)
+                    .font(.body)
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
                 if hasPlan {
-                    GeometryReader { geo in
-                        ZStack(alignment: .leading) {
-                            Capsule()
-                                .fill(visual.color.opacity(0.15))
-                                .frame(height: 3)
-                            Capsule()
-                                .fill(progress > 1.0 ? Color.red : visual.color)
-                                .frame(width: geo.size.width * progress, height: 3)
-                        }
+                    HStack(spacing: 4) {
+                        Text(MoneyFormatter.format(cents: row.actualCents))
+                            .font(.caption.monospacedDigit())
+                            .foregroundStyle(.secondary)
+                        Text("/")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                        Text(MoneyFormatter.format(cents: row.plannedCents))
+                            .font(.caption.monospacedDigit())
+                            .foregroundStyle(.tertiary)
                     }
-                    .frame(height: 3)
+                } else {
+                    Text("Без плана")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
             }
-        }
-        .padding(12)
-        .liquidGlass(radius: 14, blur: .systemThinMaterial)
-    }
-}
 
-private struct EmptyState: View {
-    let title: String
-    let subtitle: String
+            Spacer(minLength: 8)
 
-    var body: some View {
-        VStack(spacing: Tokens.Spacing.md) {
-            Image(systemName: "tray").font(.system(size: 36)).foregroundStyle(.secondary)
-            Text(title).font(.appTitle)
-            Text(subtitle).font(.appBody).foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
+            Text(MoneyFormatter.format(cents: row.actualCents))
+                .font(.body.monospacedDigit().weight(.semibold))
+                .foregroundStyle(.primary)
         }
-        .padding(.top, 80)
-        .frame(maxWidth: .infinity)
+        .padding(.vertical, 2)
     }
 }

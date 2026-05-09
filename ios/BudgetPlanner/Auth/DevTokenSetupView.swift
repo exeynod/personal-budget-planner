@@ -7,40 +7,39 @@ struct DevTokenSetupView: View {
 
     var body: some View {
         ZStack {
-            AdaptiveBackground()
+            Color(.systemGroupedBackground).ignoresSafeArea()
 
             ScrollView {
-                VStack(spacing: Tokens.Spacing.xl) {
+                VStack(spacing: 24) {
                     Spacer(minLength: 80)
 
-                    VStack(spacing: Tokens.Spacing.md) {
+                    VStack(spacing: 12) {
                         Image(systemName: "lock.shield")
                             .font(.system(size: 48, weight: .light))
                             .foregroundStyle(Tokens.Accent.primary)
 
                         Text("BudgetPlanner")
-                            .font(.appTitle)
+                            .font(.title2.weight(.bold))
 
                         Text("Введите DEV_AUTH_SECRET для подключения к серверу")
-                            .font(.appBody)
+                            .font(.body)
                             .foregroundStyle(.secondary)
                             .multilineTextAlignment(.center)
-                            .padding(.horizontal, Tokens.Spacing.xl)
+                            .padding(.horizontal, 24)
                     }
 
-                    VStack(spacing: Tokens.Spacing.md) {
+                    VStack(spacing: 12) {
                         SecureField("Секрет", text: $secret)
                             .textContentType(.password)
                             .autocorrectionDisabled()
                             .textInputAutocapitalization(.never)
-                            .padding(Tokens.Spacing.base)
-                            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: Tokens.Radius.md))
+                            .padding(16)
+                            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
 
                         if case .error(let message) = authStore.state {
-                            Text(message)
-                                .font(.appLabel)
+                            Label(message, systemImage: "exclamationmark.triangle")
+                                .font(.callout)
                                 .foregroundStyle(.red)
-                                .multilineTextAlignment(.center)
                                 .frame(maxWidth: .infinity, alignment: .leading)
                         }
 
@@ -53,16 +52,14 @@ struct DevTokenSetupView: View {
                                         .tint(.white)
                                 }
                                 Text(isSubmitting ? "Подключение…" : "Войти")
-                                    .font(.appLabel.weight(.semibold))
                             }
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, Tokens.Spacing.base)
-                            .background(Tokens.Accent.primary, in: RoundedRectangle(cornerRadius: Tokens.Radius.md))
-                            .foregroundStyle(.white)
                         }
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.large)
+                        .frame(maxWidth: .infinity)
                         .disabled(secret.isEmpty || isSubmitting)
                     }
-                    .padding(.horizontal, Tokens.Spacing.xl)
+                    .padding(.horizontal, 24)
 
                     Spacer()
                 }

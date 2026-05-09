@@ -39,12 +39,12 @@ final class AIChatViewModel {
         }
     }
 
-    func send() async {
-        let prompt = input.trimmingCharacters(in: .whitespaces)
+    func send(prompt promptOverride: String? = nil) async {
+        let prompt = (promptOverride ?? input).trimmingCharacters(in: .whitespaces)
         guard !prompt.isEmpty, !isStreaming else { return }
-        input = ""
+        if promptOverride == nil { input = "" }
         bubbles.append(ChatBubble(role: "user", content: prompt))
-        var assistantBubble = ChatBubble(role: "assistant", content: "", isStreaming: true)
+        let assistantBubble = ChatBubble(role: "assistant", content: "", isStreaming: true)
         bubbles.append(assistantBubble)
         isStreaming = true
 
@@ -82,7 +82,6 @@ final class AIChatViewModel {
                 case .done, .unknown, .usage:
                     break
                 }
-                _ = assistantBubble
             }
         } catch APIError.unauthorized {
             errorMessage = "Сессия истекла"
@@ -136,56 +135,55 @@ final class AIChatViewModel {
     }
 }
 
+/// AI assistant — native iOS 26 layout.
+///   - NavigationStack + .navigationTitle("AI помощник")
+///   - ContentUnavailableView для empty state с suggestion chips
+///   - Chat bubbles в ScrollView (chat — особый case, не List semantic)
+///   - Native composer в .safeAreaInset(.bottom) с TextField + glass send button
 struct AIChatView: View {
     @State private var viewModel = AIChatViewModel()
 
+    private static let suggestionChips = [
+        "Каков мой баланс?",
+        "Где я перерасходовал?",
+        "Сколько потратил на еду?",
+        "Сделай прогноз",
+    ]
+
+    private var isEmpty: Bool { viewModel.bubbles.isEmpty && !viewModel.isStreaming }
+
     var body: some View {
-        ZStack {
-            MeshDarkBackground()
+        NavigationStack {
+            ZStack {
+                Color(.systemGroupedBackground).ignoresSafeArea()
 
-            VStack(spacing: 0) {
-                ScrollViewReader { proxy in
-                    ScrollView {
-                        VStack(alignment: .leading, spacing: Tokens.Spacing.md) {
-                            ForEach(viewModel.bubbles) { bubble in
-                                ChatMessageView(bubble: bubble).id(bubble.id)
-                            }
+                if isEmpty {
+                    emptyState
+                } else {
+                    messagesList
+                }
+            }
+            .navigationTitle("AI помощник")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                if !viewModel.bubbles.isEmpty {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button {
+                            Task { await viewModel.clearHistory() }
+                        } label: {
+                            Image(systemName: "trash")
                         }
-                        .padding(.horizontal, Tokens.Spacing.lg)
-                        .padding(.top, Tokens.Spacing.lg)
-                        .padding(.bottom, Tokens.Spacing.xl)
-                    }
-                    .onChange(of: viewModel.bubbles.count) { _, _ in
-                        if let last = viewModel.bubbles.last {
-                            withAnimation { proxy.scrollTo(last.id, anchor: .bottom) }
-                        }
+                        .disabled(viewModel.isStreaming)
                     }
                 }
-
-                if let err = viewModel.errorMessage {
-                    Text(err).font(.appLabel).foregroundStyle(.red)
-                        .padding(.horizontal, Tokens.Spacing.lg)
-                }
-
+            }
+            .safeAreaInset(edge: .bottom, spacing: 0) {
                 composer
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
             }
         }
-        .navigationTitle("AI помощник")
-        .navigationBarTitleDisplayMode(.inline)
         .task { await viewModel.loadInitial() }
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Menu {
-                    Button(role: .destructive) {
-                        Task { await viewModel.clearHistory() }
-                    } label: {
-                        Label("Очистить историю", systemImage: "trash")
-                    }
-                } label: {
-                    Image(systemName: "ellipsis.circle")
-                }
-            }
-        }
         .sheet(item: Binding(
             get: { viewModel.pendingProposal },
             set: { viewModel.pendingProposal = $0 }
@@ -193,62 +191,144 @@ struct AIChatView: View {
             AIProposalSheet(
                 proposal: proposal,
                 categories: viewModel.categories,
-                onConfirm: {
-                    Task { await viewModel.confirmProposal() }
-                },
-                onCancel: {
-                    viewModel.pendingProposal = nil
-                }
+                onConfirm: { Task { await viewModel.confirmProposal() } },
+                onCancel: { viewModel.pendingProposal = nil }
             )
         }
     }
 
-    @ViewBuilder
+    // MARK: - Empty state
+
+    private var emptyState: some View {
+        VStack(spacing: 24) {
+            ContentUnavailableView {
+                Label {
+                    Text("Спроси что угодно")
+                } icon: {
+                    Image(systemName: "sparkles")
+                        .foregroundStyle(Tokens.Accent.primary)
+                }
+            } description: {
+                Text("Я отвечу из твоих данных или предложу записать новую трату.")
+            }
+
+            VStack(spacing: 8) {
+                ForEach(Self.suggestionChips, id: \.self) { chip in
+                    Button {
+                        Task { await viewModel.send(prompt: chip) }
+                    } label: {
+                        HStack {
+                            Text(chip)
+                                .font(.body)
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundStyle(.tertiary)
+                        }
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 12)
+                        .frame(maxWidth: .infinity)
+                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(viewModel.isStreaming)
+                }
+            }
+            .padding(.horizontal, 24)
+        }
+    }
+
+    // MARK: - Messages list
+
+    private var messagesList: some View {
+        ScrollViewReader { proxy in
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 10) {
+                    ForEach(viewModel.bubbles) { bubble in
+                        ChatMessageView(bubble: bubble).id(bubble.id)
+                    }
+                    if let err = viewModel.errorMessage, !viewModel.isStreaming {
+                        Label(err, systemImage: "exclamationmark.triangle")
+                            .font(.callout)
+                            .foregroundStyle(.red)
+                            .padding(12)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(.red.opacity(0.1), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    }
+                    Color.clear.frame(height: 16).id("bottom-spacer")
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, 12)
+                .padding(.bottom, 16)
+            }
+            .scrollIndicators(.hidden)
+            .onChange(of: viewModel.bubbles.count) { _, _ in
+                if let last = viewModel.bubbles.last {
+                    withAnimation { proxy.scrollTo(last.id, anchor: .bottom) }
+                }
+            }
+        }
+    }
+
+    // MARK: - Composer
+
     private var composer: some View {
-        HStack(spacing: Tokens.Spacing.sm) {
-            TextField("Спросите AI…", text: $viewModel.input, axis: .vertical)
-                .lineLimit(1...5)
-                .padding(.horizontal, Tokens.Spacing.md)
-                .padding(.vertical, Tokens.Spacing.sm)
-                .background(.ultraThinMaterial, in: Capsule())
+        HStack(spacing: 8) {
+            TextField("Спроси о бюджете…", text: $viewModel.input, axis: .vertical)
+                .lineLimit(1...4)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+                .disabled(viewModel.isStreaming)
 
             Button {
                 Task { await viewModel.send() }
             } label: {
-                Image(systemName: "paperplane.fill")
-                    .font(.system(size: 18, weight: .semibold))
+                Image(systemName: "arrow.up")
+                    .font(.body.weight(.bold))
                     .foregroundStyle(.white)
-                    .frame(width: 40, height: 40)
-                    .background(Tokens.Accent.primary, in: Circle())
+                    .frame(width: 32, height: 32)
+                    .background(canSend ? Tokens.Accent.primary : Color.secondary.opacity(0.4), in: Circle())
             }
-            .disabled(viewModel.input.trimmingCharacters(in: .whitespaces).isEmpty || viewModel.isStreaming)
+            .buttonStyle(.plain)
+            .disabled(!canSend)
+            .padding(.trailing, 6)
+            .padding(.vertical, 4)
         }
-        .padding(.horizontal, Tokens.Spacing.lg)
-        .padding(.vertical, Tokens.Spacing.md)
-        .background(.ultraThinMaterial)
+        .background(.regularMaterial, in: Capsule())
+        .overlay(Capsule().strokeBorder(Color.primary.opacity(0.1), lineWidth: 0.5))
+    }
+
+    private var canSend: Bool {
+        !viewModel.isStreaming &&
+        !viewModel.input.trimmingCharacters(in: .whitespaces).isEmpty
     }
 }
+
+// MARK: - Chat bubble
 
 private struct ChatMessageView: View {
     let bubble: ChatBubble
 
+    private var isUser: Bool { bubble.role == "user" }
+
     var body: some View {
-        HStack {
-            if bubble.role == "user" { Spacer() }
+        HStack(alignment: .bottom) {
+            if isUser { Spacer(minLength: 40) }
 
             Text(bubble.content + (bubble.isStreaming ? "▌" : ""))
-                .font(.appBody)
-                .foregroundStyle(bubble.role == "user" ? .white : .primary)
-                .padding(Tokens.Spacing.md)
+                .font(.body)
+                .foregroundStyle(isUser ? .white : .primary)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
                 .background(
-                    bubble.role == "user"
+                    isUser
                     ? AnyShapeStyle(Tokens.Accent.primary)
-                    : AnyShapeStyle(Color.white.opacity(0.92)),
-                    in: RoundedRectangle(cornerRadius: Tokens.Radius.md)
+                    : AnyShapeStyle(Material.regular),
+                    in: RoundedRectangle(cornerRadius: 18, style: .continuous)
                 )
-                .frame(maxWidth: 320, alignment: bubble.role == "user" ? .trailing : .leading)
+                .frame(maxWidth: 320, alignment: isUser ? .trailing : .leading)
 
-            if bubble.role != "user" { Spacer() }
+            if !isUser { Spacer(minLength: 40) }
         }
     }
 }

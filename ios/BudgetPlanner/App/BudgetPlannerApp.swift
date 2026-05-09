@@ -8,6 +8,7 @@ struct BudgetPlannerApp: App {
         WindowGroup {
             AppRouter()
                 .environment(authStore)
+                .tint(Tokens.Accent.primary)
         }
     }
 }

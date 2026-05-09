@@ -68,6 +68,12 @@ final class AuthStore {
     func refreshUser() async {
         do {
             let user = try await MeAPI.current()
+            // Dev hook: force onboarding screen even если пользователь onboarded.
+            // Установка: defaults write com.exeynod.BudgetPlanner DEV_FORCE_ONBOARDING 1
+            if UserDefaults.standard.bool(forKey: "DEV_FORCE_ONBOARDING") {
+                state = .onboardingRequired(user)
+                return
+            }
             if user.isOnboarded {
                 state = .authenticated(user)
             } else {

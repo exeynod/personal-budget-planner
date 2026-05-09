@@ -10,9 +10,12 @@ final class TemplateViewModel {
     var errorMessage: String?
     var applyResult: ApplyTemplateResponse?
 
+    var activeKind: CategoryKind = .expense
+
     func load() async {
         isLoading = true
         errorMessage = nil
+        defer { isLoading = false }
         do {
             async let itemsTask = TemplateAPI.list()
             async let categoriesTask = CategoriesAPI.list()
@@ -20,16 +23,6 @@ final class TemplateViewModel {
             self.items = try await itemsTask
             self.categories = (try await categoriesTask).filter { !$0.isArchived }
             self.period = try? await periodTask
-        } catch {
-            errorMessage = error.localizedDescription
-        }
-        isLoading = false
-    }
-
-    func apply() async {
-        guard let p = period else { return }
-        do {
-            applyResult = try await TemplateAPI.apply(periodId: p.id)
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -43,92 +36,136 @@ final class TemplateViewModel {
             errorMessage = error.localizedDescription
         }
     }
+
+    func entries(for kind: CategoryKind) -> [(category: CategoryDTO, items: [TemplateItemDTO])] {
+        let cats = categories
+            .filter { $0.kind == kind }
+            .sorted { lhs, rhs in
+                if lhs.sortOrder != rhs.sortOrder { return lhs.sortOrder < rhs.sortOrder }
+                return lhs.name.localizedCompare(rhs.name) == .orderedAscending
+            }
+        return cats.map { cat in
+            let catItems = items
+                .filter { $0.categoryId == cat.id }
+                .sorted { ($0.sortOrder, $0.id) < ($1.sortOrder, $1.id) }
+            return (cat, catItems)
+        }
+    }
 }
 
+/// Plan template — native iOS List(.insetGrouped) layout.
+///   - Section per category (header = uppercase category name)
+///   - Расходы / Доходы — Picker(.segmented) в верхней Section
+///   - "+" в toolbar для новой строки
 struct TemplateView: View {
     @State private var viewModel = TemplateViewModel()
+    @State private var showingEditor = false
+    @State private var presetCategoryId: Int?
 
     var body: some View {
-        ZStack {
-            AdaptiveBackground()
+        List {
+            Section {
+                Picker("Тип", selection: $viewModel.activeKind) {
+                    Text("Расходы").tag(CategoryKind.expense)
+                    Text("Доходы").tag(CategoryKind.income)
+                }
+                .pickerStyle(.segmented)
+                .listRowBackground(Color.clear)
+                .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 8, trailing: 16))
+                .listRowSeparator(.hidden)
+            }
 
-            ScrollView {
-                LazyVStack(spacing: Tokens.Spacing.sm) {
-                    if let result = viewModel.applyResult {
-                        Text("Применено: создано \(result.createdCount), пропущено \(result.skippedCount)")
-                            .font(.appLabel)
-                            .padding()
-                            .frame(maxWidth: .infinity)
-                            .background(Tokens.Accent.soft, in: RoundedRectangle(cornerRadius: Tokens.Radius.md))
-                    }
+            if viewModel.isLoading && viewModel.items.isEmpty {
+                Section { ProgressView() }
+            }
 
-                    Button {
-                        Task { await viewModel.apply() }
-                    } label: {
-                        Text("Применить к текущему периоду")
-                            .font(.appLabel.weight(.semibold))
-                            .foregroundStyle(.white)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, Tokens.Spacing.md)
-                            .background(Tokens.Accent.primary,
-                                      in: RoundedRectangle(cornerRadius: Tokens.Radius.md))
-                    }
-                    .disabled(viewModel.period == nil)
+            let entries = viewModel.entries(for: viewModel.activeKind)
+            if entries.isEmpty && !viewModel.isLoading {
+                Section {
+                    ContentUnavailableView(
+                        "Пусто",
+                        systemImage: "list.bullet.rectangle",
+                        description: Text("Создайте категорию и добавьте строки.")
+                    )
+                    .listRowBackground(Color.clear)
+                }
+            }
 
-                    ForEach(viewModel.items) { item in
-                        TemplateRow(
-                            item: item,
-                            categoryName: viewModel.categories.first { $0.id == item.categoryId }?.name ?? "—"
-                        )
-                        .swipeActions(edge: .trailing) {
-                            Button(role: .destructive) {
-                                Task { await viewModel.delete(id: item.id) }
-                            } label: {
-                                Label("Удалить", systemImage: "trash")
-                            }
+            ForEach(entries, id: \.category.id) { entry in
+                Section(entry.category.name) {
+                    if entry.items.isEmpty {
+                        Text("Нет строк")
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        ForEach(entry.items) { item in
+                            TemplateRow(item: item)
+                                .swipeActions(edge: .trailing) {
+                                    Button(role: .destructive) {
+                                        Task { await viewModel.delete(id: item.id) }
+                                    } label: {
+                                        Label("Удалить", systemImage: "trash")
+                                    }
+                                }
                         }
                     }
-
-                    if viewModel.items.isEmpty && !viewModel.isLoading {
-                        Text("Шаблон пуст. Snapshot from period в Phase 19+.")
-                            .font(.appBody)
-                            .foregroundStyle(.secondary)
-                            .padding(.top, 60)
+                    Button {
+                        presetCategoryId = entry.category.id
+                        showingEditor = true
+                    } label: {
+                        Label("Добавить строку", systemImage: "plus.circle")
+                            .foregroundStyle(Tokens.Accent.primary)
                     }
                 }
-                .padding(.horizontal, Tokens.Spacing.xl)
-                .padding(.top, Tokens.Spacing.lg)
             }
-            .refreshable { await viewModel.load() }
+
+            if let err = viewModel.errorMessage {
+                Section {
+                    Label(err, systemImage: "exclamationmark.triangle")
+                        .foregroundStyle(.red)
+                }
+            }
         }
+        .listStyle(.insetGrouped)
         .navigationTitle("Шаблон плана")
-        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    presetCategoryId = nil
+                    showingEditor = true
+                } label: {
+                    Image(systemName: "plus")
+                }
+                .disabled(viewModel.categories.isEmpty)
+            }
+        }
         .task { await viewModel.load() }
+        .sheet(isPresented: $showingEditor) {
+            TransactionEditor(
+                mode: .createPlanned(periodId: viewModel.period?.id ?? 0),
+                categories: viewModel.categories.filter { $0.kind == viewModel.activeKind },
+                onSaved: {
+                    presetCategoryId = nil
+                    await viewModel.load()
+                }
+            )
+        }
     }
 }
 
 private struct TemplateRow: View {
     let item: TemplateItemDTO
-    let categoryName: String
 
     var body: some View {
         HStack {
-            Circle()
-                .fill(Tokens.Categories.color(for: categoryName))
-                .frame(width: 10, height: 10)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(item.name).font(.appBody)
-                Text(categoryName).font(.appCaption).foregroundStyle(.secondary)
-            }
-
+            Text(item.name.isEmpty ? "Без описания" : item.name)
+                .font(.body)
+                .foregroundStyle(.primary)
+                .lineLimit(1)
             Spacer()
-
-            Text(MoneyFormatter.format(cents: item.amountCents))
-                .font(.appNumber)
-                .foregroundStyle(item.kind == .income ? .green : .primary)
+            Text(MoneyFormatter.formatWithSymbol(cents: item.amountCents))
+                .font(.body.monospacedDigit().weight(.semibold))
+                .foregroundStyle(.primary)
         }
-        .padding(Tokens.Spacing.md)
-        .glassCard(radius: Tokens.Radius.md)
     }
 }

@@ -7,9 +7,10 @@ struct AppRouter: View {
         Group {
             switch authStore.state {
             case .bootstrapping:
-                ProgressView()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(AdaptiveBackground())
+                ZStack {
+                    Color(.systemGroupedBackground).ignoresSafeArea()
+                    ProgressView().controlSize(.large)
+                }
             case .unauthenticated, .error:
                 DevTokenSetupView()
             case .onboardingRequired(let user):

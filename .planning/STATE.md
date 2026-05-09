@@ -2,13 +2,14 @@
 gsd_state_version: 1.0
 milestone: v0.6
 milestone_name: iOS App
-status: planning
-last_updated: "2026-05-08T17:15:00.000Z"
-last_activity: 2026-05-08
+status: Roadmap created, awaiting plan-phase
+stopped_at: Roadmap для v0.6 (Phases 17-21) создан, REQUIREMENTS.md traceability заполнен. Awaiting `/gsd-plan-phase 17`.
+last_updated: "2026-05-09T15:33:59.256Z"
+last_activity: 2026-05-09
 progress:
   total_phases: 5
   completed_phases: 0
-  total_plans: 0
+  total_plans: 4
   completed_plans: 0
   percent: 0
 ---
@@ -27,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-05-08 — v0.6 milestone started)
 Phase: Not started — Phase 17 awaiting plan-phase decomposition
 Plan: —
 Status: Roadmap created, awaiting plan-phase
-Last activity: 2026-05-08 — Milestone v0.6 roadmap drafted (Phases 17-21)
+Last activity: 2026-05-09
 
 ## Milestone v0.6 Phases
 
@@ -130,6 +131,21 @@ v0.6 deferred (acknowledged at planning):
 | ios_future | IOS-FUT-05 Apple Sign-in for friend access | deferred | Single-tenant до Phase 21 |
 | ios_future | IOS-FUT-06 macOS Catalyst-сборка | deferred | Не запрашивалось |
 | ios_future | IOS-FUT-07 APNs server-push | deferred | Локальные нотификации покрывают use-case |
+
+Items acknowledged and deferred at v0.6 milestone close on 2026-05-09:
+
+| Category | Item | Status |
+|----------|------|--------|
+| verification_gap | Phase 17 — 17-VERIFICATION.md | human_needed |
+| verification_gap | Phase 18 — 18-VERIFICATION.md | human_needed |
+| verification_gap | Phase 19 — 19-VERIFICATION.md | human_needed |
+| verification_gap | Phase 20 — 20-VERIFICATION.md | human_needed |
+| verification_gap | Phase 21 — 21-VERIFICATION.md | human_needed |
+| quick_task | deploy-fixes (20260504) | missing |
+| quick_task | ux-fixes (20260506) | unknown |
+| quick_task | 260508-fib-tma-playwright-mobile-viewport-dev-mode- | awaiting-human-verify |
+
+iOS app installs and runs on iPhone Denis (free Apple ID, 7-day profile). Functional verification through actual device usage instead of automated VERIFICATION.md scripts. Quick tasks `deploy-fixes` / `ux-fixes` / `tma-playwright` — artifacts of v0.4-v0.5 sessions, not relevant to v0.6 iOS scope.
 
 ## Session Continuity
 

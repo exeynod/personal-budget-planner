@@ -2,7 +2,7 @@ name: BudgetPlanner
 options:
   bundleIdPrefix: com.exeynod
   deploymentTarget:
-    iOS: "17.0"
+    iOS: "26.0"
   developmentLanguage: ru
   createIntermediateGroups: true
   generateEmptyDirectories: false
@@ -20,7 +20,7 @@ targets:
   BudgetPlanner:
     type: application
     platform: iOS
-    deploymentTarget: "17.0"
+    deploymentTarget: "26.0"
     sources:
       - path: BudgetPlanner
         excludes:
@@ -49,6 +49,9 @@ targets:
             localhost:
               NSExceptionAllowsInsecureHTTPLoads: true
               NSIncludesSubdomains: true
+            192.168.31.117:
+              NSExceptionAllowsInsecureHTTPLoads: true
+              NSIncludesSubdomains: true
         LSRequiresIPhoneOS: true
     settings:
       base:
@@ -58,7 +61,10 @@ targets:
         GENERATE_INFOPLIST_FILE: NO
     scheme:
       environmentVariables:
-        BACKEND_URL: http://localhost:8000
+        # Симулятор: localhost. Real iPhone: твой Mac IP в той же WiFi
+        # (узнать: `ipconfig getifaddr en0`). Перегенерировать xcodeproj
+        # после смены: `cd ios && xcodegen generate`.
+        BACKEND_URL: http://192.168.31.117:8000
         DEV_AUTH_AUTOLOGIN: "1"
         DEV_AUTH_SECRET: test-secret-for-curl
       testTargets: []
@@ -66,7 +72,7 @@ targets:
   BudgetPlannerTests:
     type: bundle.unit-test
     platform: iOS
-    deploymentTarget: "17.0"
+    deploymentTarget: "26.0"
     sources:
       - path: BudgetPlannerTests
     dependencies:

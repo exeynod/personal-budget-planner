@@ -11,6 +11,7 @@ final class SubscriptionsViewModel {
     func load() async {
         isLoading = true
         errorMessage = nil
+        defer { isLoading = false }
         do {
             async let subs = SubscriptionsAPI.list()
             async let cats = CategoriesAPI.list()
@@ -20,7 +21,6 @@ final class SubscriptionsViewModel {
         } catch {
             errorMessage = error.localizedDescription
         }
-        isLoading = false
     }
 
     func delete(_ sub: SubscriptionDTO) async {
@@ -32,19 +32,54 @@ final class SubscriptionsViewModel {
             errorMessage = error.localizedDescription
         }
     }
+
+    var activeCount: Int {
+        subscriptions.filter(\.isActive).count
+    }
+
+    var monthlyLoadCents: Int {
+        subscriptions.filter(\.isActive).reduce(0) { acc, s in
+            acc + (s.cycle == .monthly ? s.amountCents : s.amountCents / 12)
+        }
+    }
 }
 
+/// Subscriptions — native iOS List(.insetGrouped) layout.
+///   - Section header — "Сводка" с monthlyLoad / N активных
+///   - Section "Подписки" с rows
+///   - swipeActions(.trailing) для удаления
+///   - "+" → SubscriptionEditor sheet
 struct SubscriptionsView: View {
     @State private var viewModel = SubscriptionsViewModel()
     @State private var editingSub: SubscriptionDTO?
     @State private var showingNew = false
 
     var body: some View {
-        ZStack {
-            AdaptiveBackground()
+        List {
+            Section("Сводка") {
+                LabeledContent("В месяц") {
+                    Text(MoneyFormatter.formatWithSymbol(cents: viewModel.monthlyLoadCents))
+                        .monospacedDigit()
+                        .foregroundStyle(.primary)
+                }
+                LabeledContent("Активных") {
+                    Text("\(viewModel.activeCount)")
+                        .monospacedDigit()
+                        .foregroundStyle(.secondary)
+                }
+            }
 
-            ScrollView {
-                LazyVStack(spacing: Tokens.Spacing.md) {
+            Section("Подписки") {
+                if viewModel.isLoading && viewModel.subscriptions.isEmpty {
+                    ProgressView()
+                } else if viewModel.subscriptions.isEmpty {
+                    ContentUnavailableView(
+                        "Подписок нет",
+                        systemImage: "square.stack.3d.up.slash",
+                        description: Text("Тапните + чтобы добавить.")
+                    )
+                    .listRowBackground(Color.clear)
+                } else {
                     ForEach(viewModel.subscriptions) { sub in
                         SubscriptionRow(sub: sub)
                             .contentShape(Rectangle())
@@ -57,29 +92,29 @@ struct SubscriptionsView: View {
                                 }
                             }
                     }
-                    if viewModel.subscriptions.isEmpty && !viewModel.isLoading {
-                        Text("Нет подписок. Добавьте через +.")
-                            .font(.appBody)
-                            .foregroundStyle(.secondary)
-                            .padding(.top, 80)
-                    }
                 }
-                .padding(.horizontal, Tokens.Spacing.xl)
-                .padding(.top, Tokens.Spacing.lg)
-                .padding(.bottom, 100)
             }
-            .refreshable { await viewModel.load() }
 
-            FAB { showingNew = true }
-                .padding(.trailing, Tokens.Spacing.xl)
-                .padding(.bottom, Tokens.Spacing.xl)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+            if let err = viewModel.errorMessage {
+                Section {
+                    Label(err, systemImage: "exclamationmark.triangle")
+                        .foregroundStyle(.red)
+                }
+            }
         }
+        .listStyle(.insetGrouped)
         .navigationTitle("Подписки")
-        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button { showingNew = true } label: { Image(systemName: "plus") }
+            }
+        }
         .task {
             _ = await LocalNotifications.requestAuthorization()
             await viewModel.load()
+            if UserDefaults.standard.bool(forKey: "DEV_OPEN_NEW_SUB_SHEET") {
+                showingNew = true
+            }
         }
         .sheet(isPresented: $showingNew) {
             SubscriptionEditor(
@@ -101,32 +136,59 @@ struct SubscriptionsView: View {
 private struct SubscriptionRow: View {
     let sub: SubscriptionDTO
 
+    private var daysUntil: Int {
+        let today = Calendar.current.startOfDay(for: Date())
+        let day = Calendar.current.startOfDay(for: sub.nextChargeDate)
+        return Calendar.current.dateComponents([.day], from: today, to: day).day ?? 0
+    }
+
+    private var pillLabel: String {
+        if daysUntil < 0 { return "просрочено" }
+        if daysUntil == 0 { return "сегодня" }
+        return "через \(daysUntil) дн."
+    }
+
+    private var visual: Tokens.Categories.Visual {
+        Tokens.Categories.visual(for: sub.category?.name ?? "")
+    }
+
     var body: some View {
-        HStack(spacing: Tokens.Spacing.md) {
-            Circle()
-                .fill(Tokens.Categories.color(for: sub.category?.name ?? ""))
-                .frame(width: 12, height: 12)
+        HStack(spacing: 12) {
+            Image(systemName: visual.icon)
+                .font(.body)
+                .foregroundStyle(visual.color)
+                .frame(width: 28, height: 28)
+                .background(visual.color.opacity(0.15), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(sub.name).font(.appBody)
-                Text("\(sub.cycle == .monthly ? "Ежемес." : "Ежегод.") · \(DateFormatters.displayDayShort.string(from: sub.nextChargeDate))")
-                    .font(.appCaption).foregroundStyle(.secondary)
+                Text(sub.name)
+                    .font(.body)
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                Text(metaLine)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
             }
 
-            Spacer()
+            Spacer(minLength: 8)
 
-            VStack(alignment: .trailing, spacing: 2) {
-                Text(MoneyFormatter.formatWithSymbol(cents: sub.amountCents))
-                    .font(.appNumber)
-                if !sub.isActive {
-                    Text("Пауза").font(.appCaption).foregroundStyle(.secondary)
-                }
-            }
+            Text(MoneyFormatter.formatWithSymbol(cents: sub.amountCents))
+                .font(.body.monospacedDigit().weight(.semibold))
+                .foregroundStyle(.primary)
         }
-        .padding(Tokens.Spacing.md)
-        .glassCard(radius: Tokens.Radius.md)
+        .padding(.vertical, 2)
+        .opacity(sub.isActive ? 1.0 : 0.55)
+    }
+
+    private var metaLine: String {
+        let cycle = sub.cycle == .monthly ? "мес" : "год"
+        let cat = sub.category?.name ?? ""
+        return [cycle, cat, pillLabel].filter { !$0.isEmpty }.joined(separator: " · ")
     }
 }
+
+// MARK: - Editor
 
 enum SubscriptionEditorMode: Identifiable {
     case create
@@ -138,12 +200,26 @@ enum SubscriptionEditorMode: Identifiable {
         case .edit(let s): return "edit-\(s.id)"
         }
     }
+
+    var isEdit: Bool {
+        if case .edit = self { return true }
+        return false
+    }
+
+    var title: String {
+        switch self {
+        case .create: return "Новая подписка"
+        case .edit: return "Подписка"
+        }
+    }
 }
 
+/// Native sheet — NavigationStack + Form. Все поля стандартные iOS.
 struct SubscriptionEditor: View {
     let mode: SubscriptionEditorMode
     let categories: [CategoryDTO]
     let onSaved: () async -> Void
+    var onDelete: (() async -> Void)? = nil
 
     @Environment(\.dismiss) private var dismiss
     @State private var name: String = ""
@@ -155,32 +231,39 @@ struct SubscriptionEditor: View {
     @State private var isActive: Bool = true
     @State private var isSubmitting = false
     @State private var errorMessage: String?
+    @State private var showingDeleteConfirm = false
 
     private var amountCents: Int? { MoneyParser.parseToCents(amountText) }
+
+    private var expenseCategories: [CategoryDTO] {
+        categories.filter { !$0.isArchived && $0.kind == .expense }
+    }
 
     private var canSave: Bool {
         !name.trimmingCharacters(in: .whitespaces).isEmpty
             && (amountCents ?? 0) > 0
             && categoryId != nil
+            && !isSubmitting
     }
 
     var body: some View {
         NavigationStack {
             Form {
                 Section("Название") {
-                    TextField("Название", text: $name)
+                    TextField("Например, Netflix", text: $name)
                 }
                 Section("Сумма") {
                     HStack {
                         TextField("0", text: $amountText)
-                            .keyboardType(.numbersAndPunctuation)
+                            .keyboardType(.decimalPad)
+                            .font(.body.monospacedDigit())
                         Text("₽").foregroundStyle(.secondary)
                     }
                 }
                 Section("Цикл") {
                     Picker("Цикл", selection: $cycle) {
-                        Text("Ежемесячно").tag(SubCycle.monthly)
-                        Text("Ежегодно").tag(SubCycle.yearly)
+                        Text("Месяц").tag(SubCycle.monthly)
+                        Text("Год").tag(SubCycle.yearly)
                     }
                     .pickerStyle(.segmented)
                 }
@@ -189,41 +272,81 @@ struct SubscriptionEditor: View {
                         .environment(\.locale, Locale(identifier: "ru_RU"))
                 }
                 Section("Категория") {
-                    let expenses = categories.filter { $0.kind == .expense }
-                    if expenses.isEmpty {
-                        Text("Создайте категорию-расход в Меню → Категории").font(.appCaption)
+                    if expenseCategories.isEmpty {
+                        Text("Нет категорий-расходов")
+                            .foregroundStyle(.secondary)
                     } else {
-                        Picker("Категория", selection: $categoryId) {
-                            ForEach(expenses) { c in
-                                Text(c.name).tag(c.id as Int?)
+                        Picker(selection: $categoryId) {
+                            Text("— выбрать —").tag(Int?.none)
+                            ForEach(expenseCategories) { c in
+                                Label {
+                                    Text(c.name)
+                                } icon: {
+                                    let v = Tokens.Categories.visual(for: c.name)
+                                    Image(systemName: v.icon).foregroundStyle(v.color)
+                                }
+                                .tag(c.id as Int?)
                             }
+                        } label: {
+                            EmptyView()
                         }
+                        .labelsHidden()
                     }
                 }
                 Section("Уведомления") {
-                    Stepper("За \(notifyDaysBefore) дней", value: $notifyDaysBefore, in: 0...30)
-                    Toggle("Активна", isOn: $isActive)
+                    Stepper(value: $notifyDaysBefore, in: 0...30) {
+                        LabeledContent("За дней до списания") {
+                            Text("\(notifyDaysBefore)").monospacedDigit()
+                        }
+                    }
                 }
-
+                if mode.isEdit {
+                    Section {
+                        Toggle("Активна", isOn: $isActive)
+                    }
+                }
                 if let errorMessage {
-                    Section { Text(errorMessage).foregroundStyle(.red) }
+                    Section {
+                        Label(errorMessage, systemImage: "exclamationmark.triangle")
+                            .foregroundStyle(.red)
+                    }
+                }
+                if mode.isEdit, onDelete != nil {
+                    Section {
+                        Button("Удалить", role: .destructive) {
+                            showingDeleteConfirm = true
+                        }
+                        .frame(maxWidth: .infinity, alignment: .center)
+                    }
                 }
             }
-            .navigationTitle({
-                if case .edit = mode { return "Изменить" } else { return "Новая подписка" }
-            }())
+            .navigationTitle(mode.title)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Отмена") { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Сохранить") { Task { await save() } }
-                        .disabled(!canSave || isSubmitting)
+                    Button(mode.isEdit ? "Сохранить" : "Создать") {
+                        Task { await save() }
+                    }
+                    .disabled(!canSave)
                 }
             }
+            .interactiveDismissDisabled(isSubmitting)
             .onAppear { populate() }
+            .confirmationDialog(
+                "Удалить подписку?",
+                isPresented: $showingDeleteConfirm,
+                titleVisibility: .visible
+            ) {
+                Button("Удалить", role: .destructive) {
+                    Task { await performDelete() }
+                }
+            }
         }
+        .presentationDragIndicator(.visible)
+        .presentationDetents([.large])
     }
 
     private func populate() {
@@ -242,9 +365,19 @@ struct SubscriptionEditor: View {
         }
     }
 
+    private func performDelete() async {
+        guard let onDelete else { return }
+        isSubmitting = true
+        await onDelete()
+        isSubmitting = false
+        dismiss()
+    }
+
     private func save() async {
         guard let cents = amountCents, let catId = categoryId else { return }
         isSubmitting = true
+        errorMessage = nil
+        defer { isSubmitting = false }
         do {
             switch mode {
             case .create:
@@ -272,6 +405,5 @@ struct SubscriptionEditor: View {
         } catch {
             errorMessage = error.localizedDescription
         }
-        isSubmitting = false
     }
 }

@@ -9,39 +9,36 @@ extension Color {
     }
 }
 
+/// Минимальный design-token namespace. iOS 26 native подход:
+/// большая часть стилей идёт через системные tokens (semantic typography
+/// `.body`/`.headline`, system colors `.primary`/`.secondary`/`.tint`,
+/// `.systemGroupedBackground` фон). Здесь оставлены только:
+///   - brand accent (orange — задаётся в App.tint и доступен как Color.accentColor)
+///   - category visual mapping (русское имя → SF Symbol + приглушённый цвет)
+///   - spacing на 4pt grid и continuous radii
 enum Tokens {
     enum Accent {
+        /// Brand orange. Дублирует `Color.accentColor` (выставляется через
+        /// `.tint(Tokens.Accent.primary)` на root). Использовать там, где
+        /// семантически нужен именно brand colour, а не env-tint.
         static let primary = Color(hex: 0xFF7A4C)
-        static let hover = Color(hex: 0xFF6E3A)
-        static let secondary = Color(hex: 0xFFB07A)
-        static let soft = Color(hex: 0xFF7A4C, alpha: 0.14)
     }
 
-    enum Ink {
-        static let primary = Color(hex: 0x1A1410)
-        static let secondary = Color(hex: 0x1A1410, alpha: 0.6)
-        static let tertiary = Color(hex: 0x1A1410, alpha: 0.4)
-        static let primaryDark = Color.white
-        static let secondaryDark = Color(white: 1.0, opacity: 0.65)
-        static let tertiaryDark = Color(white: 1.0, opacity: 0.4)
-    }
-
-    enum Background {
-        static let cream = Color(hex: 0xF6EFE6)
-    }
-
+    /// Категорийная палитра — desaturated для professional finance look.
+    /// Используется только для leading icon на rows; backgrounds и primary
+    /// chrome — system semantic colors.
     enum Categories {
-        static let food = Color(hex: 0xF39A4C)
-        static let cafe = Color(hex: 0xE36B5A)
-        static let home = Color(hex: 0xB583E8)
-        static let transit = Color(hex: 0x6CA6E8)
-        static let health = Color(hex: 0xE26F8E)
-        static let fun = Color(hex: 0xF0C04A)
-        static let gifts = Color(hex: 0x7CC68F)
-        static let subs = Color(hex: 0x9C8FE8)
-        static let salary = Color(hex: 0x7CC68F)
-        static let side = Color(hex: 0xF0C04A)
-        static let fallback = Color(hex: 0x9C8FE8)
+        static let food = Color(hex: 0xCB7C3D)
+        static let cafe = Color(hex: 0xB85847)
+        static let home = Color(hex: 0x8E6CC0)
+        static let transit = Color(hex: 0x5A8FCB)
+        static let health = Color(hex: 0xC25975)
+        static let fun = Color(hex: 0xCFA641)
+        static let gifts = Color(hex: 0x66A877)
+        static let subs = Color(hex: 0x7E73C0)
+        static let salary = Color(hex: 0x66A877)
+        static let side = Color(hex: 0xCFA641)
+        static let fallback = Color(hex: 0x7E73C0)
 
         struct Visual {
             let color: Color
@@ -95,6 +92,7 @@ enum Tokens {
         }
     }
 
+    /// 4pt-grid spacing — соответствует Apple HIG.
     enum Spacing {
         static let xs: CGFloat = 4
         static let sm: CGFloat = 8
@@ -103,35 +101,13 @@ enum Tokens {
         static let lg: CGFloat = 20
         static let xl: CGFloat = 24
         static let xxl: CGFloat = 32
-        static let xxxl: CGFloat = 40
-        static let huge: CGFloat = 48
     }
 
+    /// Continuous-style corner radii. Используются только там, где native
+    /// ListItem / Section radius не подходит (custom hero, glass shapes).
     enum Radius {
-        static let sm: CGFloat = 8
-        static let md: CGFloat = 14
-        static let lg: CGFloat = 20
-        static let xl: CGFloat = 28
-        static let full: CGFloat = 9999
+        static let compact: CGFloat = 12
+        static let regular: CGFloat = 16
+        static let large: CGFloat = 24
     }
-
-    enum Typography {
-        static let xs: CGFloat = 11
-        static let sm: CGFloat = 13
-        static let base: CGFloat = 15
-        static let md: CGFloat = 17
-        static let lg: CGFloat = 20
-        static let xl: CGFloat = 24
-        static let xxl: CGFloat = 32
-        static let xxxl: CGFloat = 40
-    }
-}
-
-extension Font {
-    static let appBody = Font.system(size: Tokens.Typography.base, weight: .regular)
-    static let appLabel = Font.system(size: Tokens.Typography.sm, weight: .medium)
-    static let appCaption = Font.system(size: Tokens.Typography.xs, weight: .regular)
-    static let appTitle = Font.system(size: Tokens.Typography.xl, weight: .semibold)
-    static let appHero = Font.system(size: Tokens.Typography.xxxl, weight: .bold).monospacedDigit()
-    static let appNumber = Font.system(size: Tokens.Typography.md, weight: .semibold).monospacedDigit()
 }
