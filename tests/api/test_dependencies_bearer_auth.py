@@ -30,13 +30,17 @@ async def seeded_owner(async_client, db_session, owner_tg_id):
     from app.db.models import AppUser, UserRole
     from app.main_api import app
 
-    # Bypass RLS для seed
+    # Cleanup leftover from prior test через TRUNCATE CASCADE на admin role.
+    # app_user FK — RESTRICT, поэтому plain DELETE FROM app_user падает если
+    # предыдущий тест оставил ai_conversation / auth_token / прочее.
+    # truncate_db() использует ADMIN_DATABASE_URL и TRUNCATE...CASCADE.
+    from tests.helpers.seed import truncate_db
+    await truncate_db()
+    # После TRUNCATE наша db_session всё ещё держит старый transaction state —
+    # форсим refresh через rollback (tx-scoped rows isolated). Bypass RLS для
+    # последующего INSERT.
+    await db_session.rollback()
     await db_session.execute(text("SET LOCAL row_security = off"))
-    # Удалить если был от прошлого теста
-    await db_session.execute(
-        text("DELETE FROM app_user WHERE tg_user_id = :tg"),
-        {"tg": owner_tg_id},
-    )
     user = AppUser(
         tg_user_id=owner_tg_id,
         role=UserRole.owner,
