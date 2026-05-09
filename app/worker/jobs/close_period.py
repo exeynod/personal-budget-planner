@@ -40,6 +40,7 @@ from app.db.models import (
 from app.db.session import AsyncSessionLocal, set_tenant_scope
 from app.services.actual import compute_balance
 from app.services.periods import _today_in_app_tz
+from app.services.rollover import do_period_rollover
 from app.services.subscriptions import add_subscription_to_period
 
 logger = structlog.get_logger(__name__)
@@ -156,12 +157,10 @@ async def _close_period_for_user(session, *, user_id: int) -> None:
     bal = await compute_balance(session, expired.id, user_id=user_id)
     ending_balance = bal["balance_now_cents"]
 
-    # Step 4: close expired period.
-    expired.status = PeriodStatus.closed
-    expired.ending_balance_cents = ending_balance
-    expired.closed_at = datetime.now(timezone.utc)
-
-    # Step 5: create next period (PER-03 inheritance).
+    # Step 4: create next period FIRST (PER-03 inheritance) so we have an id
+    # for misc-rollover accumulation in step 5. Status flip on expired comes
+    # after rollover so a rollover failure rolls back the entire per-user tx
+    # (T-22-10-05 — rollover_processed_at NULL on failure → clean retry).
     cycle_start_day = await _resolve_cycle_start_day(session, user_id=user_id)
     p_start, p_end = period_for(today, cycle_start_day)
     new_period = BudgetPeriod(
@@ -173,6 +172,26 @@ async def _close_period_for_user(session, *, user_id: int) -> None:
     )
     session.add(new_period)
     await session.flush()  # populate new_period.id
+
+    # Step 5: BE-14 rollover — must run BEFORE expired.status=closed so that
+    # rollover queries see expired period as the "current" closing period.
+    # Returns False on advisory-lock contention (rare; only if another worker
+    # tick races inside same second). On contention we still proceed with the
+    # close + new period — rollover_processed_at remains NULL and next tick
+    # retries the rollover (no-op for the close logic since expired.status
+    # will already be 'closed' and the SELECT in step 2 won't pick it up
+    # again; PER-04 idempotency holds).
+    await do_period_rollover(
+        session,
+        period_id=expired.id,
+        user_id=user_id,
+        next_period_id=new_period.id,
+    )
+
+    # Step 6: close expired period.
+    expired.status = PeriodStatus.closed
+    expired.ending_balance_cents = ending_balance
+    expired.closed_at = datetime.now(timezone.utc)
 
     # Add subscription planned rows for the new period (scoped по user_id).
     subs_result = await session.execute(

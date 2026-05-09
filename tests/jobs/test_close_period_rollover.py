@@ -28,14 +28,20 @@ def _require_db():
 
 
 @pytest_asyncio.fixture
-async def db_setup(async_client, monkeypatch):
-    """Set up a fresh DB + AppUser + patch worker AsyncSessionLocal."""
+async def db_setup(monkeypatch):
+    """Set up a fresh DB + AppUser + patch worker AsyncSessionLocal.
+
+    Note: we intentionally avoid the ``async_client`` fixture (which boots
+    the FastAPI app) because plan 22.13 has not yet rewritten
+    ``app.services.templates`` to drop the legacy ``PlanTemplateItem``
+    import — booting the full app from this test module would trip that
+    pre-existing import error. The rollover service does NOT depend on the
+    HTTP layer, so we open the DB session directly.
+    """
     _require_db()
     from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
-    from app.api.dependencies import get_db
     from app.db.models import AppUser, UserRole
-    from app.main_api import app
 
     db_url = os.environ["DATABASE_URL"]
     engine = create_async_engine(db_url, echo=False)
@@ -71,23 +77,12 @@ async def db_setup(async_client, monkeypatch):
         await session.refresh(user)
         owner_user_id = user.id
 
-    async def real_get_db():
-        async with SessionLocal() as session:
-            try:
-                yield session
-                await session.commit()
-            except Exception:
-                await session.rollback()
-                raise
-
-    app.dependency_overrides[get_db] = real_get_db
-
     import app.db.session as db_session_module
     import app.worker.jobs.close_period as close_period_module
     monkeypatch.setattr(db_session_module, "AsyncSessionLocal", SessionLocal)
     monkeypatch.setattr(close_period_module, "AsyncSessionLocal", SessionLocal)
 
-    yield async_client, SessionLocal, owner_user_id
+    yield None, SessionLocal, owner_user_id
     await engine.dispose()
 
 
