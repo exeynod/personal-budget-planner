@@ -714,6 +714,9 @@ async def test_reset_v10_resets_income_to_null(db_session, fresh_user):
     await reset_v10(db_session, user_id=fresh_user["id"])
     await db_session.commit()
 
+    # reset_v10 uses raw SQL UPDATE so any in-session AppUser instance is
+    # expired by the service; re-query from DB to verify.
+    db_session.expire_all()
     user = await db_session.scalar(
         select(AppUser).where(AppUser.id == fresh_user["id"])
     )
