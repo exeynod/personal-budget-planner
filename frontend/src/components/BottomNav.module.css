@@ -13,6 +13,16 @@
   padding: 6px;
   border-radius: 28px;
   gap: 4px;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+/* Когда открыт BottomSheet, dock уезжает вниз и скрывается, чтобы не
+   мешать форме и не создавать визуального конфликта между двумя
+   навигациями. Флаг ставит BottomSheet useEffect. */
+:global(body[data-sheet-open]) .dock {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(110%);
 }
 
 /* Light tint — на Aurora-фоне (Home, Transactions, Management, sub-screens). */
@@ -48,17 +58,17 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 2px;
+  gap: 4px;
   background: transparent;
   border: 0;
   cursor: pointer;
-  padding: 4px 0;
+  padding: 8px 0;
   font-family: inherit;
   -webkit-tap-highlight-color: transparent;
   border-radius: 20px;
   color: rgba(40, 28, 20, 0.55);
   transition: color 0.2s ease, transform 0.12s ease;
-  min-height: 46px;
+  min-height: 58px;
 }
 
 .dockDark .tab {
@@ -71,12 +81,15 @@
   transform: scale(0.96);
 }
 
-/* Активный таб — accent-tinted pill через ::before. Inactive → opacity 0,
-   плавно переходит к активному при смене таба. */
+/* Активный таб — accent-tinted pill через ::before. Растягивается по
+   ширине tab'а (текст не выходит за обводку), inset 4 сверху/снизу
+   даёт небольшой воздух между обводкой и краем dock'а.
+   Высота tab'а min-height: 58 → highlight 50 высотой → достаточно
+   воздуха вокруг icon+label, не такой плоский как раньше. */
 .tab::before {
   content: '';
   position: absolute;
-  inset: 4px;
+  inset: 4px 0;
   border-radius: 16px;
   background: linear-gradient(180deg,
     color-mix(in srgb, var(--accent) 18%, transparent),

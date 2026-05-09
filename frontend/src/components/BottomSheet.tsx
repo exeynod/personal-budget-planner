@@ -43,12 +43,19 @@ export function BottomSheet({ open, onClose, title, children }: BottomSheetProps
       tgBackBtn.onClick(onClose);
     }
 
+    // Глобальный флаг — BottomNav прячется, пока открыт любой sheet.
+    // Без этого dock'а на 30 z-index'е иногда визуально выглядывает из-под
+    // sheet'а (наблюдается в Telegram WebView и в desktop-preview), плюс
+    // делает невозможным конфликт с FAB / dock area при открытой форме.
+    document.body.dataset.sheetOpen = 'true';
+
     return () => {
       window.removeEventListener('keydown', onKey);
       if (tgBackBtn) {
         tgBackBtn.offClick(onClose);
         tgBackBtn.hide();
       }
+      delete document.body.dataset.sheetOpen;
     };
   }, [open, onClose]);
 
