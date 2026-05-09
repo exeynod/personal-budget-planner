@@ -1,102 +1,96 @@
-# iOS Setup Instructions
+# iOS Setup
 
-Phase 17 (v0.6 iOS App). Follow these steps once — потом просто Cmd+R в Xcode.
+Phase 17 (v0.6 iOS App). Проект использует **XcodeGen** — `.xcodeproj` генерируется из `project.yml`, не хранится в git.
 
-## 1. Создать Xcode-проект
+## Quick start (Mac)
 
-1. Open **Xcode** → File → New → Project
-2. Выбрать **iOS → App** → Next
-3. Заполнить:
-   - **Product Name:** `BudgetPlanner`
-   - **Team:** твой Apple ID (Personal Team — без $99 на dev-фазе)
-   - **Organization Identifier:** `com.exeynod` (или другой свой)
-   - **Bundle Identifier:** auto = `com.exeynod.BudgetPlanner`
-   - **Interface:** SwiftUI
-   - **Language:** Swift
-   - **Storage:** None
-   - ☐ Include Tests (unchecked — тесты добавим вручную позже)
-4. **Save location:** `/Users/exy/pet_projects/tg-budget-planner/ios/` ⚠️ **Создать здесь, чтобы папка совпала с уже подготовленной структурой.**
-5. Если Xcode создаст вложенную папку `ios/BudgetPlanner/BudgetPlanner/...` — двинь содержимое одной директорией выше или просто оставь как есть (мы потом добавим файлы из готовой `ios/BudgetPlanner/`).
-
-## 2. Настроить минимальную iOS-версию
-
-1. В Project Navigator выделить **BudgetPlanner** project (top item).
-2. Выбрать target **BudgetPlanner**.
-3. Tab **General → Minimum Deployments** → **iOS 17.0**
-
-## 3. Добавить готовые файлы из `ios/BudgetPlanner/`
-
-В Xcode: File → Add Files to "BudgetPlanner"... → выбрать все папки кроме того что Xcode уже создал:
-
-- `App/` (заменит существующий `BudgetPlannerApp.swift`)
-- `Design/`
-- `Networking/`
-- `Auth/`
-- `Domain/`
-- `Features/`
-- `Resources/Localizable.xcstrings` если есть
-
-В диалоге выбрать:
-- ☑ Copy items if needed: **uncheck** (ссылки на уже существующие файлы)
-- ☑ Create groups
-- Add to targets: ☑ BudgetPlanner
-
-## 4. Настроить Backend URL
-
-В Xcode → Edit Scheme → Run → Arguments → Environment Variables — добавить:
-
-| Name | Value |
-|---|---|
-| `BACKEND_URL` | `http://localhost:8000` |
-| `DEV_AUTH_SECRET` | (значение из `.env` корня проекта — нужно для первого запуска DevTokenSetupView) |
-
-> Альтернатива: захардкодить в `Networking/APIClient.swift` (на dev). Production URL для TestFlight — задавать в Phase 21.
-
-## 5. Настроить Info.plist для localhost HTTP
-
-Симулятор не разрешает clear-text HTTP по умолчанию. Добавить в Info.plist:
-
-```xml
-<key>NSAppTransportSecurity</key>
-<dict>
-    <key>NSAllowsLocalNetworking</key>
-    <true/>
-</dict>
+```bash
+brew install xcodegen          # один раз
+cd ios && xcodegen generate    # создаёт BudgetPlanner.xcodeproj
+open BudgetPlanner.xcodeproj   # открывает в Xcode
 ```
 
-Или через Xcode → BudgetPlanner target → Info → Custom iOS Target Properties → плюс →
-- Key: `App Transport Security Settings`
-- Type: Dictionary
-- Внутри: `Allow Local Networking` = `YES`
+В Xcode: Cmd+R (по умолчанию destination — iPhone 17 Pro Simulator).
 
-## 6. Запуск
+## Что уже подготовлено
 
-1. **Simulator:** Cmd+R на BudgetPlanner scheme, destination = iPhone 15 Pro (или iPhone 17 Pro)
-2. **Real device (iPhone 14 Pro Max или 17 Pro):**
-   - Подключить USB-C / Lightning
-   - В Xcode выбрать своё устройство как destination
-   - На iPhone: **Settings → General → VPN & Device Management** → доверить Personal Team profile (только при первой сборке)
-   - Cmd+R
-   - Сборка протухает через 7 дней без $99 Developer Account
+- ✅ `project.yml` — XcodeGen конфиг (iOS 17.0+, SwiftUI, Bundle ID `com.exeynod.BudgetPlanner`).
+- ✅ `BudgetPlanner/Info.plist` с `NSAllowsLocalNetworking` + localhost ATS exception.
+- ✅ Все Swift-файлы в `BudgetPlanner/` уже распределены по группам (App / Design / Networking / Auth / Domain / Features).
+- ✅ Schema env vars: `BACKEND_URL=http://localhost:8000` (xcodegen из `project.yml`).
+- ✅ `.gitignore` — `.xcodeproj`, DerivedData, xcuserdata.
 
-## 7. Verify
+## Backend prerequisites
 
-После Cmd+R должен открыться **DevTokenSetupView** — экран ввода секрета.
+1. Backend запущен (`docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d`).
+2. В корневом `.env` выставлен `DEV_AUTH_SECRET=<your-secret>` (это значение ты вводишь в первом экране приложения).
+3. Если правил `.env` — пересобрать api: `docker compose up -d --build api`.
 
-Шаги UAT:
-1. Ввести значение `DEV_AUTH_SECRET` из `.env` → Submit
-2. iOS вызывает `POST http://localhost:8000/api/v1/auth/dev-exchange` → получает Bearer-токен → кладёт в Keychain.
-3. Если onboarding не завершён → показывается **OnboardingView** (4 шага).
-4. После onboarding → **HomeView** с балансом текущего периода.
-5. Перезапуск приложения — DevTokenSetupView НЕ показывается, сразу Home.
+Smoke-проверка backend:
+```bash
+curl -X POST http://localhost:8000/api/v1/auth/dev-exchange \
+  -H "Content-Type: application/json" \
+  -d '{"secret":"<your-secret>"}'
+# → {"token":"...","tg_user_id":<owner_tg_id>}
+```
 
-Если backend недоступен — UI покажет error-state.
+## Запуск
 
----
+### Simulator (без $99 Apple Developer)
+
+```bash
+cd ios
+xcodegen generate
+open BudgetPlanner.xcodeproj
+# В Xcode: select iPhone 17 Pro destination → Cmd+R
+```
+
+Альтернатива через CLI без открытия Xcode:
+```bash
+xcodebuild -scheme BudgetPlanner \
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
+  -configuration Debug build CODE_SIGNING_ALLOWED=NO
+xcrun simctl boot "iPhone 17 Pro" 2>/dev/null
+APP=$(xcodebuild -showBuildSettings -scheme BudgetPlanner | awk '/BUILT_PRODUCTS_DIR/ {print $3}' | head -1)
+xcrun simctl install booted "$APP/BudgetPlanner.app"
+xcrun simctl launch booted com.exeynod.BudgetPlanner
+open -a Simulator
+```
+
+### Real device (iPhone 14 Pro Max / 17 Pro)
+
+1. Подключить iPhone к Mac.
+2. В Xcode: Project → Signing & Capabilities → выбрать твой Apple ID как Team (Personal Team — без $99).
+3. Edit Scheme → Run → Destination → твой iPhone.
+4. Cmd+R (на iPhone после первой установки: Settings → General → VPN & Device Management → trust Personal Team profile).
+5. Сборка протухает через 7 дней без $99 Developer Account.
+
+> ⚠️ На устройстве `localhost` не работает. Для real-device теста — поднять backend на LAN IP Mac (`http://192.168.x.x:8000`) или использовать Tailscale (см. memory `infra-deploy.md`). Изменить `BACKEND_URL` в Edit Scheme → Environment Variables.
+
+## Что проверить (UAT Phase 17)
+
+1. **Первый запуск:** открывается экран "BudgetPlanner / Введите DEV_AUTH_SECRET". Aurora фон работает.
+2. **Auth:** ввести значение `DEV_AUTH_SECRET` → "Войти".
+   - Если onboarded → Home с балансом периода.
+   - Если не onboarded → 4-шаговый Onboarding.
+3. **Onboarding flow:** имя → cycle_start_day (picker) → starting_balance (поддерживает "1 500,50") → toggle "Создать категории" → "Готово" → переход на Home.
+4. **Home parity:** числа HeroCard совпадают с web Mini App для того же периода.
+5. **Persistence:** force-quit + reopen → сразу Home (без DevTokenSetupView).
+6. **Tab navigation:** 4 таба внизу. Home — рабочий, остальные — заглушки "Будет в Phase N" (это норма для Phase 17).
+
+## Перегенерация при добавлении файлов
+
+При добавлении новых `.swift` файлов в `BudgetPlanner/` (Phase 18-21):
+```bash
+cd ios && xcodegen generate
+# → новые файлы автоматически попадут в target
+```
+
+Никаких ручных шагов в Xcode.
 
 ## Troubleshooting
 
-- **"App Transport Security blocked"**: повторить шаг 5.
-- **"Untrusted Developer"**: шаг 6 — доверить Personal Team на iPhone.
-- **"DEV_AUTH_SECRET not configured" → 503 от endpoint**: проверить что переменная в `.env` корня проекта установлена и api-контейнер пересобран (`docker compose up -d --build api`).
-- **Cmd+R не находит файлы**: убедиться что папки добавлены в target (Xcode → File Inspector → Target Membership ✓ BudgetPlanner для каждого .swift).
+- **"unable to find utility xcodebuild":** Xcode Command Line Tools не выбраны. `sudo xcode-select -s /Applications/Xcode.app`.
+- **Build fails с "No Account for Team":** в Xcode → Settings → Accounts → войти через Apple ID. Затем в `project.yml` settings.base.DEVELOPMENT_TEAM выставить свой Team ID, или оставить пустым и подписать через Xcode UI.
+- **Network error в приложении:** проверить что api контейнер healthy (`docker compose ps`) и `curl http://localhost:8000/api/v1/me` отвечает 200 (DEV_MODE bypass).
+- **DevTokenSetupView показывает "DEV_AUTH_SECRET не настроен":** в корневом `.env` нет переменной, либо api не пересобран после правок (`docker compose up -d --build api`).

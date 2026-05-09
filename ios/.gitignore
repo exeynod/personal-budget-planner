@@ -1,0 +1,8 @@
+# XcodeGen-generated — regenerate via `xcodegen generate`
+BudgetPlanner.xcodeproj/
+*.xcworkspace/
+DerivedData/
+build/
+*.xcuserstate
+xcuserdata/
+.swiftpm/

@@ -1,0 +1,73 @@
+name: BudgetPlanner
+options:
+  bundleIdPrefix: com.exeynod
+  deploymentTarget:
+    iOS: "17.0"
+  developmentLanguage: ru
+  createIntermediateGroups: true
+  generateEmptyDirectories: false
+
+settings:
+  base:
+    SWIFT_VERSION: "5.10"
+    DEVELOPMENT_TEAM: ""
+    CODE_SIGN_STYLE: Automatic
+    ENABLE_USER_SCRIPT_SANDBOXING: NO
+    SWIFT_TREAT_WARNINGS_AS_ERRORS: NO
+    GCC_TREAT_WARNINGS_AS_ERRORS: NO
+
+targets:
+  BudgetPlanner:
+    type: application
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: BudgetPlanner
+        excludes:
+          - "**/.DS_Store"
+    info:
+      path: BudgetPlanner/Info.plist
+      properties:
+        CFBundleDisplayName: BudgetPlanner
+        CFBundleShortVersionString: "0.6.0"
+        CFBundleVersion: "1"
+        UILaunchScreen:
+          UIColorName: ""
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+        UISupportedInterfaceOrientations~ipad:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
+          NSExceptionDomains:
+            localhost:
+              NSExceptionAllowsInsecureHTTPLoads: true
+              NSIncludesSubdomains: true
+        LSRequiresIPhoneOS: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.exeynod.BudgetPlanner
+        TARGETED_DEVICE_FAMILY: "1,2"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        GENERATE_INFOPLIST_FILE: NO
+    scheme:
+      environmentVariables:
+        BACKEND_URL: http://localhost:8000
+      testTargets: []
+
+  BudgetPlannerTests:
+    type: bundle.unit-test
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: BudgetPlannerTests
+    dependencies:
+      - target: BudgetPlanner
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.exeynod.BudgetPlannerTests
+        BUNDLE_LOADER: "$(TEST_HOST)"
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/BudgetPlanner.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/BudgetPlanner"
