@@ -1,15 +1,14 @@
 ---
 gsd_state_version: 1.0
-milestone: v0.6
-milestone_name: iOS App
-status: Roadmap created, awaiting plan-phase
-stopped_at: Roadmap для v0.6 (Phases 17-21) создан, REQUIREMENTS.md traceability заполнен. Awaiting `/gsd-plan-phase 17`.
-last_updated: "2026-05-09T15:33:59.256Z"
+milestone: v1.0
+milestone_name: Maximal Poster Full
+status: planning
+last_updated: "2026-05-09T16:18:26.188Z"
 last_activity: 2026-05-09
 progress:
-  total_phases: 5
+  total_phases: 0
   completed_phases: 0
-  total_plans: 4
+  total_plans: 0
   completed_plans: 0
   percent: 0
 ---
@@ -25,10 +24,10 @@ See: .planning/PROJECT.md (updated 2026-05-08 — v0.6 milestone started)
 
 ## Current Position
 
-Phase: Not started — Phase 17 awaiting plan-phase decomposition
+Phase: Not started (defining requirements)
 Plan: —
-Status: Roadmap created, awaiting plan-phase
-Last activity: 2026-05-09
+Status: Defining requirements
+Last activity: 2026-05-09 — Milestone v1.0 started
 
 ## Milestone v0.6 Phases
 

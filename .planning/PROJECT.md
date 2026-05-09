@@ -12,7 +12,7 @@ Telegram Mini App для планирования и ведения месячн
 
 **Shipped:** v0.6 (2026-05-09) — iOS App (Phases 17-21 + wise-tide UI/UX refactor под Apple iOS 26 native).
 
-**Active milestone:** none — awaiting next milestone planning.
+**Active milestone:** v1.0 — Maximal Poster Full (см. ниже).
 
 **Codebase:**
 - Backend: Python 3.12 / FastAPI / SQLAlchemy 2.x async / Pydantic v2
@@ -38,14 +38,40 @@ Telegram Mini App для планирования и ведения месячн
 - AI cost cap не enforced (только observability через `GET /ai/usage`)
 - 11 deferred items (UAT/verification gaps, см. STATE.md)
 
-## Next Milestone Goals
+## Current Milestone: v1.0 — Maximal Poster Full
 
-После v0.6 (iOS App ship + wise-tide UI/UX refactor) приложение существует параллельно с web Mini App. Возможные направления для следующего milestone — выбираются через `/gsd-new-milestone`:
+**Goal:** Полная миграция iOS + Web на дизайн-систему «Maximal Poster» из handoff-пакета (`.planning/v1.0-handoff/`) с расширением схемы БД/API под Копилку, Счета, Цели и Регулярные платежи.
 
-- **TestFlight distribution** — оплатить $99 Apple Developer Program, заменить dev-token flow на TG Login Widget или Sign in with Apple, загрузить через App Store Connect, добавить friend как internal-tester.
-- **Outdoor-доступ к backend** — ngrok / Cloudflare Tunnel / VPS deploy чтобы iOS работал не только в LAN с Mac.
-- **iOS feature parity backlog** — Apple Watch companion, iOS Widgets (Home/Lock screen), iPad split-view, offline-режим через SwiftData.
-- **Web Mini App polish** — wise-tide refactor показал что web-стиль (peach aurora) выглядит «детской игрушкой» относительно Apple HIG. Возможный re-design web-стороны.
+**Target features:**
+- **Backend extend:** `User.income`, новая таблица `Account` (card/cash/savings + balance + primary), `Category.{plan_cents, rollover, paused, parent_id, ord}`, новая таблица `Recurrent` (day_of_month + posted_txn_id), новая таблица `Goal`, `SavingsConfig` (roundup_enabled + base 10/50/100), `actual_transaction.kind ∈ {expense, income, roundup, deposit}` + `parent_txn_id`.
+- **Бизнес-логика:** auto-roundup при создании expense (`ceil(|amount|/base)*base − |amount|` → копилка через kind=`roundup`), rollover остатков категорий в `close_period_job` (misc → виртуально, savings → kind=`deposit`), seed 8 default-категорий на онбординге (food/cafe/home/transit/fun/gifts/health/subs).
+- **Onboarding 4-step:** Доход → Счета → План со слайдерами по 8 категориям → Цель копилки (опц.) → Final.
+- **11 переработанных + 5 новых экранов:** Home (hero «дневной темп»), Transactions (реестр со чипами и spec-tags roundup/deposit), Add Sheet (3×4 цифровая клава), Category Detail (новый — цвет фона по `isOver`), PLAN мая (расширенный — слайдеры лимитов + блок «регулярные · провести в факт»), Subscriptions (coral), AI (initial state с DM Serif italic 36px наблюдением + 4 chip-подсказки), Savings (новый — копилка с roundup + цели), Accounts list + Account Detail (новые), Analytics (2 KPI плашки + bar chart + top-5), Management (3 пункта: PLAN/Счета/Аналитика).
+- **Design system:** 4 Google-шрифта (Archivo Black + DM Serif Italic + JetBrains Mono + Manrope), кораллово-кобальтовая палитра + жёлтый акцент, 11 keyframe-анимаций (posterRowIn, posterRiseIn, posterBarFill, posterTabPop, posterPopIn, posterCheck, posterDot, posterSlideInFwd/Back, posterTabSwap, posterToastIn).
+- **iOS точность:** pixel-perfect 1:1, bundled TTF в `Resources/Fonts/`, custom `PosterNavStack` (slide-transitions вместо `NavigationStack`) + custom `PosterSheet` для соответствия `posterSlideInFwd/Back` и `sheetEase`.
+- **Web app:** handoff target и source of truth — pixel-perfect к prototype/, iOS подгоняется side-by-side.
+
+**Phase numbering:** продолжается с 22 (v0.6 закончился на Phase 21).
+
+**Phases (7):**
+- Phase 22 — Backend Schema & Logic Foundation (блокер всем остальным)
+- Phase 23 — Design System Foundation (web ║ iOS параллельно)
+- Phase 24 — Onboarding 4-step (web → iOS)
+- Phase 25 — Home + Transactions + Add Sheet (web → iOS)
+- Phase 26 — Category Detail + PLAN мая + Subscriptions (web → iOS, ║ 25, 27)
+- Phase 27 — AI + Savings + Accounts + Analytics + Management (web → iOS, ║ 25, 26)
+- Phase 28 — Animations Polish + Acceptance
+
+**Branching strategy:** integration-ветка `v1.0-maximal-poster` (отщеплена от master, коммит `bc013a9`), per-phase ветки `v1.0/{NN}-{web|ios}` через git worktrees + `/gsd-workstreams`.
+
+**Source of truth:**
+- Визуал: `.planning/v1.0-handoff/handoff/prototype/index.html` + `prototype/poster-screens.jsx`
+- Данные: `.planning/v1.0-handoff/handoff/DATA-MODEL.md`
+- Экраны: `.planning/v1.0-handoff/handoff/SCREENS.md`
+- Токены и анимации: `.planning/v1.0-handoff/handoff/DESIGN-SYSTEM.md`
+- Бизнес-правила: `.planning/v1.0-handoff/handoff/ТЗ.md`
+- Baseline для side-by-side QA: `.planning/ui-rework/screenshots/` (18 снимков iOS v0.6)
+- Полный план миграции: `~/.claude/plans/abstract-cuddling-deer.md`
 
 ---
 
@@ -143,9 +169,9 @@ Telegram Mini App для планирования и ведения месячн
 - ✓ IOS-15..16 — Subscriptions + UNUserNotifications + Template + Analytics (native SwiftUI Charts) — v0.6 (Phase 19)
 - ✓ IOSAI-01..02 — AIChatView streaming + AIProposalSheet write-flow — v0.6 (Phase 20)
 
-### Active (next milestone — TBD)
+### Active (v1.0 Maximal Poster Full)
 
-> Будет зафиксировано через `/gsd-new-milestone`. Возможные направления см. «Next Milestone Goals» выше.
+> Полный список REQ-IDs зафиксирован в `.planning/REQUIREMENTS.md`. Категории: BACKEND-EXT (расширение схемы и логики), DESIGN (токены/шрифты/анимации/компоненты), ONB (4-step онбординг), HOME, TXN, ADD, CAT-DET, PLAN, SUBS, AI, SAV (копилка), ACCT, ANAL, MGMT, POLISH (анимации, acceptance).
 
 ### Out of Scope (post v0.3)
 
@@ -251,4 +277,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-09 after v0.6 milestone (iOS App + wise-tide UI/UX refactor)*
+*Last updated: 2026-05-09 — milestone v1.0 «Maximal Poster Full» started*
