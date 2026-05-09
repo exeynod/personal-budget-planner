@@ -607,6 +607,18 @@ class ActualTransaction(Base):
         nullable=True,
     )
 
+    # ---- Phase 22 (BE-07 fix-up, migration 0016) ----
+    # account_id — счёт, на котором отражена транзакция. NULL-able для
+    # legacy v0.x rows (где счетов ещё не было). ON DELETE RESTRICT —
+    # нельзя удалить account, если на нём есть факт-транзакции.
+    # Service-layer (accounts.delete_account) raises AccountHasTxnsError(409)
+    # до того, как DB-constraint срабатывает.
+    account_id: Mapped[Optional[int]] = mapped_column(
+        BigInteger,
+        ForeignKey("account.id", ondelete="RESTRICT"),
+        nullable=True,
+    )
+
     period: Mapped["BudgetPeriod"] = relationship(back_populates="actual_transactions")
     category: Mapped["Category"] = relationship()
     # Self-relationships: parent_txn → roundup children (1:N).
@@ -633,6 +645,9 @@ class ActualTransaction(Base):
             "parent_txn_id",
             postgresql_where=text("parent_txn_id IS NOT NULL"),
         ),
+        # Phase 22 (BE-07 fix-up, migration 0016): account_id index для
+        # балансных пересчётов и delete-protection lookups.
+        Index("ix_actual_account_id", "account_id"),
         # Phase 22 (BE-16): composite UNIQUE для composite FK target
         # (parent_txn_id, user_id) → (id, user_id), создан в migration 0015.
         UniqueConstraint("id", "user_id", name="ux_actual_id_user"),
