@@ -91,7 +91,23 @@
   3. В полночь 1-го числа `close_period_job` для категории с `rollover='savings'` создаёт kind=deposit txn с описанием «Остаток {category.name} → копилка», для `rollover='misc'` — суммирует в `period.misc_rollover_cents`; идемпотентность через `period.rollover_processed_at` гарантирует, что повторный запуск джобы не создаст дублей.
   4. Atomic `POST /api/v1/onboarding/complete` принимает body `{income_cents, accounts[], category_plans, goal?, savings_config?}` и в одной DB-транзакции создаёт User.income, Account-rows (первый = primary), 8 default-категорий с кодами food/cafe/home/transit/fun/gifts/health/subs, Goal и SavingsConfig; backward-compat — отсутствие новых полей даёт legacy 14-cat behavior.
   5. Все 4 новые таблицы (account, goal, savings_config, subscription-ext) защищены Postgres RLS — integration test `test_multitenancy_v1_0_columns.py` подтверждает, что user A не может прочитать/изменить/удалить ресурсы user B даже через прямой SQL под `app` ролью; composite FK `(parent_id, user_id)` блокирует cross-tenant ссылки на `category.parent_id` и `actual_transaction.parent_txn_id`.
-**Plans**: TBD
+**Plans**: 16 plans (4 waves)
+- [ ] 22.01-alembic-0012-user-account-PLAN.md — User.income_cents + account table + RLS (BE-01, BE-02, BE-03, BE-16)
+- [ ] 22.02-alembic-0013-category-extension-PLAN.md — Category extension + composite FK + drop PlanTemplateItem (BE-04, BE-05, BE-16)
+- [ ] 22.03-alembic-0014-actual-goal-savings-PLAN.md — ActualKind enum + parent_txn_id + goal + savings_config + subscription ext (BE-06, BE-08, BE-11, BE-12)
+- [ ] 22.04-alembic-0015-rls-finalize-PLAN.md — RLS on goal/savings_config + composite FK on parent_txn_id (BE-16)
+- [ ] 22.05-sqlalchemy-models-PLAN.md — ORM mappings for all v1.0 schema additions (BE-01, BE-02, BE-04, BE-06, BE-08, BE-11, BE-12)
+- [ ] 22.06-account-service-PLAN.md — Account CRUD + balance delta-accounting (BE-02, BE-03)
+- [ ] 22.07-roundup-service-PLAN.md — Roundup formula + child txn hook + create_actual_v10 (BE-07)
+- [ ] 22.08-savings-goals-service-PLAN.md — Savings aggregator/config + Goal CRUD (BE-08, BE-09, BE-10, BE-11)
+- [ ] 22.09-subscription-post-unpost-PLAN.md — Subscription post/unpost flows (BE-12, BE-13)
+- [ ] 22.10-rollover-close-period-PLAN.md — Period rollover service + close_period integration (BE-14)
+- [ ] 22.11-atomic-onboarding-service-PLAN.md — complete_v10 + reset_v10 (BE-15, BE-05)
+- [ ] 22.12-pydantic-schemas-PLAN.md — API schemas (BE-01, BE-02, BE-08, BE-09, BE-10, BE-11, BE-12, BE-15)
+- [ ] 22.13-api-routers-PLAN.md — FastAPI routers wiring (BE-01, BE-02, BE-08, BE-09, BE-10, BE-11, BE-13, BE-15)
+- [ ] 22.14-internal-onboarding-reset-PLAN.md — Internal admin reset endpoint (BE-15)
+- [ ] 22.15-rls-integration-tests-PLAN.md — BE-16 acceptance gate (RLS + composite FK)
+- [ ] 22.16-migration-safety-tests-PLAN.md — Forward/round-trip/backfill tests (BE-04, BE-05, BE-06, BE-08, BE-11, BE-12, BE-14, BE-16)
 
 ### Phase 23: Design System Foundation
 **Goal**: Web и iOS получают общий design-system foundation — codegen tokens (single source `tokens.json`), 4 self-hosted Google-шрифта с PT Serif Italic как cyrillic fallback (ADR-001), 11 keyframe-анимаций, базовые компоненты (Eyebrow / Mass / BigFig / Plate / Chip / Slider / FAB / Toast), iOS custom `PosterNavStack` + `PosterSheet` с ручным edge-swipe (ADR-002), dual-shell coexistence (v0.6 untouched, v1.0 за `@AppStorage("ui.theme")` flag).
@@ -206,7 +222,7 @@
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 22 - Backend Schema & Logic Foundation | 0/0 | Not started | - |
+| 22 - Backend Schema & Logic Foundation | 0/16 | Not started | - |
 | 23 - Design System Foundation | 0/0 | Not started | - |
 | 24 - Onboarding 4-step | 0/0 | Not started | - |
 | 25 - Home + Transactions + Add Sheet | 0/0 | Not started | - |
