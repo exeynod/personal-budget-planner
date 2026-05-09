@@ -156,19 +156,7 @@ struct HeroCard: View {
         }
         .padding(EdgeInsets(top: 22, leading: 22, bottom: 20, trailing: 22))
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            LinearGradient(
-                colors: [Color(white: 1.0, opacity: 0.82), Color(hex: 0xF8F0E8, alpha: 0.74)],
-                startPoint: .topLeading, endPoint: .bottomTrailing
-            ),
-            in: RoundedRectangle(cornerRadius: 32)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 32)
-                .strokeBorder(Color.white.opacity(0.85), lineWidth: 0.5)
-        )
-        .shadow(color: Color(red: 0.24, green: 0.12, blue: 0.04, opacity: 0.10),
-                radius: 30, x: 0, y: 8)
+        .liquidGlass(radius: 32)
     }
 
     private func signedFormat(cents: Int) -> String {
@@ -198,28 +186,7 @@ private struct MetricPill: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(10)
-        .background {
-            if accent {
-                LinearGradient(
-                    colors: [
-                        Tokens.Accent.primary.opacity(0.20),
-                        Tokens.Accent.primary.opacity(0.09)
-                    ],
-                    startPoint: .topLeading, endPoint: .bottomTrailing
-                )
-                .clipShape(RoundedRectangle(cornerRadius: 16))
-            } else {
-                Color.white.opacity(0.45)
-                    .clipShape(RoundedRectangle(cornerRadius: 16))
-            }
-        }
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .strokeBorder(
-                    accent ? Tokens.Accent.primary.opacity(0.33) : Color.white.opacity(0.7),
-                    lineWidth: 0.5
-                )
-        )
+        .liquidGlassPill(radius: 16, accent: accent)
     }
 }
 
@@ -234,8 +201,14 @@ struct HomeKindTabs: View {
             tabButton("Доходы", kind: .income)
         }
         .padding(4)
-        .background(Color.white.opacity(0.55), in: Capsule())
-        .overlay(Capsule().strokeBorder(Color.white.opacity(0.7), lineWidth: 0.5))
+        .background(
+            ZStack {
+                LiquidGlass(style: .systemThinMaterial)
+                Color.white.opacity(0.32)
+            }
+            .clipShape(Capsule())
+        )
+        .overlay(Capsule().strokeBorder(Color.white.opacity(0.75), lineWidth: 0.5))
     }
 
     private func tabButton(_ title: String, kind: CategoryKind) -> some View {
@@ -364,14 +337,7 @@ struct CategoryDashboardRow: View {
             }
         }
         .padding(12)
-        .background(
-            Color.white.opacity(0.55),
-            in: RoundedRectangle(cornerRadius: 14)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 14)
-                .strokeBorder(Color.white.opacity(0.6), lineWidth: 0.5)
-        )
+        .liquidGlass(radius: 14, blur: .systemThinMaterial)
     }
 }
 

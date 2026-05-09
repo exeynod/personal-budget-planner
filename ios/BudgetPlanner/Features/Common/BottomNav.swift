@@ -89,20 +89,7 @@ private struct BottomBar: View {
         }
         .padding(.vertical, 6)
         .padding(.horizontal, 8)
-        .background(
-            Color.white.opacity(0.65),
-            in: RoundedRectangle(cornerRadius: 28)
-        )
-        .background(
-            RoundedRectangle(cornerRadius: 28)
-                .fill(.ultraThinMaterial)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 28)
-                .strokeBorder(Color.white.opacity(0.7), lineWidth: 0.5)
-        )
-        .shadow(color: Color(red: 0.24, green: 0.12, blue: 0.04, opacity: 0.10),
-                radius: 24, x: 0, y: 4)
+        .liquidGlass(radius: 28, blur: .systemUltraThinMaterial)
     }
 
     private func tabButton(_ tab: AppTab) -> some View {

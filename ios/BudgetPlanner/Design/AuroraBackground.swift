@@ -5,18 +5,31 @@ struct AuroraBackground: View {
         ZStack {
             Tokens.Background.cream
 
-            // Лёгкие aurora-blobs над cream (как `AuroraBg` в web)
+            // Aurora-blobs — насыщенные цветовые пятна для liquid-glass
+            // эффекта (через них blur картинка сквозь карточки = видимый glass).
             Circle()
-                .fill(Color(hex: 0xFFB07A).opacity(0.25))
-                .blur(radius: 80)
-                .frame(width: 320, height: 320)
-                .offset(x: -100, y: -200)
+                .fill(Color(hex: 0xFFB07A).opacity(0.42))
+                .blur(radius: 100)
+                .frame(width: 380, height: 380)
+                .offset(x: -130, y: -260)
 
             Circle()
-                .fill(Color(hex: 0xF39A4C).opacity(0.18))
-                .blur(radius: 100)
+                .fill(Color(hex: 0xF39A4C).opacity(0.30))
+                .blur(radius: 130)
+                .frame(width: 360, height: 360)
+                .offset(x: 160, y: 280)
+
+            Circle()
+                .fill(Color(hex: 0xB583E8).opacity(0.18))
+                .blur(radius: 130)
                 .frame(width: 280, height: 280)
-                .offset(x: 130, y: 240)
+                .offset(x: 130, y: -140)
+
+            Circle()
+                .fill(Color(hex: 0xE36B5A).opacity(0.18))
+                .blur(radius: 140)
+                .frame(width: 280, height: 280)
+                .offset(x: -100, y: 420)
         }
         .ignoresSafeArea()
     }
