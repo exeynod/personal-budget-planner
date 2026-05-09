@@ -93,8 +93,8 @@
 }
 
 /* Область сообщений / hero — заполняет вертикальное пространство.
-   bottom-padding 130 = место под floating input (90 от низа + ~40 высота)
-   плюс собственный отступ. */
+   bottom-padding учитывает: dock ~70 + 18 gap + safe-area + input-bar ~52
+   + 24 воздух = ≈170. Через safe-area inset считаем динамически. */
 .messages {
   flex: 1;
   overflow-y: auto;
@@ -102,7 +102,7 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding: 4px 0 130px;
+  padding: 4px 0 calc(170px + env(safe-area-inset-bottom, 0px));
 }
 
 /* На empty state — убираем padding-bottom, чтобы flex-центрирование
@@ -249,12 +249,15 @@
   -webkit-backdrop-filter: blur(22px) saturate(175%);
 }
 
-/* Floating input bar — над tabbar. */
+/* Floating input bar — над tabbar. Поднят выше: dock стал толще
+   (min-height tab 46→58, dock height ~70), плюс воздух между баром
+   и dock'ом для визуальной отделённости. safe-area добавляется так
+   же как у dock'а. */
 .inputBar {
   position: absolute;
   left: 16px;
   right: 16px;
-  bottom: 90px;
+  bottom: calc(106px + env(safe-area-inset-bottom, 0px));
   z-index: 50;
   border-radius: 26px;
   padding: 6px 6px 6px 18px;
