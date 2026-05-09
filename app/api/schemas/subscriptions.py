@@ -62,3 +62,63 @@ class ChargeNowResponse(BaseModel):
 
     planned_id: int
     next_charge_date: date
+
+
+# ---- Phase 22 (v1.0) extensions: BE-12 / BE-13 ----
+#
+# These additions live below the legacy schemas so the v0.x routes (kept
+# wire-compatible per CONTEXT D-04) are not perturbed. The v1.0 router in
+# plan 22.13 wires the new fields into request bodies / responses without
+# changing the existing classes above.
+#
+# Threat mitigations (plan 22.12 <threat_model>):
+# - T-22-12-01 / T-22-12-02: ConfigDict(strict=True, extra="forbid") on
+#   the new request models.
+# - day_of_month bounded to 1..28 (mirrors DB CHECK ck_subscription_day_of_month
+#   from migration 0014; clamps February automatically).
+
+
+class SubscriptionV10Update(BaseModel):
+    """PATCH /api/v1/subscriptions/{id} v1.0 extension (BE-12).
+
+    Adds the day-of-month / account_id selector without disturbing the
+    legacy ``SubscriptionUpdate`` shape. Routes that accept v1.0 clients
+    layer this body **on top of** ``SubscriptionUpdate`` (the router in
+    plan 22.13 merges both into a single payload).
+    """
+
+    model_config = ConfigDict(strict=True, extra="forbid")
+
+    day_of_month: Optional[int] = Field(default=None, ge=1, le=28)
+    account_id: Optional[int] = Field(default=None, gt=0)
+
+
+class SubscriptionV10Extension(BaseModel):
+    """Mixin-style read fields layered onto ``SubscriptionRead`` for v1.0.
+
+    Plan 22.13 will define ``SubscriptionReadV10`` that inherits both
+    :class:`SubscriptionRead` and this class so the v1.0 GET endpoints
+    return ``day_of_month`` / ``account_id`` / ``posted_txn_id`` while
+    legacy GET responses keep their original shape.
+    """
+
+    model_config = ConfigDict(from_attributes=True)
+
+    day_of_month: Optional[int] = Field(default=None, ge=1, le=28)
+    account_id: Optional[int] = None
+    posted_txn_id: Optional[int] = None
+
+
+class SubscriptionPostResponse(BaseModel):
+    """POST /api/v1/subscriptions/{id}/post response (BE-13).
+
+    Returned after a regular (subscription) charge is materialised into
+    an ``ActualTransaction``. ``posted_at`` is the ISO-8601 wire string
+    of ``ActualTransaction.created_at`` for the freshly inserted row.
+    """
+
+    model_config = ConfigDict(from_attributes=True)
+
+    txn_id: int
+    subscription_id: int
+    posted_at: str
