@@ -64,11 +64,6 @@
 .profileName { font-size: 15px; font-weight: 700; color: var(--ink); }
 .profileMeta { font-size: 12px; color: var(--ink-2); }
 
-.profileChev {
-  color: var(--ink-2);
-  flex-shrink: 0;
-}
-
 /* List */
 .list {
   border-radius: 22px;

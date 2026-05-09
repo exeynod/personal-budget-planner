@@ -76,7 +76,7 @@ export function ManagementScreen({ onNavigate }: ManagementScreenProps) {
           <div className={styles.subtitle}>Подписки, категории, доступ</div>
         </div>
 
-        {/* Profile card */}
+        {/* Profile card — non-interactive (no chevron). */}
         <div className={`glass-light ${styles.profileCard}`}>
           <div className={styles.profileBody}>
             <div className={styles.avatar}>{initial}</div>
@@ -84,7 +84,6 @@ export function ManagementScreen({ onNavigate }: ManagementScreenProps) {
               <div className={styles.profileName}>{user?.tg_username ?? 'Пользователь'}</div>
               <div className={styles.profileMeta}>{role} · {handle}</div>
             </div>
-            <CaretRight size={16} weight="bold" className={styles.profileChev} />
           </div>
         </div>
 
