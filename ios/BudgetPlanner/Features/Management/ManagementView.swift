@@ -11,6 +11,7 @@ import SwiftUI
 /// `/me` не возвращает `tg_username` поэтому используем фолбэк "Пользователь / —".
 struct ManagementView: View {
     @Environment(AuthStore.self) private var authStore
+    @State private var path = NavigationPath()
 
     private var user: UserDTO? {
         if case .authenticated(let user) = authStore.state { return user }
@@ -24,7 +25,7 @@ struct ManagementView: View {
     }
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $path) {
             ZStack {
                 AdaptiveBackground()
 
@@ -41,6 +42,19 @@ struct ManagementView: View {
                 .scrollIndicators(.hidden)
             }
             .navigationBarHidden(true)
+            .navigationDestination(for: ManagementItem.ID.self) { id in
+                destination(for: id)
+            }
+            .onAppear { handleDevAutoNav() }
+        }
+    }
+
+    private func handleDevAutoNav() {
+        let defaults = UserDefaults.standard
+        if let target = defaults.string(forKey: "DEV_OPEN_MANAGEMENT_SCREEN"),
+           let id = ManagementItem.ID(rawValue: target),
+           path.isEmpty {
+            path.append(id)
         }
     }
 
@@ -108,9 +122,7 @@ struct ManagementView: View {
     private var listCard: some View {
         VStack(spacing: 0) {
             ForEach(Array(visibleItems.enumerated()), id: \.element.id) { idx, item in
-                NavigationLink {
-                    destination(for: item.id)
-                } label: {
+                NavigationLink(value: item.id) {
                     ManagementListRow(item: item, isFirst: idx == 0)
                 }
                 .buttonStyle(ManagementRowButtonStyle())
