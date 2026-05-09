@@ -46,6 +46,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.schemas.actual import ActualUpdate
 from app.core.period import period_for
 from app.db.models import (
+    ActualKind,
     ActualSource,
     ActualTransaction,
     AppUser,
@@ -563,3 +564,186 @@ async def find_categories_by_query(
     )
     result = await db.execute(stmt)
     return list(result.scalars().all())
+
+
+# ---------- Phase 22 v1.0 (BE-06, BE-07) — extended actual create/delete ----------
+#
+# Legacy ``create_actual`` and ``delete_actual`` above are intentionally NOT
+# modified — they keep their v0.x signature (single-object return, no
+# account_id, no roundup hook) so existing API routes / bot handlers keep
+# working until plan 22.13 migrates them to the v10 contract.
+#
+# v10 functions live below as additive surface:
+#   * ``create_actual_v10`` — accepts ``account_id`` + ``parent_txn_id``;
+#     applies balance delta atomically; calls ``maybe_create_roundup_child``;
+#     returns ``(parent, child_or_None)``.
+#   * ``delete_actual_v10`` — fetches parent + cascading children BEFORE
+#     delete, sums signed amounts per account, deletes parent (DB cascade
+#     removes children), then applies positive balance restore deltas per
+#     account. Idempotent: if parent is already gone, raises
+#     ActualNotFoundError → 404.
+
+
+async def create_actual_v10(
+    db: AsyncSession,
+    *,
+    user_id: int,
+    kind: str,
+    amount_cents: int,
+    description: Optional[str],
+    category_id: int,
+    tx_date: date,
+    source: ActualSource,
+    account_id: Optional[int] = None,
+    parent_txn_id: Optional[int] = None,
+) -> tuple[ActualTransaction, Optional[ActualTransaction]]:
+    """v1.0 (BE-06 + BE-07): create actual + balance delta + optional roundup child.
+
+    Compared to legacy ``create_actual``:
+      * Accepts the extended ``ActualKind`` enum (4-valued: expense / income /
+        roundup / deposit) — savings-related kinds are valid here, whereas
+        legacy create_actual rejects them via the kind == cat.kind check.
+      * Applies a balance delta to ``account_id`` if supplied (CONTEXT §Area 2
+        D-04: trust delta-accounting; service-layer is the single source).
+      * After parent insert, calls ``maybe_create_roundup_child`` — which is
+        a no-op for any kind != 'expense', any user without an enabled
+        SavingsConfig, and any amount that is already aligned to the base.
+
+    Returns:
+        ``(parent, roundup_child)`` — child is ``None`` if no roundup
+        applicable.
+
+    Raises:
+        InvalidCategoryError: invalid kind value or archived category.
+        FutureDateError: tx_date > today + 7 days.
+        AccountNotFoundError: account_id supplied but not found
+            (propagates from ``apply_balance_delta``).
+    """
+    cat = await _ensure_category_active(db, category_id, user_id=user_id)
+
+    valid_kinds = {"expense", "income", "roundup", "deposit"}
+    if kind not in valid_kinds:
+        raise InvalidCategoryError(category_id, f"Invalid kind={kind!r}")
+
+    # For v1.0 we relax kind == cat.kind: the system 'savings' Category is
+    # marked kind='expense' but accepts roundup/deposit txns by design.
+    # For non-savings categories, still enforce kind compatibility for
+    # plain expense/income kinds (T-22-05-02 — keep semantic alignment).
+    if kind in ("expense", "income"):
+        if cat.kind.value != kind:
+            # Allow income txns into the savings system category
+            # (e.g., interest accrued) for completeness; otherwise reject.
+            if cat.code != "savings":
+                raise KindMismatchError(kind, cat.kind.value)
+
+    _check_future_date(tx_date)
+    cycle_start_day = await _get_cycle_start_day(db, user_id=user_id)
+    period_id = await _resolve_period_for_date(
+        db, tx_date, cycle_start_day=cycle_start_day, user_id=user_id
+    )
+
+    parent = ActualTransaction(
+        user_id=user_id,
+        period_id=period_id,
+        kind=ActualKind(kind),
+        amount_cents=amount_cents,
+        description=description,
+        category_id=category_id,
+        tx_date=tx_date,
+        source=source,
+        account_id=account_id,
+        parent_txn_id=parent_txn_id,
+    )
+    db.add(parent)
+    await db.flush()
+    await db.refresh(parent)
+
+    # Apply balance delta for the parent against its account (if any).
+    if account_id is not None:
+        # Local import to avoid circular dep at module import time.
+        from app.services.accounts import apply_balance_delta
+
+        await apply_balance_delta(
+            db,
+            account_id=account_id,
+            user_id=user_id,
+            delta_cents=amount_cents,
+        )
+
+    # Roundup hook — no-op for non-expense / no-config / aligned amounts.
+    from app.services.roundup import maybe_create_roundup_child
+
+    child = await maybe_create_roundup_child(
+        db, user_id=user_id, parent_txn=parent
+    )
+
+    return parent, child
+
+
+async def delete_actual_v10(
+    db: AsyncSession,
+    actual_id: int,
+    *,
+    user_id: int,
+) -> ActualTransaction:
+    """v1.0 delete: cascade child via FK, restore balances for parent + child.
+
+    Sequence:
+      1. Fetch the parent row (or 404 — scoped by user_id).
+      2. SELECT children via parent_txn_id (still alive — pre-delete snapshot).
+      3. Aggregate per-account positive deltas to restore the balance
+         (negate each row's signed ``amount_cents``).
+      4. ``db.delete(parent)`` — DB-level FK ON DELETE CASCADE removes
+         each child row automatically (migration 0014 + 0015).
+      5. ``apply_balance_delta`` for each affected account.
+
+    Returns:
+        The parent row (already detached from session at this point —
+        useful for response serialisation).
+
+    Raises:
+        ActualNotFoundError: id not found OR cross-tenant.
+        AccountNotFoundError: aggregated delta refers to a deleted/missing
+            account (extremely unlikely in normal flow — surfaces as 500).
+    """
+    parent = await get_or_404(db, actual_id, user_id=user_id)
+
+    children = (
+        await db.execute(
+            select(ActualTransaction).where(
+                ActualTransaction.parent_txn_id == parent.id,
+                ActualTransaction.user_id == user_id,
+            )
+        )
+    ).scalars().all()
+
+    affected_accounts: dict[int, int] = {}
+
+    if parent.account_id is not None:
+        affected_accounts[parent.account_id] = (
+            affected_accounts.get(parent.account_id, 0) + (-parent.amount_cents)
+        )
+
+    for ch in children:
+        if ch.account_id is not None:
+            affected_accounts[ch.account_id] = (
+                affected_accounts.get(ch.account_id, 0) + (-ch.amount_cents)
+            )
+
+    await db.delete(parent)  # DB-level CASCADE wipes children.
+    await db.flush()
+
+    if affected_accounts:
+        from app.services.accounts import apply_balance_delta
+
+        for acct_id, delta in affected_accounts.items():
+            if delta == 0:
+                continue
+            await apply_balance_delta(
+                db,
+                account_id=acct_id,
+                user_id=user_id,
+                delta_cents=delta,
+            )
+
+    return parent
