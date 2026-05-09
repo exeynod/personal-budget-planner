@@ -1,41 +1,47 @@
-/* InfoNote — Liquid Glass dark info expander.
-   Используется как inline summary-button в section headers Analytics. */
+/* InfoNote — inline accordion. `display: contents` на root делает trigger
+   и body прямыми flex-children родителя; body форсит wrap на новую строку
+   через flex-basis: 100%. Родитель должен быть `flex-wrap: wrap`. */
 
 .note {
   display: contents;
 }
 
-.summary {
+.trigger {
   list-style: none;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 18px;
-  height: 18px;
+  width: 22px;
+  height: 22px;
   border-radius: 50%;
+  border: 0;
+  background: transparent;
   color: var(--ink-d-2);
   cursor: pointer;
+  padding: 0;
+  font-family: inherit;
   transition: color 100ms, background 100ms;
   -webkit-tap-highlight-color: transparent;
+  flex-shrink: 0;
 }
 
-.summary::-webkit-details-marker { display: none; }
-.summary::marker { content: ''; }
-
-.summary:hover,
-.note[open] .summary {
+.trigger:hover,
+.triggerOpen {
   color: var(--accent);
   background: color-mix(in srgb, var(--accent) 16%, transparent);
 }
 
+/* Body — отдельная flex-row внутри родителя. flex-basis 100% + order
+   гарантирует, что blob съезжает ниже trigger'а после wrap'а. */
 .body {
   flex-basis: 100%;
   width: 100%;
+  order: 99;
   margin: 8px 0 4px;
   padding: 12px 14px;
   background: linear-gradient(160deg,
-    rgba(48, 38, 32, 0.82),
-    rgba(28, 22, 18, 0.82));
+    rgba(48, 38, 32, 0.92),
+    rgba(28, 22, 18, 0.92));
   backdrop-filter: blur(22px) saturate(175%);
   -webkit-backdrop-filter: blur(22px) saturate(175%);
   border-radius: 14px;
@@ -45,9 +51,31 @@
   font-weight: 400;
   text-transform: none;
   letter-spacing: 0;
+  text-align: left;
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.08),
-    inset 0 0 0 0.5px rgba(255, 255, 255, 0.18);
+    inset 0 1px 0 rgba(255, 255, 255, 0.10),
+    inset 0 0 0 0.5px rgba(255, 255, 255, 0.20);
+  animation: infoIn 0.22s ease-out;
+  overflow: hidden;
+}
+
+@keyframes infoIn {
+  from {
+    opacity: 0;
+    max-height: 0;
+    margin-top: 0;
+    margin-bottom: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+  to {
+    opacity: 1;
+    max-height: 240px;
+    margin-top: 8px;
+    margin-bottom: 4px;
+    padding-top: 12px;
+    padding-bottom: 12px;
+  }
 }
 
 .body code {

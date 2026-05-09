@@ -76,6 +76,10 @@
   justify-content: space-between;
   align-items: flex-start;
   gap: 12px;
+  /* flex-wrap нужен для inline-аккордеона InfoNote (display:contents
+     делает trigger+body прямыми flex-children'ами; body с flex-basis:100%
+     wrap'ится на новую строку, толкая chartWrap вниз). */
+  flex-wrap: wrap;
 }
 
 .heroTexts {
@@ -189,6 +193,9 @@
   align-items: center;
   gap: 8px;
   padding: 6px 8px 8px;
+  /* flex-wrap для inline InfoNote accordion — body раскрывается ниже kicker'а
+     в новой строке, толкая следующий блок вниз. */
+  flex-wrap: wrap;
 }
 
 .sectionTitle :global(.kicker-d) {
