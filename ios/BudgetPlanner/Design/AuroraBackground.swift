@@ -5,35 +5,18 @@ struct AuroraBackground: View {
         ZStack {
             Tokens.Background.cream
 
-            if #available(iOS 18.0, *) {
-                MeshGradient(
-                    width: 3, height: 3,
-                    points: [
-                        [0.0, 0.0], [0.5, 0.0], [1.0, 0.0],
-                        [0.0, 0.5], [0.5, 0.5], [1.0, 0.5],
-                        [0.0, 1.0], [0.5, 1.0], [1.0, 1.0]
-                    ],
-                    colors: [
-                        Color(hex: 0xFFD4C2), Color(hex: 0xF6EFE6), Color(hex: 0xFFE8B5),
-                        Color(hex: 0xFFB07A), Color(hex: 0xF6EFE6), Color(hex: 0xFFD4C2),
-                        Color(hex: 0xF6EFE6), Color(hex: 0xFFE8B5), Color(hex: 0xFFB07A)
-                    ]
-                )
-                .opacity(0.55)
-                .ignoresSafeArea()
-            } else {
-                LinearGradient(
-                    colors: [
-                        Color(hex: 0xFFD4C2),
-                        Color(hex: 0xF6EFE6),
-                        Color(hex: 0xFFE8B5)
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-                .opacity(0.6)
-                .ignoresSafeArea()
-            }
+            // Лёгкие aurora-blobs над cream (как `AuroraBg` в web)
+            Circle()
+                .fill(Color(hex: 0xFFB07A).opacity(0.25))
+                .blur(radius: 80)
+                .frame(width: 320, height: 320)
+                .offset(x: -100, y: -200)
+
+            Circle()
+                .fill(Color(hex: 0xF39A4C).opacity(0.18))
+                .blur(radius: 100)
+                .frame(width: 280, height: 280)
+                .offset(x: 130, y: 240)
         }
         .ignoresSafeArea()
     }

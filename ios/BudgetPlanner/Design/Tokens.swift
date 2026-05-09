@@ -41,21 +41,57 @@ enum Tokens {
         static let subs = Color(hex: 0x9C8FE8)
         static let salary = Color(hex: 0x7CC68F)
         static let side = Color(hex: 0xF0C04A)
+        static let fallback = Color(hex: 0x9C8FE8)
+
+        struct Visual {
+            let color: Color
+            let icon: String
+        }
+
+        /// Mapping русских названий → (color + SF Symbol icon).
+        /// Симметрично frontend/src/utils/categoryVisuals.ts.
+        static func visual(for name: String) -> Visual {
+            let norm = name.trimmingCharacters(in: .whitespaces).lowercased()
+
+            if norm.contains("продукт") || norm.contains("еда") || norm == "food" {
+                return Visual(color: food, icon: "bag.fill")
+            }
+            if norm.contains("кафе") || norm.contains("ресторан") || norm.contains("cafe") {
+                return Visual(color: cafe, icon: "cup.and.saucer.fill")
+            }
+            if norm.contains("дом") || norm.contains("жил") || norm.contains("коммунал") || norm == "home" {
+                return Visual(color: home, icon: "house.fill")
+            }
+            if norm.contains("транспорт") || norm.contains("такси") || norm == "transit" {
+                return Visual(color: transit, icon: "car.fill")
+            }
+            if norm.contains("здоров") || norm.contains("медиц") || norm.contains("аптек") || norm == "health" {
+                return Visual(color: health, icon: "heart.fill")
+            }
+            if norm.contains("развлеч") || norm.contains("досуг") || norm.contains("кино") || norm == "fun" {
+                return Visual(color: fun, icon: "ticket.fill")
+            }
+            if norm.contains("подарк") || norm.contains("подарок") || norm == "gifts" {
+                return Visual(color: gifts, icon: "gift.fill")
+            }
+            if norm.contains("подписк") || norm == "subs" || norm.contains("сервис") {
+                return Visual(color: subs, icon: "square.stack.fill")
+            }
+            if norm.contains("зарплат") || norm.contains("оклад") || norm == "salary" {
+                return Visual(color: salary, icon: "rublesign.circle.fill")
+            }
+            if norm.contains("подработк") || norm.contains("фриланс") || norm.contains("бонус") || norm == "side" {
+                return Visual(color: side, icon: "sparkles")
+            }
+            if norm.contains("спорт") {
+                return Visual(color: health, icon: "figure.run")
+            }
+
+            return Visual(color: fallback, icon: "circle.fill")
+        }
 
         static func color(for slug: String) -> Color {
-            switch slug.lowercased() {
-            case "food", "еда": return food
-            case "cafe", "кафе": return cafe
-            case "home", "дом": return home
-            case "transit", "транспорт": return transit
-            case "health", "здоровье": return health
-            case "fun", "развлечения": return fun
-            case "gifts", "подарки": return gifts
-            case "subs", "подписки": return subs
-            case "salary", "зарплата": return salary
-            case "side", "подработка": return side
-            default: return Color.gray
-            }
+            visual(for: slug).color
         }
     }
 
