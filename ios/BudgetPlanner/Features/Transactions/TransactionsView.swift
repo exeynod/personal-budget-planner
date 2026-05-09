@@ -10,10 +10,14 @@ final class TransactionsViewModel {
     }
 
     private(set) var state: LoadState = .loading
-    private(set) var period: PeriodDTO?
-    private(set) var actuals: [ActualDTO] = []
-    private(set) var planned: [PlannedDTO] = []
-    private(set) var categories: [CategoryDTO] = []
+    var period: PeriodDTO?
+    var actuals: [ActualDTO] = []
+    var planned: [PlannedDTO] = []
+    var categories: [CategoryDTO] = []
+
+    var subTab: TxSubTab = .history
+    var kind: CategoryKind = .expense
+    var categoryFilter: Int?
 
     func load() async {
         state = .loading
@@ -36,12 +40,32 @@ final class TransactionsViewModel {
         }
     }
 
-    func categoryName(_ id: Int) -> String {
-        categories.first { $0.id == id }?.name ?? "—"
-    }
-
     func category(_ id: Int) -> CategoryDTO? {
         categories.first { $0.id == id }
+    }
+
+    var filteredActuals: [ActualDTO] {
+        actuals.filter { actual in
+            actual.kind == kind
+                && (categoryFilter == nil || actual.categoryId == categoryFilter)
+        }
+    }
+
+    var filteredPlanned: [PlannedDTO] {
+        planned.filter { plan in
+            plan.kind == kind
+                && (categoryFilter == nil || plan.categoryId == categoryFilter)
+        }
+    }
+
+    var visibleCategories: [CategoryDTO] {
+        let usedIds: Set<Int>
+        if subTab == .history {
+            usedIds = Set(actuals.filter { $0.kind == kind }.map(\.categoryId))
+        } else {
+            usedIds = Set(planned.filter { $0.kind == kind }.map(\.categoryId))
+        }
+        return categories.filter { $0.kind == kind && usedIds.contains($0.id) }
     }
 
     func deleteActual(id: Int) async {
@@ -63,41 +87,41 @@ final class TransactionsViewModel {
     }
 }
 
-enum TransactionsSubTab: String, CaseIterable {
+enum TxSubTab: String, CaseIterable, Identifiable {
     case history = "История"
-    case planned = "План"
+    case plan = "План"
+    var id: String { rawValue }
 }
 
 struct TransactionsView: View {
     @State private var viewModel = TransactionsViewModel()
-    @State private var subTab: TransactionsSubTab = .history
-    @State private var showEditor = false
     @State private var editingActual: ActualDTO?
     @State private var editingPlanned: PlannedDTO?
 
     var body: some View {
         ZStack {
-            AdaptiveBackground()
+            AuroraBackground()
 
-            VStack(spacing: 0) {
-                header
-                content
+            ScrollView {
+                VStack(spacing: 12) {
+                    titleRow
+                    SegmentedTwoTabs(selection: $viewModel.subTab)
+                    KindTabs(selection: $viewModel.kind)
+                    if !viewModel.visibleCategories.isEmpty {
+                        FilterChipsBar(
+                            categories: viewModel.visibleCategories,
+                            selected: $viewModel.categoryFilter
+                        )
+                    }
+                    content
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, 8)
+                .padding(.bottom, 130)
             }
-
-            FAB { showEditor = true }
-                .padding(.trailing, Tokens.Spacing.xl)
-                .padding(.bottom, Tokens.Spacing.xl)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+            .refreshable { await viewModel.load() }
         }
         .task { await viewModel.load() }
-        .refreshable { await viewModel.load() }
-        .sheet(isPresented: $showEditor) {
-            TransactionEditor(
-                mode: .createActual,
-                categories: viewModel.categories,
-                onSaved: { await viewModel.load() }
-            )
-        }
         .sheet(item: $editingActual) { actual in
             TransactionEditor(
                 mode: .editActual(actual),
@@ -115,223 +139,456 @@ struct TransactionsView: View {
     }
 
     @ViewBuilder
-    private var header: some View {
-        VStack(spacing: Tokens.Spacing.md) {
-            HStack {
-                Text("Транзакции")
-                    .font(.appTitle)
-                Spacer()
+    private var titleRow: some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text("Транзакции")
+                .font(.system(size: 28, weight: .bold))
+                .tracking(-0.5)
+                .foregroundStyle(Tokens.Ink.primary)
+            Spacer()
+            if let period = viewModel.period {
+                Text(periodChipLabel(period))
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(Tokens.Ink.secondary)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .liquidGlassPill(radius: 12)
             }
-            SubTabBar(selection: $subTab)
         }
-        .padding(.horizontal, Tokens.Spacing.xl)
-        .padding(.top, Tokens.Spacing.lg)
-        .padding(.bottom, Tokens.Spacing.md)
+        .padding(.bottom, 4)
+    }
+
+    private func periodChipLabel(_ p: PeriodDTO) -> String {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "ru_RU")
+        f.dateFormat = "MMM"
+        return f.string(from: p.periodStart)
     }
 
     @ViewBuilder
     private var content: some View {
         switch viewModel.state {
         case .loading:
-            ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
+            ProgressView().padding(.top, 60)
         case .error(let msg):
-            VStack(spacing: Tokens.Spacing.md) {
+            VStack(spacing: 12) {
                 Text("Не удалось загрузить").font(.appTitle)
                 Text(msg).font(.appBody).foregroundStyle(.secondary)
                 Button("Повторить") { Task { await viewModel.load() } }
+                    .buttonStyle(.borderedProminent)
+                    .tint(Tokens.Accent.primary)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .padding(.top, 40)
         case .loaded:
-            if subTab == .history {
-                HistoryListView(viewModel: viewModel, onEdit: { editingActual = $0 })
+            if viewModel.subTab == .history {
+                HistoryGroupedList(
+                    actuals: viewModel.filteredActuals,
+                    categoryProvider: viewModel.category,
+                    onTap: { editingActual = $0 },
+                    onDelete: { id in
+                        Task { await viewModel.deleteActual(id: id) }
+                    }
+                )
             } else {
-                PlannedListView(viewModel: viewModel, onEdit: { editingPlanned = $0 })
+                PlannedGroupedList(
+                    planned: viewModel.filteredPlanned,
+                    categoryProvider: viewModel.category,
+                    onTap: { editingPlanned = $0 },
+                    onDelete: { id in
+                        Task { await viewModel.deletePlanned(id: id) }
+                    }
+                )
             }
         }
     }
 }
 
-struct SubTabBar: View {
-    @Binding var selection: TransactionsSubTab
+// MARK: - Segmented two tabs (История/План)
+
+struct SegmentedTwoTabs: View {
+    @Binding var selection: TxSubTab
 
     var body: some View {
-        HStack(spacing: Tokens.Spacing.sm) {
-            ForEach(TransactionsSubTab.allCases, id: \.self) { tab in
+        HStack(spacing: 0) {
+            ForEach(TxSubTab.allCases) { tab in
                 Button {
-                    selection = tab
+                    withAnimation(.easeInOut(duration: 0.2)) { selection = tab }
                 } label: {
                     Text(tab.rawValue)
-                        .font(.appLabel.weight(selection == tab ? .semibold : .regular))
-                        .foregroundStyle(selection == tab ? .white : .primary)
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(selection == tab ? Tokens.Ink.primary : Tokens.Ink.secondary)
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, Tokens.Spacing.sm)
-                        .background(
-                            selection == tab ? Tokens.Accent.primary : Color.clear,
-                            in: RoundedRectangle(cornerRadius: Tokens.Radius.md)
-                        )
+                        .padding(.vertical, 12)
+                        .background {
+                            if selection == tab {
+                                Color.white.opacity(0.92).clipShape(
+                                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                )
+                            }
+                        }
                 }
                 .buttonStyle(.plain)
             }
         }
-        .padding(Tokens.Spacing.xs)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: Tokens.Radius.md))
+        .padding(4)
+        .liquidGlass(radius: 18, blur: .systemThinMaterial)
     }
 }
 
-private struct HistoryListView: View {
-    let viewModel: TransactionsViewModel
-    let onEdit: (ActualDTO) -> Void
+// MARK: - Kind tabs (Расходы/Доходы)
 
-    var grouped: [(date: Date, items: [ActualDTO])] {
-        let cal = Calendar(identifier: .gregorian)
-        let groups = Dictionary(grouping: viewModel.actuals) { actual in
-            cal.startOfDay(for: actual.txDate)
+struct KindTabs: View {
+    @Binding var selection: CategoryKind
+
+    var body: some View {
+        HStack(spacing: 0) {
+            tabButton("Расходы", kind: .expense)
+            tabButton("Доходы", kind: .income)
         }
+        .padding(4)
+        .liquidGlassPill(radius: 16)
+    }
+
+    private func tabButton(_ title: String, kind: CategoryKind) -> some View {
+        Button {
+            withAnimation(.easeInOut(duration: 0.2)) { selection = kind }
+        } label: {
+            Text(title)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(selection == kind ? Tokens.Accent.primary : Tokens.Ink.secondary)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 9)
+                .background {
+                    if selection == kind {
+                        Tokens.Accent.primary.opacity(0.18).clipShape(Capsule())
+                    } else {
+                        Color.clear
+                    }
+                }
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+// MARK: - Filter chips
+
+struct FilterChipsBar: View {
+    let categories: [CategoryDTO]
+    @Binding var selected: Int?
+
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 6) {
+                FilterChip(label: "Все", isSelected: selected == nil) {
+                    selected = nil
+                }
+                ForEach(categories) { cat in
+                    FilterChip(
+                        label: cat.name,
+                        isSelected: selected == cat.id,
+                        accentColor: Tokens.Categories.visual(for: cat.name).color
+                    ) {
+                        selected = cat.id
+                    }
+                }
+            }
+            .padding(.vertical, 2)
+        }
+        .scrollClipDisabled()
+    }
+}
+
+private struct FilterChip: View {
+    let label: String
+    let isSelected: Bool
+    var accentColor: Color = Tokens.Ink.primary
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Text(label)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(isSelected ? .white : Tokens.Ink.primary)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .background {
+                    if isSelected {
+                        Tokens.Ink.primary.clipShape(Capsule())
+                    } else {
+                        ZStack {
+                            LiquidGlass(style: .systemThinMaterial)
+                            Color.white.opacity(0.5)
+                        }
+                        .clipShape(Capsule())
+                    }
+                }
+                .overlay(
+                    Capsule().strokeBorder(
+                        isSelected ? Color.clear : Color.white.opacity(0.7),
+                        lineWidth: 0.5
+                    )
+                )
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+// MARK: - History grouped list
+
+private struct HistoryGroupedList: View {
+    let actuals: [ActualDTO]
+    let categoryProvider: (Int) -> CategoryDTO?
+    let onTap: (ActualDTO) -> Void
+    let onDelete: (Int) -> Void
+
+    private var grouped: [(date: Date, items: [ActualDTO], total: Int)] {
+        let cal = Calendar(identifier: .gregorian)
+        let groups = Dictionary(grouping: actuals) { cal.startOfDay(for: $0.txDate) }
         return groups
-            .map { (date: $0.key, items: $0.value) }
+            .map { (
+                date: $0.key,
+                items: $0.value.sorted { $0.txDate > $1.txDate },
+                total: $0.value.reduce(0) { $0 + $1.amountCents }
+            ) }
             .sorted { $0.date > $1.date }
     }
 
     var body: some View {
-        if viewModel.actuals.isEmpty {
-            EmptyStateView(message: "Нет транзакций в этом периоде. Нажмите + чтобы добавить.")
+        if actuals.isEmpty {
+            EmptyStateBlock(message: "Нет транзакций. Тапни + чтобы добавить.")
         } else {
-            ScrollView {
-                LazyVStack(spacing: Tokens.Spacing.md) {
-                    ForEach(grouped, id: \.date) { group in
-                        VStack(alignment: .leading, spacing: Tokens.Spacing.sm) {
-                            Text(DateFormatters.groupHeader.string(from: group.date).capitalized)
-                                .font(.appCaption)
-                                .foregroundStyle(.secondary)
-                                .padding(.horizontal, Tokens.Spacing.xl)
-
-                            VStack(spacing: 1) {
-                                ForEach(group.items) { actual in
-                                    ActualRow(
-                                        actual: actual,
-                                        category: viewModel.category(actual.categoryId)
-                                    )
-                                    .contentShape(Rectangle())
-                                    .onTapGesture { onEdit(actual) }
-                                    .swipeActions(edge: .trailing) {
-                                        Button(role: .destructive) {
-                                            Task { await viewModel.deleteActual(id: actual.id) }
-                                        } label: {
-                                            Label("Удалить", systemImage: "trash")
-                                        }
-                                    }
-                                }
-                            }
-                            .padding(.horizontal, Tokens.Spacing.lg)
-                        }
-                    }
-                    Color.clear.frame(height: 100)
+            VStack(spacing: 16) {
+                ForEach(grouped, id: \.date) { group in
+                    DayGroupCard(
+                        date: group.date,
+                        total: group.total,
+                        items: group.items,
+                        categoryProvider: categoryProvider,
+                        onTap: onTap,
+                        onDelete: onDelete
+                    )
                 }
-                .padding(.top, Tokens.Spacing.sm)
             }
         }
+    }
+}
+
+private struct DayGroupCard: View {
+    let date: Date
+    let total: Int
+    let items: [ActualDTO]
+    let categoryProvider: (Int) -> CategoryDTO?
+    let onTap: (ActualDTO) -> Void
+    let onDelete: (Int) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text(formatHeader(date).uppercased())
+                    .font(.system(size: 11, weight: .bold))
+                    .tracking(0.6)
+                    .foregroundStyle(Tokens.Ink.secondary)
+                Spacer()
+                Text("−\(MoneyFormatter.format(cents: total)) ₽")
+                    .font(.system(size: 13, weight: .bold))
+                    .monospacedDigit()
+                    .foregroundStyle(Tokens.Ink.primary)
+            }
+            .padding(.horizontal, 8)
+
+            VStack(spacing: 0) {
+                ForEach(Array(items.enumerated()), id: \.element.id) { index, actual in
+                    ActualRow(
+                        actual: actual,
+                        category: categoryProvider(actual.categoryId),
+                        isFirst: index == 0,
+                        isLast: index == items.count - 1
+                    )
+                    .contentShape(Rectangle())
+                    .onTapGesture { onTap(actual) }
+                    .swipeActions(edge: .trailing) {
+                        Button(role: .destructive) { onDelete(actual.id) } label: {
+                            Label("Удалить", systemImage: "trash")
+                        }
+                    }
+
+                    if index < items.count - 1 {
+                        Divider()
+                            .overlay(Color.black.opacity(0.06))
+                            .padding(.leading, 64)
+                    }
+                }
+            }
+            .liquidGlass(radius: 22, blur: .systemThinMaterial)
+        }
+    }
+
+    private func formatHeader(_ d: Date) -> String {
+        let cal = Calendar(identifier: .gregorian)
+        if cal.isDateInToday(d) { return "Сегодня" }
+        if cal.isDateInYesterday(d) { return "Вчера" }
+        return DateFormatters.displayDayShort.string(from: d)
     }
 }
 
 private struct ActualRow: View {
     let actual: ActualDTO
     let category: CategoryDTO?
+    let isFirst: Bool
+    let isLast: Bool
+
+    var visual: Tokens.Categories.Visual {
+        Tokens.Categories.visual(for: category?.name ?? "")
+    }
 
     var body: some View {
-        HStack(spacing: Tokens.Spacing.md) {
-            Circle()
-                .fill(Tokens.Categories.color(for: category?.name ?? ""))
-                .frame(width: 10, height: 10)
+        HStack(spacing: 12) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(visual.color.opacity(0.18))
+                Image(systemName: visual.icon)
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(visual.color)
+            }
+            .frame(width: 40, height: 40)
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(category?.name ?? "—").font(.appBody)
-                if let desc = actual.description, !desc.isEmpty {
-                    Text(desc).font(.appCaption).foregroundStyle(.secondary).lineLimit(1)
-                }
+                Text(actual.description?.isEmpty == false ? actual.description! : (category?.name ?? "—"))
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(Tokens.Ink.primary)
+                    .lineLimit(1)
+                Text(metaLine())
+                    .font(.system(size: 12, weight: .regular))
+                    .foregroundStyle(Tokens.Ink.secondary)
+                    .lineLimit(1)
             }
 
-            Spacer()
+            Spacer(minLength: 8)
 
-            Text(MoneyFormatter.formatWithSymbol(cents: actual.amountCents))
-                .font(.appNumber)
-                .foregroundStyle(actual.kind == .income ? .green : .primary)
+            Text("\(actual.kind == .expense ? "−" : "+")\(MoneyFormatter.format(cents: actual.amountCents)) ₽")
+                .font(.system(size: 15, weight: .bold))
+                .monospacedDigit()
+                .foregroundStyle(actual.kind == .income ? .green : Tokens.Ink.primary)
         }
-        .padding(.vertical, Tokens.Spacing.sm)
-        .padding(.horizontal, Tokens.Spacing.md)
-        .background(.ultraThinMaterial)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+    }
+
+    private func metaLine() -> String {
+        let cat = category?.name ?? ""
+        let source = actual.source == .bot ? "из бота" : nil
+        let parts = [cat, source].compactMap { $0 }.filter { !$0.isEmpty }
+        return parts.joined(separator: " · ")
     }
 }
 
-private struct PlannedListView: View {
-    let viewModel: TransactionsViewModel
-    let onEdit: (PlannedDTO) -> Void
+// MARK: - Planned grouped by category
 
-    var grouped: [(category: CategoryDTO?, items: [PlannedDTO])] {
-        let groups = Dictionary(grouping: viewModel.planned) { $0.categoryId }
+private struct PlannedGroupedList: View {
+    let planned: [PlannedDTO]
+    let categoryProvider: (Int) -> CategoryDTO?
+    let onTap: (PlannedDTO) -> Void
+    let onDelete: (Int) -> Void
+
+    private var grouped: [(category: CategoryDTO?, items: [PlannedDTO], total: Int)] {
+        let groups = Dictionary(grouping: planned) { $0.categoryId }
         return groups
-            .map { (category: viewModel.category($0.key), items: $0.value) }
-            .sorted { ($0.category?.sortOrder ?? 0) < ($1.category?.sortOrder ?? 0) }
+            .map { (
+                category: categoryProvider($0.key),
+                items: $0.value.sorted { $0.id < $1.id },
+                total: $0.value.reduce(0) { $0 + $1.amountCents }
+            ) }
+            .sorted {
+                ($0.category?.sortOrder ?? Int.max)
+                < ($1.category?.sortOrder ?? Int.max)
+            }
     }
 
     var body: some View {
-        if viewModel.planned.isEmpty {
-            EmptyStateView(message: "Нет планов. Создайте первый через + или примените шаблон в Меню → Шаблон.")
+        if planned.isEmpty {
+            EmptyStateBlock(message: "Нет планов. Создай через FAB или применить шаблон в Меню.")
         } else {
-            ScrollView {
-                LazyVStack(spacing: Tokens.Spacing.md) {
-                    ForEach(grouped, id: \.category?.id) { group in
-                        VStack(alignment: .leading, spacing: Tokens.Spacing.xs) {
-                            HStack {
-                                Circle()
-                                    .fill(Tokens.Categories.color(for: group.category?.name ?? ""))
-                                    .frame(width: 10, height: 10)
-                                Text(group.category?.name ?? "—")
-                                    .font(.appLabel.weight(.semibold))
-                                Spacer()
-                                Text(MoneyFormatter.formatWithSymbol(
-                                    cents: group.items.reduce(0) { $0 + $1.amountCents }
-                                ))
-                                .font(.appNumber)
-                            }
-                            .padding(.horizontal, Tokens.Spacing.lg)
-
-                            ForEach(group.items) { plan in
-                                HStack {
-                                    Text(plan.description ?? "Без описания")
-                                        .font(.appBody)
-                                        .foregroundStyle(.secondary)
-                                    Spacer()
-                                    Text(MoneyFormatter.format(cents: plan.amountCents))
-                                        .font(.appNumber)
-                                }
-                                .padding(.horizontal, Tokens.Spacing.lg)
-                                .padding(.vertical, Tokens.Spacing.sm)
-                                .background(.ultraThinMaterial)
-                                .contentShape(Rectangle())
-                                .onTapGesture { onEdit(plan) }
-                                .swipeActions(edge: .trailing) {
-                                    Button(role: .destructive) {
-                                        Task { await viewModel.deletePlanned(id: plan.id) }
-                                    } label: {
-                                        Label("Удалить", systemImage: "trash")
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    Color.clear.frame(height: 100)
+            VStack(spacing: 16) {
+                ForEach(grouped, id: \.category?.id) { group in
+                    CategoryPlanGroup(
+                        category: group.category,
+                        total: group.total,
+                        items: group.items,
+                        onTap: onTap,
+                        onDelete: onDelete
+                    )
                 }
-                .padding(.top, Tokens.Spacing.sm)
             }
         }
     }
 }
 
-private struct EmptyStateView: View {
+private struct CategoryPlanGroup: View {
+    let category: CategoryDTO?
+    let total: Int
+    let items: [PlannedDTO]
+    let onTap: (PlannedDTO) -> Void
+    let onDelete: (Int) -> Void
+
+    var visual: Tokens.Categories.Visual {
+        Tokens.Categories.visual(for: category?.name ?? "")
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                Image(systemName: visual.icon)
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundStyle(visual.color)
+                Text((category?.name ?? "—").uppercased())
+                    .font(.system(size: 11, weight: .bold))
+                    .tracking(0.6)
+                    .foregroundStyle(Tokens.Ink.secondary)
+                Spacer()
+                Text(MoneyFormatter.formatWithSymbol(cents: total))
+                    .font(.system(size: 13, weight: .bold))
+                    .monospacedDigit()
+            }
+            .padding(.horizontal, 8)
+
+            VStack(spacing: 0) {
+                ForEach(Array(items.enumerated()), id: \.element.id) { idx, plan in
+                    HStack {
+                        Text(plan.description?.isEmpty == false ? plan.description! : "Без описания")
+                            .font(.system(size: 14, weight: .regular))
+                            .foregroundStyle(Tokens.Ink.primary)
+                        Spacer()
+                        Text(MoneyFormatter.format(cents: plan.amountCents))
+                            .font(.system(size: 14, weight: .semibold))
+                            .monospacedDigit()
+                    }
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 11)
+                    .contentShape(Rectangle())
+                    .onTapGesture { onTap(plan) }
+                    .swipeActions(edge: .trailing) {
+                        Button(role: .destructive) { onDelete(plan.id) } label: {
+                            Label("Удалить", systemImage: "trash")
+                        }
+                    }
+
+                    if idx < items.count - 1 {
+                        Divider()
+                            .overlay(Color.black.opacity(0.06))
+                            .padding(.horizontal, 14)
+                    }
+                }
+            }
+            .liquidGlass(radius: 18, blur: .systemThinMaterial)
+        }
+    }
+}
+
+private struct EmptyStateBlock: View {
     let message: String
 
     var body: some View {
-        VStack(spacing: Tokens.Spacing.md) {
+        VStack(spacing: 12) {
             Image(systemName: "tray")
                 .font(.system(size: 36))
                 .foregroundStyle(.secondary)
@@ -339,24 +596,10 @@ private struct EmptyStateView: View {
                 .font(.appBody)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
-                .padding(.horizontal, Tokens.Spacing.xl)
+                .padding(.horizontal, 24)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-}
-
-struct FAB: View {
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            Image(systemName: "plus")
-                .font(.system(size: 24, weight: .semibold))
-                .foregroundStyle(.white)
-                .frame(width: 56, height: 56)
-                .background(Tokens.Accent.primary, in: Circle())
-                .shadow(color: Tokens.Accent.primary.opacity(0.4), radius: 10, x: 0, y: 4)
-        }
-        .buttonStyle(.plain)
+        .padding(.top, 40)
+        .padding(.bottom, 40)
+        .frame(maxWidth: .infinity)
     }
 }

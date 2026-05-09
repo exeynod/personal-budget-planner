@@ -27,8 +27,17 @@ enum AppTab: String, CaseIterable, Identifiable {
 @MainActor
 @Observable
 final class AppShellState {
-    var selectedTab: AppTab = .home
+    var selectedTab: AppTab
     var showingTransactionEditor: Bool = false
+
+    init() {
+        if let initialRaw = UserDefaults.standard.string(forKey: "InitialTab"),
+           let tab = AppTab(rawValue: initialRaw) {
+            self.selectedTab = tab
+        } else {
+            self.selectedTab = .home
+        }
+    }
 }
 
 struct MainShell: View {
@@ -114,6 +123,14 @@ struct CenterFAB: View {
     let action: () -> Void
 
     var body: some View {
+        FAB(action: action).offset(y: -10)
+    }
+}
+
+struct FAB: View {
+    let action: () -> Void
+
+    var body: some View {
         Button(action: action) {
             Image(systemName: "plus")
                 .font(.system(size: 22, weight: .bold))
@@ -130,7 +147,6 @@ struct CenterFAB: View {
                 .shadow(color: Tokens.Accent.primary.opacity(0.4), radius: 14, x: 0, y: 8)
         }
         .buttonStyle(.plain)
-        .offset(y: -10)
     }
 }
 
