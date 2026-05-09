@@ -25,6 +25,9 @@ targets:
       - path: BudgetPlanner
         excludes:
           - "**/.DS_Store"
+      - path: BudgetPlanner/Resources/PrivacyInfo.xcprivacy
+        type: file
+        buildPhase: resources
     info:
       path: BudgetPlanner/Info.plist
       properties:
