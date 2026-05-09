@@ -37,6 +37,12 @@ final class AppShellState {
         } else {
             self.selectedTab = .home
         }
+        // Dev hook: forces TransactionEditor sheet open on launch — for visual
+        // pixel-perfect debugging. Set via:
+        //   xcrun simctl spawn booted defaults write com.exeynod.BudgetPlanner DEV_OPEN_TX_SHEET 1
+        if UserDefaults.standard.bool(forKey: "DEV_OPEN_TX_SHEET") {
+            self.showingTransactionEditor = true
+        }
     }
 }
 
