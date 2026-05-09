@@ -16,7 +16,7 @@ struct ManagementView: View {
                         .listRowBackground(Color.clear)
 
                         NavigationLink {
-                            ComingSoonView(title: "Подписки", phase: 19)
+                            SubscriptionsView()
                         } label: {
                             ManagementRow(icon: "arrow.triangle.2.circlepath",
                                           title: "Подписки",
@@ -25,7 +25,7 @@ struct ManagementView: View {
                         .listRowBackground(Color.clear)
 
                         NavigationLink {
-                            ComingSoonView(title: "Шаблон", phase: 19)
+                            TemplateView()
                         } label: {
                             ManagementRow(icon: "doc.text",
                                           title: "Шаблон плана",
@@ -34,7 +34,7 @@ struct ManagementView: View {
                         .listRowBackground(Color.clear)
 
                         NavigationLink {
-                            ComingSoonView(title: "Аналитика", phase: 19)
+                            AnalyticsView()
                         } label: {
                             ManagementRow(icon: "chart.bar.fill",
                                           title: "Аналитика",
