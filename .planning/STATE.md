@@ -2,13 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: Maximal Poster Full
-status: planning
-last_updated: "2026-05-09T17:00:00.000Z"
-last_activity: 2026-05-09
+status: executing
+stopped_at: Roadmap для v1.0 (Phases 22-28) создан, REQUIREMENTS.md traceability заполнен (92/92 REQs). Awaiting `/gsd-plan-phase 22`.
+last_updated: "2026-05-09T21:52:31.105Z"
+last_activity: 2026-05-09 -- Phase 22 execution started
 progress:
   total_phases: 7
   completed_phases: 0
-  total_plans: 0
+  total_plans: 16
   completed_plans: 0
   percent: 0
 ---
@@ -20,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-09 — v1.0 milestone «Maximal Poster Full» started)
 
 **Core value:** В один тап записать факт-трату и видеть актуальную дельту план/факт по категориям бюджета — быстрее, чем открывать Google-таблицу. После v0.3 — conversational AI-помощник + аналитика; после v0.4 — multi-tenant whitelist + AI cost cap; v0.6 — native iOS-клиент. v1.0 — pixel-perfect Maximal Poster дизайн-система + Account/Goal/Recurrent/SavingsConfig + auto-roundup + rollover.
-**Current focus:** Phase 22 — Backend Schema & Logic Foundation (planning)
+**Current focus:** Phase 22 — Backend Schema & Logic Foundation
 
 ## Current Position
 
-Phase: Not started (roadmap created, awaiting `/gsd-plan-phase 22`)
-Plan: —
-Status: Roadmap для v1.0 создан, REQUIREMENTS.md traceability заполнен (92/92 REQs)
-Last activity: 2026-05-09 — Roadmap v1.0 создан (Phases 22-28)
+Phase: 22 (Backend Schema & Logic Foundation) — EXECUTING
+Plan: 1 of 16
+Status: Executing Phase 22
+Last activity: 2026-05-09 -- Phase 22 execution started
 
 ## Milestone v1.0 Phases
 
@@ -44,6 +45,7 @@ Last activity: 2026-05-09 — Roadmap v1.0 создан (Phases 22-28)
 **Coverage:** 92/92 requirements mapped ✓
 
 **Branching strategy (per PROJECT.md):**
+
 - Integration branch: `v1.0-maximal-poster` (отщеплена от master, коммит `bc013a9`)
 - Per-phase ветки: `v1.0/{NN}-{web|ios}` через git worktrees + `/gsd-workstreams`
 - Phase 22 — единственный workstream (backend-only)
@@ -97,6 +99,7 @@ Recent decisions from v0.6 (preserved for context):
 None yet — awaiting `/gsd-plan-phase 22` to decompose Phase 22 into atomic plans.
 
 **Recommended next action:**
+
 1. `/gsd-plan-phase 22` — decompose Phase 22 (Backend Schema & Logic Foundation) into atomic plans following sub-phase ordering 22.1-22.6 from ARCHITECTURE.md §12.
 2. After Phase 22 plans validated → execute via `/gsd-execute-phase 22`.
 3. After Phase 22 merged into `v1.0-maximal-poster` → unblock Phase 23 (web ║ iOS параллельно через worktrees).
