@@ -55,7 +55,7 @@ struct MainShell: View {
             switch shell.selectedTab {
             case .home: HomeView()
             case .transactions: TransactionsView()
-            case .ai: NavigationStack { AIChatView() }
+            case .ai: AIChatView()
             case .management: ManagementView()
             }
         }
