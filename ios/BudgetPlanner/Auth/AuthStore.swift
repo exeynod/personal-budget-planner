@@ -25,9 +25,29 @@ final class AuthStore {
         if let token = KeychainStore.load() {
             APIClient.shared.setToken(token)
             await refreshUser()
-        } else {
-            state = .unauthenticated
+            return
         }
+
+        // Dev-only auto-login: secret выставляется через
+        // `xcrun simctl spawn booted defaults write com.exeynod.BudgetPlanner
+        //   DEV_AUTH_AUTOLOGIN_SECRET <secret>`
+        // Используется для smoke-тестов на Simulator без ручного ввода.
+        let defaults = UserDefaults.standard
+        if let secret = defaults.string(forKey: "DEV_AUTH_AUTOLOGIN_SECRET"),
+           !secret.isEmpty {
+            await exchange(secret: secret)
+            return
+        }
+
+        // Fallback: env vars (work если запускать через xcodebuild, не simctl)
+        let env = ProcessInfo.processInfo.environment
+        if env["DEV_AUTH_AUTOLOGIN"] == "1",
+           let secret = env["DEV_AUTH_SECRET"], !secret.isEmpty {
+            await exchange(secret: secret)
+            return
+        }
+
+        state = .unauthenticated
     }
 
     func exchange(secret: String) async {

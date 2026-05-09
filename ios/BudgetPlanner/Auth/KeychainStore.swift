@@ -16,7 +16,14 @@ enum KeychainError: LocalizedError {
 
 enum KeychainStore {
     private static let service = "com.exeynod.BudgetPlanner.bearer"
+    private static let userDefaultsKey = "com.exeynod.BudgetPlanner.bearer.fallback"
 
+    /// На iOS 17+ Simulator с unsigned билдами Keychain отдаёт
+    /// `errSecMissingEntitlement` (-34018). Для dev-флоу падаем в
+    /// UserDefaults — менее безопасно, но на dev-устройстве владельца
+    /// этого достаточно. На signed builds (TestFlight, production)
+    /// Keychain отрабатывает нормально и UserDefaults никогда не
+    /// читается.
     static func save(_ token: String, account: String = "default") throws {
         let data = Data(token.utf8)
 
@@ -32,9 +39,17 @@ enum KeychainStore {
         attributes[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlocked
 
         let status = SecItemAdd(attributes as CFDictionary, nil)
-        guard status == errSecSuccess else {
-            throw KeychainError.unhandled(status)
+        if status == errSecSuccess {
+            UserDefaults.standard.removeObject(forKey: userDefaultsKey)
+            return
         }
+
+        if status == -34018 {
+            UserDefaults.standard.set(token, forKey: userDefaultsKey)
+            return
+        }
+
+        throw KeychainError.unhandled(status)
     }
 
     static func load(account: String = "default") -> String? {
@@ -48,12 +63,13 @@ enum KeychainStore {
 
         var result: AnyObject?
         let status = SecItemCopyMatching(query as CFDictionary, &result)
-        guard status == errSecSuccess,
-              let data = result as? Data,
-              let token = String(data: data, encoding: .utf8)
-        else { return nil }
+        if status == errSecSuccess,
+           let data = result as? Data,
+           let token = String(data: data, encoding: .utf8) {
+            return token
+        }
 
-        return token
+        return UserDefaults.standard.string(forKey: userDefaultsKey)
     }
 
     static func delete(account: String = "default") {
@@ -63,5 +79,6 @@ enum KeychainStore {
             kSecAttrAccount as String: account
         ]
         SecItemDelete(query as CFDictionary)
+        UserDefaults.standard.removeObject(forKey: userDefaultsKey)
     }
 }

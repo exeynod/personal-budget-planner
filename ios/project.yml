@@ -53,10 +53,11 @@ targets:
         TARGETED_DEVICE_FAMILY: "1,2"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         GENERATE_INFOPLIST_FILE: NO
-        CODE_SIGN_ENTITLEMENTS: BudgetPlanner/BudgetPlanner.entitlements
     scheme:
       environmentVariables:
         BACKEND_URL: http://localhost:8000
+        DEV_AUTH_AUTOLOGIN: "1"
+        DEV_AUTH_SECRET: test-secret-for-curl
       testTargets: []
 
   BudgetPlannerTests:
