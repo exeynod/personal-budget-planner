@@ -35,8 +35,15 @@ from app.db.models import (
     CategoryKind,
     PlannedTransaction,
     PlanSource,
-    PlanTemplateItem,
 )
+# NOTE: ``PlanTemplateItem`` was dropped from app.db.models in Phase 22 (alembic
+# 0013, models.py line 437). The legacy ``apply_template_to_period`` flow is
+# scheduled for refactor in plan 22.13 (route layer rewrite). To unblock module
+# imports across the codebase (api / bot / worker entry points + every test
+# that imports ``app.services.actual`` transitively), the symbol is now imported
+# lazily inside the one function that needs it. If that function is reached at
+# runtime it will raise ImportError — the plan-22.13 rewrite will replace its
+# body with the new ``Category.plan_cents``-based logic.
 from app.services import categories as cat_svc
 
 
@@ -367,6 +374,13 @@ async def apply_template_to_period(
         return {"period_id": period_id, "created": 0, "planned": existing}
 
     # Load template items + their categories (eager-load for kind access).
+    # Lazy import: PlanTemplateItem was dropped in alembic 0013; this legacy
+    # path is scheduled for full rewrite in plan 22.13. Until then, importing
+    # at function-call time keeps module-level imports working for the rest
+    # of the codebase. See docstring at the top of this module + models.py
+    # line 437 for the deprecation note.
+    from app.db.models import PlanTemplateItem  # type: ignore[attr-defined]
+
     items_result = await db.execute(
         select(PlanTemplateItem)
         .where(PlanTemplateItem.user_id == user_id)
