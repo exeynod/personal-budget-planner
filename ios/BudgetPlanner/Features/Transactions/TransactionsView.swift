@@ -117,7 +117,7 @@ struct TransactionsView: View {
                 }
                 .padding(.horizontal, 16)
                 .padding(.top, 8)
-                .padding(.bottom, 130)
+                .padding(.bottom, 16)
             }
             .refreshable { await viewModel.load() }
         }

@@ -45,23 +45,23 @@ struct MainShell: View {
     @State private var categoriesCache: [CategoryDTO] = []
 
     var body: some View {
-        ZStack(alignment: .bottom) {
-            Group {
-                switch shell.selectedTab {
-                case .home: HomeView()
-                case .transactions: TransactionsView()
-                case .ai: NavigationStack { AIChatView() }
-                case .management: ManagementView()
-                }
+        Group {
+            switch shell.selectedTab {
+            case .home: HomeView()
+            case .transactions: TransactionsView()
+            case .ai: NavigationStack { AIChatView() }
+            case .management: ManagementView()
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .safeAreaInset(edge: .bottom, spacing: 0) {
             BottomBar(
                 selected: $shell.selectedTab,
                 onAdd: { shell.showingTransactionEditor = true }
             )
             .padding(.horizontal, 12)
-            .padding(.bottom, 8)
+            .padding(.bottom, 4)
+            .background(Color.clear)
         }
         .ignoresSafeArea(.keyboard, edges: .bottom)
         .task {

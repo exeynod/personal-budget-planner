@@ -43,7 +43,7 @@ struct HomeView: View {
                 }
                 .padding(.horizontal, Tokens.Spacing.base)
                 .padding(.top, Tokens.Spacing.lg)
-                .padding(.bottom, 120)
+                .padding(.bottom, 16)
             }
             .refreshable { await viewModel.load() }
         }
