@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { BottomSheet } from './BottomSheet';
+import { CategoryPicker } from './CategoryPicker';
+import { DatePicker } from './DatePicker';
 import { useCategories } from '../hooks/useCategories';
 import type {
   SubscriptionRead,
@@ -48,36 +50,12 @@ export function SubscriptionEditor({
     initial ? (initial.amount_cents / 100).toString() : '',
   );
   const [cycle, setCycle] = useState<SubCycle>(initial?.cycle ?? 'monthly');
-  const isoToDisplay = (iso: string) => {
-    const [y, m, d] = iso.split('-');
-    return `${d}.${m}.${y}`;
-  };
-  const displayToIso = (display: string): string | null => {
-    const match = display.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
-    if (!match) return null;
-    const [, d, m, y] = match;
-    const date = new Date(+y, +m - 1, +d);
-    if (isNaN(date.getTime()) || date.getMonth() !== +m - 1) return null;
-    return `${y}-${m}-${d}`;
-  };
 
   const [chargeDate, setChargeDate] = useState(
     initial?.next_charge_date ?? new Date().toISOString().slice(0, 10),
   );
-  const [chargeDateDisplay, setChargeDateDisplay] = useState(
-    isoToDisplay(initial?.next_charge_date ?? new Date().toISOString().slice(0, 10)),
-  );
 
-  const handleChargeDateInput = (raw: string) => {
-    const digits = raw.replace(/\D/g, '').slice(0, 8);
-    let masked = digits;
-    if (digits.length > 4) masked = `${digits.slice(0, 2)}.${digits.slice(2, 4)}.${digits.slice(4)}`;
-    else if (digits.length > 2) masked = `${digits.slice(0, 2)}.${digits.slice(2)}`;
-    setChargeDateDisplay(masked);
-    const iso = displayToIso(masked);
-    if (iso) setChargeDate(iso);
-  };
-  const [categoryId, setCategoryId] = useState<number | null>(initial?.category_id ?? null);
+  const [categoryId, setCategoryId] = useState<number | ''>(initial?.category_id ?? '');
   const [notifyDays, setNotifyDays] = useState(
     initial?.notify_days_before ?? defaultNotifyDays,
   );
@@ -86,7 +64,7 @@ export function SubscriptionEditor({
   const [err, setErr] = useState<string | null>(null);
 
   const handleSubmit = async () => {
-    if (!name.trim() || !categoryId || !amountRub) {
+    if (!name.trim() || categoryId === '' || !amountRub) {
       setErr('Заполните обязательные поля');
       return;
     }
@@ -128,7 +106,7 @@ export function SubscriptionEditor({
     }
   };
 
-  const canSubmit = !busy && name.trim().length > 0 && categoryId !== null && amountRub !== '';
+  const canSubmit = !busy && name.trim().length > 0 && categoryId !== '' && amountRub !== '';
 
   return (
     <BottomSheet
@@ -189,34 +167,26 @@ export function SubscriptionEditor({
         </div>
 
         {/* 4. next_charge_date */}
-        <label className={styles.field}>
+        <div className={styles.field}>
           <span className={styles.label}>Следующее списание</span>
-          <input
-            type="text"
-            inputMode="numeric"
-            value={chargeDateDisplay}
-            onChange={(e) => handleChargeDateInput(e.target.value)}
-            placeholder="ДД.ММ.ГГГГ"
-            className={styles.input}
+          <DatePicker
+            value={chargeDate || null}
+            onChange={(iso) => setChargeDate(iso ?? '')}
+            disabled={busy}
           />
-        </label>
+        </div>
 
-        {/* 5. Category select */}
-        <label className={styles.field}>
+        {/* 5. Category — own glass picker */}
+        <div className={styles.field}>
           <span className={styles.label}>Категория</span>
-          <select
-            value={categoryId ?? ''}
-            onChange={(e) => setCategoryId(e.target.value ? Number(e.target.value) : null)}
-            className={styles.input}
-          >
-            <option value="">— выбрать —</option>
-            {categories.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-        </label>
+          <CategoryPicker
+            value={categoryId}
+            onChange={setCategoryId}
+            categories={categories}
+            disabled={busy}
+            placeholder="— выбрать —"
+          />
+        </div>
 
         {/* 6. notify_days_before number input */}
         <label className={styles.field}>
