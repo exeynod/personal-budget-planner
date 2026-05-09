@@ -18,10 +18,14 @@
 
 /* Когда открыт BottomSheet, dock уезжает вниз и скрывается, чтобы не
    мешать форме и не создавать визуального конфликта между двумя
-   навигациями. Флаг ставит BottomSheet useEffect. */
+   навигациями. Флаг ставит BottomSheet useEffect.
+   ВАЖНО: только visibility:hidden + transform — НЕ pointer-events:none.
+   visibility:hidden автоматически отключает pointer events для самого
+   элемента и его потомков, и не ломает click event propagation для
+   независимых тестов (Playwright dispatchEvent на этом element'е тогда
+   просто ждёт его mount, а не блокируется capture-phase'ом). */
 :global(body[data-sheet-open]) .dock {
-  opacity: 0;
-  pointer-events: none;
+  visibility: hidden;
   transform: translateY(110%);
 }
 
