@@ -1,8 +1,17 @@
 import Foundation
 import Security
 
-enum KeychainError: Error {
+enum KeychainError: LocalizedError {
     case unhandled(OSStatus)
+
+    var errorDescription: String? {
+        switch self {
+        case .unhandled(let status):
+            let message = SecCopyErrorMessageString(status, nil) as String?
+                ?? "Unknown Keychain status"
+            return "Keychain error \(status): \(message)"
+        }
+    }
 }
 
 enum KeychainStore {
@@ -20,7 +29,7 @@ enum KeychainStore {
 
         var attributes = query
         attributes[kSecValueData as String] = data
-        attributes[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
+        attributes[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlocked
 
         let status = SecItemAdd(attributes as CFDictionary, nil)
         guard status == errSecSuccess else {
