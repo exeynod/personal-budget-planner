@@ -308,10 +308,13 @@ async def test_delete_account_with_subscription_blocks(db_session, owner_user):
         db_session, user_id=owner_user["id"],
         bank="Т-Банк", kind=AccountKind.card, balance_cents=10000,
     )
-    # Need a category for the subscription FK.
+    # Need a category for the subscription FK. Phase 22 added Category.code/ord
+    # NOT NULL columns (migration 0013) — supply them explicitly so the
+    # service-layer test is decoupled from any onboarding-seed helper.
     cat = Category(
         user_id=owner_user["id"], name="Подписки",
         kind=CategoryKind.expense, sort_order=10,
+        code="subs", ord="10",
     )
     db_session.add(cat)
     await db_session.flush()
