@@ -1,0 +1,128 @@
+#!/usr/bin/env python3
+"""
+Search SF Symbols by name and search-tags from the locally installed SF Symbols.app.
+
+Usage:
+    sf-find <query> [--max-ios 17.0] [--limit 30] [--all]
+
+Examples:
+    sf-find transport            # iOS 17.0+ only (matches project deployment target)
+    sf-find car                  # all iOS 17.0-compatible "car" symbols + tag matches
+    sf-find groceries --limit 50
+    sf-find sparkles --all       # ignore iOS version filter
+
+Output: NAME  (iOS X.Y)  [tag1, tag2]
+"""
+
+from __future__ import annotations
+
+import plistlib
+import re
+import sys
+from pathlib import Path
+
+SF_APP = Path("/Applications/SF Symbols.app/Contents/Resources/Metadata")
+NAME_AVAIL = SF_APP / "name_availability.plist"
+SEARCH = SF_APP / "symbol_search.plist"
+ALIASES = SF_APP / "name_aliases.strings"
+
+
+def load_plist(path: Path) -> dict:
+    with open(path, "rb") as fh:
+        return plistlib.load(fh)
+
+
+def parse_args(argv: list[str]) -> tuple[str, str | None, int]:
+    if not argv or argv[0] in {"-h", "--help"}:
+        print(__doc__)
+        sys.exit(0)
+
+    query = ""
+    max_ios: str | None = "17.0"
+    limit = 30
+
+    i = 0
+    while i < len(argv):
+        a = argv[i]
+        if a == "--max-ios":
+            max_ios = argv[i + 1]
+            i += 2
+        elif a == "--limit":
+            limit = int(argv[i + 1])
+            i += 2
+        elif a == "--all":
+            max_ios = None
+            i += 1
+        else:
+            query = (query + " " + a).strip() if query else a
+            i += 1
+
+    if not query:
+        print("error: query required", file=sys.stderr)
+        sys.exit(2)
+    return query.lower(), max_ios, limit
+
+
+def ios_version_for_year(year_to_release: dict, year: str) -> str | None:
+    rel = year_to_release.get(year)
+    if not rel:
+        return None
+    return rel.get("iOS")
+
+
+def version_le(a: str, b: str) -> bool:
+    """Return True if version a <= b (compares as tuple of ints)."""
+    pa = tuple(int(x) for x in re.findall(r"\d+", a))
+    pb = tuple(int(x) for x in re.findall(r"\d+", b))
+    return pa <= pb
+
+
+def main() -> None:
+    query, max_ios, limit = parse_args(sys.argv[1:])
+
+    avail = load_plist(NAME_AVAIL)
+    search = load_plist(SEARCH)
+
+    symbols: dict[str, str] = avail["symbols"]            # name -> "2022" | "2024.1" | ...
+    year_to_release: dict[str, dict] = avail["year_to_release"]
+
+    # Pre-compute iOS version per symbol
+    sym_to_ios: dict[str, str] = {}
+    for name, year in symbols.items():
+        ios = ios_version_for_year(year_to_release, year)
+        if ios is not None:
+            sym_to_ios[name] = ios
+
+    # Find candidates: name contains query, or any tag contains query
+    candidates: list[tuple[str, str, list[str], int]] = []
+    for name, ios in sym_to_ios.items():
+        if max_ios is not None and not version_le(ios, max_ios):
+            continue
+
+        tags = list(search.get(name, []))
+        score = 0
+        if query == name:
+            score = 100
+        elif query in name:
+            score = 50 - name.count(".")  # prefer simpler names
+        else:
+            tag_hits = [t for t in tags if query in t.lower()]
+            if tag_hits:
+                score = 10 + len(tag_hits)
+        if score > 0:
+            candidates.append((name, ios, tags, score))
+
+    candidates.sort(key=lambda r: (-r[3], r[0]))
+
+    for name, ios, tags, _ in candidates[:limit]:
+        tag_str = ", ".join(tags[:6]) if tags else ""
+        suffix = f"  [{tag_str}]" if tag_str else ""
+        print(f"{name}  (iOS {ios}){suffix}")
+
+    if not candidates:
+        print(f"(no matches for '{query}' on iOS ≤ {max_ios or 'any'})", file=sys.stderr)
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()
