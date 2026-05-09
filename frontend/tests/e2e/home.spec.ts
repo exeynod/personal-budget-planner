@@ -90,8 +90,8 @@ test('loads home screen with tab bar', async ({ page }) => {
   // Wait for the app to load (not loading state)
   await expect(page.locator('text=Загрузка…')).not.toBeVisible({ timeout: 5000 });
 
-  // Tab bar should be visible (expense/income tabs)
-  const tabBar = page.locator(`.tabBar, [class*="tabBar"]`);
+  // BottomNav dock — by aria-label="Навигация" (стабильнее чем CSS-класс).
+  const tabBar = page.locator('nav[aria-label="Навигация"]');
   await expect(tabBar).toBeVisible({ timeout: 5000 });
 });
 
@@ -101,12 +101,16 @@ test('home screen shows bottom navigation tabs', async ({ page }) => {
 
   await expect(page.locator('text=Загрузка…')).not.toBeVisible({ timeout: 5000 });
 
-  // Bottom nav tabs should be present (nav v0.3 labels)
+  // Текущий nav (post-ui-glass): 4 tab-кнопки + central FAB. Аналитика
+  // ушла в Management hub как sub-screen (не отдельный tab).
   await expect(page.locator('text=Главная')).toBeVisible({ timeout: 5000 });
   await expect(page.locator('text=Транзакции')).toBeVisible({ timeout: 5000 });
-  await expect(page.locator('text=Аналитика')).toBeVisible({ timeout: 5000 });
   await expect(page.locator('text=AI')).toBeVisible({ timeout: 5000 });
   await expect(page.locator('text=Управление')).toBeVisible({ timeout: 5000 });
+  // Central FAB — kontex-aware aria-label, default = «Добавить транзакцию»
+  await expect(
+    page.locator('button[aria-label="Добавить транзакцию"]')
+  ).toBeVisible({ timeout: 5000 });
 });
 
 test('home screen does not show error state when API responds', async ({ page }) => {

@@ -186,7 +186,11 @@ test('v04-ui-1: ManagementScreen shows «Доступ» for owner, hides for mem
   await page.click('button[aria-label="Управление"]');
   await page.waitForTimeout(300);
 
-  await expect(page.locator('text=Доступ').first()).toBeVisible({ timeout: 5000 });
+  // ManagementScreen subtitle ("Подписки, категории, доступ") тоже содержит
+  // "доступ" — целимся в кнопку-ряд с aria-label = label + description.
+  await expect(
+    page.getByRole('button', { name: /^Доступ\s/ })
+  ).toBeVisible({ timeout: 5000 });
 
   // Member case (re-route)
   await page.unroute('**/api/v1/**');
@@ -197,8 +201,11 @@ test('v04-ui-1: ManagementScreen shows «Доступ» for owner, hides for mem
   await page.click('button[aria-label="Управление"]');
   await page.waitForTimeout(300);
 
-  // Member should NOT see "Доступ" item
-  await expect(page.locator('text=Доступ')).toHaveCount(0);
+  // Member should NOT see "Доступ" item — но subtitle всё равно остаётся.
+  // Проверяем именно отсутствие row-кнопки.
+  await expect(
+    page.getByRole('button', { name: /^Доступ\s/ })
+  ).toHaveCount(0);
 });
 
 // ============================================================
@@ -211,7 +218,7 @@ test('v04-ui-2: owner opens AccessScreen → InviteSheet renders tg_user_id inpu
 
   await page.click('button[aria-label="Управление"]');
   await page.waitForTimeout(300);
-  await page.click('text=Доступ');
+  await page.getByRole('button', { name: /^Доступ\s/ }).click();
   await page.waitForTimeout(500);
 
   // FAB has aria-label="Пригласить пользователя"
@@ -294,7 +301,7 @@ test('v04-ui-6: AccessScreen UsersList row exposes «Лимит» action', async
 
   await page.click('button[aria-label="Управление"]');
   await page.waitForTimeout(300);
-  await page.click('text=Доступ');
+  await page.getByRole('button', { name: /^Доступ\s/ }).click();
   await page.waitForTimeout(500);
 
   // The owner-row should expose a «Лимит» (cap edit) button. UsersList renders

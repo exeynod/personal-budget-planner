@@ -385,7 +385,10 @@ test('rework-07: Analytics', async ({ page }) => {
   await mockApiRich(page);
   await page.goto('/');
   await waitForLoad(page);
-  await page.click('button[aria-label="Аналитика"]');
+  // Аналитика теперь sub-screen в Management hub, не отдельный tab.
+  await page.click('button[aria-label="Управление"]');
+  await page.waitForTimeout(300);
+  await page.getByRole('button', { name: /^Аналитика\s/ }).click();
   await page.waitForTimeout(500);
   await page.screenshot({ path: `${SCREENSHOTS_DIR}/07-analytics.png`, fullPage: true });
 });
