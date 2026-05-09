@@ -224,11 +224,15 @@ async def test_post_subscription_sets_posted_txn_id_on_subscription(
 async def test_post_subscription_applies_balance_delta(
     db_session, owner_user, active_subscription, primary_account
 ):
-    """post_subscription reduces account.balance_cents by abs(sub.amount_cents)."""
-    from app.db.models import Account
+    """post_subscription reduces account.balance_cents by abs(sub.amount_cents).
+
+    apply_balance_delta uses raw UPDATE … RETURNING, which bypasses SA's
+    identity map. Read the balance via a fresh raw SQL query to avoid the
+    cached object in the session's identity map.
+    """
     from app.db.session import set_tenant_scope
     from app.services.subscriptions import post_subscription
-    from sqlalchemy import select
+    from sqlalchemy import text
 
     await set_tenant_scope(db_session, owner_user["id"])
 
@@ -238,12 +242,11 @@ async def test_post_subscription_applies_balance_delta(
         db_session, active_subscription.id, user_id=owner_user["id"]
     )
 
-    refreshed = await db_session.scalar(
-        select(Account).where(Account.id == primary_account.id)
+    new_balance = await db_session.scalar(
+        text("SELECT balance_cents FROM account WHERE id = :id"),
+        {"id": primary_account.id},
     )
-    assert refreshed.balance_cents == starting_balance - abs(
-        active_subscription.amount_cents
-    )
+    assert new_balance == starting_balance - abs(active_subscription.amount_cents)
 
 
 @pytest.mark.asyncio
@@ -457,10 +460,9 @@ async def test_unpost_subscription_restores_balance(
     db_session, owner_user, active_subscription, primary_account
 ):
     """unpost restores account.balance_cents to pre-post value."""
-    from app.db.models import Account
     from app.db.session import set_tenant_scope
     from app.services.subscriptions import post_subscription, unpost_subscription
-    from sqlalchemy import select
+    from sqlalchemy import text
 
     await set_tenant_scope(db_session, owner_user["id"])
 
@@ -470,19 +472,19 @@ async def test_unpost_subscription_restores_balance(
         db_session, active_subscription.id, user_id=owner_user["id"]
     )
     after_post = await db_session.scalar(
-        select(Account).where(Account.id == primary_account.id)
+        text("SELECT balance_cents FROM account WHERE id = :id"),
+        {"id": primary_account.id},
     )
-    assert after_post.balance_cents == starting_balance - abs(
-        active_subscription.amount_cents
-    )
+    assert after_post == starting_balance - abs(active_subscription.amount_cents)
 
     await unpost_subscription(
         db_session, active_subscription.id, user_id=owner_user["id"]
     )
     after_unpost = await db_session.scalar(
-        select(Account).where(Account.id == primary_account.id)
+        text("SELECT balance_cents FROM account WHERE id = :id"),
+        {"id": primary_account.id},
     )
-    assert after_unpost.balance_cents == starting_balance
+    assert after_unpost == starting_balance
 
 
 @pytest.mark.asyncio

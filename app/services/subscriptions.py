@@ -29,6 +29,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.db.models import (
+    ActualSource,
+    ActualTransaction,
     AppUser,
     BudgetPeriod,
     Category,
@@ -291,3 +293,182 @@ async def charge_subscription(
     await db.flush()
 
     return planned, sub.next_charge_date
+
+
+# ---------- Phase 22 (BE-13) — manual post / unpost into actual ----------
+#
+# These v1.0 functions live below the legacy charge / planned-transaction code
+# to keep the existing v0.x flow untouched (CONTEXT §Area 3 + plan 22.09).
+#
+# Post:   создаёт ActualTransaction(kind=expense, amount=-|sub.amount_cents|),
+#         привязывает к sub.category_id + sub.account_id, проставляет
+#         sub.posted_txn_id, применяет balance-delta через create_actual_v10
+#         (BE-03 hook).
+#
+# Unpost: удаляет связанный actual_transaction (FK ON DELETE SET NULL очистит
+#         sub.posted_txn_id; здесь делаем это явно для consistency и чтобы
+#         избежать FK churn между UPDATE sub и DELETE actual_transaction),
+#         баланс восстанавливается через delete_actual_v10.
+#
+# Идемпотентность post (T-22-09-01):  posted_txn_id IS NOT NULL → 409.
+# Идемпотентность unpost (T-22-09-03): posted_txn_id IS NULL    → 404.
+
+
+class SubscriptionAlreadyPostedError(Exception):
+    """BE-13 idempotency gate: subscription already has a linked posted_txn_id.
+
+    Route layer maps to HTTP 409 Conflict. T-22-09-01.
+    """
+
+    def __init__(self, sub_id: int, posted_txn_id: int) -> None:
+        self.sub_id = sub_id
+        self.posted_txn_id = posted_txn_id
+        super().__init__(
+            f"Subscription {sub_id} already posted (txn {posted_txn_id})"
+        )
+
+
+class SubscriptionNotPostedError(Exception):
+    """BE-13 unpost guard: subscription has no posted_txn_id to unpost.
+
+    Route layer maps to HTTP 404 (or 409 — caller's choice). T-22-09-03.
+    """
+
+    def __init__(self, sub_id: int) -> None:
+        self.sub_id = sub_id
+        super().__init__(f"Subscription {sub_id} is not posted")
+
+
+class SubscriptionInactiveError(Exception):
+    """BE-13 active-only gate: post a paused / archived subscription is denied.
+
+    Route layer maps to HTTP 409 (semantic error). T-22-09-05.
+    """
+
+    def __init__(self, sub_id: int) -> None:
+        self.sub_id = sub_id
+        super().__init__(f"Subscription {sub_id} is inactive")
+
+
+async def post_subscription(
+    db: AsyncSession, sub_id: int, *, user_id: int
+) -> ActualTransaction:
+    """BE-13 POST /api/v1/subscriptions/:id/post — manual «провести в факт».
+
+    Creates an expense ActualTransaction tied to the subscription's category
+    + account, applies balance delta on the account (delegated to
+    ``create_actual_v10``), and stores ``sub.posted_txn_id = txn.id``.
+
+    Idempotency: if ``sub.posted_txn_id`` is already set, raises
+    ``SubscriptionAlreadyPostedError`` (T-22-09-01 → HTTP 409).
+
+    Phase 11 / Phase 22 invariants:
+    - Subscription lookup scoped by user_id (cross-tenant → LookupError → 404).
+    - sub.is_active must be True (T-22-09-05).
+    - sub.account_id must not be NULL (T-22-09-06 → ValueError surfaced as 422).
+
+    Args:
+        sub_id: Subscription PK.
+        user_id: tenant scope (app_user.id).
+
+    Returns:
+        The freshly-created ``ActualTransaction`` row (parent — roundup child,
+        if any, is silently created via ``create_actual_v10`` and ignored
+        here; balance for both is applied atomically).
+
+    Raises:
+        LookupError: subscription not found OR cross-tenant.
+        SubscriptionAlreadyPostedError: posted_txn_id already set (409).
+        SubscriptionInactiveError: sub.is_active is False (409).
+        ValueError: sub.account_id is NULL (422).
+    """
+    # Local imports to avoid cyclic dependencies (actual imports models, which
+    # imports SQLAlchemy enums; periods is a leaf module).
+    from app.services.actual import create_actual_v10  # noqa: PLC0415
+    from app.services.periods import _today_in_app_tz  # noqa: PLC0415
+
+    sub = await db.scalar(
+        select(Subscription).where(
+            Subscription.id == sub_id,
+            Subscription.user_id == user_id,
+        )
+    )
+    if sub is None:
+        # Match existing module convention (delete_subscription / update_subscription):
+        # LookupError → route layer maps to 404. T-22-09-02.
+        raise LookupError(f"Subscription {sub_id} not found")
+
+    if sub.posted_txn_id is not None:
+        raise SubscriptionAlreadyPostedError(sub_id, sub.posted_txn_id)
+
+    if not sub.is_active:
+        raise SubscriptionInactiveError(sub_id)
+
+    if sub.account_id is None:
+        # T-22-09-06: post requires an account to apply balance delta against.
+        raise ValueError(
+            f"Subscription {sub_id} has no account_id — cannot post without account"
+        )
+
+    # Subscription.amount_cents хранится как ПОЛОЖИТЕЛЬНОЕ (по DATA-MODEL §1.5);
+    # actual_transaction для expense — отрицательное (sign convention BE-06).
+    txn_amount = -abs(sub.amount_cents)
+
+    parent, _child = await create_actual_v10(
+        db,
+        user_id=user_id,
+        kind="expense",
+        amount_cents=txn_amount,
+        description=f"Подписка: {sub.name}",
+        category_id=sub.category_id,
+        tx_date=_today_in_app_tz(),
+        source=ActualSource.mini_app,
+        account_id=sub.account_id,
+    )
+
+    sub.posted_txn_id = parent.id
+    await db.flush()
+    return parent
+
+
+async def unpost_subscription(
+    db: AsyncSession, sub_id: int, *, user_id: int
+) -> None:
+    """BE-13 POST /api/v1/subscriptions/:id/unpost — отменить ручную проводку.
+
+    Deletes the linked ``actual_transaction`` (FK ON DELETE CASCADE removes any
+    roundup children) and clears ``sub.posted_txn_id``. Account balance is
+    restored by ``delete_actual_v10`` for the parent + each cascaded child.
+
+    Returns ``None`` on success — route layer responds with HTTP 204.
+
+    Args:
+        sub_id: Subscription PK.
+        user_id: tenant scope.
+
+    Raises:
+        LookupError: subscription not found OR cross-tenant (→ 404).
+        SubscriptionNotPostedError: sub.posted_txn_id is NULL (→ 404).
+    """
+    from app.services.actual import delete_actual_v10  # noqa: PLC0415
+
+    sub = await db.scalar(
+        select(Subscription).where(
+            Subscription.id == sub_id,
+            Subscription.user_id == user_id,
+        )
+    )
+    if sub is None:
+        raise LookupError(f"Subscription {sub_id} not found")
+
+    if sub.posted_txn_id is None:
+        raise SubscriptionNotPostedError(sub_id)
+
+    txn_id = sub.posted_txn_id
+    # Clear FK reference BEFORE deleting the txn to avoid SQLAlchemy trying to
+    # NULLify it via ON DELETE SET NULL after our explicit delete (DB does the
+    # right thing either way; doing it explicitly keeps ORM in sync).
+    sub.posted_txn_id = None
+    await db.flush()
+
+    await delete_actual_v10(db, txn_id, user_id=user_id)
