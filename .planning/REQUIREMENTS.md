@@ -179,8 +179,103 @@ REQ-IDs продолжают нумерацию категорий (новые �
 | iPad split-view + master-detail | Out of scope, defer indefinitely |
 | macOS / Catalyst-сборка | Defer indefinitely |
 
-## Traceability (filled by gsd-roadmapper)
+## Traceability
+
+**Total v1.0 requirements:** 92
+**Mapped to phases:** 92 / 92 ✓
+**Status:** all Pending (roadmap created 2026-05-09, no plans executed yet)
 
 | REQ-ID | Phase | Status |
 |---|---|---|
-| _Pending roadmap creation_ | _Pending_ | _Pending_ |
+| BE-01 | Phase 22 | Pending |
+| BE-02 | Phase 22 | Pending |
+| BE-03 | Phase 22 | Pending |
+| BE-04 | Phase 22 | Pending |
+| BE-05 | Phase 22 | Pending |
+| BE-06 | Phase 22 | Pending |
+| BE-07 | Phase 22 | Pending |
+| BE-08 | Phase 22 | Pending |
+| BE-09 | Phase 22 | Pending |
+| BE-10 | Phase 22 | Pending |
+| BE-11 | Phase 22 | Pending |
+| BE-12 | Phase 22 | Pending |
+| BE-13 | Phase 22 | Pending |
+| BE-14 | Phase 22 | Pending |
+| BE-15 | Phase 22 | Pending |
+| BE-16 | Phase 22 | Pending |
+| DS-01 | Phase 23 | Pending |
+| DS-02 | Phase 23 | Pending |
+| DS-03 | Phase 23 | Pending |
+| DS-04 | Phase 23 | Pending |
+| DS-05 | Phase 23 | Pending |
+| DS-06 | Phase 23 | Pending |
+| DS-07 | Phase 23 | Pending |
+| DS-08 | Phase 23 | Pending |
+| ONB-V10-01 | Phase 24 | Pending |
+| ONB-V10-02 | Phase 24 | Pending |
+| ONB-V10-03 | Phase 24 | Pending |
+| ONB-V10-04 | Phase 24 | Pending |
+| ONB-V10-05 | Phase 24 | Pending |
+| ONB-V10-06 | Phase 24 | Pending |
+| ONB-V10-07 | Phase 24 | Pending |
+| HOME-V10-01 | Phase 25 | Pending |
+| HOME-V10-02 | Phase 25 | Pending |
+| HOME-V10-03 | Phase 25 | Pending |
+| HOME-V10-04 | Phase 25 | Pending |
+| HOME-V10-05 | Phase 25 | Pending |
+| HOME-V10-06 | Phase 25 | Pending |
+| TXN-V10-01 | Phase 25 | Pending |
+| TXN-V10-02 | Phase 25 | Pending |
+| TXN-V10-03 | Phase 25 | Pending |
+| TXN-V10-04 | Phase 25 | Pending |
+| TXN-V10-05 | Phase 25 | Pending |
+| TXN-V10-06 | Phase 25 | Pending |
+| ADD-V10-01 | Phase 25 | Pending |
+| ADD-V10-02 | Phase 25 | Pending |
+| ADD-V10-03 | Phase 25 | Pending |
+| ADD-V10-04 | Phase 25 | Pending |
+| ADD-V10-05 | Phase 25 | Pending |
+| CAT-V10-01 | Phase 26 | Pending |
+| CAT-V10-02 | Phase 26 | Pending |
+| CAT-V10-03 | Phase 26 | Pending |
+| CAT-V10-04 | Phase 26 | Pending |
+| CAT-V10-05 | Phase 26 | Pending |
+| CAT-V10-06 | Phase 26 | Pending |
+| PLAN-V10-01 | Phase 26 | Pending |
+| PLAN-V10-02 | Phase 26 | Pending |
+| PLAN-V10-03 | Phase 26 | Pending |
+| PLAN-V10-04 | Phase 26 | Pending |
+| PLAN-V10-05 | Phase 26 | Pending |
+| PLAN-V10-06 | Phase 26 | Pending |
+| SUBS-V10-01 | Phase 26 | Pending |
+| SUBS-V10-02 | Phase 26 | Pending |
+| SUBS-V10-03 | Phase 26 | Pending |
+| SUBS-V10-04 | Phase 26 | Pending |
+| AI-V10-01 | Phase 27 | Pending |
+| AI-V10-02 | Phase 27 | Pending |
+| AI-V10-03 | Phase 27 | Pending |
+| AI-V10-04 | Phase 27 | Pending |
+| AI-V10-05 | Phase 27 | Pending |
+| SAV-V10-01 | Phase 27 | Pending |
+| SAV-V10-02 | Phase 27 | Pending |
+| SAV-V10-03 | Phase 27 | Pending |
+| SAV-V10-04 | Phase 27 | Pending |
+| ACCT-V10-01 | Phase 27 | Pending |
+| ACCT-V10-02 | Phase 27 | Pending |
+| ACCT-V10-03 | Phase 27 | Pending |
+| ACCT-V10-04 | Phase 27 | Pending |
+| ANAL-V10-01 | Phase 27 | Pending |
+| ANAL-V10-02 | Phase 27 | Pending |
+| ANAL-V10-03 | Phase 27 | Pending |
+| ANAL-V10-04 | Phase 27 | Pending |
+| MGMT-V10-01 | Phase 27 | Pending |
+| MGMT-V10-02 | Phase 27 | Pending |
+| MGMT-V10-03 | Phase 27 | Pending |
+| MGMT-V10-04 | Phase 27 | Pending |
+| POL-01 | Phase 28 | Pending |
+| POL-02 | Phase 28 | Pending |
+| POL-03 | Phase 28 | Pending |
+| POL-04 | Phase 28 | Pending |
+| POL-05 | Phase 28 | Pending |
+| POL-06 | Phase 28 | Pending |
+| POL-07 | Phase 28 | Pending |
