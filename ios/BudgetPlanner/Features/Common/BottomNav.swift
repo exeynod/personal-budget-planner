@@ -35,7 +35,7 @@ struct MainShell: View {
                 }
                 .tag(AppTab.home)
 
-            ComingSoonView(title: "Транзакции", phase: 18)
+            TransactionsView()
                 .tabItem {
                     Label(AppTab.transactions.label, systemImage: AppTab.transactions.systemImage)
                 }
@@ -47,7 +47,7 @@ struct MainShell: View {
                 }
                 .tag(AppTab.ai)
 
-            ComingSoonView(title: "Меню", phase: 19)
+            ManagementView()
                 .tabItem {
                     Label(AppTab.management.label, systemImage: AppTab.management.systemImage)
                 }
