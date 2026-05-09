@@ -37,6 +37,15 @@
   overflow: hidden;
   background: var(--bg-cream);
   color: var(--ink);
+  /* Safe-area top: max(iOS notch, TG fullscreen chrome). При обычном
+     запуске TG (не fullscreen) и iOS env даёт ~44px notch; в TG
+     fullscreen env=0, но --tg-safe-top отдаёт сумму status-bar +
+     TG-chrome (Close-кнопка + ⋯). Без этого шапка уезжает под TG-chrome
+     и становится не кликабельной (UI-аудит #25). */
+  padding-top: max(env(safe-area-inset-top, 0px), var(--tg-safe-top, 0px));
+  padding-left: max(env(safe-area-inset-left, 0px), var(--tg-safe-left, 0px));
+  padding-right: max(env(safe-area-inset-right, 0px), var(--tg-safe-right, 0px));
+  box-sizing: border-box;
 }
 
 /* Главный flex-ребёнок: фон экрана + контент. Пустой контейнер,
