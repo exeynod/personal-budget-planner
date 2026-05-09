@@ -5,6 +5,10 @@ export type UserRole = 'owner' | 'member' | 'revoked';
 export interface MeResponse {
   tg_user_id: number;
   tg_chat_id: number | null;
+  /** Optional — поле планировалось для ManagementScreen profile card,
+   * но бэкенд /me пока не отдаёт. Помечено optional, чтобы UI с graceful
+   * fallback'ами на отсутствующее значение проходил tsc strict. */
+  tg_username?: string | null;
   cycle_start_day: number;
   onboarded_at: string | null; // ISO datetime
   chat_id_known: boolean;
