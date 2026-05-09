@@ -13,10 +13,19 @@ export interface DashboardCategoryRowProps {
 export function DashboardCategoryRow({ row, onClick, isFirst }: DashboardCategoryRowProps) {
   const hasPlanned = row.planned_cents > 0;
   const hasActual = row.actual_cents > 0;
-  // Unplanned: факт есть, плана нет → 100% перерасход (категория не была в плане).
+  // Unplanned: факт есть, плана нет → для расходов 100% перерасход
+  // (категория не была в плане), для доходов — нейтрально (доп. доход).
   const isUnplanned = !hasPlanned && hasActual;
   const pct = hasPlanned ? row.actual_cents / row.planned_cents : 0;
-  const isOver = (hasPlanned && pct > 1.0) || isUnplanned;
+  const isOverPlan = hasPlanned && pct > 1.0;
+
+  // Семантика «положительная дельта = хорошо» (CLAUDE.md):
+  //   expense: над планом → плохо (red);
+  //   income:  над планом → хорошо (accent), под планом не подсвечиваем
+  //            (период ещё идёт, рано судить).
+  const isExpense = row.kind === 'expense';
+  const isBad = isExpense && (isOverPlan || isUnplanned);
+  const isGood = !isExpense && (isOverPlan || isUnplanned);
 
   const visual = visualForCategory(row.name, row.category_id);
   const Icon = visual.Icon;
@@ -34,7 +43,7 @@ export function DashboardCategoryRow({ row, onClick, isFirst }: DashboardCategor
 
   const overspendBadge = isUnplanned
     ? 'Без плана'
-    : (hasPlanned && pct > 1.0) ? `${Math.round(pct * 100)}%` : null;
+    : isOverPlan ? `${Math.round(pct * 100)}%` : null;
 
   const rowCls = [
     styles.row,
@@ -58,13 +67,23 @@ export function DashboardCategoryRow({ row, onClick, isFirst }: DashboardCategor
         <div className={styles.topRow}>
           <span className={styles.name}>{row.name}</span>
           <span className={styles.amounts}>
-            <span className={isOver ? styles.actualOver : styles.actual}>
+            <span
+              className={
+                isBad ? styles.actualOver
+                : isGood ? styles.actualGood
+                : styles.actual
+              }
+            >
               {formatKopecks(row.actual_cents)}
             </span>
             {hasPlanned && (
               <span className={styles.planned}>{` / ${formatKopecks(row.planned_cents)}`}</span>
             )}
-            {overspendBadge && <span className={styles.badge}>{overspendBadge}</span>}
+            {overspendBadge && (
+              <span className={isGood ? styles.badgeGood : styles.badge}>
+                {overspendBadge}
+              </span>
+            )}
           </span>
         </div>
         {(hasPlanned || isUnplanned) && (
@@ -73,12 +92,14 @@ export function DashboardCategoryRow({ row, onClick, isFirst }: DashboardCategor
               className={styles.fill}
               style={{
                 width: fillW,
-                background: isOver
+                background: isBad
                   ? 'linear-gradient(90deg, #D8404B, #FF7A4C)'
-                  : `linear-gradient(90deg, ${cat}, ${cat}cc)`,
+                  : isGood
+                    ? 'linear-gradient(90deg, #5CB880, #7CC68F)'
+                    : `linear-gradient(90deg, ${cat}, ${cat}cc)`,
               }}
             />
-            {hasPlanned && pct > 1 && (
+            {isBad && hasPlanned && pct > 1 && (
               <div className={styles.overlay} style={{ width: overW }} />
             )}
           </div>

@@ -88,6 +88,12 @@
   color: var(--danger);
 }
 
+/* «Хорошо» — для income-категорий, где факт > план (доп. доход). */
+.actualGood {
+  font-weight: 600;
+  color: #2E9F5A;
+}
+
 .planned {
   color: var(--ink-2);
   font-weight: 500;
@@ -98,6 +104,19 @@
   padding: 2px 7px;
   border-radius: 7px;
   background: var(--danger);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.18);
+}
+
+/* Зелёный badge для income surplus (без плана / 5268% для доходов). */
+.badgeGood {
+  margin-left: 6px;
+  padding: 2px 7px;
+  border-radius: 7px;
+  background: #2E9F5A;
   color: #fff;
   font-size: 10px;
   font-weight: 700;
