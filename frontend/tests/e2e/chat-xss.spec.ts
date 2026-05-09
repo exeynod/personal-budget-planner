@@ -135,14 +135,16 @@ test('SEC-01: adversarial markdown does not execute JS', async ({ page }) => {
   // Wait for app shell to load (loading state cleared).
   await expect(page.locator('text=Загрузка…')).not.toBeVisible({ timeout: 10000 });
 
-  // Navigate to AI tab — state-based, not URL. Use aria-label to target the
-  // button (BottomNav renders <button aria-label="AI">). dispatchEvent bypasses
-  // visibility checks; the tab handler only reads onClick which is wired in
-  // React's synthetic delegation, so a dispatched MouseEvent on the button
-  // triggers onTabChange identically to a real click. This works around an
-  // env-specific issue where Playwright reports the button "not visible"
-  // despite being rendered (likely safe-area inset / 100dvh interplay).
-  await page.getByRole('button', { name: 'AI', exact: true }).dispatchEvent('click');
+  // Navigate to AI tab. Direct aria-label CSS selector (а не getByRole с
+  // {exact:true}) — последний на CI Linux runner иногда таймаутится из-за
+  // конфликта между aria-label="AI" на <button> и текстом "AI" в дочернем
+  // <span>. aria-label сам по себе уникален.
+  // Сначала ждём что BottomNav смонтировался (после убывания "Загрузка…"
+  // App может ещё рендерить screenSlot animation), потом dispatchEvent
+  // обходит visibility check (safe-area inset/100dvh).
+  const aiTab = page.locator('button[aria-label="AI"]').first();
+  await expect(aiTab).toBeAttached({ timeout: 10000 });
+  await aiTab.dispatchEvent('click');
 
   // Wait for the assistant chat bubble to mount. We poll for either
   //  (a) the literal escaped text (post-fix path), OR
