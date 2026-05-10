@@ -53,6 +53,7 @@ from app.api.dependencies import get_current_user, get_db, verify_internal_token
 from app.api.routes.accounts import accounts_router
 from app.api.routes.actual import actual_router
 from app.api.routes.goals import goals_router
+from app.api.routes.savings import savings_router
 from app.api.routes.admin import admin_router
 from app.api.routes.auth import auth_router
 from app.api.routes.categories import categories_router
@@ -164,6 +165,9 @@ public_router.include_router(accounts_router)
 
 # Phase 22 (v1.0) — Goals CRUD (BE-11). Plan 22.13.
 public_router.include_router(goals_router)
+
+# Phase 22 (v1.0) — Savings snapshot/config/deposit (BE-08, BE-09, BE-10).
+public_router.include_router(savings_router)
 
 
 # ---- Internal router (requires X-Internal-Token) ----
