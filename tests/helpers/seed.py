@@ -26,12 +26,18 @@ from app.db.models import (
     CategoryKind,
     PeriodStatus,
     PlanSource,
-    PlanTemplateItem,
     PlannedTransaction,
     SubCycle,
     Subscription,
     UserRole,
 )
+
+# NOTE: ``PlanTemplateItem`` was dropped in Phase 22 alembic 0013 / models.py
+# (CONTEXT D-02). The legacy ``seed_plan_template_item`` helper used to insert
+# rows into ``plan_template_item``; that table no longer exists. Plan 22.13
+# stubs the seed helper as a deprecated no-op so existing tests that import
+# ``seed_plan_template_item`` still load (they will skip via DATABASE_URL gate
+# or be replaced by ``Category.plan_cents``-based seeds in Phase 23+).
 
 
 # Sentinel: callers can explicitly pass onboarded_at=None (invite-flow tests),
@@ -130,14 +136,22 @@ async def seed_plan_template_item(
     description: Optional[str] = None,
     day_of_period: Optional[int] = None,
     sort_order: int = 0,
-) -> PlanTemplateItem:
-    t = PlanTemplateItem(
-        user_id=user_id, category_id=category_id, amount_cents=amount_cents,
-        description=description, day_of_period=day_of_period, sort_order=sort_order,
+):
+    """DEPRECATED: ``plan_template_item`` table dropped in Phase 22 (alembic 0013).
+
+    The v1.0 model uses ``Category.plan_cents`` as the per-category monthly
+    plan source-of-truth (CONTEXT D-02). This helper is kept as a stub that
+    raises ``NotImplementedError`` so legacy tests that imported it surface
+    a clear failure rather than silently inserting nothing.
+
+    Tests that need to set a category plan should update
+    ``Category.plan_cents`` directly instead.
+    """
+    raise NotImplementedError(
+        "seed_plan_template_item: plan_template_item table was dropped in "
+        "Phase 22 (alembic 0013). Use Category.plan_cents instead — "
+        "category.plan_cents = amount_cents."
     )
-    session.add(t)
-    await session.flush()
-    return t
 
 
 async def seed_planned_transaction(
@@ -294,14 +308,21 @@ async def seed_ai_usage_log(
     await session.commit()
 
 
+# Phase 22 (plan 22.13): ``plan_template_item`` table was dropped in alembic
+# 0013 (CONTEXT D-02). Removed from truncate sets so TRUNCATE doesn't fail with
+# "relation does not exist" against post-22 schema. Phase-22 v1.0 tables
+# (account, goal, savings_config) added so phase-23+ tests can rely on a clean
+# slate without seeding around stale rows.
 _DEFAULT_TRUNCATE_TABLES = (
-    "category, planned_transaction, actual_transaction, plan_template_item, "
+    "savings_config, goal, account, "
+    "category, planned_transaction, actual_transaction, "
     "subscription, budget_period, ai_message, ai_conversation, "
     "category_embedding, app_user"
 )
 
 _PHASE13_TRUNCATE_TABLES = (
-    "category, planned_transaction, actual_transaction, plan_template_item, "
+    "savings_config, goal, account, "
+    "category, planned_transaction, actual_transaction, "
     "subscription, budget_period, ai_message, ai_conversation, "
     "category_embedding, ai_usage_log, app_user"
 )

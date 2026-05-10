@@ -26,7 +26,6 @@ from typing import Optional
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
 from app.api.schemas.planned import PlannedCreate, PlannedUpdate
 from app.db.models import (
@@ -36,14 +35,13 @@ from app.db.models import (
     PlannedTransaction,
     PlanSource,
 )
-# NOTE: ``PlanTemplateItem`` was dropped from app.db.models in Phase 22 (alembic
-# 0013, models.py line 437). The legacy ``apply_template_to_period`` flow is
-# scheduled for refactor in plan 22.13 (route layer rewrite). To unblock module
-# imports across the codebase (api / bot / worker entry points + every test
-# that imports ``app.services.actual`` transitively), the symbol is now imported
-# lazily inside the one function that needs it. If that function is reached at
-# runtime it will raise ImportError — the plan-22.13 rewrite will replace its
-# body with the new ``Category.plan_cents``-based logic.
+# Plan 22.13 cleanup: ``PlanTemplateItem`` was dropped in alembic 0013
+# (CONTEXT D-02). The legacy ``apply_template_to_period`` is now a no-op that
+# returns the existing template-sourced rows for idempotency, but never
+# inserts new rows from a non-existent template table. The v1.0 plan source
+# of truth is ``Category.plan_cents`` — Phase 23 will introduce a v1.0
+# replacement endpoint if a "materialise plan into PlannedTransaction rows"
+# operation is still needed.
 from app.services import categories as cat_svc
 
 
@@ -373,42 +371,15 @@ async def apply_template_to_period(
         existing = list(result.scalars().all())
         return {"period_id": period_id, "created": 0, "planned": existing}
 
-    # Load template items + their categories (eager-load for kind access).
-    # Lazy import: PlanTemplateItem was dropped in alembic 0013; this legacy
-    # path is scheduled for full rewrite in plan 22.13. Until then, importing
-    # at function-call time keeps module-level imports working for the rest
-    # of the codebase. See docstring at the top of this module + models.py
-    # line 437 for the deprecation note.
-    from app.db.models import PlanTemplateItem  # type: ignore[attr-defined]
-
-    items_result = await db.execute(
-        select(PlanTemplateItem)
-        .where(PlanTemplateItem.user_id == user_id)
-        .options(selectinload(PlanTemplateItem.category))
-        .order_by(PlanTemplateItem.sort_order, PlanTemplateItem.id)
-    )
-    items = list(items_result.scalars().all())
-
-    if not items:
-        return {"period_id": period_id, "created": 0, "planned": []}
-
-    new_rows = [
-        PlannedTransaction(
-            user_id=user_id,
-            period_id=period_id,
-            kind=item.category.kind,
-            amount_cents=item.amount_cents,
-            description=item.description,
-            category_id=item.category_id,
-            planned_date=_clamp_planned_date(period, item.day_of_period),
-            source=PlanSource.template,
-            subscription_id=None,
-        )
-        for item in items
-    ]
-    db.add_all(new_rows)
-    await db.flush()
-    for row in new_rows:
-        await db.refresh(row)
-
-    return {"period_id": period_id, "created": len(new_rows), "planned": new_rows}
+    # Plan 22.13: PlanTemplateItem table was dropped in alembic 0013
+    # (CONTEXT D-02). There is no longer a "template" source to materialise
+    # planned rows from. The v1.0 model treats ``Category.plan_cents`` as the
+    # source of truth and does not auto-generate PlannedTransaction rows on
+    # period rollover — Phase 24+ will define the replacement flow if needed.
+    # For now this function is a no-op for empty-template periods so existing
+    # callers (Phase 5 worker on period creation) keep working without raising.
+    # ``period`` was looked up via ``_get_period_or_404`` above to preserve
+    # the 404-on-cross-tenant contract; touch it here so linters and the
+    # human reader see the value flow.
+    _ = period
+    return {"period_id": period_id, "created": 0, "planned": []}

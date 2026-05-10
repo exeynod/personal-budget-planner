@@ -437,14 +437,18 @@ async def two_tenants(db_session):
         user_ids = [row[0] for row in result.all()]
         if user_ids:
             # Сначала domain rows (FK RESTRICT) — order соответствует FK depth.
+            # Phase 22 (plan 22.13): plan_template_item table dropped (alembic 0013);
+            # account/goal/savings_config tables added (alembic 0012/0014/0015).
             for tbl in (
                 "ai_message",
                 "ai_conversation",
                 "category_embedding",
                 "actual_transaction",
                 "planned_transaction",
+                "savings_config",
+                "goal",
                 "subscription",
-                "plan_template_item",
+                "account",
                 "budget_period",
                 "category",
             ):
@@ -532,10 +536,12 @@ async def single_user(db_session, owner_tg_id):
     # Cleanup pre-test: bypass RLS для admin operations.
     await db_session.execute(text("RESET ROLE"))
     await db_session.execute(text("SET LOCAL row_security = off"))
+    # Phase 22 (plan 22.13): plan_template_item dropped; v1.0 tables added.
     for tbl in (
         "ai_message", "ai_conversation", "category_embedding",
-        "actual_transaction", "planned_transaction", "subscription",
-        "plan_template_item", "budget_period", "category",
+        "actual_transaction", "planned_transaction",
+        "savings_config", "goal", "subscription",
+        "account", "budget_period", "category",
     ):
         await db_session.execute(text(f"DELETE FROM {tbl}"))
     await db_session.execute(text("DELETE FROM app_user"))
