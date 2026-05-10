@@ -15,7 +15,7 @@
 //
 // View is router-agnostic — all click handlers are passed in as props.
 
-import { BigFig, Eyebrow, Mass, PosterButton } from '../../componentsV10';
+import { BigFig, Eyebrow, Mass } from '../../componentsV10';
 import { formatRubles } from '../Onboarding/format';
 import { formatTimeHM } from '../common/format';
 import { groupByDay, formatTxAmount } from '../Transactions/computeTransactions';
@@ -78,6 +78,20 @@ export function CategoryDetailView(props: CategoryDetailViewProps) {
 
   const factRubles = Math.floor(factCents / 100);
 
+  // Phase 29-04 §4 CategoryDetail BLOCKER #3 — two-segment caption:
+  // `из {plan} ₽ · {N over | N осталось}` matches prototype line 536.
+  const leftCents = planCents - factCents;
+  const captionRight = isOver
+    ? `−${formatRubles(Math.abs(leftCents))} over`
+    : `${formatRubles(leftCents)} осталось`;
+
+  // Phase 29-04 §4 BLOCKER #4 — rollover plate body lines.
+  // Mono caption + mono money line (yellow when not over, paper when over).
+  const rolloverDestLabel = rollover === 'savings' ? 'НАКОПЛЕНИЯ' : 'ПРОЧЕЕ';
+  const rolloverMoneyLine = isOver
+    ? `− ${formatRubles(Math.abs(leftCents))} ₽`
+    : `+ ${formatRubles(Math.max(0, leftCents))} ₽`;
+
   return (
     <div className={`${styles.root} ${isOver ? styles.bgRed : styles.bgCobalt}`}>
       {/* ─────────── header row ─────────── */}
@@ -89,8 +103,10 @@ export function CategoryDetailView(props: CategoryDetailViewProps) {
         >
           ← НАЗАД
         </button>
+        {/* Phase 29-04 §4 BLOCKER #1 — eyebrow shows state, not ordinal.
+         * Prototype line 526: `{over ? 'OVERDRAFT' : 'IN PLAN'} · CAT`. */}
         <Eyebrow color="var(--poster-paper)">
-          {`CATEGORY · ${category.ord ?? '00'}`}
+          {`${isOver ? 'OVERDRAFT' : 'IN PLAN'} · CAT`}
         </Eyebrow>
       </div>
 
@@ -103,14 +119,24 @@ export function CategoryDetailView(props: CategoryDetailViewProps) {
       </Mass>
 
       {/* ─────────── BigFig fact ─────────── */}
+      {/* Phase 29-04 §4 BLOCKER #2 — BigFig size 88 → 64 per prototype line 534. */}
       <div className={styles.bigFigWrap}>
         <BigFig
           value={factRubles}
           sup="₽"
-          size={88}
+          size={64}
           color="var(--poster-paper)"
           animate={bigFigAnimate}
         />
+        {/* Phase 29-04 §4 BLOCKER #3 — two-segment caption beneath BigFig. */}
+        <div className={styles.barCaption}>
+          {`из ${formatRubles(planCents)} ₽ · `}
+          <span
+            className={isOver ? styles.barCaptionOver : styles.barCaptionLeft}
+          >
+            {captionRight}
+          </span>
+        </div>
       </div>
 
       {/* ─────────── progress bar (6px) ─────────── */}
@@ -128,31 +154,52 @@ export function CategoryDetailView(props: CategoryDetailViewProps) {
           />
         )}
       </div>
-      <div className={styles.barLabel}>
-        {`из ${formatRubles(planCents)} ₽`}
-      </div>
 
-      {/* ─────────── rollover toggle plate ─────────── */}
+      {/* ─────────── rollover plate (dark, two-line) ─────────── */}
+      {/* Phase 29-04 §4 BLOCKER #4 — prototype dark plate (rgba(0,0,0,0.22)),
+       * mono eyebrow «ОСТАТОК ПО КАТЕГОРИИ → {DEST}», mono money line.
+       * Click toggles rollover destination. */}
       <button
         type="button"
         onClick={onToggleRollover}
         className={styles.rolloverPlate}
         data-testid="rollover-plate"
       >
-        {rollover === 'savings' ? 'ОСТАТОК → НАКОПЛЕНИЯ' : 'ОСТАТОК → ПРОЧЕЕ'}
+        <span className={styles.rolloverEyebrow}>
+          ОСТАТОК ПО КАТЕГОРИИ → {rolloverDestLabel}
+        </span>
+        <span
+          className={
+            isOver
+              ? styles.rolloverMoneyOver
+              : styles.rolloverMoneyOk
+          }
+        >
+          {rolloverMoneyLine}
+        </span>
       </button>
 
       {/* ─────────── CTA row ─────────── */}
+      {/* Phase 29-04 §4 BLOCKER #5 — asymmetric pills: yellow «+ ПОДНЯТЬ
+       * ЛИМИТ» (cobalt text; red text on over bg) + bordered ghost «ПАУЗА»
+       * per prototype lines 557-560. NOT two full-width ghost buttons. */}
       <div className={styles.ctaRow}>
-        <PosterButton
-          variant="ghost"
+        <button
+          type="button"
           onClick={() => onPushPlan(category.id)}
+          className={`${styles.ctaPrimary} ${
+            isOver ? styles.ctaPrimaryOver : ''
+          }`}
         >
           + ПОДНЯТЬ ЛИМИТ
-        </PosterButton>
-        <PosterButton variant="ghost" onClick={onTogglePause}>
+        </button>
+        <button
+          type="button"
+          onClick={onTogglePause}
+          className={styles.ctaGhost}
+        >
           {paused ? 'ВКЛЮЧИТЬ' : 'ПАУЗА'}
-        </PosterButton>
+        </button>
       </div>
 
       {/* ─────────── operations list ─────────── */}

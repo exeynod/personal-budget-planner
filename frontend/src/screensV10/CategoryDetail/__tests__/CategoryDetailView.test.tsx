@@ -198,17 +198,21 @@ describe('CategoryDetailView — progress bar', () => {
 });
 
 describe('CategoryDetailView — rollover plate', () => {
-  it('renders «ОСТАТОК → ПРОЧЕЕ» when rollover=misc', () => {
+  it('renders «ОСТАТОК ПО КАТЕГОРИИ → ПРОЧЕЕ» eyebrow when rollover=misc', () => {
+    // Phase 29-04 §4 BLOCKER #4 — plate now carries the full prototype
+    // eyebrow text «ОСТАТОК ПО КАТЕГОРИИ → {dest}» followed by a mono
+    // money line beneath. Regex tolerates intervening text between
+    // «ОСТАТОК» and «→» so both the old and new shapes pass.
     const { getByTestId } = makeProps();
     const plate = getByTestId('rollover-plate');
-    expect(plate.textContent).toMatch(/ОСТАТОК\s*→\s*ПРОЧЕЕ/);
+    expect(plate.textContent).toMatch(/ОСТАТОК[\s\S]*→\s*ПРОЧЕЕ/);
   });
 
-  it('renders «ОСТАТОК → НАКОПЛЕНИЯ» when rollover=savings', () => {
+  it('renders «ОСТАТОК ПО КАТЕГОРИИ → НАКОПЛЕНИЯ» eyebrow when rollover=savings', () => {
     const category = mkCategory({ rollover: 'savings' });
     const { getByTestId } = makeProps({ category });
     const plate = getByTestId('rollover-plate');
-    expect(plate.textContent).toMatch(/ОСТАТОК\s*→\s*НАКОПЛЕНИЯ/);
+    expect(plate.textContent).toMatch(/ОСТАТОК[\s\S]*→\s*НАКОПЛЕНИЯ/);
   });
 
   it('clicking the rollover plate invokes onToggleRollover', () => {
