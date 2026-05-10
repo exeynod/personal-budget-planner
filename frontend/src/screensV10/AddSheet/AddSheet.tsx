@@ -121,6 +121,10 @@ function renderAmountInBigFig(amountString: string) {
 const CTA_LABEL: Record<AddSheetCtaState, string> = {
   empty: 'ВВЕДИТЕ СУММУ',
   'no-cat': 'ВЫБЕРИТЕ КАТЕГОРИЮ',
+  // WR-25-01: surfaced when bootstrap fetch failed OR the user has zero
+  // accounts. Without this gate, the CTA would jump to 'ready' and the
+  // POST would silently fall into the legacy v0.x path (no wallet delta).
+  'no-account': 'НЕТ СЧЁТА',
   ready: 'СОХРАНИТЬ ↵',
 };
 
@@ -174,7 +178,12 @@ export function AddSheet({ onSubmitted, onClose }: AddSheetProps) {
 
   const isDirty =
     amountString !== '' || description.trim() !== '' || categoryId !== null;
-  const cta = ctaState(amountCents, categoryId);
+  // WR-25-01 (review fix): pass `accountId` so the CTA falls into the
+  // 'no-account' state when bootstrap fetch failed or the user has no
+  // accounts yet. Posting `account_id: null` from the v1.0 UI silently
+  // falls into the legacy backend path → wallet balance never updates
+  // (HOME-V10-04 desync). The gate makes the failure visible to the user.
+  const cta = ctaState(amountCents, categoryId, accountId);
 
   // ADD-V10-04: filter out savings + paused.
   const visibleCategories = useMemo(

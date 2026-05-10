@@ -18,11 +18,16 @@
 /**
  * State of the CTA at the bottom of the AddSheet.
  *
- *  - 'empty'   — no amount entered (CTA reads «ВВЕДИТЕ СУММУ», disabled)
- *  - 'no-cat'  — amount > 0 but no category picked (disabled)
- *  - 'ready'   — both amount and category present (yellow, active)
+ *  - 'empty'      — no amount entered (CTA reads «ВВЕДИТЕ СУММУ», disabled)
+ *  - 'no-cat'     — amount > 0 but no category picked (disabled)
+ *  - 'no-account' — amount + category present but no account loaded
+ *                   (bootstrap fetch failed OR system has zero accounts);
+ *                   gating prevents WR-25-01: posting `account_id: null`
+ *                   silently falls into the legacy path → wallet balance
+ *                   never updates (HOME-V10-04 desync).
+ *  - 'ready'      — amount + category + account present (yellow, active)
  */
-export type AddSheetCtaState = 'empty' | 'no-cat' | 'ready';
+export type AddSheetCtaState = 'empty' | 'no-cat' | 'no-account' | 'ready';
 
 /**
  * Date-chip identity. 'custom' means «Своя дата» — caller is responsible
@@ -117,18 +122,29 @@ export function parseAmountToCents(amountString: string): number {
 // ─────────────────── CTA state machine ───────────────────
 
 /**
- * Compute the CTA state from the current amount + category selection.
+ * Compute the CTA state from the current amount + category + account.
  *
  *  - amount === 0 → 'empty'
  *  - amount > 0  + categoryId === null → 'no-cat'
- *  - amount > 0  + categoryId is a number (incl. 0) → 'ready'
+ *  - amount > 0  + categoryId set + accountId === null → 'no-account'
+ *  - amount > 0  + categoryId + accountId all set → 'ready'
+ *
+ * `accountId` defaults to a sentinel symbol so existing call sites that
+ * predate WR-25-01 still resolve to the original 3-state machine without
+ * the account gate (legacy callers explicitly opted out of v1.0 wallet
+ * accounting). Pass `null` to enable the strict gate (recommended for
+ * v1.0 UI per WR-25-01 review fix).
  */
+const SKIP_ACCOUNT_GATE = Symbol('SKIP_ACCOUNT_GATE');
+
 export function ctaState(
   amountCents: number,
   categoryId: number | null,
+  accountId: number | null | typeof SKIP_ACCOUNT_GATE = SKIP_ACCOUNT_GATE,
 ): AddSheetCtaState {
   if (amountCents <= 0) return 'empty';
   if (categoryId === null) return 'no-cat';
+  if (accountId === null) return 'no-account';
   return 'ready';
 }
 

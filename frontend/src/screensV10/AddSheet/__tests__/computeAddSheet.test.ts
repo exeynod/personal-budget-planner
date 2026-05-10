@@ -135,7 +135,9 @@ describe('ctaState', () => {
     expect(ctaState(500, null)).toBe('no-cat');
   });
 
-  it('amount>0 + category set → "ready"', () => {
+  it('amount>0 + category set (legacy 2-arg) → "ready"', () => {
+    // Legacy 2-arg call: omits the WR-25-01 account gate. Should still
+    // work for non-v1.0 callers.
     expect(ctaState(500, 12)).toBe('ready');
   });
 
@@ -144,6 +146,20 @@ describe('ctaState', () => {
     // helper does NOT special-case it. Ids in real responses start at 1
     // (Postgres SERIAL), so this is theoretical defensive behaviour.
     expect(ctaState(500, 0)).toBe('ready');
+  });
+
+  // WR-25-01 (review fix): account-gating overload.
+  it('amount>0 + category set + accountId=null → "no-account"', () => {
+    expect(ctaState(500, 12, null)).toBe('no-account');
+  });
+
+  it('amount>0 + category set + accountId set → "ready"', () => {
+    expect(ctaState(500, 12, 7)).toBe('ready');
+  });
+
+  it('account gate applies AFTER the cat gate', () => {
+    // No category trumps no account in the state machine.
+    expect(ctaState(500, null, null)).toBe('no-cat');
   });
 });
 
