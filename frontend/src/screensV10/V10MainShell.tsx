@@ -1,4 +1,4 @@
-// Phase 25-06: V10MainShell — single root composing PosterRouterProvider +
+// Phase 25-06 → 25-10: V10MainShell — single root composing PosterRouterProvider +
 // BottomNavV10 + AddSheet PosterSheet binding for the v1.0 web app.
 //
 // Architecture (per Plan 25-06 Task 2 final resolution):
@@ -10,7 +10,7 @@
 //           │           ├── <PosterRouterView />   (top-of-stack)
 //           │           └── <BottomNavV10 />
 //           └── <PosterSheet isOpen={isAddSheetOpen}>
-//                 └── <AddSheetPlaceholderContent />
+//                 └── <AddSheet />        (Plan 25-10: real keypad + form)
 //
 // OnboardingMount is the PosterRouter root (NOT HomeMount) because the
 // gateway logic — fetch /me, branch on onboarded_at — must run BEFORE we
@@ -21,14 +21,14 @@
 //
 // FAB / AddSheet contract:
 //   - FAB sits at the BottomNavV10 center slot (component-local concern).
-//   - FAB tap → setAddSheet(true) → PosterSheet opens with placeholder content.
+//   - FAB tap → setAddSheet(true) → PosterSheet opens with the real AddSheet body.
 //   - While sheet is open, BottomNavV10.isHidden=true → nav unmounted (no DOM).
-//   - Sheet dismissal (Escape, backdrop tap, drag-to-close, explicit Close
-//     button) → setAddSheet(false) → BottomNavV10 reappears.
-//
-// AddSheet content is a placeholder until Plan 25-10 ships the real keypad +
-// category picker. The placeholder is intentionally non-functional but renders
-// the «WIP» eyebrow + Mass headline + close button so users get clear signal.
+//   - Sheet dismissal: AddSheet's own × button (with dirty-form gate),
+//     Escape key, backdrop tap, drag-to-close → setAddSheet(false) → nav reappears.
+//   - On successful submit (createActualV10 ok) → onSubmitted(_id) → close sheet.
+//     Refetch of Home / Transactions deferred to Plan 25-12 polish (user can
+//     pop back to Home for fresh data; submit is rare-enough that staleness
+//     is a minor UX gap, not a correctness issue).
 //
 // Tab-tap routing (CONTEXT D-Defer — 4-tab + FAB nav, WIP placeholders for
 // non-Home tabs until Phase 27 lands real Savings / AI / Mgmt):
@@ -48,40 +48,13 @@ import {
   usePosterRouter,
 } from './common';
 import type { TabId } from '../componentsV10';
-import { Eyebrow, Mass } from '../componentsV10';
 import { OnboardingMount } from './Onboarding/OnboardingMount';
+import { AddSheet } from './AddSheet';
 import {
   AccountsListPlaceholder,
   PlanViewPlaceholder,
 } from './_placeholders';
 import styles from './V10MainShell.module.css';
-
-// ─────────────────── AddSheet placeholder ───────────────────
-//
-// Temporary content rendered inside PosterSheet until Plan 25-10 wires the
-// real Add Sheet (custom 3×4 numeric keypad + category picker + account
-// picker + save handler).
-
-interface AddSheetPlaceholderContentProps {
-  onClose: () => void;
-}
-
-function AddSheetPlaceholderContent({ onClose }: AddSheetPlaceholderContentProps) {
-  return (
-    <div className={styles.sheetPlaceholder} data-testid="add-sheet-placeholder">
-      <Eyebrow color="var(--poster-paper)">NEW ENTRY · WIP</Eyebrow>
-      <Mass italic size={36} style={{ color: 'var(--poster-paper)' }}>
-        AddSheet —
-      </Mass>
-      <div className={styles.sheetHint}>
-        WIP — Real AddSheet ships in Plan 25-10.
-      </div>
-      <button type="button" className={styles.closeBtn} onClick={onClose}>
-        × ЗАКРЫТЬ
-      </button>
-    </div>
-  );
-}
 
 // ─────────────────── ShellChrome ───────────────────
 //
@@ -157,7 +130,15 @@ export function V10MainShell() {
         onClose={closeSheet}
         backgroundColor="#0E0E0E"
       >
-        <AddSheetPlaceholderContent onClose={closeSheet} />
+        <AddSheet
+          onSubmitted={(_id) => {
+            // Plan 25-10: simply close the sheet — refetch deferred to 25-12
+            // polish (user can pop back to Home for fresh data; submit is
+            // rare-enough that staleness is a minor UX gap, not correctness).
+            setAddSheet(false);
+          }}
+          onClose={closeSheet}
+        />
       </PosterSheet>
     </>
   );

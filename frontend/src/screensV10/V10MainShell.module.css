@@ -1,5 +1,8 @@
-/* Phase 25-06: V10MainShell layout. Owns the root viewport sizing
+/* Phase 25-06 → 25-10: V10MainShell layout. Owns the root viewport sizing
    so PosterRouter content fills above BottomNavV10 (90px reserved).
+
+   Phase 25-10 removed the AddSheet placeholder styles — the real AddSheet
+   (screensV10/AddSheet) brings its own AddSheet.module.css.
 */
 
 .shellRoot {
@@ -22,35 +25,4 @@
   left: 0;
   right: 0;
   bottom: 0;
-}
-
-/* AddSheet placeholder content (replaced by real AddSheet in Plan 25-10). */
-
-.sheetPlaceholder {
-  padding: 56px 22px;
-  color: var(--poster-paper);
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-.sheetHint {
-  font-family: var(--poster-font-jet-brains-mono), ui-monospace, monospace;
-  font-size: 11px;
-  letter-spacing: 0.06em;
-  opacity: 0.6;
-  margin-top: 14px;
-}
-
-.closeBtn {
-  align-self: flex-start;
-  margin-top: 32px;
-  background: var(--poster-yellow);
-  color: var(--poster-ink);
-  border: none;
-  padding: 14px 22px;
-  font-family: var(--poster-font-archivo-black), 'Archivo Black', sans-serif;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  cursor: pointer;
 }

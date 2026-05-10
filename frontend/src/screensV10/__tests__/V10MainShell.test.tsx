@@ -1,4 +1,4 @@
-// Phase 25-06: V10MainShell — composes PosterRouterProvider (root=OnboardingMount)
+// Phase 25-06 → 25-10: V10MainShell — composes PosterRouterProvider (root=OnboardingMount)
 // + BottomNavV10 + AddSheet PosterSheet binding.
 //
 // Per Plan 25-06 final architecture decision (Task 2): the PosterRouter root
@@ -7,15 +7,12 @@
 // onboarded branch — but it lives inside V10MainShell's PosterRouterProvider
 // so usePosterRouter() inside HomeMount works.
 //
-// Tests mock OnboardingMount to a stub (so we don't have to mock /me too) and
-// focus on shell composition: BottomNav visibility, FAB → AddSheet open,
-// Escape → close, tab → push WIP placeholder, no Transactions tab (TXN-V10-06).
-//
-// vitest does NOT auto-cleanup (src/test/setup.ts only imports jest-dom).
-// We rely on explicit afterEach(cleanup) per Plan 25-02 SUMMARY note.
+// Plan 25-10 swap: the AddSheet PosterSheet content is now the REAL AddSheet
+// (real keypad + form + submit). Tests mock the v10 API leaves so the AddSheet
+// renders without network. The AddSheet placeholder content is gone.
 
-import { afterEach, describe, it, expect, vi } from 'vitest';
-import { render, fireEvent, cleanup, screen, within } from '@testing-library/react';
+import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
+import { render, fireEvent, cleanup, screen, within, act } from '@testing-library/react';
 
 // Mock OnboardingMount to a simple stub — V10MainShell uses it as PosterRouter root.
 vi.mock('../Onboarding/OnboardingMount', () => ({
@@ -24,9 +21,27 @@ vi.mock('../Onboarding/OnboardingMount', () => ({
   ),
 }));
 
+// Mock the v10 API leaves the real AddSheet uses on mount.
+vi.mock('../../api/v10', () => ({
+  listAccounts: vi.fn().mockResolvedValue([]),
+  listCategoriesV10: vi.fn().mockResolvedValue([]),
+  createActualV10: vi.fn(),
+}));
+
 import { V10MainShell } from '../V10MainShell';
 
 afterEach(cleanup);
+
+beforeEach(() => {
+  vi.clearAllMocks();
+});
+
+async function flushMicrotasks() {
+  await act(async () => {
+    await Promise.resolve();
+    await Promise.resolve();
+  });
+}
 
 describe('V10MainShell — composition', () => {
   it('renders the V10 shell wrapper with the router root mounted', () => {
@@ -63,37 +78,40 @@ describe('V10MainShell — composition', () => {
     }
   });
 
-  it('FAB tap opens AddSheet placeholder and hides BottomNav', () => {
+  it('FAB tap opens the real AddSheet and hides BottomNav', async () => {
     render(<V10MainShell />);
     fireEvent.click(
       screen.getByRole('button', { name: /Добавить транзакцию/ }),
     );
-    // Sheet content visible (placeholder copy).
-    expect(screen.getByText(/Plan 25-10/)).toBeInTheDocument();
+    await flushMicrotasks();
+    // Real AddSheet renders its NEW ENTRY eyebrow.
+    expect(screen.getByText(/NEW ENTRY/)).toBeInTheDocument();
     // BottomNav unmounted (BottomNavV10 returns null when isHidden=true).
     expect(screen.queryByRole('tab', { name: /ГЛАВНАЯ/ })).toBeNull();
   });
 
-  it('Escape key closes AddSheet and restores BottomNav', () => {
+  it('Escape key closes AddSheet and restores BottomNav', async () => {
     render(<V10MainShell />);
     fireEvent.click(
       screen.getByRole('button', { name: /Добавить транзакцию/ }),
     );
-    expect(screen.getByText(/Plan 25-10/)).toBeInTheDocument();
+    await flushMicrotasks();
+    expect(screen.getByText(/NEW ENTRY/)).toBeInTheDocument();
     fireEvent.keyDown(document, { key: 'Escape' });
-    expect(screen.queryByText(/Plan 25-10/)).toBeNull();
+    expect(screen.queryByText(/NEW ENTRY/)).toBeNull();
     expect(
       screen.getByRole('tab', { name: /ГЛАВНАЯ/ }),
     ).toBeInTheDocument();
   });
 
-  it('Close button inside sheet dismisses AddSheet', () => {
+  it('AddSheet × button (clean form) dismisses the sheet', async () => {
     render(<V10MainShell />);
     fireEvent.click(
       screen.getByRole('button', { name: /Добавить транзакцию/ }),
     );
-    fireEvent.click(screen.getByRole('button', { name: /ЗАКРЫТЬ/ }));
-    expect(screen.queryByText(/Plan 25-10/)).toBeNull();
+    await flushMicrotasks();
+    fireEvent.click(screen.getByRole('button', { name: /Закрыть форму/ }));
+    expect(screen.queryByText(/NEW ENTRY/)).toBeNull();
     expect(
       screen.getByRole('tab', { name: /ГЛАВНАЯ/ }),
     ).toBeInTheDocument();
