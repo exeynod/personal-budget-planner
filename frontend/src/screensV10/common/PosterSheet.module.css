@@ -1,0 +1,82 @@
+/* PosterSheet.module.css — web modal primitive symmetric to iOS PosterSheet.
+ * Backdrop opacity 0.45 (CONTEXT Area 3) + slide-up sheet panel anchored bottom.
+ * Drag-to-close threshold = 100px translation OR velocity > 800px/s.
+ *
+ * Animations:
+ *   - backdrop: fadein 0.2s ease-out
+ *   - sheet:    sheetIn 0.35s cubic-bezier(0.32, 0.72, 0, 1)  — matches iOS sheetEase
+ *
+ * Reduce-motion: animations are short fades only (T-25-02 inherits global rule).
+ */
+
+.backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 1000;
+  animation: posterSheetFade 0.2s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+  /* Reset default user-agent button styling — backdrop is keyboard-focusable
+     so users can dismiss with Enter/Space too (a11y). */
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+.sheet {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 1001;
+  max-height: 90vh;
+  background: var(--poster-paper, #f5efe8);
+  border-radius: 24px 24px 0 0;
+  box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.18);
+  animation: posterSheetIn 0.35s cubic-bezier(0.32, 0.72, 0, 1) both;
+  /* `transform` is overridden inline by drag handler when isDragging. */
+  display: flex;
+  flex-direction: column;
+  touch-action: none; /* drag handler manages scrolling on the sheet itself */
+}
+
+.handleWrap {
+  display: flex;
+  justify-content: center;
+  padding: 10px 0 6px;
+  /* Larger hit-target than visual handle for thumb ergonomics. */
+  cursor: grab;
+}
+
+.handle {
+  width: 40px;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(14, 14, 14, 0.18);
+}
+
+.body {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  /* Allow native vertical scrolling of body content despite parent
+     `touch-action: none` — handle component intercepts drag; body scrolls. */
+  touch-action: pan-y;
+}
+
+@keyframes posterSheetFade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes posterSheetIn {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .backdrop {
+    animation-duration: 0.15s !important;
+  }
+  .sheet {
+    animation: posterSheetFade 0.15s linear both !important;
+  }
+}

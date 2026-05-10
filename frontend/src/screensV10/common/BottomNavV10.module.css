@@ -1,0 +1,7 @@
+/* BottomNavV10.module.css — placeholder for future overrides on top of TabBar.
+ * TabBar already ships its own CSS module; this file exists for consistency
+ * and to host any V10-specific positioning overrides if needed (e.g. safe-area
+ * insets when used inside a PosterSheet stack).
+ *
+ * Currently empty intentionally — wrapper passes through to <TabBar>.
+ */
