@@ -66,6 +66,12 @@ frontend/test-results/
 frontend/tests/ui-audit-screenshots/
 
 # =====================================================================
+# Perf-report artifacts (Phase 28-04 POL-05)
+# =====================================================================
+.perf-build.log
+.perf-lighthouse.json
+
+# =====================================================================
 # Claude Code worktree metadata (managed by GSD agents)
 # =====================================================================
 .claude/worktrees/
