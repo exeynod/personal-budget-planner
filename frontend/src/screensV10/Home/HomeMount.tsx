@@ -42,6 +42,7 @@ import { CategoryDetailMount } from '../CategoryDetail';
 // Phase 26-04: real Plan editor replaces the prior WIP PlanViewPlaceholder.
 import { PlanMount } from '../Plan';
 import { HomeView } from './HomeView';
+import { useHomeColor } from './useHomeColor';
 import {
   computeCategoryAggregates,
   computeDailyPace,
@@ -71,6 +72,9 @@ export function HomeMount() {
   const router = usePosterRouter();
   const [state, setState] = useState<LoadState>({ status: 'loading' });
   const [reloadToken, setReloadToken] = useState(0);
+  // Phase 30-07 (DEBT-08): user's saved Home background color (default coral).
+  // Setter is wired up in SettingsMount; here we only read for rendering.
+  const [homeColor] = useHomeColor();
 
   useEffect(() => {
     let cancelled = false;
@@ -199,6 +203,7 @@ export function HomeMount() {
       onPlanTap={onPlanTap}
       onCategoryTap={onCategoryTap}
       onAllOperationsTap={onAllOperationsTap}
+      homeColor={homeColor}
     />
   );
 }

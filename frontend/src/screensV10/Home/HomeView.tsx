@@ -18,6 +18,7 @@ import type { CSSProperties } from 'react';
 import { BigFig, Eyebrow, Mass } from '../../componentsV10';
 import { formatRubles } from '../Onboarding/format';
 import type { CategoryAggregateRow } from './computeHomeData';
+import { homeColorCssValue, type HomeColor } from './useHomeColor';
 import styles from './HomeView.module.css';
 
 /** U+2212 minus sign (typographic). Used for the negative surplus amount. */
@@ -53,6 +54,13 @@ export interface HomeViewProps {
    * mounting keeps the cubicOut 900ms animation per HOME-V10-03.
    */
   bigFigAnimate?: boolean;
+
+  /**
+   * Phase 30-07 (DEBT-08): user-selected background color. When absent,
+   * falls back to `'coral'` — matches pre-DEBT-08 visual behaviour.
+   * HomeMount reads the value via `useHomeColor()` and passes it down.
+   */
+  homeColor?: HomeColor;
 }
 
 export function HomeView(props: HomeViewProps) {
@@ -68,7 +76,16 @@ export function HomeView(props: HomeViewProps) {
     onCategoryTap,
     onAllOperationsTap,
     bigFigAnimate = true,
+    homeColor = 'coral',
   } = props;
+
+  // Phase 30-07 (DEBT-08): expose user-selected background color via inline
+  // CSS-var override on the root. HomeView.module.css `.root` reads
+  // `background: var(--color-home, var(--poster-coral))` so the default
+  // coral keeps rendering whenever no preference is set.
+  const rootStyle: CSSProperties = {
+    ['--color-home' as keyof CSSProperties]: homeColorCssValue(homeColor),
+  } as CSSProperties;
 
   const surplusPositive = surplusCents >= 0;
   const surplusAbs = Math.abs(surplusCents);
@@ -81,7 +98,7 @@ export function HomeView(props: HomeViewProps) {
   const dailyPaceRubles = Math.floor(dailyPaceCents / 100);
 
   return (
-    <div className={styles.root}>
+    <div className={styles.root} style={rootStyle}>
       {/* ─────────── header row ─────────── */}
       <div className={styles.headerRow}>
         <Eyebrow color="var(--poster-paper)">{eyebrow}</Eyebrow>

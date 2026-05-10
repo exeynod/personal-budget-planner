@@ -130,3 +130,45 @@
   font-weight: 700;
   color: var(--poster-ink, #0E0E0E);
 }
+
+/* Phase 30-07 (DEBT-08): Home-color row — same layout as `.row` but rendered
+ * as `<button>` so tap is keyboard-accessible. `all: unset` strips the native
+ * button styles; we then re-declare the same column flexbox as `.row` via
+ * cascade. */
+.rowButton {
+  all: unset;
+  cursor: pointer;
+  /* Re-apply `.row` layout — `all: unset` would otherwise drop it. */
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border-top: 1px solid rgba(0, 0, 0, 0.12);
+  padding-top: 18px;
+}
+
+.homeColorPreview {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.homeColorSwatch {
+  width: 14px;
+  height: 14px;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  display: inline-block;
+}
+
+.homeColorLabel {
+  font-family: var(--poster-font-jet-brains-mono), ui-monospace, monospace;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  color: var(--poster-ink, #0E0E0E);
+  font-weight: 600;
+}
+
+.chevron {
+  opacity: 0.4;
+  font-size: 14px;
+  margin-left: 4px;
+}

@@ -15,6 +15,7 @@ import { getSettings, updateSettings } from '../../api/settings';
 import { getMeV10 } from '../../api/me';
 import type { SettingsRead, SettingsUpdatePayload } from '../../api/types';
 import { usePosterRouter } from '../common';
+import { useHomeColor } from '../Home/useHomeColor';
 import { SettingsView } from './SettingsView';
 
 const FALLBACK_CYCLE_DAY = 1;
@@ -26,6 +27,11 @@ export function SettingsMount() {
   const [aiCapCents, setAiCapCents] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Phase 30-07 (DEBT-08): Home background color preference + picker sheet
+  // open state. The hook persists to localStorage and broadcasts a CustomEvent
+  // so HomeMount instantly re-renders when user picks a new color.
+  const [homeColor, setHomeColor] = useHomeColor();
+  const [homeColorPickerOpen, setHomeColorPickerOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -102,6 +108,10 @@ export function SettingsMount() {
       onToggleAiCat={handleToggleAiCat}
       canPop={router.canPop}
       onBack={() => router.pop()}
+      homeColor={homeColor}
+      pickerOpen={homeColorPickerOpen}
+      onSelectHomeColor={setHomeColor}
+      onTogglePicker={setHomeColorPickerOpen}
     />
   );
 }

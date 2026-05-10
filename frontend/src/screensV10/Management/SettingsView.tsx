@@ -9,6 +9,12 @@
 // View is router-agnostic — all interactions / data passed via props.
 
 import { Eyebrow, Mass } from '../../componentsV10';
+import {
+  homeColorCssValue,
+  homeColorLabel,
+  type HomeColor,
+} from '../Home/useHomeColor';
+import { HomeColorPickerSheet } from './HomeColorPickerSheet';
 import styles from './SettingsView.module.css';
 
 export interface SettingsViewProps {
@@ -23,6 +29,11 @@ export interface SettingsViewProps {
   onToggleAiCat: (enabled: boolean) => void;
   canPop: boolean;
   onBack: () => void;
+  // Phase 30-07 (DEBT-08): Home background color picker.
+  homeColor: HomeColor;
+  pickerOpen: boolean;
+  onSelectHomeColor: (c: HomeColor) => void;
+  onTogglePicker: (open: boolean) => void;
 }
 
 const CYCLE_MIN = 1;
@@ -178,7 +189,37 @@ export function SettingsView(props: SettingsViewProps) {
             {capRubles.toLocaleString('ru-RU')} ₽
           </div>
         </div>
+
+        {/* Row 5: Phase 30-07 (DEBT-08) — Home background color picker. */}
+        <button
+          type="button"
+          className={`${styles.row} ${styles.rowButton}`}
+          onClick={() => props.onTogglePicker(true)}
+          data-testid="home-color-row"
+        >
+          <Eyebrow color="var(--poster-ink, #0E0E0E)">Цвет Home</Eyebrow>
+          <div className={styles.homeColorPreview}>
+            <span
+              className={styles.homeColorSwatch}
+              style={{ background: homeColorCssValue(props.homeColor) }}
+              aria-hidden
+            />
+            <span className={styles.homeColorLabel}>
+              {homeColorLabel(props.homeColor)}
+            </span>
+            <span className={styles.chevron} aria-hidden>
+              →
+            </span>
+          </div>
+        </button>
       </div>
+
+      <HomeColorPickerSheet
+        isOpen={props.pickerOpen}
+        current={props.homeColor}
+        onSelect={props.onSelectHomeColor}
+        onClose={() => props.onTogglePicker(false)}
+      />
     </div>
   );
 }

@@ -10,7 +10,11 @@
 .root {
   position: absolute;
   inset: 0;
-  background: var(--poster-coral);
+  /* Phase 30-07 (DEBT-08): `--color-home` is an inline CSS-var pushed by
+   * HomeView from `homeColorCssValue(homeColor)`. Fallback to coral keeps the
+   * default rendering identical to pre-DEBT-08 behaviour when no user
+   * preference is set. */
+  background: var(--color-home, var(--poster-coral));
   color: var(--poster-paper);
   padding: 56px 22px 90px;
   overflow: auto;

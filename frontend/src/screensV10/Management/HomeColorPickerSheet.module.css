@@ -1,0 +1,51 @@
+/* Phase 30-07 (DEBT-08): HomeColorPickerSheet styles. */
+
+.sheetBody {
+  padding: 22px 18px 28px;
+  color: var(--poster-ink, #0E0E0E);
+}
+
+.title {
+  font-family: var(--poster-font-jet-brains-mono), ui-monospace, monospace;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  opacity: 0.6;
+  font-weight: 600;
+  margin-bottom: 18px;
+  text-transform: uppercase;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.swatch {
+  position: relative;
+  appearance: none;
+  border: 2px solid transparent;
+  border-radius: 0;
+  min-height: 86px;
+  cursor: pointer;
+  display: flex;
+  align-items: flex-end;
+  padding: 10px;
+  font-family: var(--poster-font-jet-brains-mono), ui-monospace, monospace;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  color: var(--poster-paper);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+/* The active swatch gets a paper border + outer coral ring so the indicator
+ * is legible regardless of swatch fill (cream + paper border alone is too
+ * low-contrast; coral ring is the universal "selected" cue across the app). */
+.swatchActive {
+  border-color: var(--poster-paper);
+  box-shadow: 0 0 0 2px var(--poster-coral);
+}
+
+.swatchLabel {
+  font-weight: 600;
+}
