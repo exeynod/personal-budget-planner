@@ -184,8 +184,15 @@ def upgrade() -> None:
         base = _transliterate(row.name)
         key = (row.user_id, base)
         seen[key] = seen.get(key, 0) + 1
-        code = base if seen[key] == 1 else f"{base}-{seen[key]}"
-        # Truncate to 40 chars (same as column type) just in case.
+        # WR-12 (Phase 22 review): truncate the BASE (leave room for "-NN")
+        # BEFORE appending the suffix, so a 40-char base + "-2" won't lose
+        # the suffix to the column-length cap. ``-99`` reserves 3 chars,
+        # so the base is capped at 37 to fit even a 2-digit collision counter
+        # plus the dash.
+        base_code = base[:37]
+        code = base_code if seen[key] == 1 else f"{base_code}-{seen[key]}"
+        # Final truncation is now a no-op for any seen[key] < 1000 — kept
+        # as a defensive last resort for pathological collision counts.
         code = code[:40]
         conn.execute(
             sa.text("UPDATE category SET code = :code WHERE id = :id"),
