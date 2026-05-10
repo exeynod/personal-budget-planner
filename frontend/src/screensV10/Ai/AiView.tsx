@@ -174,9 +174,9 @@ export function AiView(props: AiViewProps) {
                 aria-label="typing"
                 data-testid="typing"
               >
-                <span className={styles.dot} />
-                <span className={styles.dot} />
-                <span className={styles.dot} />
+                <span className={`${styles.dot} poster-dot`} />
+                <span className={`${styles.dot} poster-dot`} style={{ animationDelay: '0.15s' }} />
+                <span className={`${styles.dot} poster-dot`} style={{ animationDelay: '0.3s' }} />
               </li>
             )}
             <li ref={bottomRef} className={styles.bottomAnchor} aria-hidden />

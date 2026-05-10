@@ -89,13 +89,13 @@ export function HomeView(props: HomeViewProps) {
       </div>
 
       {/* ─────────── hero block ─────────── */}
-      <div className={styles.heroHeadline}>
+      <div className={`${styles.heroHeadline} poster-rise-in`}>
         <Mass italic size={28} className={styles.heroHeadlineMass}>
           Дневной темп —
         </Mass>
       </div>
 
-      <div className={styles.heroBigFig}>
+      <div className={`${styles.heroBigFig} poster-rise-in`} style={{ animationDelay: '0.06s' }}>
         <BigFig
           sup="₽"
           color="var(--poster-paper)"

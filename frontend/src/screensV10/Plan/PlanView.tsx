@@ -168,10 +168,11 @@ export function PlanView(props: PlanViewProps) {
           Нет регулярных платежей в этом месяце.
         </div>
       ) : (
-        regulars.map((r) => (
+        regulars.map((r, i) => (
           <div
             key={r.id}
-            className={styles.regularRow}
+            className={`${styles.regularRow} poster-row-in`}
+            style={{ animationDelay: `${(0.32 + i * 0.09).toFixed(3)}s` }}
             data-testid={`regular-row-${r.id}`}
           >
             <div className={styles.regularName}>{r.name.toUpperCase()}</div>
@@ -206,7 +207,7 @@ export function PlanView(props: PlanViewProps) {
           КАТЕГОРИИ · {categories.length}
         </Eyebrow>
       </div>
-      {categories.map((c) => {
+      {categories.map((c, i) => {
         const planCents = planByCat.get(c.id) ?? c.plan_cents ?? 0;
         const focused = focusCategoryId === c.id;
         const rollover = c.rollover ?? 'misc';
@@ -217,7 +218,8 @@ export function PlanView(props: PlanViewProps) {
           <div
             key={c.id}
             ref={focused ? focusRowRef : undefined}
-            className={`${styles.catRow} ${focused ? styles.focused : ''}`}
+            className={`${styles.catRow} ${focused ? styles.focused : ''} poster-row-in`}
+            style={{ animationDelay: `${(0.4 + i * 0.06).toFixed(3)}s` }}
             data-testid={`cat-row-${c.id}`}
           >
             <div className={styles.catName}>{c.name.toUpperCase()}</div>
