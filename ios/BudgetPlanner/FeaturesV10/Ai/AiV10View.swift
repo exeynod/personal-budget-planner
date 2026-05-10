@@ -36,8 +36,12 @@ struct AiV10View: View {
     @Environment(\.posterRouter) private var router
 
     var body: some View {
+        // Phase 29-04 §8 AI iOS-8 BLOCKER — DESIGN-SYSTEM §1 palette rule
+        // «AI → cream / ink / red»: background flipped from black → cream,
+        // foreground tokens paper → ink across the view. Matches the web
+        // equivalent fix in AiView.module.css.
         ZStack {
-            PosterTokens.Color.black.ignoresSafeArea()
+            PosterTokens.Color.cream.ignoresSafeArea()
             content
         }
         .task { await model.loadObservation() }
@@ -64,7 +68,9 @@ struct AiV10View: View {
             composer
                 .padding(.horizontal, PosterTokens.Space.s22)
                 .padding(.vertical, PosterTokens.Space.s12)
-                .background(PosterTokens.Color.black)
+                // Phase 29-04 §8 BLOCKER #5 — composer plate is ink-bg
+                // (matches the web composer with bg var(--poster-ink)).
+                .background(PosterTokens.Color.ink)
         }
     }
 
@@ -77,7 +83,7 @@ struct AiV10View: View {
                     Text("← НАЗАД")
                         .font(.posterMono(size: PosterTokens.FontSize.eye, weight: .semibold))
                         .tracking(0.14 * PosterTokens.FontSize.eye)
-                        .foregroundColor(PosterTokens.Color.paper)
+                        .foregroundColor(PosterTokens.Color.ink)
                         .opacity(0.7)
                 }
                 .buttonStyle(.plain)
@@ -115,7 +121,7 @@ struct AiV10View: View {
         switch model.status {
         case .idle, .loading where model.observation == nil:
             HStack(spacing: 10) {
-                ProgressView().controlSize(.small).tint(PosterTokens.Color.paper)
+                ProgressView().controlSize(.small).tint(PosterTokens.Color.ink)
                 Eyebrow("…", opacity: 0.6)
             }
         case .error:
@@ -131,12 +137,12 @@ struct AiV10View: View {
             } else if let text = model.observation {
                 Text(text)
                     .font(.custom(PosterTokens.Font.ptSerifItalic, size: 36).italic())
-                    .foregroundColor(PosterTokens.Color.paper)
+                    .foregroundColor(PosterTokens.Color.ink)
                     .lineSpacing(2)
                     .fixedSize(horizontal: false, vertical: true)
             } else {
                 HStack(spacing: 10) {
-                    ProgressView().controlSize(.small).tint(PosterTokens.Color.paper)
+                    ProgressView().controlSize(.small).tint(PosterTokens.Color.ink)
                     Eyebrow("…", opacity: 0.6)
                 }
             }
@@ -150,7 +156,7 @@ struct AiV10View: View {
             HStack(alignment: .firstTextBaseline) {
                 Text(chip)
                     .font(.custom(PosterTokens.Font.ptSerifItalic, size: 18).italic())
-                    .foregroundColor(PosterTokens.Color.paper)
+                    .foregroundColor(PosterTokens.Color.ink)
                     .multilineTextAlignment(.leading)
                 Spacer(minLength: 8)
                 Text("→")
@@ -161,7 +167,7 @@ struct AiV10View: View {
             .overlay(
                 Rectangle()
                     .frame(height: 1)
-                    .foregroundColor(PosterTokens.Color.paper.opacity(0.18)),
+                    .foregroundColor(PosterTokens.Color.ink.opacity(0.18)),
                 alignment: .bottom
             )
         }
@@ -207,11 +213,14 @@ struct AiV10View: View {
     private func bubble(_ msg: AiV10ViewModel.Message) -> some View {
         switch msg.role {
         case .user:
+            // Phase 29-04 §8 BLOCKER #4 — user bubble retains ink-on-cream
+            // contrast: ink plate background with cream text (mirrors web's
+            // .msgUser background: var(--poster-ink); color: var(--poster-paper)).
             HStack {
                 Spacer(minLength: 40)
                 Text(msg.text)
                     .font(.posterMono(size: PosterTokens.FontSize.body))
-                    .foregroundColor(PosterTokens.Color.paper)
+                    .foregroundColor(PosterTokens.Color.cream)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 10)
                     .background(PosterTokens.Color.ink)
@@ -221,12 +230,12 @@ struct AiV10View: View {
             HStack {
                 Text(msg.text)
                     .font(.custom(PosterTokens.Font.ptSerifItalic, size: 16).italic())
-                    .foregroundColor(PosterTokens.Color.paper)
+                    .foregroundColor(PosterTokens.Color.ink)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 10)
                     .overlay(
                         Rectangle()
-                            .stroke(PosterTokens.Color.paper.opacity(0.32), lineWidth: 1)
+                            .stroke(PosterTokens.Color.ink.opacity(0.32), lineWidth: 1)
                     )
                     .frame(maxWidth: 340, alignment: .leading)
                 Spacer(minLength: 24)
@@ -255,13 +264,18 @@ struct AiV10View: View {
                 text: $model.input,
                 axis: .vertical
             )
+            // Phase 29-04 §8 BLOCKER #5 — composer input is now cream-on-ink
+            // (transparent over the parent ink composer plate) to match the
+            // web .composerInput restyle. Background opacity dropped to 0
+            // so the input shares the plate surface (single-layer per
+            // prototype line 486-501).
             .lineLimit(1...3)
             .font(.posterMono(size: PosterTokens.FontSize.body))
-            .foregroundColor(PosterTokens.Color.paper)
+            .foregroundColor(PosterTokens.Color.cream)
             .tint(PosterTokens.Color.yellow)
             .padding(.horizontal, 12)
             .padding(.vertical, 10)
-            .background(PosterTokens.Color.paper.opacity(0.08))
+            .background(Color.clear)
             .submitLabel(.send)
             .onSubmit {
                 if canSend { Task { await model.send(model.input) } }
@@ -289,7 +303,7 @@ private struct TypingDot: View {
 
     var body: some View {
         Circle()
-            .fill(PosterTokens.Color.paper.opacity(on ? 0.85 : 0.25))
+            .fill(PosterTokens.Color.ink.opacity(on ? 0.85 : 0.25))
             .frame(width: 6, height: 6)
             .onAppear {
                 guard !reduce else { return }

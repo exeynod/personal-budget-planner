@@ -107,8 +107,8 @@ struct SubscriptionsV10View: View {
     private var loadingState: some View {
         VStack(spacing: PosterTokens.Space.s18) {
             Spacer()
-            ProgressView().controlSize(.large).tint(PosterTokens.Color.ink)
-            Eyebrow("ЗАГРУЗКА", opacity: 0.6, color: PosterTokens.Color.ink)
+            ProgressView().controlSize(.large).tint(PosterTokens.Color.paper)
+            Eyebrow("ЗАГРУЗКА", opacity: 0.6, color: PosterTokens.Color.paper)
             Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -117,10 +117,10 @@ struct SubscriptionsV10View: View {
     private func errorState(_ msg: String) -> some View {
         VStack(alignment: .leading, spacing: PosterTokens.Space.s18) {
             Spacer()
-            Eyebrow("ОШИБКА", opacity: 0.65, color: PosterTokens.Color.ink)
+            Eyebrow("ОШИБКА", opacity: 0.65, color: PosterTokens.Color.paper)
             Text(msg)
                 .font(.posterMassItalic(size: 28))
-                .foregroundColor(PosterTokens.Color.ink)
+                .foregroundColor(PosterTokens.Color.paper)
             Button {
                 Task { await model.load() }
             } label: {
@@ -130,7 +130,7 @@ struct SubscriptionsV10View: View {
                     .foregroundColor(PosterTokens.Color.coral)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 16)
-                    .background(PosterTokens.Color.ink)
+                    .background(PosterTokens.Color.paper)
             }
             .buttonStyle(.plain)
             Spacer()
@@ -144,17 +144,17 @@ struct SubscriptionsV10View: View {
             VStack(alignment: .leading, spacing: PosterTokens.Space.s14) {
                 headerRow
                 Mass("Подписки.", italic: true, size: 70)
-                    .foregroundColor(PosterTokens.Color.ink)
+                    .foregroundColor(PosterTokens.Color.paper)
                 BigFig(
                     value: model.monthlyTotal / 100,
                     sup: "₽/мес",
                     size: 86,
-                    color: PosterTokens.Color.ink
+                    color: PosterTokens.Color.paper
                 )
                 Eyebrow(
                     "\(model.activeCount) АКТИВНЫХ · \(RubleFormatter.format(cents: model.yearlyTotalAnnualized)) ₽ В ГОД",
                     opacity: 0.7,
-                    color: PosterTokens.Color.ink
+                    color: PosterTokens.Color.paper
                 )
                 .padding(.bottom, PosterTokens.Space.s18)
 
@@ -174,12 +174,12 @@ struct SubscriptionsV10View: View {
                 } label: {
                     Text("← НАЗАД")
                         .font(.posterMono(size: 11, weight: .semibold))
-                        .foregroundColor(PosterTokens.Color.ink)
+                        .foregroundColor(PosterTokens.Color.paper)
                 }
                 .buttonStyle(.plain)
             }
             Spacer()
-            Eyebrow("SUBSCRIPTIONS", opacity: 0.7, color: PosterTokens.Color.ink)
+            Eyebrow("SUBSCRIPTIONS", opacity: 0.7, color: PosterTokens.Color.paper)
         }
     }
 
@@ -189,14 +189,14 @@ struct SubscriptionsV10View: View {
         if sorted.isEmpty {
             Text("Нет подписок")
                 .font(.posterMassItalic(size: 22))
-                .foregroundColor(PosterTokens.Color.ink.opacity(0.6))
+                .foregroundColor(PosterTokens.Color.paper.opacity(0.6))
                 .padding(.top, PosterTokens.Space.s24)
         } else {
             VStack(spacing: 0) {
                 ForEach(sorted) { sub in
                     subRow(sub)
                     Rectangle()
-                        .fill(PosterTokens.Color.ink.opacity(0.18))
+                        .fill(PosterTokens.Color.paper.opacity(0.18))
                         .frame(height: 1)
                 }
             }
@@ -211,23 +211,23 @@ struct SubscriptionsV10View: View {
                     .font(.custom(PosterTokens.Font.archivoBlack, size: 14))
                     .foregroundColor(
                         sub.isActive
-                            ? PosterTokens.Color.ink
-                            : PosterTokens.Color.ink.opacity(0.4)
+                            ? PosterTokens.Color.paper
+                            : PosterTokens.Color.paper.opacity(0.4)
                     )
                 Text(SubscriptionsData.formatCadenceRu(sub))
                     .font(.posterMono(size: 11))
-                    .foregroundColor(PosterTokens.Color.ink.opacity(0.6))
+                    .foregroundColor(PosterTokens.Color.paper.opacity(0.6))
             }
             Spacer()
             Text("\(RubleFormatter.format(cents: sub.amountCents)) ₽")
                 .font(.posterMono(size: 13, weight: .semibold))
-                .foregroundColor(PosterTokens.Color.ink)
+                .foregroundColor(PosterTokens.Color.paper)
             Button {
                 model.menuSub = sub
             } label: {
                 Text("···")
                     .font(.custom(PosterTokens.Font.archivoBlack, size: 18))
-                    .foregroundColor(PosterTokens.Color.ink)
+                    .foregroundColor(PosterTokens.Color.paper)
                     .frame(width: 36, height: 36)
                     .contentShape(Rectangle())
             }
