@@ -104,6 +104,40 @@
   color: var(--poster-paper);
 }
 
+/* ───── swipe container (Phase 30-05 DEBT-05) ─────
+ * Horizontal scroll-snap wrapper around each row + its trailing delete
+ * action. Two snap points — start (row visible) / end (action exposed).
+ * Touch users get native swipe-left behaviour via overflow-x: auto; desktop
+ * users see only the row (action stays off-screen by default) and trigger
+ * delete via the right-click context-menu fallback. */
+.swipeContainer {
+  position: relative;
+  display: flex;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  /* Allow horizontal pan; let the page handle vertical scroll. */
+  touch-action: pan-y pan-x;
+  /* Hide native scrollbar — the action plate itself is the visual affordance. */
+  scrollbar-width: none;
+  /* Border-top moves from the row to the container so it spans the full
+   * width even when the row scrolls. */
+  border-top: 1px solid rgba(255, 246, 232, 0.2);
+}
+.swipeContainer::-webkit-scrollbar {
+  display: none;
+}
+
+/* The visible row claims 100% of the container width and snaps to start. */
+.swipeContainer > .row {
+  flex: 0 0 100%;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+  border-top: none; /* moved to .swipeContainer above */
+}
+
 /* ───── row ───── */
 .row {
   padding: 10px 0;
@@ -207,4 +241,76 @@
   opacity: 0.6;
   color: var(--poster-paper);
   text-align: center;
+}
+
+/* ───── swipe action (Phase 30-05 DEBT-05) ─────
+ * Red destructive plate revealed by swipe-left (touch). 80px wide, full
+ * row height, snap-aligned to end so a partial swipe still settles cleanly.
+ * Typography: Manrope 13px UPPERCASE per plan §4. */
+.swipeAction {
+  flex: 0 0 80px;
+  scroll-snap-align: end;
+  scroll-snap-stop: always;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--poster-red);
+  color: var(--poster-paper);
+  font-family: var(--poster-font-manrope), system-ui, sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  /* Tap area extends across the plate; no inset margin. */
+}
+.swipeAction:active {
+  filter: brightness(0.9);
+}
+
+/* ───── context-menu overlay (desktop right-click fallback) ─────
+ * Full-screen invisible backdrop that captures clicks-outside to close
+ * the menu; the menu itself is centred on the trigger area. Mirrors the
+ * minimal style of the bottom-sheets used elsewhere — no shadow stack. */
+.contextMenuOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.contextMenu {
+  background: var(--poster-paper);
+  color: var(--poster-cobalt);
+  min-width: 180px;
+  display: flex;
+  flex-direction: column;
+  font-family: var(--poster-font-manrope), system-ui, sans-serif;
+  border-radius: 0;
+  overflow: hidden;
+}
+.contextMenuItem {
+  background: transparent;
+  border: none;
+  padding: 14px 18px;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  color: var(--poster-cobalt);
+  border-bottom: 1px solid rgba(0, 50, 130, 0.12);
+}
+.contextMenuItem:last-child {
+  border-bottom: none;
+}
+.contextMenuItem:active {
+  background: rgba(0, 50, 130, 0.08);
+}
+.contextMenuItemDanger {
+  color: var(--poster-red);
 }

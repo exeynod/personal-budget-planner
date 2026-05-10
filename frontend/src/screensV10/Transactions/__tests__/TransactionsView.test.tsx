@@ -255,3 +255,99 @@ describe('TransactionsView — empty state', () => {
     expect(getByText(/Реестр пуст/)).toBeInTheDocument();
   });
 });
+
+// ─────────── Phase 30-05 DEBT-05: swipe-left delete + context-menu fallback ───────────
+
+describe('TransactionsView — swipe-left delete (touch)', () => {
+  it('wraps each row in a .swipeContainer', () => {
+    const { container, tx1, tx2, tx3 } = makeProps();
+    for (const id of [tx1.id, tx2.id, tx3.id]) {
+      expect(
+        container.querySelector(`[data-testid="tx-swipe-${id}"]`),
+      ).not.toBeNull();
+    }
+  });
+
+  it('renders a «УДАЛИТЬ» action per row', () => {
+    const { container, tx1 } = makeProps();
+    const action = container.querySelector(
+      `[data-testid="tx-swipe-action-${tx1.id}"]`,
+    );
+    expect(action).not.toBeNull();
+    expect(action?.textContent).toMatch(/УДАЛИТЬ/);
+  });
+
+  it('clicking the «УДАЛИТЬ» action invokes onRowDelete and NOT onRowTap', () => {
+    const { container, onRowDelete, onRowTap, tx1 } = makeProps();
+    const action = container.querySelector(
+      `[data-testid="tx-swipe-action-${tx1.id}"]`,
+    );
+    expect(action).not.toBeNull();
+    fireEvent.click(action!);
+    expect(onRowDelete).toHaveBeenCalledTimes(1);
+    expect(onRowDelete).toHaveBeenCalledWith(tx1);
+    expect(onRowTap).not.toHaveBeenCalled();
+  });
+});
+
+describe('TransactionsView — right-click context-menu (desktop fallback)', () => {
+  it('right-click on a row opens the context-menu overlay', () => {
+    const { container, tx1 } = makeProps();
+    // Menu hidden initially.
+    expect(
+      container.querySelector(`[data-testid="tx-context-menu-${tx1.id}"]`),
+    ).toBeNull();
+    const row = container.querySelector(`[data-testid="tx-row-${tx1.id}"]`);
+    fireEvent.contextMenu(row!);
+    expect(
+      container.querySelector(`[data-testid="tx-context-menu-${tx1.id}"]`),
+    ).not.toBeNull();
+  });
+
+  it('clicking «Удалить» in the context-menu calls onRowDelete with the tx', () => {
+    const { container, onRowDelete, onRowTap, tx1 } = makeProps();
+    fireEvent.contextMenu(
+      container.querySelector(`[data-testid="tx-row-${tx1.id}"]`)!,
+    );
+    fireEvent.click(
+      container.querySelector(`[data-testid="tx-context-menu-delete-${tx1.id}"]`)!,
+    );
+    expect(onRowDelete).toHaveBeenCalledWith(tx1);
+    // The wrapping row's click handler must not also fire onRowTap.
+    expect(onRowTap).not.toHaveBeenCalled();
+    // Menu closes after the action.
+    expect(
+      container.querySelector(`[data-testid="tx-context-menu-${tx1.id}"]`),
+    ).toBeNull();
+  });
+
+  it('clicking «Отмена» closes the menu without calling onRowDelete', () => {
+    const { container, onRowDelete, tx1 } = makeProps();
+    fireEvent.contextMenu(
+      container.querySelector(`[data-testid="tx-row-${tx1.id}"]`)!,
+    );
+    fireEvent.click(
+      container.querySelector(`[data-testid="tx-context-menu-cancel-${tx1.id}"]`)!,
+    );
+    expect(onRowDelete).not.toHaveBeenCalled();
+    expect(
+      container.querySelector(`[data-testid="tx-context-menu-${tx1.id}"]`),
+    ).toBeNull();
+  });
+
+  it('clicking the overlay backdrop closes the menu without deleting', () => {
+    const { container, onRowDelete, tx1 } = makeProps();
+    fireEvent.contextMenu(
+      container.querySelector(`[data-testid="tx-row-${tx1.id}"]`)!,
+    );
+    const overlay = container.querySelector(
+      `[data-testid="tx-context-menu-${tx1.id}"]`,
+    );
+    expect(overlay).not.toBeNull();
+    fireEvent.click(overlay!);
+    expect(onRowDelete).not.toHaveBeenCalled();
+    expect(
+      container.querySelector(`[data-testid="tx-context-menu-${tx1.id}"]`),
+    ).toBeNull();
+  });
+});

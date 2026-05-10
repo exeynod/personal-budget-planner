@@ -7,8 +7,10 @@
 //   4. Render <TransactionsView> wired to:
 //      - onChipChange: local React state setChip
 //      - onRowTap: open edit PosterSheet (stub — Phase 26 retrofit per CONTEXT D-Defer)
-//      - onRowDelete: window.confirm-gated delete (T-25-08-02; gate is in View) →
-//                     deleteActual(tx.id) → reload
+//      - onRowDelete: View-gated delete — swipe-left (touch) or right-click
+//                     context-menu (desktop) is the intent gate (T-25-08-02
+//                     mitigation, Phase 30-05 DEBT-05). Mount just fires
+//                     deleteActual(tx.id) → reload; errors → alert toast.
 //      - onBack: router.pop()
 //   5. Loading / error / empty are sub-views (cobalt-tinted to match the screen).
 //
@@ -118,7 +120,7 @@ export function TransactionsMount() {
   const handleChipChange = useCallback((c: TxFilterChip) => setChip(c), []);
   const handleRowTap = useCallback((tx: ActualV10Read) => setEditingTx(tx), []);
   const handleRowDelete = useCallback(async (tx: ActualV10Read) => {
-    // View has already gated via window.confirm (T-25-08-02); we just fire the DELETE.
+    // View already gates intent (swipe / context-menu) — fire the DELETE directly.
     try {
       await deleteActual(tx.id);
       setReloadToken((t) => t + 1);

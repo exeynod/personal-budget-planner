@@ -12,12 +12,20 @@
 //              sub-line · amount (mono, U+2212 for negatives).
 //       - Stagger via `.poster-row-in` + inline animationDelay.
 //   - Spec-tags: kind=roundup → yellow «↻ ОКРУГЛ.»; kind=deposit → paper «→ КОПИЛКА».
-//   - Row tap → onRowTap(tx); browser context-menu (right-click) → onRowDelete after confirm.
+//   - Row tap → onRowTap(tx); swipe-left → reveals red «УДАЛИТЬ» action (touch);
+//     desktop right-click → custom context-menu overlay with «Удалить» / «Отмена».
 //   - Empty state when dayGroups.length === 0.
+//
+// Phase 30-05 (DEBT-05): each row is now wrapped in a `.swipeContainer` —
+// a horizontally-scrollable flex container with CSS scroll-snap, exposing
+// a fixed 80px red action plate to the right of the row. Touch swipe-left
+// snaps the action into view; tapping the action calls onRowDelete (no
+// confirm — swipe is the intent gate, mirroring iOS swipeActions). Desktop
+// users with no touch get the right-click context menu fallback.
 //
 // All click handlers are passed in as props — TransactionsView is router-agnostic.
 
-import type { CSSProperties } from 'react';
+import { useState, type CSSProperties } from 'react';
 import { Chip, Eyebrow, Mass } from '../../componentsV10';
 import { formatRubles } from '../Onboarding/format';
 import { formatTimeHM } from '../common/format';
@@ -54,8 +62,11 @@ export interface TransactionsViewProps {
   /** Row tap → opens edit sheet. */
   onRowTap: (tx: ActualV10Read) => void;
   /**
-   * Row context-menu (right-click) → confirms then deletes.
-   * View invokes `window.confirm(...)` then calls `onRowDelete(tx)` only on confirm.
+   * Row delete handler. Triggered by:
+   *   - Touch: swipe-left → tap revealed «УДАЛИТЬ» action (no extra confirm —
+   *     the swipe gesture is the intent gate, parity with iOS swipeActions).
+   *   - Desktop: right-click → context-menu «Удалить».
+   * Caller (Mount) is responsible for the actual DELETE API call + error toast.
    */
   onRowDelete: (tx: ActualV10Read) => void;
   /** Top-left ← НАЗАД button. */
@@ -164,83 +175,179 @@ export function TransactionsView(props: TransactionsViewProps) {
           {group.rows.map((tx, rowIdx) => {
             const cat = catById.get(tx.category_id);
             const acc = tx.account_id != null ? accById.get(tx.account_id) : undefined;
-            const tag = tagFor(tx);
             // Stagger animation delay; mirrors HomeView pattern.
             const rowDelay = `${(0.07 + dayGroupIdx * 0.07 + rowIdx * 0.045).toFixed(3)}s`;
-            const rowStyle: CSSProperties = { animationDelay: rowDelay };
-
-            // Sub-line text: «{cat.name} · {BANK} {MASK}» — uppercase BANK + MASK
-            // per CONTEXT 25-08 §truth (TXN-V10-04).
-            const catName = cat?.name ?? '—';
-            let accountTxt = '';
-            if (acc) {
-              const bank = (acc.bank ?? '').toUpperCase();
-              const mask = acc.mask ? ` ${acc.mask}` : '';
-              accountTxt = ` · ${bank}${mask}`;
-            }
-            const subLine = `${catName}${accountTxt}`;
-
-            // Time mono: from created_at (parsed local).
-            const time = formatTimeHM(new Date(tx.created_at));
-
-            // Amount sign drives colour (positive = yellow per CONTEXT — earned, kept, or deposited).
-            const amountStr = formatTxAmount(tx.amount_cents);
-            const amountClass =
-              tx.amount_cents > 0 ? styles.amountPositive : styles.amountNegative;
-
             return (
-              <div
+              <TxRow
                 key={tx.id}
-                data-testid={`tx-row-${tx.id}`}
-                className={`${styles.row} poster-row-in`}
-                style={rowStyle}
-                onClick={() => onRowTap(tx)}
-                onContextMenu={(e) => {
-                  e.preventDefault();
-                  // T-25-08-02 mitigation — confirm gate before delete fires.
-                  if (typeof window !== 'undefined' && window.confirm('Удалить операцию?')) {
-                    onRowDelete(tx);
-                  }
-                }}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') onRowTap(tx);
-                }}
-              >
-                <div className={styles.rowTime}>{time}</div>
-                <div className={styles.rowMid}>
-                  <div className={styles.rowDescriptionLine}>
-                    <span className={styles.rowDescription}>
-                      {tx.description ?? catName}
-                    </span>
-                    {tag === 'roundup' && (
-                      <span
-                        className={`${styles.tag} ${styles.tagRoundup}`}
-                        data-testid={`tx-tag-roundup-${tx.id}`}
-                      >
-                        ↻ ОКРУГЛ.
-                      </span>
-                    )}
-                    {tag === 'deposit' && (
-                      <span
-                        className={`${styles.tag} ${styles.tagDeposit}`}
-                        data-testid={`tx-tag-deposit-${tx.id}`}
-                      >
-                        → КОПИЛКА
-                      </span>
-                    )}
-                  </div>
-                  <div className={styles.rowSubLine}>{subLine}</div>
-                </div>
-                <div className={`${styles.rowAmount} ${amountClass}`}>
-                  {amountStr}
-                </div>
-              </div>
+                tx={tx}
+                cat={cat}
+                acc={acc}
+                animationDelay={rowDelay}
+                onRowTap={onRowTap}
+                onRowDelete={onRowDelete}
+              />
             );
           })}
         </div>
       ))}
+    </div>
+  );
+}
+
+// ─────────────────── TxRow (swipe-able row sub-component) ───────────────────
+//
+// Phase 30-05: each row owns a small piece of UI state (context-menu open
+// position for desktop right-click). Touch swipe-left is handled purely by
+// CSS scroll-snap on `.swipeContainer` — no JS required for the gesture.
+// Tapping the revealed «УДАЛИТЬ» action fires `onRowDelete` immediately
+// (swipe is the intent gate, parity with iOS swipeActions where users do
+// NOT see an additional confirm dialog after a destructive swipe).
+
+interface TxRowProps {
+  tx: ActualV10Read;
+  cat: CategoryV10 | undefined;
+  acc: AccountResponse | undefined;
+  animationDelay: string;
+  onRowTap: (tx: ActualV10Read) => void;
+  onRowDelete: (tx: ActualV10Read) => void;
+}
+
+function TxRow({ tx, cat, acc, animationDelay, onRowTap, onRowDelete }: TxRowProps) {
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  const tag = tagFor(tx);
+  const rowStyle: CSSProperties = { animationDelay };
+
+  // Sub-line text: «{cat.name} · {BANK} {MASK}» — uppercase BANK + MASK
+  // per CONTEXT 25-08 §truth (TXN-V10-04).
+  const catName = cat?.name ?? '—';
+  let accountTxt = '';
+  if (acc) {
+    const bank = (acc.bank ?? '').toUpperCase();
+    const mask = acc.mask ? ` ${acc.mask}` : '';
+    accountTxt = ` · ${bank}${mask}`;
+  }
+  const subLine = `${catName}${accountTxt}`;
+
+  // Time mono: from created_at (parsed local).
+  const time = formatTimeHM(new Date(tx.created_at));
+
+  // Amount sign drives colour (positive = yellow per CONTEXT — earned, kept, or deposited).
+  const amountStr = formatTxAmount(tx.amount_cents);
+  const amountClass =
+    tx.amount_cents > 0 ? styles.amountPositive : styles.amountNegative;
+
+  // Desktop fallback: right-click anywhere on the row opens a small
+  // overlay menu with «Удалить» / «Отмена». Touch users get the swipe
+  // gesture instead. We close on backdrop click or after either choice.
+  const handleContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setMenuOpen(true);
+  };
+
+  const handleDeleteAction = (e: React.MouseEvent | React.KeyboardEvent) => {
+    // Prevent the wrapping row's click handler from firing onRowTap.
+    e.stopPropagation();
+    setMenuOpen(false);
+    onRowDelete(tx);
+  };
+
+  const handleMenuCancel = (e: React.MouseEvent | React.KeyboardEvent) => {
+    e.stopPropagation();
+    setMenuOpen(false);
+  };
+
+  return (
+    <div
+      className={`${styles.swipeContainer} poster-row-in`}
+      style={rowStyle}
+      data-testid={`tx-swipe-${tx.id}`}
+    >
+      <div
+        data-testid={`tx-row-${tx.id}`}
+        className={styles.row}
+        onClick={() => onRowTap(tx)}
+        onContextMenu={handleContextMenu}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') onRowTap(tx);
+        }}
+      >
+        <div className={styles.rowTime}>{time}</div>
+        <div className={styles.rowMid}>
+          <div className={styles.rowDescriptionLine}>
+            <span className={styles.rowDescription}>
+              {tx.description ?? catName}
+            </span>
+            {tag === 'roundup' && (
+              <span
+                className={`${styles.tag} ${styles.tagRoundup}`}
+                data-testid={`tx-tag-roundup-${tx.id}`}
+              >
+                ↻ ОКРУГЛ.
+              </span>
+            )}
+            {tag === 'deposit' && (
+              <span
+                className={`${styles.tag} ${styles.tagDeposit}`}
+                data-testid={`tx-tag-deposit-${tx.id}`}
+              >
+                → КОПИЛКА
+              </span>
+            )}
+          </div>
+          <div className={styles.rowSubLine}>{subLine}</div>
+        </div>
+        <div className={`${styles.rowAmount} ${amountClass}`}>{amountStr}</div>
+      </div>
+
+      {/* Swipe-revealed delete action — parity with iOS swipeActions trailing edge.
+       *  Scroll-snap exposes this 80px plate when the user swipes left. */}
+      <button
+        type="button"
+        className={styles.swipeAction}
+        data-testid={`tx-swipe-action-${tx.id}`}
+        onClick={handleDeleteAction}
+      >
+        УДАЛИТЬ
+      </button>
+
+      {/* Desktop right-click context-menu fallback. */}
+      {menuOpen && (
+        <div
+          className={styles.contextMenuOverlay}
+          data-testid={`tx-context-menu-${tx.id}`}
+          onClick={handleMenuCancel}
+          role="presentation"
+        >
+          <div
+            className={styles.contextMenu}
+            onClick={(e) => e.stopPropagation()}
+            role="menu"
+          >
+            <button
+              type="button"
+              className={`${styles.contextMenuItem} ${styles.contextMenuItemDanger}`}
+              onClick={handleDeleteAction}
+              data-testid={`tx-context-menu-delete-${tx.id}`}
+              role="menuitem"
+            >
+              Удалить
+            </button>
+            <button
+              type="button"
+              className={styles.contextMenuItem}
+              onClick={handleMenuCancel}
+              data-testid={`tx-context-menu-cancel-${tx.id}`}
+              role="menuitem"
+            >
+              Отмена
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
