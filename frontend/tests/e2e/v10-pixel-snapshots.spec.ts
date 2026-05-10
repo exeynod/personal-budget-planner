@@ -65,13 +65,16 @@ async function gotoCategoryDetail(page: Page) {
 
 async function gotoPlanMonth(page: Page) {
   await gotoHome(page);
-  // Plan badge / "ПЛАН мая" CTA on Home pushes PlanMonth.
-  // Selector intentionally permissive — Home headline includes the month
-  // word; if the entry CTA changes Plan 28-03 follow-up will update.
-  const planLink = page.getByRole('button', { name: /план/i }).first();
-  if (await planLink.isVisible().catch(() => false)) {
-    await planLink.click();
-  }
+  // Phase 29-04 W-05 hardening: use the stable `data-nav="plan"` selector
+  // on the Home «PLAN МАЯ» plate. The previous permissive regex
+  // (`getByRole('button', { name: /план/i })`) matched Home itself when
+  // the headline word «План» was present, causing the baseline PNG to
+  // capture Home instead of PlanMonth. Re-run with --update-snapshots
+  // after this change to regenerate plan-month-chromium-mobile-darwin.png.
+  await page.locator('[data-nav="plan"]').first().click();
+  // PlanMonth headline confirms we landed on the right screen before
+  // freezing motion.
+  await expect(page.getByText(/PLAN/)).toBeVisible({ timeout: 5000 });
   await freezeMotion(page);
 }
 

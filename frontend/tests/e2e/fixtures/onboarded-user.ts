@@ -105,6 +105,34 @@ export const PERIOD_CURRENT_V10 = {
   closed_at: null,
 };
 
+/**
+ * Phase 29-04 pre-condition (Savings fixture extension) — default
+ * SavingsSnapshot returned by `GET /api/v1/savings`. The catch-all
+ * `[]` body collides with `SavingsView` which destructures
+ * `snap.config.roundup_enabled` (TypeError on array). A zero-balance
+ * empty-goals snapshot lets the screen render its EMPTY state.
+ */
+export const SAVINGS_SNAPSHOT_V10 = {
+  total_cents: 0,
+  month_in_cents: 0,
+  config: {
+    roundup_enabled: false,
+    roundup_base: 50,
+  },
+  goals: [],
+};
+
+/**
+ * Phase 29-04 pre-condition (AI fixture extension) — deterministic
+ * observation payload for `GET /api/v1/ai/observation`. Without this
+ * mock, `AiView.observation` is `null` and the 36px DM Serif Italic
+ * hero block does not render in the baseline PNG.
+ */
+export const AI_OBSERVATION_V10 = {
+  text: 'Май в плюсе на 21 170 ₽.',
+  generated_at: '2026-05-09T08:00:00Z',
+};
+
 // ─────────────────── route installation ───────────────────
 
 /**
@@ -200,6 +228,31 @@ export async function installOnboardedFixture(
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify([]),
+    }),
+  );
+
+  // Phase 29-04 — Savings + AI fixture extensions. Both screens were
+  // unrenderable under the catch-all `[]` default (Savings crashed on
+  // `snap.config.roundup_enabled`; AI dropped the 36px DM Serif hero
+  // because `observation` resolved to null). Specific routes return
+  // shape-correct empty/deterministic payloads so the screens render
+  // their canonical empty/loaded state for the visual audit.
+  await page.route('**/api/v1/savings', (route) => {
+    if (route.request().method() === 'GET') {
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(SAVINGS_SNAPSHOT_V10),
+      });
+    } else {
+      route.continue();
+    }
+  });
+  await page.route('**/api/v1/ai/observation', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(AI_OBSERVATION_V10),
     }),
   );
 

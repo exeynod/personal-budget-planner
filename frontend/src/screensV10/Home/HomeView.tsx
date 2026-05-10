@@ -123,8 +123,13 @@ export function HomeView(props: HomeViewProps) {
       </div>
 
       {/* ─────────── plan plate ─────────── */}
+      {/* `data-testid="home-plan-plate"` retained for the unit test that
+       * already targets it. Phase 29-04 W-05 hardening: also expose
+       * `data-nav="plan"` so the E2E PlanMonth fixture can navigate via a
+       * stable structural selector instead of a permissive text regex. */}
       <div
         data-testid="home-plan-plate"
+        data-nav="plan"
         className={styles.planPlate}
         onClick={onPlanTap}
         role="button"
