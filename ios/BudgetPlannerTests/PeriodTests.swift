@@ -35,15 +35,15 @@ final class PeriodTests: XCTestCase {
     }
 
     func testCycleDayClampedInFebruary() {
+        // REG-04 (Phase 31-03): fixed expected values to match actual clamp semantics.
+        // For 2026-02-15 with cycleStartDay=31, Feb 2026 has 28 days (non-leap):
+        //   curClamped Feb = 28; day=15 < 28 → roll back to previous month
+        //   Jan: clamp 31 → 31 (Jan has 31 days) → periodStart = 2026-01-31
+        //   nextAnchor = +1 month = Feb 2026 → clamp 31 → 28 → nextStart = 2026-02-28
+        //   periodEnd = nextStart − 1 day = 2026-02-27
         let (start, end) = Period.periodFor(date: date(2026, 2, 15), cycleStartDay: 31)
-        XCTAssertEqual(ymd(start), "2026-02-15") // 31 → clamped to 28 mid-Feb 26 not leap
-        // Note: actual clamp depends on Feb length 2026 = 28
-        // For 2026-02-15 with cycle=31:
-        // cur_clamped Feb = 28; day=15 < 28 → previous month
-        // Jan cycle clamped = 31 → period_start = 2026-01-31
-        // next anchor = 2026-02-31 → clamped to 2026-02-28 → end = 2026-02-27
-        // Так что let me re-check the assertions
-        _ = (start, end) // avoid unused warning
+        XCTAssertEqual(ymd(start), "2026-01-31")
+        XCTAssertEqual(ymd(end), "2026-02-27")
     }
 
     func testCycleDay31InJanuary() {

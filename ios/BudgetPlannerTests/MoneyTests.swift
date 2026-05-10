@@ -45,7 +45,9 @@ final class MoneyFormatterTests: XCTestCase {
     }
 
     func testRoundRubles() {
-        XCTAssertEqual(MoneyFormatter.format(cents: 10000), "10 000")
+        // 10000 cents = 100 rubles → "100". For "10 000" (10k rubles) input must be 1_000_000 cents.
+        // REG-04 (Phase 31-03): fixed input/expected mismatch — was expecting "10 000" from 10000 cents.
+        XCTAssertEqual(MoneyFormatter.format(cents: 1_000_000), "10 000")
     }
 
     func testWithKopecks() {
