@@ -1,0 +1,83 @@
+.app {
+  min-height: 100vh;
+  padding: 56px 22px 90px;
+  background: var(--poster-coral);
+  color: var(--poster-paper);
+  font-family: 'Manrope Variable', 'Manrope', sans-serif;
+}
+
+.head {
+  margin-bottom: 28px;
+}
+
+.section {
+  margin-top: 28px;
+  padding-top: 18px;
+  border-top: 1px solid rgba(255, 246, 232, 0.18);
+}
+
+.glyphRow {
+  display: flex;
+  gap: 24px;
+  align-items: baseline;
+  margin-top: 12px;
+}
+
+.note {
+  font-size: 12px;
+  opacity: 0.7;
+  margin-top: 10px;
+}
+
+.plateGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.btnStack {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.chipRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 10px;
+}
+
+.animGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.animCell {
+  padding: 10px;
+  border: 1px solid rgba(255, 246, 232, 0.25);
+}
+
+.animTrigger {
+  background: transparent;
+  border: 1px solid var(--poster-paper);
+  color: var(--poster-paper);
+  padding: 6px 8px;
+  font-family: 'JetBrains Mono Variable', monospace;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+}
+
+.animTarget {
+  width: 100%;
+  height: 28px;
+  background: var(--poster-yellow);
+  margin-top: 8px;
+}
