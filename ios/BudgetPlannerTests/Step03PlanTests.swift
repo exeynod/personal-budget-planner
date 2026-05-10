@@ -102,21 +102,21 @@ final class Step03PlanTests: XCTestCase {
 
     func testSumPlanForEightyThousand() {
         // Σshare = 0.20+0.10+0.30+0.06+0.05+0.04+0.05+0.03 = 0.83.
-        // For income=80_000_00 cents:
-        //   per-category floors land cleanly on 50_000 step (we verified above):
-        //     food=1_600_000, cafe=800_000, home=2_400_000, transit=480_000,
-        //     fun=400_000,    gifts=320_000, health=400_000, subs=200_000.
-        //   Σ = 6_600_000 cents = 66_000 ₽.
-        // (Tiny note: pure 0.83*80_000_00 = 6_640_000 cents = 66_400 ₽ would be
-        //  the float arithmetic result; the floor-to-step rounding shaves
-        //  40_000 cents from `transit` (480_000 instead of 480_000) and
-        //  `gifts` (320_000 instead of 320_000) — both already clean
-        //  multiples of 50_000 here, so the only "real" loss is 0 cents.
-        //  Actual sum confirmed: 6_600_000.)
+        // For income=80_000_00 cents, per-category floor(raw/50_000)*50_000:
+        //   food    0.20 → raw=1_600_000 → 1_600_000
+        //   cafe    0.10 → raw=  800_000 →   800_000
+        //   home    0.30 → raw=2_400_000 → 2_400_000
+        //   transit 0.06 → raw=  480_000 →   450_000  (floor(9.6)=9)
+        //   fun     0.05 → raw=  400_000 →   400_000
+        //   gifts   0.04 → raw=  320_000 →   300_000  (floor(6.4)=6)
+        //   health  0.05 → raw=  400_000 →   400_000
+        //   subs    0.03 → raw=  240_000 →   200_000  (floor(4.8)=4)
+        //   Σ = 6_550_000 cents = 65_500 ₽.
+        // (Pure 0.83*80_000_00 = 6_640_000; floor rounding shaves 90_000.)
         let flow = OnboardingFlow(defaults: defaults)
         flow.setIncome(80_000_00)
         let sum = flow.categoryPlans.values.reduce(0, +)
-        XCTAssertEqual(sum, 6_600_000)
+        XCTAssertEqual(sum, 6_550_000)
     }
 
     // MARK: - Hint text construction (mirrors view's `hintText` getter)

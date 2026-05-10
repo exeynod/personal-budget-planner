@@ -1,13 +1,14 @@
-// Phase 24-03 / 24-05: OnboardingV10View — root SwiftUI view that
+// Phase 24-03 / 24-05 / 24-07: OnboardingV10View — root SwiftUI view that
 // switches on `flow.step` and renders the correct step body inside
 // OnboardingChrome.
 //
 // Symmetric to web `<OnboardingFlow>` root (Plan 24-02). Steps wired:
 //   - Step 01 (Income, Plan 24-03)
 //   - Step 02 (Accounts, Plan 24-05)
+//   - Step 03 (Plan,    Plan 24-07)
 //
-// Steps 03..05 still render placeholder chrome that the remaining plans
-// (24-07 / 24-09 / 24-10) replace with real bodies.
+// Steps 04..05 still render placeholder chrome that the remaining plans
+// (24-09 / 24-10) replace with real bodies.
 //
 // NOTE on naming: the plan frontmatter listed file `OnboardingView.swift`
 // + type `OnboardingView`, but the v0.5 legacy onboarding ships the same
@@ -34,11 +35,7 @@ struct OnboardingV10View: View {
             case 2:
                 step02
             case 3:
-                placeholder(
-                    step: 3,
-                    label: "ШАГ 03 / 04 · ПЛАН",
-                    body: "Step 03 — coming next plan"
-                )
+                step03
             case 4:
                 placeholder(
                     step: 4,
@@ -99,7 +96,36 @@ struct OnboardingV10View: View {
         return "\(flow.accounts.count) \(PluralRu.accounts(flow.accounts.count)) · \(RubleFormatter.format(cents: total)) ₽"
     }
 
-    // MARK: - Placeholders for steps 03..05
+    // MARK: - Step 03 (Plan)
+
+    private var step03: some View {
+        let total = flow.categoryPlans.values.reduce(0, +)
+        let left = flow.incomeCents - total
+        let hint: String
+        if left == 0 {
+            hint = "всё распределено"
+        } else if left > 0 {
+            hint = "остаётся \(RubleFormatter.format(cents: left)) ₽ → накопления"
+        } else {
+            hint = "превышение \(RubleFormatter.format(cents: -left)) ₽"
+        }
+        let tone: HintTone = left < 0 ? .overflow : .normal
+
+        return OnboardingChrome(
+            step: 3,
+            label: "ШАГ 03 / 04 · ПЛАН",
+            onBack: { flow.back() },
+            onSkip: nil,
+            onNext: { flow.next() },
+            nextDisabled: left < 0,
+            hint: hint,
+            hintTone: tone
+        ) {
+            Step03PlanView(flow: flow)
+        }
+    }
+
+    // MARK: - Placeholders for steps 04..05
 
     @ViewBuilder
     private func placeholder(

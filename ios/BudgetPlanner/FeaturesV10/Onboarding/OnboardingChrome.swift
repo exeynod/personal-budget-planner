@@ -20,6 +20,14 @@
 
 import SwiftUI
 
+/// Hint tone — controls foot-text colour. Phase 24-07: Step 03 needs a
+/// red overflow state when Σplan > income; future steps may reuse the
+/// same enum (e.g. validation errors).
+enum HintTone {
+    case normal
+    case overflow
+}
+
 struct OnboardingChrome<Content: View>: View {
     // MARK: - Inputs
 
@@ -32,6 +40,7 @@ struct OnboardingChrome<Content: View>: View {
     var nextLabel: String = "ДАЛЕЕ →"
     var nextDisabled: Bool = false
     var hint: String? = nil
+    var hintTone: HintTone = .normal
 
     @ViewBuilder var content: () -> Content
 
@@ -119,8 +128,10 @@ struct OnboardingChrome<Content: View>: View {
             if let hint {
                 Text(hint)
                     .font(.custom(PosterTokens.Font.jetBrainsMono, size: PosterTokens.FontSize.monoSm))
-                    .foregroundColor(PosterTokens.Color.paper)
-                    .opacity(0.65)
+                    .foregroundColor(hintTone == .overflow
+                                     ? PosterTokens.Color.red
+                                     : PosterTokens.Color.paper)
+                    .opacity(hintTone == .overflow ? 1.0 : 0.65)
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: .infinity)
             }
