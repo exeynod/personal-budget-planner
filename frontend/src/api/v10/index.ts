@@ -31,6 +31,8 @@ export {
   listSubscriptionsV10,
   patchSubscriptionV10,
   deleteSubscription,
+  postSubscription,
+  unpostSubscription,
 } from './subscriptions';
 export type {
   SubscriptionV10Read,
@@ -38,3 +40,10 @@ export type {
   SubscriptionV10UpdatePayload,
   SubscriptionPostResponse,
 } from './subscriptions';
+
+export { patchPlanMonth } from './planMonth';
+export type {
+  PlanMonthItem,
+  PlanMonthPatchPayload,
+  PlanMonthResponse,
+} from './planMonth';

@@ -339,6 +339,24 @@ export interface SubscriptionPostResponse {
   posted_at: string;
 }
 
+// ---------- Phase 26-04: PATCH /plan-month atomic batch ----------
+
+/** Phase 26-04 — single category lift in atomic plan-month patch. */
+export interface PlanMonthItem {
+  category_id: number;
+  plan_cents: number;
+}
+
+/** Phase 26-04 — request body for PATCH /api/v1/plan-month. */
+export interface PlanMonthPatchPayload {
+  plans: PlanMonthItem[];
+}
+
+/** Phase 26-04 — response for PATCH /api/v1/plan-month (returns updated CategoryRead[]). */
+export interface PlanMonthResponse {
+  categories: CategoryV10[];
+}
+
 // ---------- Phase 8: Analytics ----------
 
 export interface TrendPoint {

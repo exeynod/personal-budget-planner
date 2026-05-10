@@ -14,6 +14,7 @@ import { apiFetch } from '../client';
 import type {
   SubscriptionV10Read,
   SubscriptionV10UpdatePayload,
+  SubscriptionPostResponse,
 } from '../types';
 
 export type {
@@ -59,4 +60,32 @@ export async function patchSubscriptionV10(
  */
 export async function deleteSubscription(id: number): Promise<void> {
   await apiFetch<void>(`/subscriptions/${id}`, { method: 'DELETE' });
+}
+
+/**
+ * POST /api/v1/subscriptions/{id}/post — записать подписку в actual_transaction
+ * (kind=expense) и проставить subscription.posted_txn_id (PLAN-V10-04 «ПРОВЕСТИ»).
+ *
+ * 200 → SubscriptionPostResponse (txn_id + posted_at)
+ * 409 → already posted (posted_txn_id != null)
+ * 404 → subscription not found / cross-tenant
+ */
+export async function postSubscription(
+  id: number,
+): Promise<SubscriptionPostResponse> {
+  return apiFetch<SubscriptionPostResponse>(`/subscriptions/${id}/post`, {
+    method: 'POST',
+  });
+}
+
+/**
+ * POST /api/v1/subscriptions/{id}/unpost — откатить последнее post:
+ * удаляет actual_transaction и обнуляет subscription.posted_txn_id
+ * (PLAN-V10-04 «ОТМЕНА»).
+ *
+ * 204 → success
+ * 404 → not posted / unknown / cross-tenant
+ */
+export async function unpostSubscription(id: number): Promise<void> {
+  await apiFetch<void>(`/subscriptions/${id}/unpost`, { method: 'POST' });
 }
