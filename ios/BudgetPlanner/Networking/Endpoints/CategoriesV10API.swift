@@ -22,4 +22,21 @@ enum CategoriesV10API {
             : nil
         return try await APIClient.shared.request("GET", "/categories", query: q)
     }
+
+    /// PATCH /api/v1/categories/{id} — partial update (Phase 26 BE-01 ext).
+    ///
+    /// Backend (`CategoryUpdate` Pydantic schema, Phase 26-01) accepts
+    /// `plan_cents`, `rollover`, `paused`, `parent_id` in addition to the
+    /// legacy `name` / `sort_order` / `is_archived`. Each field is optional;
+    /// only fields explicitly set on `payload` are sent on the wire (custom
+    /// encoder skips nil keys via `encodeIfPresent`).
+    ///
+    /// Errors:
+    ///   - 404 — cross-tenant or missing id (RESTful — no existence leak).
+    ///   - 422 — invalid value (e.g. negative `plan_cents`).
+    ///   - 400 — domain-specific validation (Phase 26-01 may raise overflow
+    ///     checks server-side in the future).
+    static func update(id: Int, payload: CategoryV10UpdateRequest) async throws -> CategoryV10DTO {
+        try await APIClient.shared.request("PATCH", "/categories/\(id)", body: payload)
+    }
 }
