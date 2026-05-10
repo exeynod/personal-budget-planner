@@ -1,0 +1,169 @@
+/* Phase 27-06: AccessView (black) — admin Users + AI Usage tabs. */
+
+.root {
+  position: absolute;
+  inset: 0;
+  background: var(--poster-ink, #0E0E0E);
+  color: var(--poster-paper, #FFF6E8);
+  padding: 56px 22px 90px;
+  overflow: auto;
+  font-family: var(--poster-font-manrope), system-ui, sans-serif;
+}
+
+.headerRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 4px;
+}
+
+.backLink {
+  font-family: var(--poster-font-jet-brains-mono), ui-monospace, monospace;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  cursor: pointer;
+  opacity: 0.7;
+  color: var(--poster-paper, #FFF6E8);
+  background: transparent;
+  border: none;
+  padding: 0;
+}
+
+.eyebrowRow {
+  margin-top: 22px;
+}
+
+.headlineMass {
+  margin-top: 6px;
+  color: var(--poster-paper, #FFF6E8);
+  line-height: 1.0;
+}
+
+.tabBar {
+  display: flex;
+  gap: 8px;
+  margin-top: 26px;
+}
+
+.tabChip {
+  font-family: var(--poster-font-jet-brains-mono), ui-monospace, monospace;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: transparent;
+  border: 1px solid rgba(255, 246, 232, 0.4);
+  color: var(--poster-paper, #FFF6E8);
+  cursor: pointer;
+}
+
+.tabChipActive {
+  background: var(--poster-paper, #FFF6E8);
+  color: var(--poster-ink, #0E0E0E);
+  border-color: var(--poster-paper, #FFF6E8);
+}
+
+.errorBanner {
+  margin-top: 14px;
+  padding: 10px 12px;
+  background: rgba(220, 60, 50, 0.18);
+  border: 1px solid rgba(220, 60, 50, 0.4);
+  color: #ffaaa3;
+  font-family: var(--poster-font-jet-brains-mono), ui-monospace, monospace;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  border-radius: 4px;
+}
+
+.loadingBanner {
+  margin-top: 14px;
+  font-family: var(--poster-font-jet-brains-mono), ui-monospace, monospace;
+  font-size: 12px;
+  opacity: 0.6;
+}
+
+.tabContent {
+  margin-top: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 14px;
+  padding: 14px 0;
+  border-top: 1px solid rgba(255, 246, 232, 0.18);
+}
+.row:last-child {
+  border-bottom: 1px solid rgba(255, 246, 232, 0.18);
+}
+
+.userName {
+  font-family: var(--poster-font-archivo-black), system-ui, sans-serif;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--poster-paper, #FFF6E8);
+}
+
+.userMeta {
+  font-family: var(--poster-font-jet-brains-mono), ui-monospace, monospace;
+  font-size: 11px;
+  opacity: 0.7;
+  margin-top: 4px;
+}
+
+.userRole {
+  font-family: var(--poster-font-jet-brains-mono), ui-monospace, monospace;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  align-self: center;
+  color: var(--poster-paper, #FFF6E8);
+  opacity: 0.7;
+}
+
+.usageCells {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 14px;
+  align-items: baseline;
+}
+
+.usageDate {
+  font-family: var(--poster-font-jet-brains-mono), ui-monospace, monospace;
+  font-size: 12px;
+  color: var(--poster-paper, #FFF6E8);
+  opacity: 0.85;
+}
+
+.usageTokens {
+  font-family: var(--poster-font-jet-brains-mono), ui-monospace, monospace;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--poster-paper, #FFF6E8);
+}
+
+.usageCost {
+  font-family: var(--poster-font-jet-brains-mono), ui-monospace, monospace;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--poster-paper, #FFF6E8);
+}
+
+.empty {
+  margin-top: 22px;
+  font-family: 'DM Serif Display', Georgia, serif;
+  font-style: italic;
+  font-size: 22px;
+  color: var(--poster-paper, #FFF6E8);
+  opacity: 0.6;
+  text-align: center;
+}

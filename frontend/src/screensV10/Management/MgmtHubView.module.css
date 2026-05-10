@@ -1,0 +1,95 @@
+/* Phase 27-06: MgmtHubView — black hub with numbered list rows. */
+
+.root {
+  position: absolute;
+  inset: 0;
+  background: var(--poster-ink, #0E0E0E);
+  color: var(--poster-paper, #FFF6E8);
+  padding: 56px 22px 90px;
+  overflow: auto;
+  font-family: var(--poster-font-manrope), system-ui, sans-serif;
+}
+
+.headerRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 4px;
+}
+
+.backLink {
+  font-family: var(--poster-font-jet-brains-mono), ui-monospace, monospace;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  cursor: pointer;
+  opacity: 0.7;
+  color: var(--poster-paper, #FFF6E8);
+  background: transparent;
+  border: none;
+  padding: 0;
+}
+
+.eyebrowRow {
+  margin-top: 22px;
+}
+
+.headlineMass {
+  margin-top: 6px;
+  color: var(--poster-paper, #FFF6E8);
+  line-height: 1.0;
+}
+
+.numberedList {
+  list-style: none;
+  padding: 0;
+  margin: 30px 0 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.row {
+  width: 100%;
+  padding: 22px 0;
+  border-bottom: 1px solid rgba(255, 246, 232, 0.18);
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 16px;
+  align-items: baseline;
+  background: transparent;
+  color: var(--poster-paper, #FFF6E8);
+  cursor: pointer;
+  text-align: left;
+  border-left: none;
+  border-right: none;
+  border-top: none;
+  font: inherit;
+}
+
+.row:first-of-type {
+  border-top: 1px solid rgba(255, 246, 232, 0.18);
+}
+
+.rowNum {
+  font-family: var(--poster-font-jet-brains-mono), ui-monospace, monospace;
+  font-size: 14px;
+  color: rgba(255, 246, 232, 0.7);
+  letter-spacing: 0.04em;
+}
+
+.rowName {
+  font-family: var(--poster-font-archivo-black), system-ui, sans-serif;
+  font-size: 16px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--poster-paper, #FFF6E8);
+}
+
+.rowArrow {
+  font-family: var(--poster-font-jet-brains-mono), ui-monospace, monospace;
+  font-size: 16px;
+  opacity: 0.7;
+  color: var(--poster-paper, #FFF6E8);
+}

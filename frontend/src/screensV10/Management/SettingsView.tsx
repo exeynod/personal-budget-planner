@@ -1,0 +1,184 @@
+// Phase 27-06 Task 2: SettingsView (paper) — poster-styled settings form.
+//
+// Pure presentational. Re-styles the v0.6 SettingsScreen form fields:
+//   - День начала цикла (cycle_start_day, 1..28) → stepper
+//   - Напоминать за дней (notify_days_before, 0..30) → stepper
+//   - AI авто-категоризация (ai_categorization_enabled) → toggle
+//   - AI лимит расходов (ai_spend_cap_cents) → read-only display
+//
+// View is router-agnostic — all interactions / data passed via props.
+
+import { Eyebrow, Mass } from '../../componentsV10';
+import styles from './SettingsView.module.css';
+
+export interface SettingsViewProps {
+  cycle_start_day: number;
+  notify_days_before: number;
+  ai_categorization_enabled: boolean;
+  ai_spend_cap_cents: number;
+  loading: boolean;
+  error: string | null;
+  onChangeCycleDay: (d: number) => void;
+  onChangeNotifyDays: (d: number) => void;
+  onToggleAiCat: (enabled: boolean) => void;
+  canPop: boolean;
+  onBack: () => void;
+}
+
+const CYCLE_MIN = 1;
+const CYCLE_MAX = 28;
+const NOTIFY_MIN = 0;
+const NOTIFY_MAX = 30;
+
+export function SettingsView(props: SettingsViewProps) {
+  const capRubles = Math.floor(props.ai_spend_cap_cents / 100);
+
+  return (
+    <div className={styles.root} data-testid="settings-view">
+      <div className={styles.headerRow}>
+        {props.canPop && (
+          <button
+            type="button"
+            className={styles.backLink}
+            onClick={props.onBack}
+          >
+            ← НАЗАД
+          </button>
+        )}
+      </div>
+
+      <div className={styles.eyebrowRow}>
+        <Eyebrow color="var(--poster-ink, #0E0E0E)">SETTINGS / НАСТРОЙКИ</Eyebrow>
+      </div>
+
+      <Mass italic size={56} className={styles.headlineMass}>
+        Настройки.
+      </Mass>
+
+      {props.loading && (
+        <div className={styles.loadingBanner} data-testid="settings-loading">
+          Загрузка…
+        </div>
+      )}
+      {props.error && (
+        <div className={styles.errorBanner} data-testid="settings-error">
+          {props.error}
+        </div>
+      )}
+
+      <div className={styles.list}>
+        {/* Row 1: cycle_start_day stepper */}
+        <div className={styles.row}>
+          <Eyebrow color="var(--poster-ink, #0E0E0E)">День начала цикла</Eyebrow>
+          <div className={styles.rowControl}>
+            <button
+              type="button"
+              className={styles.stepperBtn}
+              onClick={() =>
+                props.onChangeCycleDay(
+                  Math.max(CYCLE_MIN, props.cycle_start_day - 1),
+                )
+              }
+              disabled={props.cycle_start_day <= CYCLE_MIN || props.loading}
+              aria-label="Уменьшить день начала цикла"
+            >
+              −
+            </button>
+            <span
+              className={styles.stepperValue}
+              data-testid="cycle-start-day-value"
+            >
+              {props.cycle_start_day}
+            </span>
+            <button
+              type="button"
+              className={styles.stepperBtn}
+              onClick={() =>
+                props.onChangeCycleDay(
+                  Math.min(CYCLE_MAX, props.cycle_start_day + 1),
+                )
+              }
+              disabled={props.cycle_start_day >= CYCLE_MAX || props.loading}
+              aria-label="Увеличить день начала цикла"
+            >
+              +
+            </button>
+          </div>
+        </div>
+
+        {/* Row 2: notify_days_before stepper */}
+        <div className={styles.row}>
+          <Eyebrow color="var(--poster-ink, #0E0E0E)">
+            Напоминать за дней до подписки
+          </Eyebrow>
+          <div className={styles.rowControl}>
+            <button
+              type="button"
+              className={styles.stepperBtn}
+              onClick={() =>
+                props.onChangeNotifyDays(
+                  Math.max(NOTIFY_MIN, props.notify_days_before - 1),
+                )
+              }
+              disabled={props.notify_days_before <= NOTIFY_MIN || props.loading}
+              aria-label="Уменьшить дни уведомления"
+            >
+              −
+            </button>
+            <span
+              className={styles.stepperValue}
+              data-testid="notify-days-value"
+            >
+              {props.notify_days_before}
+            </span>
+            <button
+              type="button"
+              className={styles.stepperBtn}
+              onClick={() =>
+                props.onChangeNotifyDays(
+                  Math.min(NOTIFY_MAX, props.notify_days_before + 1),
+                )
+              }
+              disabled={
+                props.notify_days_before >= NOTIFY_MAX || props.loading
+              }
+              aria-label="Увеличить дни уведомления"
+            >
+              +
+            </button>
+          </div>
+        </div>
+
+        {/* Row 3: AI authorization toggle */}
+        <div className={styles.row}>
+          <Eyebrow color="var(--poster-ink, #0E0E0E)">AI авто-категоризация</Eyebrow>
+          <label className={styles.toggleRow}>
+            <input
+              type="checkbox"
+              className={styles.toggleInput}
+              checked={props.ai_categorization_enabled}
+              onChange={(e) => props.onToggleAiCat(e.target.checked)}
+              disabled={props.loading}
+              data-testid="ai-cat-toggle"
+              aria-label="AI авто-категоризация"
+            />
+            <span className={styles.readonlyValue}>
+              {props.ai_categorization_enabled ? 'ВКЛ' : 'ВЫКЛ'}
+            </span>
+          </label>
+        </div>
+
+        {/* Row 4: AI spend cap (read-only) */}
+        <div className={styles.row}>
+          <Eyebrow color="var(--poster-ink, #0E0E0E)">AI лимит расходов</Eyebrow>
+          <div
+            className={styles.readonlyValue}
+            data-testid="ai-cap-value"
+          >
+            {capRubles.toLocaleString('ru-RU')} ₽
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
