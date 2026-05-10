@@ -76,7 +76,7 @@
 - [ ] **Phase 24: Onboarding 4-step** — Доход → Счета → План → Цель → Final с persistence draft и atomic commit
 - [x] **Phase 25: Home + Transactions + Add Sheet** — coral hero «дневной темп», push-stack реестр, custom 3×4 keypad, FAB на каждом экране (completed 2026-05-10)
 - [x] **Phase 26: Category Detail + PLAN мая + Subscriptions** — red/cobalt category screen, PLAN со sliders + регулярные «провести в факт», подписки с editor-меню (completed 2026-05-10)
-- [ ] **Phase 27: AI + Savings + Accounts + Analytics + Management** — AI initial-state observation + 4 chips, Копилка с roundup-toggle, Accounts list + detail, Analytics rewrite, Mgmt-хаб
+- [x] **Phase 27: AI + Savings + Accounts + Analytics + Management** — AI initial-state observation + 4 chips, Копилка с roundup-toggle, Accounts list + detail, Analytics rewrite, Mgmt-хаб (completed 2026-05-10)
 - [ ] **Phase 28: Animations Polish + Acceptance** — `prefers-reduced-motion`, accessibility audit, pixel-perfect side-by-side QA, performance, migration safety, acceptance §14 ТЗ
 
 ## Phase Details (v1.0)
@@ -215,17 +215,17 @@
   4. User в Analytics (cream) видит Mass italic «Месяц.» + segmented диапазон «МАР 26 / АПР 26 / МАЙ 26 (•)» + 2 KPI plates («ПОТРАЧЕНО» dark с delta + «СЭКОНОМЛЕНО» yellow «+ X / от плана») + segmented «ДЕНЬ / НЕД. / КАТ.» + bar-chart с красным выделением столбцов ≥75% от плана + топ-5 категорий (re-use v0.6 endpoints).
   5. User в Management hub (чёрный фон) видит 5 numbered list-rows «01 PLAN МЕСЯЦА / 02 СЧЕТА / 03 АНАЛИТИКА / 04 НАСТРОЙКИ / 05 ДОСТУП» (admin only — owner role); tap → push соответствующий screen; Settings — rewrite v0.6 form в poster-стиле без функциональных изменений; Access — admin Users / AI Usage tabs в poster-стиле (re-use v0.6 endpoints).
 **Plans**: 11 plans (3 waves)
-- [ ] 27-01-PLAN.md — backend ai/observation rule-engine + cache (AI-V10-03)
-- [ ] 27-02-PLAN.md — web AI shell: initial observation + 4 chips + active SSE (AI-V10-01, AI-V10-02, AI-V10-04, AI-V10-05)
-- [ ] 27-03-PLAN.md — web Savings: total + roundup + goals + deposit (SAV-V10-01..04)
-- [ ] 27-04-PLAN.md — web Accounts list + detail + new-account sheet (ACCT-V10-01..04)
-- [ ] 27-05-PLAN.md — web Analytics: segmented + 2 KPI plates + bar chart + top5 (ANAL-V10-01..04)
-- [ ] 27-06-PLAN.md — web Mgmt hub + Settings + Access + V10MainShell wire (MGMT-V10-01..04)
-- [ ] 27-07-PLAN.md — iOS AI shell symmetric to 27-02 (AI-V10-01, AI-V10-02, AI-V10-04, AI-V10-05)
-- [ ] 27-08-PLAN.md — iOS Savings symmetric to 27-03 (SAV-V10-01..04)
-- [ ] 27-09-PLAN.md — iOS Accounts list + detail symmetric to 27-04 (ACCT-V10-01..04)
-- [ ] 27-10-PLAN.md — iOS Analytics symmetric to 27-05 (ANAL-V10-01..04)
-- [ ] 27-11-PLAN.md — iOS Mgmt + Settings + Access + V10MainShell wire (MGMT-V10-01..04)
+- [x] 27-01-PLAN.md — backend ai/observation rule-engine + cache (AI-V10-03)
+- [x] 27-02-PLAN.md — web AI shell: initial observation + 4 chips + active SSE (AI-V10-01, AI-V10-02, AI-V10-04, AI-V10-05)
+- [x] 27-03-PLAN.md — web Savings: total + roundup + goals + deposit (SAV-V10-01..04)
+- [x] 27-04-PLAN.md — web Accounts list + detail + new-account sheet (ACCT-V10-01..04)
+- [x] 27-05-PLAN.md — web Analytics: segmented + 2 KPI plates + bar chart + top5 (ANAL-V10-01..04)
+- [x] 27-06-PLAN.md — web Mgmt hub + Settings + Access + V10MainShell wire (MGMT-V10-01..04)
+- [x] 27-07-PLAN.md — iOS AI shell symmetric to 27-02 (AI-V10-01, AI-V10-02, AI-V10-04, AI-V10-05)
+- [x] 27-08-PLAN.md — iOS Savings symmetric to 27-03 (SAV-V10-01..04)
+- [x] 27-09-PLAN.md — iOS Accounts list + detail symmetric to 27-04 (ACCT-V10-01..04)
+- [x] 27-10-PLAN.md — iOS Analytics symmetric to 27-05 (ANAL-V10-01..04)
+- [x] 27-11-PLAN.md — iOS Mgmt + Settings + Access + V10MainShell wire (MGMT-V10-01..04)
 **UI hint**: yes
 
 ### Phase 28: Animations Polish + Acceptance
@@ -280,7 +280,7 @@
 | 24 - Onboarding 4-step | 0/0 | Not started | - |
 | 25 - Home + Transactions + Add Sheet | 12/12 | Complete    | 2026-05-10 |
 | 26 - Category Detail + PLAN мая + Subscriptions | 7/7 | Complete    | 2026-05-10 |
-| 27 - AI + Savings + Accounts + Analytics + Management | 0/11 | Not started | - |
+| 27 - AI + Savings + Accounts + Analytics + Management | 11/11 | Complete    | 2026-05-10 |
 | 28 - Animations Polish + Acceptance | 0/0 | Not started | - |
 
 ## Coverage Validation (v1.0)
