@@ -53,16 +53,14 @@ struct AccountsListPlaceholderView: View {
     }
 }
 
+/// Phase 26-05 (zero-touch swap): superseded — now renders the real
+/// `PlanView`. Kept under the old type name so callsites that push
+/// `PlanViewPlaceholderView()` (HomeV10View Plan-bar tap, CategoryDetailView
+/// «+ ПОДНЯТЬ ЛИМИТ» CTA) continue to work without modification — same
+/// pattern as TransactionsViewPlaceholderView (Plan 25-09) and
+/// CategoryDetailPlaceholderView (Plan 26-03).
 struct PlanViewPlaceholderView: View {
-    var body: some View {
-        PosterPlaceholder(
-            section: "SECTION I",
-            title: "План мая.",
-            note: "WIP — Plan view (Phase 26).",
-            bg: PosterTokens.Color.paper,
-            fg: PosterTokens.Color.ink
-        )
-    }
+    var body: some View { PlanView() }
 }
 
 /// Phase 26-03 (zero-touch swap): superseded — now renders the real

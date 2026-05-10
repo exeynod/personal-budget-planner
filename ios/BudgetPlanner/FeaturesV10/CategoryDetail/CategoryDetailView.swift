@@ -212,7 +212,11 @@ struct CategoryDetailView: View {
     private func ctaRow(cat: CategoryV10DTO) -> some View {
         HStack(spacing: 10) {
             PosterButton("+ ПОДНЯТЬ ЛИМИТ", variant: .ghost) {
-                router?.push(PlanViewPlaceholderView())
+                // Phase 26-05 wiring: push the real PlanView with focus on
+                // this category. PlanView's ScrollViewReader scrolls to the
+                // matching `.id(c.id)` row on appear so the user lands at
+                // the slider they came to adjust.
+                router?.push(PlanView(focusCategoryId: cat.id))
             }
             PosterButton(cat.paused ? "ВКЛЮЧИТЬ" : "ПАУЗА", variant: .ghost) {
                 Task { await model.togglePause() }
