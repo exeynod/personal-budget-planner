@@ -68,3 +68,7 @@ export type {
 
 export { listGoals, createGoal, deleteGoal } from './goals';
 export type { GoalRead, GoalCreatePayload } from './goals';
+
+// Phase 27-05 — Analytics top-categories wrapper (ANAL-V10-04).
+export { fetchTopCategories } from './analytics';
+export type { TopCategoryItem, AnalyticsRange } from './analytics';
