@@ -1,11 +1,17 @@
 // Phase 24-11: Onboarding gateway — fetches GET /api/v1/me on appear,
-// then renders OnboardingV10View when `onboarded_at == nil` or a Home
-// placeholder otherwise. Symmetric to the web mount logic shipped in
+// then renders OnboardingV10View when `onboarded_at == nil` or the
+// Home screen otherwise. Symmetric to the web mount logic shipped in
 // plan 24-10 (frontend/src/screensV10/OnboardingMount.tsx).
+//
+// Phase 25-07: HomePlaceholderView replaced by HomeV10View in the
+// onboarded branch; gateway logic + state machine unchanged.
+// HomeV10View reads @Environment(\.posterRouter) — provided by
+// V10MainShell's PosterNavStack at runtime; nil-safe at the call site
+// (HomeV10View uses `router?.push(...)` so a missing env is a no-op).
 //
 // Decision rule (CONTEXT D-01 / ONB-V10-01):
 //   onboarded_at == nil → mount onboarding flow
-//   onboarded_at != nil → mount home placeholder (real Home lands in Phase 25)
+//   onboarded_at != nil → mount HomeV10View (Phase 25-05 + 25-07 wiring)
 //
 // State machine extracted into `OnboardingMountModel` so XCTest can
 // drive reload() / inspect isLoading / me / loadError without
@@ -131,7 +137,10 @@ struct OnboardingMountView: View {
                     }
                 )
             } else {
-                HomePlaceholderView()
+                // Phase 25-07: real HomeV10View (Plan 25-05) replaces
+                // HomePlaceholderView here. PosterRouter for push routes
+                // is injected by V10MainShell's PosterNavStack.
+                HomeV10View()
             }
         } else {
             // Fallback — should never render but keeps the type checker
@@ -186,11 +195,12 @@ private struct ErrorPlate: View {
     }
 }
 
-// MARK: - Home placeholder
+// MARK: - Home placeholder (legacy)
 
-/// Stand-in for the future Home screen (Phase 25). Renders the same
-/// coral background + a Mass placeholder so the build doesn't ship a
-/// blank canvas after a successful onboarding.
+/// Phase 25-07: superseded by HomeV10View; kept as a graceful fallback
+/// for tests/previews that don't want to instantiate the full HomeV10
+/// stack (HomeV10ViewModel, networking, etc.). The onboarded branch in
+/// `content` no longer references this type.
 private struct HomePlaceholderView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: PosterTokens.Space.s18) {
