@@ -144,11 +144,14 @@ async def reset_onboarding(
 
     try:
         result = await reset_v10(db, user_id=user_id)
-    except Exception as exc:  # noqa: BLE001 — surface any service failure as 500
+    except Exception:  # noqa: BLE001 — surface any service failure as 500
+        # WR-09 (Phase 22 review): structlog's ``logger.exception`` already
+        # captures the active exception's type + traceback via exc_info,
+        # so passing ``error=str(exc)`` only obscured the type. Drop the
+        # named binding and let the structured log carry full context.
         logger.exception(
             "internal_onboarding_reset.failed",
             target_user_id=user_id,
-            error=str(exc),
         )
         raise
 
