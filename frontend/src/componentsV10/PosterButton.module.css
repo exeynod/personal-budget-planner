@@ -1,0 +1,35 @@
+.btn {
+  display: block;
+  width: 100%;
+  padding: 16px 0;
+  text-align: center;
+  font-family: 'Archivo Black', sans-serif;
+  font-weight: 900;
+  font-size: 12px;
+  letter-spacing: var(--poster-tracking-eye);
+  text-transform: uppercase;
+  border: none;
+  border-radius: 0;
+  cursor: pointer;
+  transition: transform 150ms ease, opacity 150ms ease;
+}
+.btn:active:not(.disabled) {
+  transform: scale(0.97);
+}
+.v-primary {
+  background: var(--poster-yellow);
+  color: var(--poster-ink);
+}
+.v-ghost {
+  background: transparent;
+  color: var(--poster-paper);
+  border: 1px solid rgba(255, 246, 232, 0.45);
+}
+.v-destructive {
+  background: var(--poster-red);
+  color: var(--poster-paper);
+}
+.disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
