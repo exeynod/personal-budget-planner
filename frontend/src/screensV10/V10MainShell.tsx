@@ -30,12 +30,14 @@
 //     pop back to Home for fresh data; submit is rare-enough that staleness
 //     is a minor UX gap, not a correctness issue).
 //
-// Tab-tap routing (CONTEXT D-Defer — 4-tab + FAB nav, WIP placeholders for
-// non-Home tabs until Phase 27 lands real Savings / AI / Mgmt):
+// Tab-tap routing (Phase 27 wiring — Plan 27-06 connects Mgmt-hub for real,
+// Savings/AI use temporary stubs from Management/_externalMountStubs.tsx until
+// Phase 27 plans 27-02 (AiMount) and 27-03 (SavingsMount) ship their barrel
+// exports — then this file swaps the imports):
 //   - home    → router.popToRoot()  (return to OnboardingMount/HomeMount root)
-//   - savings → router.push(<AccountsListPlaceholder />)
-//   - ai      → router.push(<PlanViewPlaceholder />)
-//   - mgmt    → router.push(<PlanViewPlaceholder />)
+//   - savings → router.push(<SavingsMountStub />)   // Plan 27-03 swap target
+//   - ai      → router.push(<AiMountStub />)         // Plan 27-02 swap target
+//   - mgmt    → router.push(<MgmtHubMount />)        // Plan 27-06 — REAL
 //
 // Note: the v0.6 Transactions tab is intentionally absent (TXN-V10-06).
 
@@ -50,10 +52,11 @@ import {
 import type { TabId } from '../componentsV10';
 import { OnboardingMount } from './Onboarding/OnboardingMount';
 import { AddSheet } from './AddSheet';
+import { MgmtHubMount } from './Management';
 import {
-  AccountsListPlaceholder,
-  PlanViewPlaceholder,
-} from './_placeholders';
+  SavingsMountStub,
+  AiMountStub,
+} from './Management/_externalMountStubs';
 import styles from './V10MainShell.module.css';
 
 // ─────────────────── ShellChrome ───────────────────
@@ -80,13 +83,17 @@ function ShellChrome({ active, onTab, onFab, isAddSheetOpen }: ShellChromeProps)
       return;
     }
     if (id === 'savings') {
-      router.push(<AccountsListPlaceholder />);
+      router.push(<SavingsMountStub />);
       return;
     }
-    // 'ai' and 'mgmt' both reuse PlanViewPlaceholder until Phase 27 ships
-    // real screens. Distinct screens are cheap to add later — same push
-    // contract.
-    router.push(<PlanViewPlaceholder />);
+    if (id === 'ai') {
+      router.push(<AiMountStub />);
+      return;
+    }
+    if (id === 'mgmt') {
+      router.push(<MgmtHubMount />);
+      return;
+    }
   };
 
   return (

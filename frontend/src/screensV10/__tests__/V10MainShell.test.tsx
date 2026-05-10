@@ -28,6 +28,43 @@ vi.mock('../../api/v10', () => ({
   createActualV10: vi.fn(),
 }));
 
+// Phase 27-06: Mgmt tab mounts MgmtHubMount, which calls fetchMeV10. Mock it
+// so the test does not require network. Default role='member' so the «ДОСТУП»
+// row stays hidden by default; individual tests override as needed.
+vi.mock('../../api/me', () => ({
+  getMeV10: vi.fn().mockResolvedValue({
+    tg_user_id: 1,
+    tg_chat_id: null,
+    cycle_start_day: 1,
+    onboarded_at: null,
+    chat_id_known: false,
+    role: 'member',
+    ai_spend_cents: 0,
+    ai_spending_cap_cents: 0,
+    income_cents: null,
+  }),
+}));
+
+// SettingsMount / AccessMount may be pushed during Mgmt navigation; mock
+// their data sources so the tests don't depend on the real fetch.
+vi.mock('../../api/settings', () => ({
+  getSettings: vi.fn().mockResolvedValue({
+    cycle_start_day: 1,
+    notify_days_before: 2,
+    is_bot_bound: false,
+    enable_ai_categorization: true,
+  }),
+  updateSettings: vi.fn(),
+}));
+
+vi.mock('../../api/admin', () => ({
+  listAdminUsers: vi.fn().mockResolvedValue([]),
+  getAdminAiUsage: vi.fn().mockResolvedValue({ users: [], generated_at: '' }),
+  inviteAdminUser: vi.fn(),
+  revokeAdminUser: vi.fn(),
+  updateAdminUserCap: vi.fn(),
+}));
+
 import { V10MainShell } from '../V10MainShell';
 
 afterEach(cleanup);
@@ -117,26 +154,32 @@ describe('V10MainShell — composition', () => {
     ).toBeInTheDocument();
   });
 
-  it('Savings tab tap pushes a WIP placeholder via PosterRouter', () => {
+  it('Savings tab tap pushes the SavingsMountStub (Phase 27 wire)', () => {
     render(<V10MainShell />);
     fireEvent.click(screen.getByRole('tab', { name: /КОПИЛКА/ }));
-    // AccountsListPlaceholder hint copy.
-    expect(screen.getByText(/Phase 27/)).toBeInTheDocument();
-    // Top of stack changed → onboarding-mount-stub hidden (root only renders
-    // when its entry is the top of the stack).
+    // SavingsMountStub renders «Копилка —» headline.
+    expect(screen.getByText(/Копилка/)).toBeInTheDocument();
+    // Top of stack changed → onboarding-mount-stub hidden.
     expect(screen.queryByTestId('onboarding-mount-stub')).toBeNull();
   });
 
-  it('AI tab tap pushes a Plan-view WIP placeholder', () => {
+  it('AI tab tap pushes the AiMountStub (Phase 27 wire)', () => {
     render(<V10MainShell />);
     fireEvent.click(screen.getByRole('tab', { name: /AI/ }));
-    expect(screen.getByText(/Phase 26/)).toBeInTheDocument();
+    expect(screen.getByText(/AI —/)).toBeInTheDocument();
   });
 
-  it('Mgmt tab tap pushes a Plan-view WIP placeholder', () => {
+  it('Mgmt tab tap pushes MgmtHubMount with the «Управление.» hub', async () => {
     render(<V10MainShell />);
     fireEvent.click(screen.getByRole('tab', { name: /УПР\./ }));
-    expect(screen.getByText(/Phase 26/)).toBeInTheDocument();
+    // Hub headline is rendered synchronously (isOwner state defaults to false).
+    expect(screen.getByText(/Управление\./)).toBeInTheDocument();
+    // 4-row variant for non-owner role: PLAN МЕСЯЦА / СЧЕТА / АНАЛИТИКА / НАСТРОЙКИ.
+    expect(screen.getByText(/PLAN МЕСЯЦА/)).toBeInTheDocument();
+    // Wait for /me promise to resolve so the role-state settles to 'member'.
+    await flushMicrotasks();
+    // ДОСТУП still hidden because role='member' is the default mocked above.
+    expect(screen.queryByText(/ДОСТУП/)).toBeNull();
   });
 
   it('Home tab tap after a push pops the stack back to root', () => {
