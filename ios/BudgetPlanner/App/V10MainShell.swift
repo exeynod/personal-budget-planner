@@ -1,4 +1,5 @@
-// V10 root shell (Phase 25-07 wiring).
+// V10 root shell (Phase 25-07 wiring; Phase 25-11 replaced the prior
+// AddSheet placeholder with the real AddSheetView).
 //
 // Composes:
 //   - PosterNavStack (custom router, ADR-002) rooted at OnboardingMountView.
@@ -6,8 +7,8 @@
 //     `me.onboardedAt == nil` and HomeV10View otherwise.
 //   - BottomNavV10 (4-tab + FAB layout — TXN-V10-06: NO Транзакции tab).
 //     Hidden while AddSheet is open (T-25-07-03 mitigation).
-//   - AddSheet PosterSheet bound to FAB tap. Body is a temporary
-//     placeholder — real AddSheet ships in Plan 25-11.
+//   - AddSheetView PosterSheet bound to FAB tap (Phase 25-11 — closes
+//     ADD-V10-01..05; replaces the prior 25-07 placeholder body).
 //
 // HomeV10View reads `@Environment(\.posterRouter)` from the PosterNavStack
 // established here and pushes Transactions / Accounts / Plan / Category
@@ -58,7 +59,10 @@ struct V10MainShell: View {
             handleTabChange(newTab)
         }
         .posterSheet(isPresented: $isAddSheetOpen) {
-            AddSheetPlaceholderBody(onClose: { isAddSheetOpen = false })
+            AddSheetView(
+                onSubmitted: { _ in isAddSheetOpen = false },
+                onClose: { isAddSheetOpen = false }
+            )
         }
     }
 
@@ -78,41 +82,6 @@ struct V10MainShell: View {
         case .mgmt:
             router.push(PlanViewPlaceholderView())
         }
-    }
-}
-
-// MARK: - AddSheet placeholder
-
-/// Temporary placeholder body for the AddSheet PosterSheet.
-/// Plan 25-11 replaces this with the full AddSheet UI (3×4 keypad,
-/// category picker, account picker, etc.).
-private struct AddSheetPlaceholderBody: View {
-    let onClose: () -> Void
-
-    var body: some View {
-        ZStack {
-            PosterTokens.Color.black.ignoresSafeArea()
-            VStack(alignment: .leading, spacing: PosterTokens.Space.s18) {
-                HStack {
-                    Eyebrow("NEW ENTRY · WIP", opacity: 0.7)
-                    Spacer()
-                    Button(action: onClose) {
-                        Text("×")
-                            .font(.custom(PosterTokens.Font.archivoBlack, size: 28))
-                            .foregroundColor(PosterTokens.Color.paper)
-                    }
-                    .buttonStyle(.plain)
-                }
-                Mass("AddSheet —", italic: true, size: 36)
-                Text("WIP — Real AddSheet ships in Plan 25-11.")
-                    .font(.custom(PosterTokens.Font.jetBrainsMono, size: 11))
-                    .foregroundColor(PosterTokens.Color.paper.opacity(0.6))
-                Spacer()
-            }
-            .padding(.horizontal, PosterTokens.Space.s22)
-            .padding(.top, 56)
-        }
-        .frame(maxWidth: .infinity, maxHeight: 480, alignment: .topLeading)
     }
 }
 
