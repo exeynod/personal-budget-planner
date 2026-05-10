@@ -1,17 +1,17 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: Maximal Poster Full
-status: completed
-stopped_at: Roadmap для v1.0 (Phases 22-28) создан, REQUIREMENTS.md traceability заполнен (92/92 REQs). Awaiting `/gsd-plan-phase 22`.
-last_updated: "2026-05-10T20:49:36.529Z"
-last_activity: 2026-05-10
+milestone: v1.0.1
+milestone_name: UI Conformance & Tech Debt
+status: in_progress
+stopped_at: v1.0.1 patch milestone created — 3 phases (29 UI conformance, 30 tech debt, 31 regression). Awaiting plan-phase.
+last_updated: "2026-05-11T00:10:00.000Z"
+last_activity: 2026-05-11 -- v1.0.1 milestone setup
 progress:
-  total_phases: 7
-  completed_phases: 7
-  total_plans: 74
-  completed_plans: 74
-  percent: 100
+  total_phases: 3
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
