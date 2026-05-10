@@ -30,7 +30,7 @@ targets:
         type: file
         buildPhase: resources
       - path: BudgetPlanner/Resources/Fonts
-        type: folder
+        type: group
         buildPhase: resources
     info:
       path: BudgetPlanner/Info.plist
@@ -57,6 +57,12 @@ targets:
               NSExceptionAllowsInsecureHTTPLoads: true
               NSIncludesSubdomains: true
         LSRequiresIPhoneOS: true
+        UIAppFonts:
+          - Manrope-VariableFont_wght.ttf
+          - JetBrainsMono-VariableFont_wght.ttf
+          - ArchivoBlack-Regular.ttf
+          - DMSerifDisplay-Italic.ttf
+          - PTSerif-Italic.ttf
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.exeynod.BudgetPlanner

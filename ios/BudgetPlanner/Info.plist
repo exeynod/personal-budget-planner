@@ -46,11 +46,11 @@
 	</dict>
 	<key>UIAppFonts</key>
 	<array>
-		<string>Fonts/Manrope-VariableFont_wght.ttf</string>
-		<string>Fonts/JetBrainsMono-VariableFont_wght.ttf</string>
-		<string>Fonts/ArchivoBlack-Regular.ttf</string>
-		<string>Fonts/DMSerifDisplay-Italic.ttf</string>
-		<string>Fonts/PTSerif-Italic.ttf</string>
+		<string>Manrope-VariableFont_wght.ttf</string>
+		<string>JetBrainsMono-VariableFont_wght.ttf</string>
+		<string>ArchivoBlack-Regular.ttf</string>
+		<string>DMSerifDisplay-Italic.ttf</string>
+		<string>PTSerif-Italic.ttf</string>
 	</array>
 	<key>UILaunchScreen</key>
 	<dict>
