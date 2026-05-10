@@ -15,13 +15,20 @@ import Foundation
 
 // MARK: - CTA state machine
 
-/// Three-state CTA gate (ADD-V10-05). Mirrors the web equivalent.
-///   - empty → "ВВЕДИТЕ СУММУ"      (disabled gray)
-///   - noCat → "ВЫБЕРИТЕ КАТЕГОРИЮ" (disabled gray)
-///   - ready → "СОХРАНИТЬ ↵"        (active yellow)
+/// Four-state CTA gate (ADD-V10-05). Mirrors the web equivalent.
+///   - empty     → "ВВЕДИТЕ СУММУ"      (disabled gray)
+///   - noCat     → "ВЫБЕРИТЕ КАТЕГОРИЮ" (disabled gray)
+///   - noAccount → "НЕТ СЧЁТА"          (disabled gray; WR-25-02)
+///   - ready     → "СОХРАНИТЬ ↵"        (active yellow)
+///
+/// WR-25-02 (review fix): gate added to mirror the web change for WR-25-01
+/// — posting `account_id: nil` silently falls into the legacy backend path
+/// (no wallet delta, HOME-V10-04 desync). Surface the failure to the user
+/// instead of letting `submit()` fire a half-broken request.
 enum AddSheetCtaState: Equatable {
     case empty
     case noCat
+    case noAccount
     case ready
 }
 
@@ -136,9 +143,21 @@ enum AddSheetData {
     // ─────────────── CTA state ───────────────
 
     /// Compute the CTA gate state from current form fields.
-    static func ctaState(amountCents: Int, categoryId: Int?) -> AddSheetCtaState {
+    ///
+    /// `accountId` is optional-by-default to keep prior 2-arg call sites
+    /// (and tests written before WR-25-02) compiling without churn. Pass
+    /// it explicitly with the actual `accountId` from the ViewModel to
+    /// enable the WR-25-02 wallet-account gate.
+    static func ctaState(
+        amountCents: Int,
+        categoryId: Int?,
+        accountId: Int? = -1
+    ) -> AddSheetCtaState {
         if amountCents == 0 { return .empty }
         if categoryId == nil { return .noCat }
+        // Sentinel `-1` (≠ a real account id; AccountDTO.id is a positive
+        // SERIAL) means "caller did not opt into the WR-25-02 gate".
+        if accountId != -1 && accountId == nil { return .noAccount }
         return .ready
     }
 

@@ -55,6 +55,18 @@ struct AddSheetView: View {
 
     @ViewBuilder
     private var content: some View {
+        // WR-25-02 (review fix): surface bootstrap errors instead of letting
+        // the user stare at an empty category scroll. Mirrors HomeViewModel
+        // pattern (load-status branching at the View root).
+        switch model.loadStatus {
+        case .error(let msg):
+            errorState(msg)
+        default:
+            scrollContent
+        }
+    }
+
+    private var scrollContent: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 headerRow
@@ -74,6 +86,44 @@ struct AddSheetView: View {
             .padding(.top, 56)
             .padding(.bottom, 22)
         }
+    }
+
+    @ViewBuilder
+    private func errorState(_ msg: String) -> some View {
+        VStack(spacing: 16) {
+            Spacer()
+            Text(msg.uppercased())
+                .font(.custom(PosterTokens.Font.archivoBlack, size: 14))
+                .tracking(2.0)
+                .foregroundColor(PosterTokens.Color.paper)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 32)
+            Button(action: { Task { await model.loadFormData() } }) {
+                Text("ПОВТОРИТЬ")
+                    .font(.custom(PosterTokens.Font.archivoBlack, size: 12))
+                    .tracking(2.0)
+                    .padding(.vertical, 12)
+                    .padding(.horizontal, 28)
+                    .background(PosterTokens.Color.yellow)
+                    .foregroundColor(PosterTokens.Color.ink)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Повторить загрузку")
+            HStack {
+                Spacer()
+                Button(action: onClose) {
+                    Text("ЗАКРЫТЬ")
+                        .font(.custom(PosterTokens.Font.archivoBlack, size: 11))
+                        .tracking(1.6)
+                        .foregroundColor(PosterTokens.Color.paper.opacity(0.7))
+                        .padding(8)
+                }
+                .buttonStyle(.plain)
+                Spacer()
+            }
+            Spacer()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     // MARK: - Sections
@@ -244,9 +294,10 @@ struct AddSheetView: View {
 
     private func ctaLabelAndReady() -> (String, Bool) {
         switch model.ctaState {
-        case .empty: return ("ВВЕДИТЕ СУММУ", false)
-        case .noCat: return ("ВЫБЕРИТЕ КАТЕГОРИЮ", false)
-        case .ready: return ("СОХРАНИТЬ ↵", true)
+        case .empty:     return ("ВВЕДИТЕ СУММУ", false)
+        case .noCat:     return ("ВЫБЕРИТЕ КАТЕГОРИЮ", false)
+        case .noAccount: return ("НЕТ СЧЁТА", false)
+        case .ready:     return ("СОХРАНИТЬ ↵", true)
         }
     }
 

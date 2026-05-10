@@ -58,7 +58,16 @@ final class AddSheetViewModel {
     var amountCents: Int { AddSheetData.parseAmountToCents(amountString) }
 
     var ctaState: AddSheetCtaState {
-        AddSheetData.ctaState(amountCents: amountCents, categoryId: categoryId)
+        // WR-25-02 (review fix): pass `accountId` so the CTA collapses to
+        // `.noAccount` if `loadFormData()` failed or the user has zero
+        // accounts. Without this gate, `submit()` would POST `accountId: nil`
+        // and the server would silently take the legacy path → wallet
+        // balance never updates (HOME-V10-04 desync).
+        AddSheetData.ctaState(
+            amountCents: amountCents,
+            categoryId: categoryId,
+            accountId: accountId
+        )
     }
 
     /// Form is dirty when at least one user-supplied field has content.

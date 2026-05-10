@@ -148,6 +148,29 @@ final class AddSheetDataTests: XCTestCase {
         XCTAssertEqual(AddSheetData.ctaState(amountCents: 500, categoryId: 7), .ready)
     }
 
+    // WR-25-02 (review fix): account-gating overload.
+    func test_ctaState_amount_cat_no_account_yields_noAccount() {
+        XCTAssertEqual(
+            AddSheetData.ctaState(amountCents: 500, categoryId: 7, accountId: nil),
+            .noAccount
+        )
+    }
+
+    func test_ctaState_amount_cat_account_yields_ready() {
+        XCTAssertEqual(
+            AddSheetData.ctaState(amountCents: 500, categoryId: 7, accountId: 3),
+            .ready
+        )
+    }
+
+    func test_ctaState_account_gate_after_cat_gate() {
+        // No category trumps no account in the state machine.
+        XCTAssertEqual(
+            AddSheetData.ctaState(amountCents: 500, categoryId: nil, accountId: nil),
+            .noCat
+        )
+    }
+
     // ─────────────── defaultDate ───────────────
 
     func test_defaultDate_today_returns_today() {
