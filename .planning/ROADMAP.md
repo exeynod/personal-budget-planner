@@ -238,7 +238,12 @@
   3. Каждый экран сверен с `prototype/index.html` через Playwright `toHaveScreenshot()` (web) и manual XcodeBuildMCP screenshot + Preview Canvas (iOS); divergences задокументированы в `.planning/v1.0-handoff/DIVERGENCES.md` (например iOS safe-area, dual-font hybrid rendering из ADR-001); CI-check `make hidden-unicode-grep` находит U+00AD / U+200B / U+200C / U+200D в репе.
   4. Performance: Home первая отрисовка с count-up завершается < 1.5s после launch (iPhone 11 / iPhone Pro target); Lighthouse mobile > 90 / LCP < 2.5s; bundle добавка woff2 < 200kB gzipped; alembic upgrade head → downgrade -1 → upgrade head без падения на копии prod DB; integration test `test_multitenancy_v1_0_columns.py` подтверждает RLS + composite FK защищают cross-tenant access.
   5. Acceptance §14 ТЗ полностью пройден: онбординг < 60 сек / Home показывает дневной темп с count-up / Add Sheet записывает за один tap / PLAN меняет лимиты (Σplan validation) / AI initial state работает / Копилка показывает накопления и цели / нет видимого FOUT после первого визита; default flips на `theme = .v10_poster` в acceptance, v0.6 код остаётся fallback на ~1 release.
-**Plans**: TBD
+**Plans**: 5 plans (1 wave)
+- [ ] 28-01-PLAN.md — web animations + a11y audit + Playwright reduce-motion test (POL-01 web, POL-02 web, POL-03 web)
+- [ ] 28-02-PLAN.md — iOS animations audit + PosterEdgeSwipe a11y patch + reduce-motion XCTest (POL-01 iOS, POL-02 iOS, POL-03 iOS)
+- [ ] 28-03-PLAN.md — Playwright pixel-perfect baseline + DIVERGENCES.md (POL-04 web + iOS)
+- [ ] 28-04-PLAN.md — Performance audit (bundle + Lighthouse + count-up smoke) (POL-05) [checkpoint:human-verify]
+- [ ] 28-05-PLAN.md — Migration safety + hidden-unicode + §14 ТЗ E2E happy-path (POL-06, POL-07)
 **UI hint**: yes
 
 ## Dependency Graph (v1.0)
@@ -281,7 +286,7 @@
 | 25 - Home + Transactions + Add Sheet | 12/12 | Complete    | 2026-05-10 |
 | 26 - Category Detail + PLAN мая + Subscriptions | 7/7 | Complete    | 2026-05-10 |
 | 27 - AI + Savings + Accounts + Analytics + Management | 11/11 | Complete    | 2026-05-10 |
-| 28 - Animations Polish + Acceptance | 0/0 | Not started | - |
+| 28 - Animations Polish + Acceptance | 0/5 | Not started | - |
 
 ## Coverage Validation (v1.0)
 
