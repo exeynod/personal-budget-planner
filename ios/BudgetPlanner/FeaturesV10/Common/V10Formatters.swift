@@ -111,10 +111,16 @@ enum V10Formatters {
         let vol = (year - 2025) * 12 + month
         let volStr = String(format: "%02d", vol)
         let monthEn = monthsEn[month - 1]
-        let lastDay: Int = {
-            let range = calendar.range(of: .day, in: .month, for: date)
-            return range?.upperBound != nil ? (range!.upperBound - 1) : 30
-        }()
+        // WR-25-06 (review fix): `if let` instead of `range!` after
+        // `range?.upperBound != nil` — semantically identical but avoids
+        // the force-unwrap code smell. Fallback `30` is unreachable for
+        // valid dates; defensive default.
+        let lastDay: Int
+        if let range = calendar.range(of: .day, in: .month, for: date) {
+            lastDay = range.upperBound - 1
+        } else {
+            lastDay = 30
+        }
         // WR-25-04 (review fix): clamp to 1 for parity with web
         // `format.ts::formatPeriodEyebrow` and HomeViewModel.
         let daysLeft = Swift.max(1, lastDay - day + 1)
