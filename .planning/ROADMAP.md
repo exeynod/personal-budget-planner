@@ -7,7 +7,45 @@
 - ✅ **v0.4 — Multi-Tenant & Admin** (Phases 11-15) — shipped 2026-05-07 → [archive](milestones/v0.4-ROADMAP.md) (live TG smoke deferred to UAT — see [v0.4-MILESTONE-AUDIT.md](v0.4-MILESTONE-AUDIT.md))
 - ✅ **v0.5 — Security & AI Hardening** (Phase 16) — shipped 2026-05-07 → [archive](milestones/v0.5-ROADMAP.md)
 - ✅ **v0.6 — iOS App** (Phases 17-21) — shipped 2026-05-09 → [archive](milestones/v0.6-ROADMAP.md) (TestFlight distribution deferred — paid Apple Developer Account out of scope)
-- 🚧 **v1.0 — Maximal Poster Full** (Phases 22-28) — started 2026-05-09 — integration branch `v1.0-maximal-poster`
+- ✅ **v1.0 — Maximal Poster Full** (Phases 22-28) — shipped 2026-05-10 → [archive](milestones/v1.0-ROADMAP.md)
+- 🚧 **v1.0.1 — UI Conformance & Tech Debt** (Phases 29-31) — started 2026-05-11
+
+## Phase Details (v1.0.1)
+
+### Phase 29: UI Conformance Audit & Critical Fixes
+**Goal**: Pixel-perfect аудит каждого V10 экрана против `prototype/index.html` (web)
++ XcodeBuildMCP screenshots (iOS); produce UI-REVIEW.md с deviations classified BLOCKER/WARNING/INFO; fix BLOCKER-уровневые deviations inline.
+**Depends on**: v1.0 ship
+**Requirements**: UICONF-01..UICONF-05
+**Success Criteria**:
+1. Web Playwright snapshots для всех 8 V10 экранов сгенерированы (Home/Tx/AddSheet/CategoryDetail/PLAN/Subscriptions/Savings/AI) с corresponding baselines в `__screenshots__/v10-pixel/`.
+2. Каждый screenshot side-by-side сверен с `prototype/index.html` секцией; deviations записаны в UI-REVIEW.md с severity (BLOCKER = visible misalignment / wrong color / missing element; WARNING = micro-spacing / opacity drift; INFO = subjective polish).
+3. iOS аудит через XcodeBuildMCP screenshots для тех же 8 экранов с reference в DESIGN-SYSTEM.md.
+4. Все BLOCKER-deviations исправлены inline; WARNING/INFO задокументированы для v1.1.
+5. Re-run Playwright snapshots green после fix-ов.
+
+### Phase 30: Tech Debt Cleanup
+**Goal**: Закрыть 7 achievable v1.0 tech debt items: pre-existing TS errors (analytics.ts, AiView.tsx, TxV10TabDemote.test.tsx), AddSheet refetch-after-submit, account picker UI upgrade (web+iOS), iOS Subscription editor error surface, web swipe-left delete, iOS press-feedback animation transition, iOS SettingsAPI file split.
+**Depends on**: Phase 29 (UI fixes might overlap with these files)
+**Requirements**: DEBT-01..DEBT-07
+**Success Criteria**:
+1. tsc --noEmit clean (DEBT-01: TS errors resolved).
+2. AddSheet submit triggers parent screen refetch (Home + Transactions) — no stale data (DEBT-02).
+3. Account picker is full sheet with list (web + iOS), not row-cycler (DEBT-03).
+4. iOS Subscription day/price editor surfaces backend errors via banner (not silent) (DEBT-04).
+5. Web Transactions row supports swipe-left delete (parity with iOS) (DEBT-05).
+6. iOS press-feedback in PosterStyle.swift + KeypadView.swift uses .posterAnimation (not bare .animation) (DEBT-06).
+7. iOS SettingsAPI moved to its own file (DEBT-07 cosmetic).
+
+### Phase 31: Regression Hardening
+**Goal**: Добавить test fixtures для onboarded user, починить Playwright §14 acceptance + pixel snapshot tests; добавить iOS testRoundRubles + testCycleDayClampedInFebruary test bug fixes (или isolate как broken); finalize CI green.
+**Depends on**: Phase 30
+**Requirements**: REG-01..REG-04
+**Success Criteria**:
+1. Playwright fixtures: onboarded test user (auto-onboards via /api/v1/internal/onboarding если test mode) — Home/Tx/AddSheet рендерятся в спеках без real backend setup.
+2. v10-acceptance-tz14 spec проходит на live dev-server.
+3. v10-pixel-snapshots генерирует 8 baselines + diff-fail на сознательной regression.
+4. iOS XCTest 358/358 (testRoundRubles + testCycleDayClampedInFebruary либо починены, либо marked .skip с reason).
 
 ## Phases
 
