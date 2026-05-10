@@ -31,6 +31,14 @@ struct TransactionsV10View: View {
         ZStack {
             PosterTokens.Color.cobalt.ignoresSafeArea()
             content
+            // WR-25-09 (review fix): overlay banner for transient delete
+            // failures. Anchored to bottom so the list keeps focus; tap
+            // dismisses. Replaces the prior pattern of overwriting
+            // `model.status` with `.error`, which used to flash the entire
+            // list away (see ViewModel comment for rationale).
+            if let msg = model.deleteError {
+                deleteErrorBanner(msg)
+            }
         }
         .task { await model.load() }
         .posterSheet(
@@ -231,6 +239,33 @@ struct TransactionsV10View: View {
             Text("добавьте первую трату через FAB")
                 .font(.posterMono(size: PosterTokens.FontSize.monoSm))
                 .foregroundColor(PosterTokens.Color.paper.opacity(0.6))
+        }
+    }
+
+    /// WR-25-09 (review fix): bottom-anchored transient banner for delete
+    /// failures. Tap to dismiss. Visible above the FAB chrome via padding.
+    private func deleteErrorBanner(_ msg: String) -> some View {
+        VStack {
+            Spacer()
+            HStack(spacing: 10) {
+                Text(msg.uppercased())
+                    .font(.custom(PosterTokens.Font.archivoBlack, size: 11))
+                    .tracking(1.6)
+                    .foregroundColor(PosterTokens.Color.cobalt)
+                Spacer()
+                Button(action: { model.clearDeleteError() }) {
+                    Text("×")
+                        .font(.custom(PosterTokens.Font.archivoBlack, size: 18))
+                        .foregroundColor(PosterTokens.Color.cobalt)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Скрыть сообщение об ошибке")
+            }
+            .padding(.horizontal, PosterTokens.Space.s14)
+            .padding(.vertical, 12)
+            .background(PosterTokens.Color.yellow)
+            .padding(.horizontal, PosterTokens.Space.s22)
+            .padding(.bottom, 110) // clear of FAB / bottom nav chrome
         }
     }
 }

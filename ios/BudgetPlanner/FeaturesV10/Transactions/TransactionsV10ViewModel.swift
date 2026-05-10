@@ -37,6 +37,17 @@ final class TransactionsV10ViewModel {
     private(set) var categories: [CategoryV10DTO] = []
     private(set) var accounts: [AccountDTO] = []
 
+    /// Banner-style transient error from a failed delete attempt.
+    ///
+    /// WR-25-09 (review fix): keep delete failures separate from the
+    /// page-level `status` machine. Replacing `status` with `.error` after
+    /// a failed delete made the View render a fullscreen error and lose
+    /// the existing list (the opposite of what HomeViewModel does — its
+    /// comment explicitly says "keep previously-loaded state intact so a
+    /// retry does not flash empty UI"). The banner pattern preserves the
+    /// list and lets the user re-attempt the delete or dismiss.
+    var deleteError: String? = nil
+
     /// Selected filter chip — observed, mutable from the View.
     var chip: TransactionFilterChip = .all
 
@@ -121,9 +132,19 @@ final class TransactionsV10ViewModel {
     func delete(_ tx: ActualV10DTO) async {
         do {
             try await ActualAPI.delete(id: tx.id)
+            self.deleteError = nil
             await load()
         } catch {
-            self.status = .error("не удалось удалить операцию")
+            // WR-25-09 (review fix): surface the failure as a transient
+            // banner via `deleteError` rather than overwriting `status`.
+            // The list (`actuals`) remains intact so the user can retry
+            // or pick a different row without losing context.
+            self.deleteError = "не удалось удалить операцию"
         }
+    }
+
+    /// Dismiss the delete-error banner (View call site).
+    func clearDeleteError() {
+        self.deleteError = nil
     }
 }
