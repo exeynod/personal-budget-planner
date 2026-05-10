@@ -27,19 +27,8 @@ export type {
   CategoryV10UpdatePayload,
 } from './categories';
 
-// Phase 26-04 (PLAN-V10-06) — atomic batch plan-cents update.
-export { patchPlanMonth } from './planMonth';
-export type {
-  PlanMonthItem,
-  PlanMonthPatchPayload,
-  PlanMonthResponse,
-} from './planMonth';
-
-// Phase 26-04 / 26-06 — V1.0 subscriptions surface.
 export {
   listSubscriptionsV10,
-  postSubscription,
-  unpostSubscription,
   patchSubscriptionV10,
   deleteSubscription,
 } from './subscriptions';

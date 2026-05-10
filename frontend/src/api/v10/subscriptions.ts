@@ -1,10 +1,7 @@
-// Phase 26-04 (PLAN-V10-04): V1.0 typed wrappers for /api/v1/subscriptions.
+// Phase 26-06 (SUBS-V10-01..04): V1.0 typed wrappers for /api/v1/subscriptions.
 //
-// Surface (used by PlanMount «РЕГУЛЯРНЫЕ · ПРОВЕСТИ В ФАКТ» block + Plan
-// 26-06 SubscriptionsMount):
+// Surface (used by Plan 26-06 SubscriptionsMount):
 //   listSubscriptionsV10()                  → SubscriptionV10Read[]
-//   postSubscription(id)                    → SubscriptionPostResponse  (BE-13)
-//   unpostSubscription(id)                  → void                     (BE-13)
 //   patchSubscriptionV10(id, payload)       → SubscriptionV10Read       (Phase 22 BE-12)
 //   deleteSubscription(id)                  → void                     (hard delete per CLAUDE.md)
 //
@@ -17,7 +14,6 @@ import { apiFetch } from '../client';
 import type {
   SubscriptionV10Read,
   SubscriptionV10UpdatePayload,
-  SubscriptionPostResponse,
 } from '../types';
 
 export type {
@@ -34,31 +30,6 @@ export type {
  */
 export async function listSubscriptionsV10(): Promise<SubscriptionV10Read[]> {
   return apiFetch<SubscriptionV10Read[]>('/subscriptions');
-}
-
-/**
- * POST /api/v1/subscriptions/{id}/post — manually post regular as actual_transaction.
- *
- * 200 → SubscriptionPostResponse {txn_id, subscription_id, posted_at}
- * 409 → already posted OR subscription inactive
- * 422 → no account_id on subscription (cannot decide source account)
- */
-export async function postSubscription(
-  id: number,
-): Promise<SubscriptionPostResponse> {
-  return apiFetch<SubscriptionPostResponse>(`/subscriptions/${id}/post`, {
-    method: 'POST',
-  });
-}
-
-/**
- * POST /api/v1/subscriptions/{id}/unpost — revert manual post.
- *
- * 204 → success (subscription.posted_txn_id cleared, actual deleted)
- * 404 → not currently posted
- */
-export async function unpostSubscription(id: number): Promise<void> {
-  await apiFetch<void>(`/subscriptions/${id}/unpost`, { method: 'POST' });
 }
 
 /**

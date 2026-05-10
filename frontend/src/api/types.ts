@@ -298,10 +298,10 @@ export interface ChargeNowResponse {
   next_charge_date: string;
 }
 
-// ---------- Phase 26: V1.0 Subscription Extensions + PlanMonth ----------
+// ---------- Phase 26-06: V1.0 Subscription Extensions ----------
 
 /**
- * Phase 26 — V1.0 ext fields для SubscriptionRead (Phase 22 BE-12).
+ * Phase 26-06 — V1.0 ext fields layered onto SubscriptionRead (Phase 22 BE-12).
  *
  * Backend exposes day_of_month/account_id/posted_txn_id когда v1.0 schema
  * landed (Phase 22). Defensive typing — optional + nullable до full schema
@@ -313,11 +313,11 @@ export interface SubscriptionV10Ext {
   posted_txn_id?: number | null;
 }
 
-/** Phase 26 — extended SubscriptionRead emitted by /api/v1/subscriptions. */
+/** Phase 26-06 — extended SubscriptionRead emitted by /api/v1/subscriptions. */
 export type SubscriptionV10Read = SubscriptionRead & SubscriptionV10Ext;
 
 /**
- * Phase 26 — request body for PATCH /subscriptions/{id} (V10 super-set).
+ * Phase 26-06 — request body for PATCH /subscriptions/{id} (V10 super-set).
  * Backend (Phase 22) accepts both legacy fields AND day_of_month/account_id.
  */
 export interface SubscriptionV10UpdatePayload {
@@ -332,38 +332,11 @@ export interface SubscriptionV10UpdatePayload {
   account_id?: number;
 }
 
-/** Phase 26 — response for POST /subscriptions/{id}/post. */
+/** Phase 26-06 — response for POST /subscriptions/{id}/post. */
 export interface SubscriptionPostResponse {
   txn_id: number;
   subscription_id: number;
   posted_at: string;
-}
-
-/**
- * Phase 26 — single plan-edit row in PATCH /api/v1/plan-month payload (PLAN-V10-06).
- *
- * Backend `PlanMonthItem` (`app/api/schemas/plan_month.py`) — `category_id` (int),
- * `plan_cents` (ge=0). Atomic batch — either all apply, or none.
- */
-export interface PlanMonthItem {
-  category_id: number;
-  plan_cents: number;
-}
-
-/** Phase 26 — request body for PATCH /api/v1/plan-month (PLAN-V10-06). */
-export interface PlanMonthPatchPayload {
-  plans: PlanMonthItem[];
-}
-
-/**
- * Phase 26 — response for PATCH /api/v1/plan-month (PLAN-V10-06).
- *
- * Backend re-emits the updated `CategoryRead` rows (Phase 25 v1.0 surface)
- * in the same order as the request `plans` array — frontend can zip
- * against its local copy without re-keying.
- */
-export interface PlanMonthResponse {
-  categories: CategoryRead[];
 }
 
 // ---------- Phase 8: Analytics ----------
