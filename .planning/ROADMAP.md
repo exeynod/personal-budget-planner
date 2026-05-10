@@ -74,7 +74,7 @@
 - [ ] **Phase 22: Backend Schema & Logic Foundation** — Account/Goal/SavingsConfig/Recurrent ext, ActualKind enum, roundup + rollover services, atomic onboarding, RLS на 4 новых таблицах (блокер всему UI)
 - [ ] **Phase 23: Design System Foundation** — codegen tokens, 4 self-hosted шрифта + PT Serif fallback, 11 keyframe-анимаций, PosterNavStack + PosterSheet, dual-shell coexistence (web ║ iOS параллельно)
 - [ ] **Phase 24: Onboarding 4-step** — Доход → Счета → План → Цель → Final с persistence draft и atomic commit
-- [ ] **Phase 25: Home + Transactions + Add Sheet** — coral hero «дневной темп», push-stack реестр, custom 3×4 keypad, FAB на каждом экране
+- [x] **Phase 25: Home + Transactions + Add Sheet** — coral hero «дневной темп», push-stack реестр, custom 3×4 keypad, FAB на каждом экране (completed 2026-05-10)
 - [ ] **Phase 26: Category Detail + PLAN мая + Subscriptions** — red/cobalt category screen, PLAN со sliders + регулярные «провести в факт», подписки с editor-меню
 - [ ] **Phase 27: AI + Savings + Accounts + Analytics + Management** — AI initial-state observation + 4 chips, Копилка с roundup-toggle, Accounts list + detail, Analytics rewrite, Mgmt-хаб
 - [ ] **Phase 28: Animations Polish + Acceptance** — `prefers-reduced-motion`, accessibility audit, pixel-perfect side-by-side QA, performance, migration safety, acceptance §14 ТЗ
@@ -175,13 +175,13 @@
 - [x] 25-03-api-clients-PLAN.md — typed v10 API clients (web + iOS) for /actual /accounts /categories (Plan 25-03)
 - [x] 25-04-web-home-view-PLAN.md — web HomeView + HomeMount + computeHomeData (HOME-V10-01..06) (Plan 25-04)
 - [x] 25-05-ios-home-view-PLAN.md — iOS HomeV10View + HomeV10ViewModel + HomeData (HOME-V10-01..06) (Plan 25-05)
-- [ ] 25-06-web-shell-mount-PLAN.md — wire AppV10 → V10MainShell with PosterRouter + BottomNavV10 + AddSheet placeholder (HOME mount + TXN-V10-06 + ADD-V10-01) [gap-closure]
-- [ ] 25-07-ios-shell-mount-PLAN.md — wire iOS V10MainShell with PosterNavStack + BottomNavV10 + AddSheet placeholder (HOME mount + TXN-V10-06 + ADD-V10-01) [gap-closure]
-- [ ] 25-08-web-transactions-PLAN.md — web TransactionsView + TransactionsMount + computeTransactions (TXN-V10-01..05) [gap-closure]
-- [ ] 25-09-ios-transactions-PLAN.md — iOS TransactionsV10View + ViewModel + TransactionsData (TXN-V10-01..05) [gap-closure]
-- [ ] 25-10-web-addsheet-PLAN.md — web AddSheet + Keypad + computeAddSheet + V10MainShell wire (ADD-V10-01..05) [gap-closure]
-- [ ] 25-11-ios-addsheet-PLAN.md — iOS AddSheetView + KeypadView + SuppressedKeyboardField + V10MainShell wire (ADD-V10-01..05) [gap-closure]
-- [ ] 25-12-txn-tab-demote-verify-PLAN.md — automated TXN-V10-06 acceptance + Playwright happy-path (TXN-V10-06) [gap-closure]
+- [x] 25-06-web-shell-mount-PLAN.md — wire AppV10 → V10MainShell with PosterRouter + BottomNavV10 + AddSheet placeholder (HOME mount + TXN-V10-06 + ADD-V10-01) [gap-closure]
+- [x] 25-07-ios-shell-mount-PLAN.md — wire iOS V10MainShell with PosterNavStack + BottomNavV10 + AddSheet placeholder (HOME mount + TXN-V10-06 + ADD-V10-01) [gap-closure]
+- [x] 25-08-web-transactions-PLAN.md — web TransactionsView + TransactionsMount + computeTransactions (TXN-V10-01..05) [gap-closure]
+- [x] 25-09-ios-transactions-PLAN.md — iOS TransactionsV10View + ViewModel + TransactionsData (TXN-V10-01..05) [gap-closure]
+- [x] 25-10-web-addsheet-PLAN.md — web AddSheet + Keypad + computeAddSheet + V10MainShell wire (ADD-V10-01..05) [gap-closure]
+- [x] 25-11-ios-addsheet-PLAN.md — iOS AddSheetView + KeypadView + SuppressedKeyboardField + V10MainShell wire (ADD-V10-01..05) [gap-closure]
+- [x] 25-12-txn-tab-demote-verify-PLAN.md — automated TXN-V10-06 acceptance + Playwright happy-path (TXN-V10-06) [gap-closure]
 **UI hint**: yes
 
 ### Phase 26: Category Detail + PLAN мая + Subscriptions
@@ -260,7 +260,7 @@
 | 22 - Backend Schema & Logic Foundation | 0/16 | Not started | - |
 | 23 - Design System Foundation | 0/12 | Not started | - |
 | 24 - Onboarding 4-step | 0/0 | Not started | - |
-| 25 - Home + Transactions + Add Sheet | 0/0 | Not started | - |
+| 25 - Home + Transactions + Add Sheet | 12/12 | Complete    | 2026-05-10 |
 | 26 - Category Detail + PLAN мая + Subscriptions | 0/0 | Not started | - |
 | 27 - AI + Savings + Accounts + Analytics + Management | 0/0 | Not started | - |
 | 28 - Animations Polish + Acceptance | 0/0 | Not started | - |

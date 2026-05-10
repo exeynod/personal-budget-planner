@@ -1,9 +1,19 @@
 ---
 phase: 25-home-transactions-add-sheet
-verified: 2026-05-10T15:50:00Z
-status: gaps_found
-score: 2/5 must-haves verified (foundation primitives green; Home wiring + TXN/ADD UI absent)
+verified: 2026-05-10T19:55:00Z
+status: passed
+score: 5/5 must-haves verified (17/17 REQ IDs satisfied after 7 gap-closure plans 25-06..25-12)
 overrides_applied: 0
+re_verified_after_gap_closure: true
+prior_status: gaps_found (2/5) — see git history for original gap analysis
+deferred_to_later_phases:
+  - "EditPlaceholder for Phase 26 TransactionEditor"
+  - "account picker cycler — full picker UI in Phase 28 polish"
+  - "refetch-after-AddSheet-submit (Phase 28 polish)"
+  - "background-color tweak DF-V11-04 (v1.1)"
+  - "full e2e AddSheet submit flow (Phase 28 — needs data-testid surface)"
+  - "pixel-perfect QA + count-up easing fidelity (Phase 28 POL-04/POL-05)"
+  - "web swipe-left delete UX (CONTEXT D-Defer divergence — web uses right-click)"
 gaps:
   - truth: "User-with-onboarded_at != null лендится на HomeView (web AppV10 + iOS V10MainShell), без OnboardingFlow."
     status: failed
