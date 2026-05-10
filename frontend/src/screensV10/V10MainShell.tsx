@@ -53,10 +53,8 @@ import type { TabId } from '../componentsV10';
 import { OnboardingMount } from './Onboarding/OnboardingMount';
 import { AddSheet } from './AddSheet';
 import { MgmtHubMount } from './Management';
-import {
-  SavingsMountStub,
-  AiMountStub,
-} from './Management/_externalMountStubs';
+import { SavingsMount } from './Savings';
+import { AiMount } from './Ai';
 import styles from './V10MainShell.module.css';
 
 // ─────────────────── ShellChrome ───────────────────
@@ -83,11 +81,11 @@ function ShellChrome({ active, onTab, onFab, isAddSheetOpen }: ShellChromeProps)
       return;
     }
     if (id === 'savings') {
-      router.push(<SavingsMountStub />);
+      router.push(<SavingsMount />);
       return;
     }
     if (id === 'ai') {
-      router.push(<AiMountStub />);
+      router.push(<AiMount />);
       return;
     }
     if (id === 'mgmt') {

@@ -19,10 +19,8 @@ import { MgmtHubView, type MgmtRowId } from './MgmtHubView';
 import { PlanMount } from '../Plan';
 import { SettingsMount } from './SettingsMount';
 import { AccessMount } from './AccessMount';
-import {
-  AccountsListMountStub,
-  AnalyticsMountStub,
-} from './_externalMountStubs';
+import { AccountsListMount } from '../Accounts';
+import { AnalyticsMount } from '../Analytics';
 
 export function MgmtHubMount() {
   const router = usePosterRouter();
@@ -47,9 +45,9 @@ export function MgmtHubMount() {
     if (id === 'plan') {
       router.push(<PlanMount />);
     } else if (id === 'accounts') {
-      router.push(<AccountsListMountStub />);
+      router.push(<AccountsListMount />);
     } else if (id === 'analytics') {
-      router.push(<AnalyticsMountStub />);
+      router.push(<AnalyticsMount />);
     } else if (id === 'settings') {
       router.push(<SettingsMount />);
     } else if (id === 'access') {

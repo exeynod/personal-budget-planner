@@ -21,11 +21,49 @@ vi.mock('../Onboarding/OnboardingMount', () => ({
   ),
 }));
 
-// Mock the v10 API leaves the real AddSheet uses on mount.
+// Mock the v10 API leaves the real AddSheet + Phase 27 mounts use.
 vi.mock('../../api/v10', () => ({
   listAccounts: vi.fn().mockResolvedValue([]),
+  createAccount: vi.fn(),
   listCategoriesV10: vi.fn().mockResolvedValue([]),
   createActualV10: vi.fn(),
+  listActualV10: vi.fn().mockResolvedValue([]),
+  // Phase 27 — Savings/Goals (snap.config nested per actual SavingsSnapshot)
+  fetchSavingsSummary: vi.fn().mockResolvedValue({
+    total_cents: 0,
+    month_in_cents: 0,
+    config: { roundup_enabled: false, roundup_base: 10 },
+    goals: [],
+  }),
+  patchSavingsConfig: vi.fn(),
+  postDeposit: vi.fn(),
+  listGoals: vi.fn().mockResolvedValue([]),
+  createGoal: vi.fn(),
+  deleteGoal: vi.fn(),
+  // Phase 27 — AI observation
+  fetchObservation: vi.fn().mockResolvedValue({
+    text: '',
+    generated_at: new Date().toISOString(),
+  }),
+  // Phase 27 — Analytics
+  fetchTopCategories: vi.fn().mockResolvedValue([]),
+}));
+
+// Phase 27 — AI screen reuses v0.6 SSE chat. Mock the streaming entry-point.
+vi.mock('../../api/ai', () => ({
+  streamChat: vi.fn(() => () => {}),
+  fetchAiHistory: vi.fn().mockResolvedValue([]),
+  clearAiHistory: vi.fn(),
+}));
+
+vi.mock('../../api/periods', () => ({
+  listPeriods: vi.fn().mockResolvedValue([]),
+  getCurrentPeriod: vi.fn().mockResolvedValue(null),
+}));
+
+vi.mock('../../api/analytics', () => ({
+  fetchTrend: vi.fn().mockResolvedValue({ buckets: [] }),
+  fetchTopCategories: vi.fn().mockResolvedValue([]),
 }));
 
 // Phase 27-06: Mgmt tab mounts MgmtHubMount, which calls fetchMeV10. Mock it
@@ -154,19 +192,23 @@ describe('V10MainShell — composition', () => {
     ).toBeInTheDocument();
   });
 
-  it('Savings tab tap pushes the SavingsMountStub (Phase 27 wire)', () => {
+  it('Savings tab tap pushes the real SavingsMount (Phase 27 wire)', async () => {
     render(<V10MainShell />);
     fireEvent.click(screen.getByRole('tab', { name: /КОПИЛКА/ }));
-    // SavingsMountStub renders «Копилка —» headline.
-    expect(screen.getByText(/Копилка/)).toBeInTheDocument();
+    // Real SavingsMount fetches asynchronously — wait for «Копилка.» Mass headline.
+    await flushMicrotasks();
+    await flushMicrotasks();
+    expect(screen.getByText(/Копилка\./)).toBeInTheDocument();
     // Top of stack changed → onboarding-mount-stub hidden.
     expect(screen.queryByTestId('onboarding-mount-stub')).toBeNull();
   });
 
-  it('AI tab tap pushes the AiMountStub (Phase 27 wire)', () => {
+  it('AI tab tap pushes the real AiMount (Phase 27 wire)', () => {
     render(<V10MainShell />);
     fireEvent.click(screen.getByRole('tab', { name: /AI/ }));
-    expect(screen.getByText(/AI —/)).toBeInTheDocument();
+    // Real AiView renders «AI · ASSISTANT» eyebrow on initial state.
+    expect(screen.getByText(/AI · ASSISTANT/i)).toBeInTheDocument();
+    expect(screen.queryByTestId('onboarding-mount-stub')).toBeNull();
   });
 
   it('Mgmt tab tap pushes MgmtHubMount with the «Управление.» hub', async () => {
