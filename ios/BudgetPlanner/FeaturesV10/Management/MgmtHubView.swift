@@ -126,11 +126,11 @@ struct MgmtHubView: View {
         case .plan:
             router.push(PlanView())
         case .accounts:
-            // Sibling Plan 27-08 swap target.
-            router.push(AccountsListV10ViewStub())
+            // Sibling Plan 27-09 real view (zero-touch swap from stub).
+            router.push(AccountsListV10View())
         case .analytics:
-            // Sibling Plan 27-09 swap target.
-            router.push(AnalyticsV10ViewStub())
+            // Sibling Plan 27-10 real view (zero-touch swap from stub).
+            router.push(AnalyticsV10View())
         case .settings:
             router.push(SettingsV10View())
         case .access:

@@ -90,21 +90,21 @@ struct V10MainShell: View {
         }
     }
 
-    /// Tab → push routing matrix.
-    /// home  → popToRoot (back to OnboardingMountView, which renders HomeV10View)
-    /// savings → AccountsListPlaceholderView (real Accounts list lands in Phase 27)
-    /// ai     → PlanViewPlaceholderView      (real AI screen   lands in Phase 27)
-    /// mgmt   → PlanViewPlaceholderView      (real Mgmt screen lands in Phase 27)
+    /// Tab → push routing matrix (Plan 27-11 wires real screens).
+    /// home    → popToRoot (back to OnboardingMountView → HomeV10View)
+    /// savings → SavingsV10View (real, Plan 27-07)
+    /// ai      → AiV10View      (real, Plan 27-07/10)
+    /// mgmt    → MgmtHubView    (real, Plan 27-11; gates ДОСТУП row by owner)
     private func handleTabChange(_ tab: TabId) {
         switch tab {
         case .home:
             router.popToRoot()
         case .savings:
-            router.push(AccountsListPlaceholderView())
+            router.push(SavingsV10View())
         case .ai:
-            router.push(PlanViewPlaceholderView())
+            router.push(AiV10View())
         case .mgmt:
-            router.push(PlanViewPlaceholderView())
+            router.push(MgmtHubView())
         }
     }
 }
