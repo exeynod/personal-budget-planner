@@ -312,27 +312,23 @@ async def delete_account(
     )
     sub_count = int(sub_count or 0)
 
-    # actual_transaction.account_id is forward-compat: not yet in 0014, but a
-    # later migration may add it. The hasattr probe avoids a hard import-time
-    # dependency on the column existing.
-    txn_count = 0
-    try:
-        from app.db.models import ActualTransaction  # local import — avoid heavy ORM at module import
+    # actual_transaction.account_id landed in migration 0016 — count
+    # references unconditionally so a real DB error surfaces as 500 instead
+    # of being silently coerced to txn_count=0 (which would let the delete
+    # proceed and trip the FK constraint later as an opaque IntegrityError).
+    # WR-05 fix (Phase 22 review): removed the historic try/except probe
+    # that swallowed every introspection failure.
+    from app.db.models import ActualTransaction  # local import — avoid heavy ORM at module import
 
-        if hasattr(ActualTransaction, "account_id"):
-            txn_count_raw = await db.scalar(
-                select(func.count())
-                .select_from(ActualTransaction)
-                .where(
-                    ActualTransaction.user_id == user_id,
-                    ActualTransaction.account_id == account_id,  # type: ignore[attr-defined]
-                )
-            )
-            txn_count = int(txn_count_raw or 0)
-    except Exception:
-        # Defensive: never block delete due to introspection error — schema
-        # gap is documented and tracked.
-        txn_count = 0
+    txn_count_raw = await db.scalar(
+        select(func.count())
+        .select_from(ActualTransaction)
+        .where(
+            ActualTransaction.user_id == user_id,
+            ActualTransaction.account_id == account_id,
+        )
+    )
+    txn_count = int(txn_count_raw or 0)
 
     if sub_count + txn_count > 0:
         raise AccountHasTxnsError(account_id, txn_count, sub_count)
