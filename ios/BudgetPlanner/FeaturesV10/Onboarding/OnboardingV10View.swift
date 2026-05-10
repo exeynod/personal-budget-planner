@@ -1,9 +1,13 @@
-// Phase 24-03: OnboardingV10View — root SwiftUI view that switches on
-// `flow.step` and renders the correct step body inside OnboardingChrome.
+// Phase 24-03 / 24-05: OnboardingV10View — root SwiftUI view that
+// switches on `flow.step` and renders the correct step body inside
+// OnboardingChrome.
 //
-// Symmetric to web `<OnboardingFlow>` root (Plan 24-02). For Phase 24-03
-// only Step 01 (Income) is wired in. Steps 02..05 render placeholder
-// chrome that subsequent plans (24-05/07/09/10) replace with real bodies.
+// Symmetric to web `<OnboardingFlow>` root (Plan 24-02). Steps wired:
+//   - Step 01 (Income, Plan 24-03)
+//   - Step 02 (Accounts, Plan 24-05)
+//
+// Steps 03..05 still render placeholder chrome that the remaining plans
+// (24-07 / 24-09 / 24-10) replace with real bodies.
 //
 // NOTE on naming: the plan frontmatter listed file `OnboardingView.swift`
 // + type `OnboardingView`, but the v0.5 legacy onboarding ships the same
@@ -28,11 +32,7 @@ struct OnboardingV10View: View {
             case 1:
                 step01
             case 2:
-                placeholder(
-                    step: 2,
-                    label: "ШАГ 02 / 04 · СЧЕТА",
-                    body: "Step 02 — coming next plan"
-                )
+                step02
             case 3:
                 placeholder(
                     step: 3,
@@ -73,7 +73,33 @@ struct OnboardingV10View: View {
         }
     }
 
-    // MARK: - Placeholders for steps 02..05
+    // MARK: - Step 02 (Accounts)
+
+    private var step02: some View {
+        OnboardingChrome(
+            step: 2,
+            label: "ШАГ 02 / 04 · СЧЕТА",
+            onBack: { flow.back() },
+            onSkip: nil,
+            onNext: { flow.next() },
+            nextDisabled: flow.accounts.isEmpty,
+            hint: step02Hint
+        ) {
+            Step02AccountsView(flow: flow)
+        }
+    }
+
+    /// Hint string for step 02 — pluralised count + total balance, or
+    /// the empty-state nudge.
+    private var step02Hint: String {
+        if flow.accounts.isEmpty {
+            return "нужен минимум один счёт"
+        }
+        let total = flow.accounts.reduce(0) { $0 + $1.balanceCents }
+        return "\(flow.accounts.count) \(PluralRu.accounts(flow.accounts.count)) · \(RubleFormatter.format(cents: total)) ₽"
+    }
+
+    // MARK: - Placeholders for steps 03..05
 
     @ViewBuilder
     private func placeholder(
