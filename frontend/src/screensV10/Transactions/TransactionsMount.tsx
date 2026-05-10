@@ -1,0 +1,289 @@
+// Phase 25-08 Task 3: TransactionsMount — data fetcher + view glue.
+//
+// Lifecycle:
+//   1. On mount, fetch accounts / categories / current period in parallel.
+//   2. If period non-null → sequential fetch period actuals (needs period.id).
+//   3. Compute filtered+grouped view-model via computeTransactions helpers.
+//   4. Render <TransactionsView> wired to:
+//      - onChipChange: local React state setChip
+//      - onRowTap: open edit PosterSheet (stub — Phase 26 retrofit per CONTEXT D-Defer)
+//      - onRowDelete: window.confirm-gated delete (T-25-08-02; gate is in View) →
+//                     deleteActual(tx.id) → reload
+//      - onBack: router.pop()
+//   5. Loading / error / empty are sub-views (cobalt-tinted to match the screen).
+//
+// The mount layer is intentionally thin — all filter/group/format logic lives
+// in pure functions in computeTransactions.ts (unit-tested separately).
+
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type CSSProperties,
+} from 'react';
+import {
+  listAccounts,
+  listActualV10,
+  listCategoriesV10,
+  type AccountResponse,
+  type ActualV10Read,
+  type CategoryV10,
+} from '../../api/v10';
+import { getCurrentPeriod } from '../../api/periods';
+import { deleteActual } from '../../api/actual';
+import { Eyebrow, PosterButton } from '../../componentsV10';
+import { PosterSheet, usePosterRouter } from '../common';
+import { TransactionsView } from './TransactionsView';
+import {
+  applyFilterChip,
+  computeHeaderSummary,
+  groupByDay,
+  type TxFilterChip,
+} from './computeTransactions';
+
+// ─────────────────── State ───────────────────
+
+interface DataPayload {
+  accounts: AccountResponse[];
+  categories: CategoryV10[];
+  actuals: ActualV10Read[];
+}
+
+type LoadState =
+  | { status: 'loading' }
+  | { status: 'error'; message: string }
+  | { status: 'ready'; data: DataPayload };
+
+// ─────────────────── Component ───────────────────
+
+export function TransactionsMount() {
+  const router = usePosterRouter();
+  const [state, setState] = useState<LoadState>({ status: 'loading' });
+  const [reloadToken, setReloadToken] = useState(0);
+  const [chip, setChip] = useState<TxFilterChip>('all');
+  const [editingTx, setEditingTx] = useState<ActualV10Read | null>(null);
+
+  // ─────────── fetch effect ───────────
+  useEffect(() => {
+    let cancelled = false;
+    setState({ status: 'loading' });
+
+    async function load() {
+      try {
+        const [accounts, categories, period] = await Promise.all([
+          listAccounts(),
+          listCategoriesV10(),
+          // getCurrentPeriod returns null on 404 (no active period yet) —
+          // we propagate other errors.
+          getCurrentPeriod(),
+        ]);
+        const actuals: ActualV10Read[] = period
+          ? await listActualV10(period.id)
+          : [];
+        if (cancelled) return;
+        setState({
+          status: 'ready',
+          data: { accounts, categories, actuals },
+        });
+      } catch (err) {
+        if (cancelled) return;
+        const message =
+          err instanceof Error ? err.message : 'Не удалось загрузить транзакции';
+        setState({ status: 'error', message });
+      }
+    }
+
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [reloadToken]);
+
+  // Stable today reference for the duration of this render — recreated each
+  // render is fine (Date construction is cheap; useMemo would over-engineer).
+  const today = useMemo(() => new Date(), []);
+
+  // ─────────── computed view-model ───────────
+  const vm = useMemo(() => {
+    if (state.status !== 'ready') return null;
+    const { accounts, categories, actuals } = state.data;
+    const filtered = applyFilterChip(actuals, categories, chip);
+    const dayGroups = groupByDay(filtered, today);
+    const summary = computeHeaderSummary(filtered);
+    return { accounts, categories, dayGroups, summary };
+  }, [state, chip, today]);
+
+  // ─────────── handlers ───────────
+  const handleChipChange = useCallback((c: TxFilterChip) => setChip(c), []);
+  const handleRowTap = useCallback((tx: ActualV10Read) => setEditingTx(tx), []);
+  const handleRowDelete = useCallback(async (tx: ActualV10Read) => {
+    // View has already gated via window.confirm (T-25-08-02); we just fire the DELETE.
+    try {
+      await deleteActual(tx.id);
+      setReloadToken((t) => t + 1);
+    } catch {
+      if (typeof window !== 'undefined') {
+        window.alert('Не удалось удалить операцию — попробуйте снова');
+      }
+    }
+  }, []);
+  const handleBack = useCallback(() => {
+    if (router.canPop) router.pop();
+  }, [router]);
+  const handleEditClose = useCallback(() => setEditingTx(null), []);
+
+  // ─────────── render ───────────
+  if (state.status === 'loading') return <LoadingPlate />;
+  if (state.status === 'error') {
+    return (
+      <ErrorPlate
+        message={state.message}
+        onRetry={() => setReloadToken((t) => t + 1)}
+      />
+    );
+  }
+  if (!vm) return null;
+
+  return (
+    <>
+      <TransactionsView
+        headerCount={vm.summary.count}
+        headerSumCents={vm.summary.sumCents}
+        filterChip={chip}
+        onChipChange={handleChipChange}
+        dayGroups={vm.dayGroups}
+        categories={vm.categories}
+        accounts={vm.accounts}
+        onRowTap={handleRowTap}
+        onRowDelete={handleRowDelete}
+        onBack={handleBack}
+      />
+      <PosterSheet
+        isOpen={editingTx !== null}
+        onClose={handleEditClose}
+        backgroundColor="var(--poster-paper)"
+        testId="tx-edit-sheet"
+      >
+        <EditPlaceholder tx={editingTx} onClose={handleEditClose} />
+      </PosterSheet>
+    </>
+  );
+}
+
+// ─────────────────── Loading / Error / Edit placeholders ───────────────────
+
+const fillStyle: CSSProperties = {
+  position: 'absolute',
+  inset: 0,
+  background: 'var(--poster-cobalt)',
+  color: 'var(--poster-paper)',
+  padding: '56px 22px 90px',
+  display: 'flex',
+  flexDirection: 'column',
+  gap: 14,
+  fontFamily: 'var(--poster-font-manrope), system-ui, sans-serif',
+};
+
+function LoadingPlate() {
+  return (
+    <div style={fillStyle}>
+      <Eyebrow color="var(--poster-paper)">ЗАГРУЗКА</Eyebrow>
+      <div
+        style={{
+          fontFamily: 'var(--poster-font-jet-brains-mono), ui-monospace, monospace',
+          fontSize: 13,
+          opacity: 0.7,
+          marginTop: 18,
+        }}
+      >
+        ···
+      </div>
+    </div>
+  );
+}
+
+interface ErrorPlateProps {
+  message: string;
+  onRetry: () => void;
+}
+
+function ErrorPlate({ message, onRetry }: ErrorPlateProps) {
+  return (
+    <div style={fillStyle}>
+      <Eyebrow color="var(--poster-paper)">ОШИБКА</Eyebrow>
+      <div
+        style={{
+          fontFamily: 'var(--poster-font-jet-brains-mono), ui-monospace, monospace',
+          fontSize: 13,
+          opacity: 0.85,
+          marginTop: 18,
+          wordBreak: 'break-word',
+        }}
+      >
+        {message}
+      </div>
+      <div style={{ marginTop: 20 }}>
+        <PosterButton onClick={onRetry} variant="primary">
+          ПОВТОРИТЬ
+        </PosterButton>
+      </div>
+    </div>
+  );
+}
+
+interface EditPlaceholderProps {
+  tx: ActualV10Read | null;
+  onClose: () => void;
+}
+
+/**
+ * Phase 25-08 stub for the transaction-edit modal. Real poster-styled
+ * `TransactionEditor` retrofit lands in Phase 26 per CONTEXT D-Defer
+ * (lines: «TransactionEditor poster retrofit — fall back to existing
+ * v0.x editor wrapped in PosterSheet for Phase 25; full poster-styled
+ * editor in Phase 26 if time permits»).
+ */
+function EditPlaceholder({ tx, onClose }: EditPlaceholderProps) {
+  return (
+    <div
+      style={{
+        padding: '56px 22px',
+        color: 'var(--poster-cobalt)',
+        fontFamily: 'var(--poster-font-manrope), system-ui, sans-serif',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 14,
+      }}
+    >
+      <Eyebrow color="var(--poster-cobalt)">EDIT TRANSACTION</Eyebrow>
+      <div
+        style={{
+          fontFamily:
+            'var(--poster-font-dm-serif), var(--poster-font-pt-serif), Georgia, serif',
+          fontStyle: 'italic',
+          fontSize: 32,
+          lineHeight: 1.05,
+        }}
+      >
+        Редактировать —
+      </div>
+      <div
+        style={{
+          fontFamily: 'var(--poster-font-jet-brains-mono), ui-monospace, monospace',
+          fontSize: 11,
+          opacity: 0.7,
+          letterSpacing: '0.06em',
+        }}
+      >
+        WIP — TransactionEditor poster retrofit ships in Phase 26
+        {tx ? ` · TX #${tx.id}` : ''}.
+      </div>
+      <div style={{ marginTop: 12 }}>
+        <PosterButton onClick={onClose} variant="primary">
+          ЗАКРЫТЬ
+        </PosterButton>
+      </div>
+    </div>
+  );
+}

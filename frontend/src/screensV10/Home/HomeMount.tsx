@@ -36,8 +36,9 @@ import {
   AccountsListPlaceholder,
   CategoryDetailPlaceholder,
   PlanViewPlaceholder,
-  TransactionsViewPlaceholder,
 } from '../_placeholders';
+// Phase 25-08: real Transactions registry replaces the prior WIP placeholder.
+import { TransactionsMount } from '../Transactions';
 import { HomeView } from './HomeView';
 import {
   computeCategoryAggregates,
@@ -119,7 +120,8 @@ export function HomeMount() {
     [router],
   );
   const onAllOperationsTap = useCallback(() => {
-    router.push(<TransactionsViewPlaceholder />);
+    // Phase 25-08: real TransactionsMount replaces the placeholder.
+    router.push(<TransactionsMount />);
   }, [router]);
 
   // ─────────── computed view-model (memoised on state.data) ───────────
