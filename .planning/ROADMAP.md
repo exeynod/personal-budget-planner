@@ -169,7 +169,19 @@
   3. User в Transactions registry видит eyebrow «SECTION II» + Mass italic «Реестр.» + список сгруппированных по дням (Сегодня / Вчера / «N мая» через DM Serif italic 28px) с суммой за день; single-select chip-bar (Все / Кафе / Продукты / Транспорт / Подписки / Копилка); roundup отмечены жёлтой плашкой «↻ ОКРУГЛ.», deposit — «→ КОПИЛКА»; swipe-left → delete с confirm.
   4. User тапает FAB → Add Sheet (NEW ENTRY · {date} · {time}) → вводит сумму через custom 3×4 keypad (BigFig 86px жёлтым, на iOS системная клава suppressed через TextField inputView = empty UIView), описание, выбирает дату-чип (Сегодня / Вчера / Своя дата), категорию через horizontal chip-scroll, счёт; CTA меняется «ВВЕДИТЕ СУММУ» → «ВЫБЕРИТЕ КАТЕГОРИЮ» → «СОХРАНИТЬ ↵» (yellow active).
   5. v0.6 Transactions tab fully demoted: bottom nav теперь 5 элементов «Home / Savings / FAB / AI / Mgmt»; единственный путь к реестру — push-stack из Home «ВСЕ ОПЕРАЦИИ →» или Category Detail.
-**Plans**: TBD
+**Plans**: 12 plans (3 waves)
+- [x] 25-01-backend-actual-v10-PLAN.md — extend POST /actual schema + route for v10 ActualKind + account_id (Plan 25-01)
+- [x] 25-02-web-routing-bottomnav-PLAN.md — web PosterRouter + PosterSheet + BottomNavV10 + format helpers (Plan 25-02)
+- [x] 25-03-api-clients-PLAN.md — typed v10 API clients (web + iOS) for /actual /accounts /categories (Plan 25-03)
+- [x] 25-04-web-home-view-PLAN.md — web HomeView + HomeMount + computeHomeData (HOME-V10-01..06) (Plan 25-04)
+- [x] 25-05-ios-home-view-PLAN.md — iOS HomeV10View + HomeV10ViewModel + HomeData (HOME-V10-01..06) (Plan 25-05)
+- [ ] 25-06-web-shell-mount-PLAN.md — wire AppV10 → V10MainShell with PosterRouter + BottomNavV10 + AddSheet placeholder (HOME mount + TXN-V10-06 + ADD-V10-01) [gap-closure]
+- [ ] 25-07-ios-shell-mount-PLAN.md — wire iOS V10MainShell with PosterNavStack + BottomNavV10 + AddSheet placeholder (HOME mount + TXN-V10-06 + ADD-V10-01) [gap-closure]
+- [ ] 25-08-web-transactions-PLAN.md — web TransactionsView + TransactionsMount + computeTransactions (TXN-V10-01..05) [gap-closure]
+- [ ] 25-09-ios-transactions-PLAN.md — iOS TransactionsV10View + ViewModel + TransactionsData (TXN-V10-01..05) [gap-closure]
+- [ ] 25-10-web-addsheet-PLAN.md — web AddSheet + Keypad + computeAddSheet + V10MainShell wire (ADD-V10-01..05) [gap-closure]
+- [ ] 25-11-ios-addsheet-PLAN.md — iOS AddSheetView + KeypadView + SuppressedKeyboardField + V10MainShell wire (ADD-V10-01..05) [gap-closure]
+- [ ] 25-12-txn-tab-demote-verify-PLAN.md — automated TXN-V10-06 acceptance + Playwright happy-path (TXN-V10-06) [gap-closure]
 **UI hint**: yes
 
 ### Phase 26: Category Detail + PLAN мая + Subscriptions
