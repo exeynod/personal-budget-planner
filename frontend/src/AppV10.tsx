@@ -3,21 +3,25 @@ import './stylesV10/tokens.css';
 import './stylesV10/fonts.css';
 import './stylesV10/animations.css';
 import styles from './AppV10.module.css';
+import { OnboardingMount } from './screensV10/Onboarding/OnboardingMount';
 
 // Lazy-import preview gallery — keeps prod bundle slim when surface !== 'preview'.
 const PreviewApp = lazy(() => import('./preview/PreviewApp'));
 
 export default function AppV10() {
-  const surface = useMemo<'preview' | 'placeholder'>(() => {
-    // Preview surface available in dev OR via ?preview=1 query.
-    if (import.meta.env.DEV) return 'preview';
+  // Phase 24-10 (ONB-V10-01): App root now boots into onboarding flow by
+  // default. Preview gallery (DesignSystem playground) is opt-in via
+  // `?preview=1` so the live app boots into the v1.0 onboarding gate
+  // both in dev and prod. Playwright suites set the URL explicitly so
+  // they never collide with the gallery.
+  const surface = useMemo<'preview' | 'mount'>(() => {
     if (
       typeof window !== 'undefined' &&
       new URLSearchParams(window.location.search).get('preview') === '1'
     ) {
       return 'preview';
     }
-    return 'placeholder';
+    return 'mount';
   }, []);
 
   if (surface === 'preview') {
@@ -34,14 +38,7 @@ export default function AppV10() {
 
   return (
     <div className={styles.shellRoot} data-theme="v10">
-      <main className={styles.placeholder}>
-        <div className={styles.placeholderEyebrow}>VOL.01 / V1.0 BOOT</div>
-        <div className={styles.placeholderTitle}>В разработке.</div>
-        <div className={styles.placeholderHint}>
-          Сетка экранов появится в Phase 24+. Чтобы посмотреть превью —
-          <code> ?preview=1</code> или dev-сборка.
-        </div>
-      </main>
+      <OnboardingMount />
     </div>
   );
 }
