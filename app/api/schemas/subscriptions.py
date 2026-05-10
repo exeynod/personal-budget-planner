@@ -14,7 +14,15 @@ from app.api.schemas.categories import CategoryRead
 
 
 class SubscriptionCreate(BaseModel):
-    """POST /subscriptions request body."""
+    """POST /subscriptions request body.
+
+    WR-10 (Phase 22 review): ``extra="forbid"`` aligns this legacy schema
+    with the new v1.0 schemas (T-22-12-02 — extra-key state injection).
+    Service-layer code never splatted unknown keys into ORM kwargs, but
+    enforcing forbid at the wire boundary makes the contract explicit.
+    """
+
+    model_config = ConfigDict(extra="forbid")
 
     name: str = Field(..., min_length=1, max_length=255)
     amount_cents: int = Field(..., gt=0)
@@ -26,7 +34,12 @@ class SubscriptionCreate(BaseModel):
 
 
 class SubscriptionUpdate(BaseModel):
-    """PATCH /subscriptions/{id} request body — all fields optional."""
+    """PATCH /subscriptions/{id} request body — all fields optional.
+
+    WR-10 (Phase 22 review): ``extra="forbid"`` — see SubscriptionCreate.
+    """
+
+    model_config = ConfigDict(extra="forbid")
 
     name: Optional[str] = Field(None, min_length=1, max_length=255)
     amount_cents: Optional[int] = Field(None, gt=0)
