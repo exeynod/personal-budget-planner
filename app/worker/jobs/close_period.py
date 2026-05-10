@@ -25,12 +25,14 @@ Idempotency: повторный запуск в тот же день — no-op (
 from datetime import datetime, timezone
 
 import structlog
-from sqlalchemy import select, text
+from sqlalchemy import func, select, text
 
 from sqlalchemy.orm import selectinload
 
 from app.core.period import period_for
 from app.db.models import (
+    ActualKind,
+    ActualTransaction,
     AppUser,
     BudgetPeriod,
     PeriodStatus,
@@ -154,20 +156,31 @@ async def _close_period_for_user(session, *, user_id: int) -> None:
         return
 
     # Step 3: compute ending_balance via shared service (scoped по user_id).
+    # This is the PRE-rollover number — only expense/income kinds are summed
+    # (deposit/roundup excluded by compute_balance). It feeds the new period's
+    # starting_balance_cents seed; once rollover deposits land in step 5 we
+    # subtract them so the seed stays consistent with account.balance_cents
+    # (CR-02 fix below).
     bal = await compute_balance(session, expired.id, user_id=user_id)
-    ending_balance = bal["balance_now_cents"]
+    pre_rollover_ending = int(bal["balance_now_cents"])
 
     # Step 4: create next period FIRST (PER-03 inheritance) so we have an id
     # for misc-rollover accumulation in step 5. Status flip on expired comes
     # after rollover so a rollover failure rolls back the entire per-user tx
     # (T-22-10-05 — rollover_processed_at NULL on failure → clean retry).
+    #
+    # starting_balance_cents is seeded with the pre-rollover number; we
+    # adjust it (and ending_balance_cents on the expired period) AFTER
+    # do_period_rollover() so the rollover deposits' effect on
+    # account.balance_cents is reflected in both period markers
+    # (CR-02 fix — keeps Σ account.balance_cents == Σ starting_balance_cents).
     cycle_start_day = await _resolve_cycle_start_day(session, user_id=user_id)
     p_start, p_end = period_for(today, cycle_start_day)
     new_period = BudgetPeriod(
         user_id=user_id,
         period_start=p_start,
         period_end=p_end,
-        starting_balance_cents=ending_balance,
+        starting_balance_cents=pre_rollover_ending,
         status=PeriodStatus.active,
     )
     session.add(new_period)
@@ -187,6 +200,39 @@ async def _close_period_for_user(session, *, user_id: int) -> None:
         user_id=user_id,
         next_period_id=new_period.id,
     )
+
+    # Step 5b: CR-02 fix — adjust the period markers to include rollover
+    # deposits so Σ account.balance_cents stays in lockstep with both
+    # ``expired.ending_balance_cents`` and ``new_period.starting_balance_cents``.
+    #
+    # do_period_rollover inserts ActualTransaction(kind=deposit,
+    # amount_cents=-remainder, period_id=expired.id) for each savings-rollover
+    # category whose plan was under-spent. The deposits' negative amount
+    # represents an outflow from the user's primary account into the savings
+    # bucket. compute_balance excludes deposit/roundup kinds, so the number
+    # we computed above is rollover-naive.
+    #
+    # We compensate by summing all deposit amounts inserted for this period
+    # by this rollover (parent_txn_id IS NULL filter excludes any unrelated
+    # roundup children that might happen to share the period). Each deposit
+    # row reduces account balance by abs(amount_cents) (it's stored negative);
+    # subtracting Σ |deposit.amount_cents| from the pre-rollover ending
+    # balance yields the post-rollover ending balance.
+    deposits_total_q = select(
+        func.coalesce(
+            func.sum(func.abs(ActualTransaction.amount_cents)), 0
+        )
+    ).where(
+        ActualTransaction.user_id == user_id,
+        ActualTransaction.period_id == expired.id,
+        ActualTransaction.kind == ActualKind.deposit,
+        ActualTransaction.parent_txn_id.is_(None),
+    )
+    rollover_deposits_total = int(
+        (await session.execute(deposits_total_q)).scalar_one() or 0
+    )
+    ending_balance = pre_rollover_ending - rollover_deposits_total
+    new_period.starting_balance_cents = ending_balance
 
     # Step 6: close expired period.
     expired.status = PeriodStatus.closed
