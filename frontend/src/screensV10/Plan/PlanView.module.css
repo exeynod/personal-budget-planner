@@ -43,52 +43,132 @@
   line-height: 1.0;
 }
 
-/* ───── surplus plate (OK / OVER) ───── */
+/* ───── surplus plate (Phase 29-04 §5 WARNING — dark plate w/ badge) ───── */
+/* Prototype line 740: dark plate (rgba(0,0,0,0.22)) with inline OK/OVER
+ * badge on the right; mono eyebrow + mono money line on the left. */
 .surplusPlate {
-  margin-top: 22px;
-  padding: 18px 18px 14px;
-  border: 1px solid rgba(255, 246, 232, 0.25);
+  margin-top: 18px;
+  padding: 14px;
+  background: rgba(0, 0, 0, 0.22);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  border: 0;
 }
 .surplusPlate.ok {
-  background: var(--poster-yellow, #f6c845);
-  color: var(--poster-ink, #1a1a1a);
+  /* No background flip — base dark plate stays. */
 }
 .surplusPlate.overflow {
-  background: var(--poster-red, #ce2626);
-  color: var(--poster-paper);
+  /* No background flip — base dark plate stays. */
+}
+.surplusLeft {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
 }
 .surplusLabel {
   font-family: var(--poster-font-jet-brains-mono), ui-monospace, monospace;
   font-size: 11px;
   font-weight: 700;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
-  opacity: 0.85;
+  opacity: 0.7;
+  color: var(--poster-paper);
 }
 .surplusValue {
-  margin-top: 6px;
+  margin-top: 0;
+  font-family: var(--poster-font-jet-brains-mono), ui-monospace, monospace;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--poster-paper);
+  white-space: nowrap;
+}
+.surplusPlate.ok .surplusValue {
+  color: var(--poster-paper);
+}
+.surplusPlate.overflow .surplusValue {
+  color: var(--poster-yellow);
+}
+.surplusBadge {
+  padding: 6px 10px;
   font-family: var(--poster-font-archivo-black), system-ui, sans-serif;
-  font-size: 36px;
-  letter-spacing: -0.01em;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  white-space: nowrap;
+}
+.surplusBadgeOk {
+  background: var(--poster-yellow);
+  color: var(--poster-cobalt);
+}
+.surplusBadgeOver {
+  background: var(--poster-red);
+  color: var(--poster-paper);
 }
 
-/* ───── rollover aggregates row ───── */
-.rolloverRow {
-  margin-top: 12px;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+/* ───── aggregate plates eyebrow + row ───── */
+.aggEyebrow {
+  margin-top: 18px;
+  margin-bottom: 6px;
 }
+.rolloverRow {
+  margin-top: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+/* Phase 29-04 §5 BLOCKER #3 — asymmetric plate styles. */
 .aggPlate {
-  flex: 1 1 140px;
-  padding: 10px 12px;
-  background: rgba(255, 246, 232, 0.08);
-  border: 1px solid rgba(255, 246, 232, 0.25);
+  padding: 12px 10px;
   font-family: var(--poster-font-jet-brains-mono), ui-monospace, monospace;
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
+}
+.aggPlateGhost {
+  background: transparent;
+  border: 1px solid rgba(255, 246, 232, 0.2);
   color: var(--poster-paper);
+}
+.aggPlateYellow {
+  background: var(--poster-yellow);
+  border: 0;
+  color: var(--poster-cobalt);
+}
+.aggLabel {
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  opacity: 0.7;
+}
+.aggPlateYellow .aggLabel {
+  opacity: 0.85;
+}
+.aggValue {
+  margin-top: 4px;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+/* Phase 29-04 §5 BLOCKER #5 — dark summary plate above regulars rows. */
+.regularsSummary {
+  margin-top: 6px;
+  padding: 10px 12px;
+  background: rgba(0, 0, 0, 0.22);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+.regularsSummaryLabel {
+  font-family: var(--poster-font-jet-brains-mono), ui-monospace, monospace;
+  font-size: 11px;
+  opacity: 0.7;
+  color: var(--poster-paper);
+}
+.regularsSummaryAmount {
+  font-family: var(--poster-font-jet-brains-mono), ui-monospace, monospace;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--poster-yellow);
+  white-space: nowrap;
 }
 
 .sectionEyebrow {

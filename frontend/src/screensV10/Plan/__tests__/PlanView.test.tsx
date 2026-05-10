@@ -108,10 +108,21 @@ function makeProps(
 // ─────────── Tests ───────────
 
 describe('PlanView', () => {
-  it('renders Mass «PLAN МЕСЯЦА.» + Eyebrow «MGMT / LIMITS»', () => {
+  it('renders Mass «PLAN / {month-genitive}.» + Eyebrow «MGMT / LIMITS»', () => {
+    // Phase 29-04 §5 PlanMonth BLOCKER #2: headline changed from
+    // hardcoded «PLAN МЕСЯЦА.» (single-line, 70px) to dynamic
+    // «PLAN<br/>{MONTH_GENITIVE}.» (two-line, 56px) per prototype line 738.
+    // textContent drops the <br/> so we only check that both PLAN and the
+    // current month's genitive form are present.
+    const MONTHS_RU_GENITIVE_UPPER = [
+      'ЯНВАРЯ', 'ФЕВРАЛЯ', 'МАРТА', 'АПРЕЛЯ', 'МАЯ', 'ИЮНЯ',
+      'ИЮЛЯ', 'АВГУСТА', 'СЕНТЯБРЯ', 'ОКТЯБРЯ', 'НОЯБРЯ', 'ДЕКАБРЯ',
+    ];
+    const month = MONTHS_RU_GENITIVE_UPPER[new Date().getMonth()];
     const { props } = makeProps();
     const { container } = render(<PlanView {...props} />);
-    expect(container.textContent).toContain('PLAN МЕСЯЦА.');
+    expect(container.textContent).toContain('PLAN');
+    expect(container.textContent).toContain(month);
     expect(container.textContent).toContain('MGMT / LIMITS');
   });
 

@@ -81,9 +81,18 @@ describe('PlanMount', () => {
   });
 
   it('renders PlanView with computed surplus after fetch resolves', async () => {
+    // Phase 29-04 §5 PlanMonth BLOCKER #2 — headline is now «PLAN /
+    // {MONTH_GENITIVE}.» per prototype. Assert the PLAN token and the
+    // dynamic month suffix appear in textContent.
+    const MONTHS_RU_GENITIVE_UPPER = [
+      'ЯНВАРЯ', 'ФЕВРАЛЯ', 'МАРТА', 'АПРЕЛЯ', 'МАЯ', 'ИЮНЯ',
+      'ИЮЛЯ', 'АВГУСТА', 'СЕНТЯБРЯ', 'ОКТЯБРЯ', 'НОЯБРЯ', 'ДЕКАБРЯ',
+    ];
+    const month = MONTHS_RU_GENITIVE_UPPER[new Date().getMonth()];
     const { container } = renderWithRouter(<PlanMount />);
     await waitFor(() => {
-      expect(container.textContent).toContain('PLAN МЕСЯЦА.');
+      expect(container.textContent).toContain('PLAN');
+      expect(container.textContent).toContain(month);
     });
     // surplus = income (100_000_00) − Σplan (30_000_00) = 70_000_00
     expect(container.textContent?.replace(/\s+/g, ' ')).toMatch(/70[ ]?000/);

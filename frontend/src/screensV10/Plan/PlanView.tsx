@@ -114,6 +114,35 @@ export function PlanView(props: PlanViewProps) {
     'ru-RU',
   );
 
+  // Phase 29-04 §5 PlanMonth BLOCKER #2 — dynamic month genitive UPPER
+  // for the «PLAN / {МАЯ}.» headline. Matches prototype `PLAN<br/>МАЯ.`
+  // which is hardcoded for May; we mirror dynamic locale.
+  const MONTHS_RU_GENITIVE_UPPER = [
+    'ЯНВАРЯ',
+    'ФЕВРАЛЯ',
+    'МАРТА',
+    'АПРЕЛЯ',
+    'МАЯ',
+    'ИЮНЯ',
+    'ИЮЛЯ',
+    'АВГУСТА',
+    'СЕНТЯБРЯ',
+    'ОКТЯБРЯ',
+    'НОЯБРЯ',
+    'ДЕКАБРЯ',
+  ];
+  const currentMonthGenitiveUpper =
+    MONTHS_RU_GENITIVE_UPPER[new Date().getMonth()];
+
+  // Phase 29-04 §5 PlanMonth BLOCKER #5 — sum of pending regulars for
+  // the dark summary plate above the rows.
+  const regularsPendingCents = regulars
+    .filter((r) => r.postedTxnId == null)
+    .reduce((acc, r) => acc + r.amountCents, 0);
+  const regularsPendingRubles = Math.floor(
+    regularsPendingCents / 100,
+  ).toLocaleString('ru-RU');
+
   return (
     <div className={styles.root}>
       {/* ───── header row ───── */}
@@ -130,30 +159,62 @@ export function PlanView(props: PlanViewProps) {
       </div>
 
       {/* ───── headline ───── */}
-      <Mass size={70} className={styles.title}>
-        PLAN МЕСЯЦА.
+      {/* Phase 29-04 §5 PlanMonth BLOCKER #2 — headline copy + size.
+       * Prototype line 738: <Mass size={56}>PLAN<br/>МАЯ.</Mass>
+       * Two-line (br), size 56, dynamic month genitive. */}
+      <Mass size={56} className={styles.title}>
+        PLAN<br />
+        {currentMonthGenitiveUpper}.
       </Mass>
 
       {/* ───── surplus plate ───── */}
+      {/* Phase 29-04 §5 PlanMonth WARNING (style cleanup) — prototype
+       * line 740 uses dark plate (rgba(0,0,0,0.22)) with inline OK/OVER
+       * badge on the right; mono eyebrow + mono money line on the left. */}
       <div
         className={`${styles.surplusPlate} ${
           isOverflow ? styles.overflow : styles.ok
         }`}
         data-testid="plan-surplus-plate"
       >
-        <div className={styles.surplusLabel}>ОСТАЛОСЬ РАСПРЕДЕЛИТЬ</div>
-        <div className={styles.surplusValue}>
-          {surplusSign} {surplusRubles} ₽
+        <div className={styles.surplusLeft}>
+          <div className={styles.surplusLabel}>ОСТАЛОСЬ РАСПРЕДЕЛИТЬ</div>
+          <div className={styles.surplusValue}>
+            {surplusSign} {surplusRubles} ₽
+          </div>
         </div>
+        <span
+          className={`${styles.surplusBadge} ${
+            isOverflow ? styles.surplusBadgeOver : styles.surplusBadgeOk
+          }`}
+        >
+          {isOverflow ? 'OVER' : 'OK'}
+        </span>
       </div>
 
       {/* ───── rollover aggregates ───── */}
+      {/* Phase 29-04 §5 PlanMonth BLOCKER #4 — eyebrow «ОСТАТОК ПО ИТОГУ
+       * МЕСЯЦА» above the two aggregate plates per prototype line 748. */}
+      <div className={styles.aggEyebrow}>
+        <Eyebrow color="var(--poster-paper)">ОСТАТОК ПО ИТОГУ МЕСЯЦА</Eyebrow>
+      </div>
+      {/* Phase 29-04 §5 PlanMonth BLOCKER #3 — asymmetric aggregate plates.
+       * Left = bordered ghost plate (prototype line 750-753).
+       * Right = yellow plate with cobalt text (line 754-757). */}
       <div className={styles.rolloverRow}>
-        <div className={styles.aggPlate} data-testid="agg-misc">
-          → ПРОЧЕЕ {miscRubles} ₽
+        <div
+          className={`${styles.aggPlate} ${styles.aggPlateGhost}`}
+          data-testid="agg-misc"
+        >
+          <div className={styles.aggLabel}>→ ПРОЧЕЕ</div>
+          <div className={styles.aggValue}>{miscRubles} ₽</div>
         </div>
-        <div className={styles.aggPlate} data-testid="agg-savings">
-          → НАКОПЛЕНИЯ {savingsRubles} ₽
+        <div
+          className={`${styles.aggPlate} ${styles.aggPlateYellow}`}
+          data-testid="agg-savings"
+        >
+          <div className={styles.aggLabel}>→ НАКОПЛЕНИЯ</div>
+          <div className={styles.aggValue}>+ {savingsRubles} ₽</div>
         </div>
       </div>
 
@@ -163,6 +224,19 @@ export function PlanView(props: PlanViewProps) {
           РЕГУЛЯРНЫЕ · ПРОВЕСТИ В ФАКТ
         </Eyebrow>
       </div>
+      {/* Phase 29-04 §5 PlanMonth BLOCKER #5 — dark summary plate above
+       * regular rows per prototype line 795-798: «{N} ждут проведения»
+       * mono + total ₽ yellow on the right. Only shown when N > 0. */}
+      {regulars.length > 0 && (
+        <div className={styles.regularsSummary} data-testid="regulars-summary">
+          <span className={styles.regularsSummaryLabel}>
+            {regulars.length} ждут проведения
+          </span>
+          <span className={styles.regularsSummaryAmount}>
+            {regularsPendingRubles} ₽
+          </span>
+        </div>
+      )}
       {regulars.length === 0 ? (
         <div className={styles.emptyHint}>
           Нет регулярных платежей в этом месяце.
