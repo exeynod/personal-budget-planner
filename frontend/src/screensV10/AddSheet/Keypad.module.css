@@ -1,0 +1,37 @@
+/* Phase 25-10: 3×4 keypad layout for AddSheet.
+   Buttons sit on the dark sheet background; styling uses paper text on a
+   subtle paper-tinted face, with a press-feedback transform. */
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  width: 100%;
+}
+
+.key {
+  background: rgba(255, 246, 232, 0.06);
+  color: var(--poster-paper);
+  border: 1px solid rgba(255, 246, 232, 0.18);
+  font-family: var(--poster-font-manrope), system-ui, sans-serif;
+  font-size: 24px;
+  font-weight: 600;
+  padding: 18px 0;
+  cursor: pointer;
+  transition: transform 0.08s ease-out, background 0.12s ease-out;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.key:hover {
+  background: rgba(255, 246, 232, 0.1);
+}
+
+.key:active {
+  transform: scale(0.95);
+  background: rgba(255, 246, 232, 0.18);
+}
+
+.keyBackspace {
+  background: rgba(255, 246, 232, 0.12);
+  font-size: 22px;
+}
