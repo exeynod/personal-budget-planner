@@ -1,14 +1,14 @@
-// Phase 24-03 / 24-05 / 24-07: OnboardingV10View — root SwiftUI view that
-// switches on `flow.step` and renders the correct step body inside
-// OnboardingChrome.
+// Phase 24-03 / 24-05 / 24-07 / 24-09: OnboardingV10View — root SwiftUI
+// view that switches on `flow.step` and renders the correct step body
+// inside OnboardingChrome (or, for step 5, the FinalView which owns its
+// own scaffold).
 //
 // Symmetric to web `<OnboardingFlow>` root (Plan 24-02). Steps wired:
 //   - Step 01 (Income, Plan 24-03)
 //   - Step 02 (Accounts, Plan 24-05)
 //   - Step 03 (Plan,    Plan 24-07)
-//
-// Steps 04..05 still render placeholder chrome that the remaining plans
-// (24-09 / 24-10) replace with real bodies.
+//   - Step 04 (Goal,    Plan 24-09)
+//   - Step 05 (Final,   Plan 24-09)
 //
 // NOTE on naming: the plan frontmatter listed file `OnboardingView.swift`
 // + type `OnboardingView`, but the v0.5 legacy onboarding ships the same
@@ -37,18 +37,9 @@ struct OnboardingV10View: View {
             case 3:
                 step03
             case 4:
-                placeholder(
-                    step: 4,
-                    label: "ШАГ 04 / 04 · ЦЕЛЬ",
-                    body: "Step 04 — coming next plan"
-                )
+                step04
             case 5:
-                placeholder(
-                    step: 5,
-                    label: "VOL.04 · ГОТОВО",
-                    body: "Final — coming next plan",
-                    onNext: nil  // Final hides chrome CTA; own «НАЧАТЬ →» lands in 24-09.
-                )
+                FinalView(flow: flow, onComplete: onComplete)
             default:
                 EmptyView()
             }
@@ -125,28 +116,32 @@ struct OnboardingV10View: View {
         }
     }
 
-    // MARK: - Placeholders for steps 04..05
+    // MARK: - Step 04 (Goal, optional + skip)
 
-    @ViewBuilder
-    private func placeholder(
-        step: Int,
-        label: String,
-        body: String,
-        onNext: (() -> Void)? = nil
-    ) -> some View {
-        let backHandler: (() -> Void)? = step > 1 ? { flow.back() } : nil
-        let nextHandler: (() -> Void)? = onNext ?? (step < OnboardingFlow.maxStep ? { flow.next() } : nil)
+    private var step04: some View {
+        // nextDisabled mirror of Step04GoalTests `isValid` predicate:
+        // name non-empty (post-trim) AND target_cents > 0.
+        let trimmed =
+            flow.goal?.name.trimmingCharacters(in: .whitespacesAndNewlines)
+            ?? ""
+        let cents = flow.goal?.targetCents ?? 0
+        let isValid = !trimmed.isEmpty && cents > 0
 
-        OnboardingChrome(
-            step: step,
-            label: label,
-            onBack: backHandler,
-            onNext: nextHandler
+        return OnboardingChrome(
+            step: 4,
+            label: "ШАГ 04 / 04 · ЦЕЛЬ",
+            onBack: { flow.back() },
+            onSkip: {
+                // T-24-09-04: clear before next() so Final never sees a
+                // half-typed goal after the user opted out.
+                flow.skipGoal()
+                flow.next()
+            },
+            onNext: { flow.next() },
+            nextLabel: "ГОТОВО →",
+            nextDisabled: !isValid
         ) {
-            VStack(alignment: .leading, spacing: 12) {
-                Mass(body, italic: true, size: 28)
-                Eyebrow("ЗАГЛУШКА — РЕАЛИЗАЦИЯ В СЛЕДУЮЩЕМ ПЛАНЕ", opacity: 0.55)
-            }
+            Step04GoalView(flow: flow)
         }
     }
 }
