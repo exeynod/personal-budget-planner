@@ -78,6 +78,30 @@ export interface OnboardingCompleteResponse {
   onboarded_at: string;
 }
 
+/**
+ * Phase 22 (BE-01) v1.0 extension of /api/v1/me.
+ *
+ * Mirrors `MeV10Response` from `app/api/schemas/me_v10.py`. Adds the
+ * `income_cents` field (nullable; `null` when user has not yet
+ * completed v1.0 onboarding — see DATA-MODEL §1.1 + Phase 22 0012
+ * migration).
+ *
+ * Other fields stay in lock-step with the legacy `MeResponse` so old
+ * call sites can swap-cast without re-reading every property.
+ */
+export interface MeV10Response {
+  tg_user_id: number;
+  tg_chat_id: number | null;
+  cycle_start_day: number;
+  onboarded_at: string | null;
+  chat_id_known: boolean;
+  role: UserRole;
+  ai_spend_cents: number;
+  ai_spending_cap_cents: number;
+  /** v1.0 added — null when onboarding not complete. */
+  income_cents: number | null;
+}
+
 export interface SettingsRead {
   cycle_start_day: number;
   notify_days_before: number;
