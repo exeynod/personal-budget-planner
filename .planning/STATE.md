@@ -4,13 +4,13 @@ milestone: v1.0
 milestone_name: Maximal Poster Full
 status: completed
 stopped_at: Roadmap для v1.0 (Phases 22-28) создан, REQUIREMENTS.md traceability заполнен (92/92 REQs). Awaiting `/gsd-plan-phase 22`.
-last_updated: "2026-05-10T20:10:40.861Z"
+last_updated: "2026-05-10T20:40:44.203Z"
 last_activity: 2026-05-10
 progress:
   total_phases: 7
-  completed_phases: 6
-  total_plans: 69
-  completed_plans: 69
+  completed_phases: 7
+  total_plans: 74
+  completed_plans: 74
   percent: 100
 ---
 
