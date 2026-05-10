@@ -55,6 +55,15 @@ class ActualUpdate(BaseModel):
     # PATCH stays scoped to v0.x surface (no account_id) — Phase 25 scope
     # (TXN-V10-05) only requires create-flow extension. Edit endpoint can
     # remain legacy until Phase 26 if needed.
+    #
+    # CR-25-04 (review fix): mirror ``ActualCreate``'s strict ``extra='forbid'``
+    # config so PATCH is symmetric with POST. Without it, clients could send
+    # unknown fields (``account_id``, ``source``, ``user_id``, ``id``) and
+    # get 200 — making the wire contract asymmetric, masking tampering
+    # attempts in logs, and silently ignoring keys the user expected to
+    # update (least-surprise violation).
+    model_config = ConfigDict(extra="forbid")
+
     kind: Optional[ActualKindStr] = None
     amount_cents: Optional[int] = Field(default=None, gt=0)
     description: Optional[str] = Field(default=None, max_length=500)
