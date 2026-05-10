@@ -21,24 +21,20 @@ Stub behaviour:
 
 Once frontend (web + iOS) drops references to these endpoints (Phase 23-27),
 this router file can be deleted along with the include_router line.
-"""
-from typing import Annotated
 
+CR-05 fix (Phase 22 review): the deprecated handlers no longer accept request
+bodies or DB sessions. Pydantic schema validation (422) and ``SET LOCAL
+app.current_user_id`` are skipped — every deprecated endpoint short-circuits
+to 410 immediately so a malformed POST/PATCH/DELETE body cannot leak validator
+behaviour or burn DB cycles on a deprecated surface.
+"""
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import (
     get_current_user,
-    get_current_user_id,
-    get_db_with_tenant_scope,
     require_onboarded,
 )
-from app.api.schemas.templates import (
-    SnapshotFromPeriodResponse,
-    TemplateItemCreate,
-    TemplateItemRead,
-    TemplateItemUpdate,
-)
+from app.api.schemas.templates import TemplateItemRead
 
 
 _GONE_DETAIL = {
@@ -59,15 +55,15 @@ templates_router = APIRouter(
 
 
 @templates_router.get("/items", response_model=list[TemplateItemRead])
-async def list_template_items(
-    # Keep the dependency signatures intact so OpenAPI surface unchanged.
-    db: Annotated[AsyncSession, Depends(get_db_with_tenant_scope)],
-    user_id: Annotated[int, Depends(get_current_user_id)],
-) -> list[TemplateItemRead]:
+async def list_template_items() -> list[TemplateItemRead]:
     """DEPRECATED: GET /api/v1/template/items — returns empty list.
 
     Plan 22.13: ``plan_template_item`` table was dropped (CONTEXT D-02).
     Use ``GET /api/v1/categories`` and read ``plan_cents`` instead.
+
+    No DB dependency: the endpoint always returns ``[]`` so we skip the
+    ``SET LOCAL app.current_user_id`` round-trip the deprecated handler
+    would otherwise force on every legacy poll (CR-05 fix).
     """
     return []
 
@@ -76,12 +72,13 @@ async def list_template_items(
     "/items",
     status_code=status.HTTP_410_GONE,
 )
-async def create_template_item_deprecated(
-    body: TemplateItemCreate,
-    db: Annotated[AsyncSession, Depends(get_db_with_tenant_scope)],
-    user_id: Annotated[int, Depends(get_current_user_id)],
-) -> None:
-    """DEPRECATED: POST /api/v1/template/items — 410 Gone."""
+async def create_template_item_deprecated() -> None:
+    """DEPRECATED: POST /api/v1/template/items — 410 Gone.
+
+    No request body parsing or DB dependency: the endpoint short-circuits to
+    410 immediately so malformed bodies cannot trigger 422 validators on a
+    deprecated surface (CR-05 fix).
+    """
     raise HTTPException(status_code=status.HTTP_410_GONE, detail=_GONE_DETAIL)
 
 
@@ -89,13 +86,13 @@ async def create_template_item_deprecated(
     "/items/{item_id}",
     status_code=status.HTTP_410_GONE,
 )
-async def update_template_item_deprecated(
-    item_id: int,
-    body: TemplateItemUpdate,
-    db: Annotated[AsyncSession, Depends(get_db_with_tenant_scope)],
-    user_id: Annotated[int, Depends(get_current_user_id)],
-) -> None:
-    """DEPRECATED: PATCH /api/v1/template/items/{id} — 410 Gone."""
+async def update_template_item_deprecated(item_id: int) -> None:
+    """DEPRECATED: PATCH /api/v1/template/items/{id} — 410 Gone.
+
+    The path parameter is preserved so OpenAPI advertises the same URL
+    shape, but no body / DB / auth-side-effect dependencies run before the
+    410 is raised (CR-05 fix).
+    """
     raise HTTPException(status_code=status.HTTP_410_GONE, detail=_GONE_DETAIL)
 
 
@@ -103,12 +100,8 @@ async def update_template_item_deprecated(
     "/items/{item_id}",
     status_code=status.HTTP_410_GONE,
 )
-async def delete_template_item_deprecated(
-    item_id: int,
-    db: Annotated[AsyncSession, Depends(get_db_with_tenant_scope)],
-    user_id: Annotated[int, Depends(get_current_user_id)],
-) -> None:
-    """DEPRECATED: DELETE /api/v1/template/items/{id} — 410 Gone."""
+async def delete_template_item_deprecated(item_id: int) -> None:
+    """DEPRECATED: DELETE /api/v1/template/items/{id} — 410 Gone (CR-05 fix)."""
     raise HTTPException(status_code=status.HTTP_410_GONE, detail=_GONE_DETAIL)
 
 
@@ -116,10 +109,6 @@ async def delete_template_item_deprecated(
     "/snapshot-from-period/{period_id}",
     status_code=status.HTTP_410_GONE,
 )
-async def snapshot_from_period_deprecated(
-    period_id: int,
-    db: Annotated[AsyncSession, Depends(get_db_with_tenant_scope)],
-    user_id: Annotated[int, Depends(get_current_user_id)],
-) -> SnapshotFromPeriodResponse:
-    """DEPRECATED: POST /api/v1/template/snapshot-from-period/{id} — 410 Gone."""
+async def snapshot_from_period_deprecated(period_id: int) -> None:
+    """DEPRECATED: POST /api/v1/template/snapshot-from-period/{id} — 410 Gone (CR-05 fix)."""
     raise HTTPException(status_code=status.HTTP_410_GONE, detail=_GONE_DETAIL)
