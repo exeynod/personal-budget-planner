@@ -4,6 +4,11 @@
 // Distinct from `frontend/src/hooks/useCountUp.ts:fmtThousands`, which
 // uses an ASCII 0x20 separator — onboarding screens require the
 // typographic thin space so digit groups never wrap mid-number.
+//
+// Phase 24-04 extends with pluralAccounts + pluraliseHint helpers used
+// by Step02Accounts.
+
+import type { OnboardingAccount } from './types';
 
 /** Narrow no-break space — U+202F. Exported for tests + downstream UI. */
 export const THIN_SPACE = ' ';
@@ -46,4 +51,43 @@ export function parseIncomeInputToCents(raw: string): number {
   }
   if (cents > INCOME_DISPLAY_CAP_CENTS) return INCOME_DISPLAY_CAP_CENTS;
   return cents;
+}
+
+// ── Phase 24-04: Step 02 (Accounts) pluralisation helpers ─────────────
+
+/**
+ * Russian plural form for "счёт" (account) given an integer count.
+ *
+ * Rules per Slavic plural conventions (one / few / many):
+ *   - one  (n%10===1 && n%100!==11)             → 'счёт'
+ *   - few  (n%10 ∈ 2..4 && n%100 ∉ 12..14)      → 'счёта'
+ *   - many (everything else, including 0/5+/11-14/25) → 'счётов'
+ *
+ * Examples:
+ *   1 / 21 / 31 / 101 → 'счёт'
+ *   2 / 3 / 4 / 22 / 23 / 24 → 'счёта'
+ *   0 / 5 / 11 / 12 / 13 / 14 / 25 / 100 → 'счётов'
+ */
+export function pluralAccounts(n: number): 'счёт' | 'счёта' | 'счётов' {
+  const abs = Math.abs(Math.trunc(n));
+  const mod10 = abs % 10;
+  const mod100 = abs % 100;
+  if (mod10 === 1 && mod100 !== 11) return 'счёт';
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return 'счёта';
+  return 'счётов';
+}
+
+/**
+ * Build the Step 02 footer hint string from the current accounts list.
+ *
+ * - 0 accounts → 'нужен минимум один счёт'
+ * - 1+ accounts → '{n} {plural} · {fmtRubles(total)} ₽'
+ *
+ * Total is summed across `balance_cents` and formatted with U+202F
+ * thin-space grouping via `formatRubles`.
+ */
+export function pluraliseHint(accounts: ReadonlyArray<OnboardingAccount>): string {
+  if (accounts.length === 0) return 'нужен минимум один счёт';
+  const total = accounts.reduce((sum, a) => sum + a.balance_cents, 0);
+  return `${accounts.length} ${pluralAccounts(accounts.length)} · ${formatRubles(total)} ₽`;
 }

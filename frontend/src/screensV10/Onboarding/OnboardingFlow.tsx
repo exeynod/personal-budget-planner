@@ -18,6 +18,8 @@ import { useOnboardingDraft } from './useOnboardingDraft';
 import type { UseOnboardingDraftHook } from './useOnboardingDraft';
 import { OnboardingChrome } from './OnboardingChrome';
 import { Step01Income } from './Step01Income';
+import { Step02Accounts } from './Step02Accounts';
+import { pluraliseHint } from './format';
 import type { OnboardingDraft, OnboardingStep } from './types';
 import styles from './OnboardingFlow.module.css';
 
@@ -101,21 +103,39 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
     ? () => dispatch({ type: 'NEXT' } satisfies OnboardingAction)
     : undefined;
 
-  // NEXT-disabled rules for this plan: only step 1 has a real gate.
-  // Other steps stay disabled until their plan ships, to avoid skipping
-  // through placeholder screens with empty state.
+  // NEXT-disabled rules: per-step gates. Steps 3..4 still placeholder so
+  // they remain disabled until plans 24-06 / 24-08 ship.
   const nextDisabled = (() => {
     if (isFinal) return true;
     if (state.step === 1) return state.income_cents <= 0;
-    // Steps 2..4 have placeholder bodies in this plan — keep CTA muted
-    // so we cannot accidentally advance into a half-built screen.
+    if (state.step === 2) return state.accounts.length === 0;
+    // Steps 3..4 placeholder bodies — keep CTA muted.
     return true;
   })();
 
-  // Step 01 has the only Step 01 also explicitly hides the back arrow
-  // (no previous screen). Other placeholder steps allow back-stepping
-  // for QA convenience.
+  // Step 01 explicitly hides the back arrow (no previous screen).
+  // Other steps allow back-stepping.
   const step01Back = undefined;
+
+  // Step 02 hint shows pluralised account count + total balance.
+  const hint = state.step === 2 ? pluraliseHint(state.accounts) : undefined;
+
+  const renderStepBody = () => {
+    if (state.step === 1) {
+      return (
+        <Step01Income
+          incomeCents={state.income_cents}
+          dispatch={dispatch}
+        />
+      );
+    }
+    if (state.step === 2) {
+      return (
+        <Step02Accounts accounts={state.accounts} dispatch={dispatch} />
+      );
+    }
+    return <PlaceholderStep step={state.step} />;
+  };
 
   return (
     <div className={styles.flow}>
@@ -125,15 +145,9 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
         onBack={state.step === 1 ? step01Back : onBack}
         onNext={onNext}
         nextDisabled={nextDisabled}
+        hint={hint}
       >
-        {state.step === 1 ? (
-          <Step01Income
-            incomeCents={state.income_cents}
-            dispatch={dispatch}
-          />
-        ) : (
-          <PlaceholderStep step={state.step} />
-        )}
+        {renderStepBody()}
       </OnboardingChrome>
     </div>
   );
