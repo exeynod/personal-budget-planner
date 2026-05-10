@@ -1,0 +1,200 @@
+/* Phase 25-08: TransactionsView (cobalt) — static layout styles.
+ *
+ * Animations live in stylesV10/animations.css (.poster-row-in);
+ * this module owns layout, typography baseline, and tone-fixed colours.
+ *
+ * Mirror of prototype/poster-screens.jsx PosterTransactions (lines 500-800).
+ */
+
+.root {
+  position: absolute;
+  inset: 0;
+  background: var(--poster-cobalt);
+  color: var(--poster-paper);
+  padding: 56px 22px 90px;
+  overflow: auto;
+  font-family: var(--poster-font-manrope), system-ui, sans-serif;
+}
+
+/* ───── header row ───── */
+.headerRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 4px;
+}
+.backLink {
+  font-family: var(--poster-font-jet-brains-mono), ui-monospace, monospace;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  cursor: pointer;
+  opacity: 0.7;
+  color: var(--poster-paper);
+  background: transparent;
+  border: none;
+  padding: 0;
+}
+
+.eyebrowRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  margin-top: 22px;
+}
+
+/* ───── headline ───── */
+.headlineMass {
+  margin-top: 6px;
+  color: var(--poster-paper);
+  line-height: 1.0;
+}
+
+/* ───── chip-bar ───── */
+.chipBar {
+  display: flex;
+  gap: 8px;
+  margin-top: 22px;
+  margin-bottom: 18px;
+  overflow-x: auto;
+  scrollbar-width: none;     /* Firefox */
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 4px;
+}
+.chipBar::-webkit-scrollbar { display: none; }
+.chipBar > * { flex-shrink: 0; }
+
+/* ───── day group ───── */
+.dayGroup {
+  margin-bottom: 18px;
+}
+.dayGroupHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin: 14px 0 8px;
+  gap: 12px;
+}
+.dayLabel {
+  /* DM Serif italic 28px paper — fall back to PT Serif (Cyrillic per ADR-001).
+   * The exact CSS variable depends on tokens; we list the fallbacks here. */
+  font-family: var(--poster-font-dm-serif), var(--poster-font-pt-serif), 'PT Serif', 'DM Serif Display', Georgia, serif;
+  font-style: italic;
+  font-size: 28px;
+  color: var(--poster-paper);
+  line-height: 1.05;
+}
+.daySum {
+  font-family: var(--poster-font-jet-brains-mono), ui-monospace, monospace;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  opacity: 0.7;
+  color: var(--poster-paper);
+}
+
+/* ───── row ───── */
+.row {
+  padding: 10px 0;
+  border-top: 1px solid rgba(255, 246, 232, 0.2);
+  cursor: pointer;
+  display: grid;
+  grid-template-columns: 50px 1fr auto;
+  gap: 12px;
+  align-items: baseline;
+}
+.rowTime {
+  font-family: var(--poster-font-jet-brains-mono), ui-monospace, monospace;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  opacity: 0.65;
+  color: var(--poster-paper);
+}
+.rowMid {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.rowDescriptionLine {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.rowDescription {
+  font-family: var(--poster-font-manrope), system-ui, sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--poster-paper);
+  letter-spacing: 0.01em;
+  line-height: 1.2;
+}
+.rowSubLine {
+  font-family: var(--poster-font-jet-brains-mono), ui-monospace, monospace;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  opacity: 0.6;
+  color: var(--poster-paper);
+}
+.rowAmount {
+  font-family: var(--poster-font-jet-brains-mono), ui-monospace, monospace;
+  font-size: 16px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.amountPositive {
+  color: var(--poster-yellow);
+}
+.amountNegative {
+  color: var(--poster-paper);
+}
+
+/* ───── spec-tags ───── */
+.tag {
+  display: inline-block;
+  font-family: var(--poster-font-archivo-black), system-ui, sans-serif;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  padding: 2px 6px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.tagRoundup {
+  background: var(--poster-yellow);
+  color: var(--poster-cobalt);
+}
+.tagDeposit {
+  background: var(--poster-paper);
+  color: var(--poster-cobalt);
+}
+
+/* ───── empty state ───── */
+.emptyWrap {
+  margin-top: 80px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  opacity: 0.85;
+}
+.emptyHeadline {
+  font-family: var(--poster-font-dm-serif), var(--poster-font-pt-serif), 'PT Serif', Georgia, serif;
+  font-style: italic;
+  font-size: 36px;
+  color: var(--poster-paper);
+  text-align: center;
+  line-height: 1.05;
+}
+.emptyHint {
+  font-family: var(--poster-font-jet-brains-mono), ui-monospace, monospace;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  opacity: 0.6;
+  color: var(--poster-paper);
+  text-align: center;
+}
