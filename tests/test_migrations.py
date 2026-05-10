@@ -8,9 +8,16 @@ Run as part of the Wave-2 migration check, e.g.::
 
 Wave-0 RED state: ``DATABASE_URL`` is not yet set anywhere, so this test
 self-skips. Once Plan 03 adds the migration and Plan 02 wires settings, the
-test will execute and confirm all 6 domain tables, ``app_health`` and
-``alembic_version`` exist (the first 8 names below cover the domain
-schema; ``alembic_version`` is created by Alembic itself).
+test will execute and confirm all v1.0 domain tables and
+``alembic_version`` exist (``alembic_version`` is created by Alembic
+itself).
+
+Phase 22 (plan 22.13/22.16): ``plan_template_item`` was dropped in alembic
+0013 — ``Category.plan_cents`` is now the source of truth. Three v1.0
+tables (``account``, ``goal``, ``savings_config``) were added in 0012/0014.
+The ``EXPECTED_TABLES`` set below reflects the v1.0 schema state;
+detailed v1.0 schema-shape assertions live in
+``tests/test_migrations_v1_0.py``.
 """
 
 import os
@@ -21,11 +28,15 @@ EXPECTED_TABLES = {
     "app_user",
     "category",
     "budget_period",
-    "plan_template_item",
+    # plan_template_item dropped in alembic 0013 (Phase 22, plan 22.02).
     "planned_transaction",
     "actual_transaction",
     "subscription",
     "app_health",
+    # Phase 22 v1.0 tables (plans 22.01, 22.03):
+    "account",
+    "goal",
+    "savings_config",
 }
 
 
