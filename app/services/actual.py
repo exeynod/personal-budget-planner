@@ -394,6 +394,21 @@ async def compute_balance(
         - Excluded from by_category list (filter is_archived=False).
         - Their transactions ARE included in totals (accounting honesty, D-CONTEXT).
 
+    Sign convention (CR-01, Phase 22 review):
+        v1.0 storage convention is **signed** — expense ``amount_cents`` is
+        stored as a NEGATIVE integer (DATA-MODEL §1.4). Legacy v0.x rows
+        may still hold POSITIVE expense amounts (the conversion was deferred;
+        no data-flip migration ran). To stay correct in the presence of
+        mixed-sign legacy + v1.0 expense rows in the same period, the
+        aggregation uses ``func.abs(amount_cents)`` for both expense and
+        income totals — magnitudes only. ``balance_now_cents`` is then
+        derived as ``starting + abs(income) − abs(expense)`` which is
+        deterministic regardless of how each row was signed.
+        This also keeps deposit/roundup kinds out of the totals (the WHERE
+        clause restricts kind to {expense, income} via the GROUP BY +
+        subsequent filter on ``CategoryKind`` enum members), so rollover
+        deposits never leak into ``act_exp`` / ``act_inc``.
+
     Returns:
         dict with keys: period_id, period_start, period_end, starting_balance_cents,
         planned_total_expense_cents, actual_total_expense_cents,
@@ -415,6 +430,8 @@ async def compute_balance(
         raise PeriodNotFoundError(period_id)
 
     # Aggregate planned by (category_id, kind), scoped by user_id.
+    # PlannedTransaction.amount_cents is invariably positive in this codebase
+    # (planned rows never carry sign), so plain sum suffices.
     planned_q = (
         select(
             PlannedTransaction.category_id,
@@ -428,11 +445,14 @@ async def compute_balance(
         .group_by(PlannedTransaction.category_id, PlannedTransaction.kind)
     )
     # Aggregate actual by (category_id, kind), scoped by user_id.
+    # CR-01 fix: use func.abs() to make the sum sign-agnostic so a period
+    # mixing legacy-positive and v1.0-negative expense rows still produces
+    # a meaningful magnitude. delta math below is sign-aware.
     actual_q = (
         select(
             ActualTransaction.category_id,
             ActualTransaction.kind,
-            func.sum(ActualTransaction.amount_cents).label("actual_cents"),
+            func.sum(func.abs(ActualTransaction.amount_cents)).label("actual_cents"),
         )
         .where(
             ActualTransaction.user_id == user_id,
