@@ -59,6 +59,7 @@ from app.api.routes.admin import admin_router
 from app.api.routes.auth import auth_router
 from app.api.routes.categories import categories_router
 from app.api.routes.internal_bot import internal_bot_router
+from app.api.routes.internal_onboarding import internal_onboarding_router
 from app.api.routes.internal_telegram import internal_telegram_router
 from app.api.routes.onboarding import onboarding_router  # noqa: F401  (legacy, kept importable)
 from app.api.routes.onboarding_v10 import onboarding_v10_router
@@ -201,3 +202,10 @@ internal_router.include_router(internal_telegram_router)
 
 # Phase 4 internal sub-router — bot↔api communication for actual transactions.
 internal_router.include_router(internal_bot_router)
+
+# Phase 22 (v1.0) — admin onboarding-reset endpoint (BE-15, plan 22.14).
+# DELETE /api/v1/internal/onboarding/reset?user_id=<int> wipes Account /
+# Goal / SavingsConfig + zeroes Category.plan_cents + nulls AppUser.income
+# для повторного onboarding в dev. X-Internal-Token gate inherited from
+# internal_router.
+internal_router.include_router(internal_onboarding_router)
