@@ -1,6 +1,7 @@
-"""Pydantic v2 схемы для AI Assistant endpoints (AI-03, AI-06)."""
+"""Pydantic v2 схемы для AI Assistant endpoints (AI-03, AI-06, AI-V10-03)."""
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Optional
 
 from pydantic import BaseModel, ConfigDict
@@ -76,3 +77,22 @@ class UsageResponse(BaseModel):
     session_total: UsageBucket
     buffer_size: int
     buffer_max: int
+
+
+class ObservationResponse(BaseModel):
+    """Ответ GET /ai/observation (Phase 27, AI-V10-03).
+
+    Server-side rule-engine observation for the AI screen initial-state.
+    Pure-Python (no LLM), 1h per-user in-memory cache. Detailed rules
+    documented in app/services/ai_observation.py.
+
+    Fields:
+        text: Single-line RU sentence (e.g. "Кафе уже +20% к лимиту").
+        generated_at: MSK timestamp of computation. Frontend may render a
+            relative "Сегодня в HH:MM" line beside the text.
+    """
+
+    model_config = ConfigDict(from_attributes=True)
+
+    text: str
+    generated_at: datetime

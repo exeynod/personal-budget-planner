@@ -48,12 +48,14 @@ from app.api.schemas.ai import (
     ChatHistoryResponse,
     ChatMessageRead,
     ChatRequest,
+    ObservationResponse,
     UsageResponse,
 )
 from app.core.settings import settings
 from app.db.models import AiUsageLog
 from app.db.session import AsyncSessionLocal
 from app.services import ai_conversation_service as conv_svc
+from app.services import ai_observation as obs_svc
 
 logger = logging.getLogger(__name__)
 
@@ -720,3 +722,43 @@ async def get_usage() -> UsageResponse:
         buffer_size=len(_usage_buffer),
         buffer_max=_USAGE_BUFFER_MAX,
     )
+
+
+# ---------------------------------------------------------------------------
+# Phase 27 (plan 27-01, AI-V10-03): rule-engine observation endpoint.
+#
+# Lives on its OWN sub-router so it does NOT inherit ``enforce_spending_cap``
+# from the chat ``router`` above — observation is pure-Python compute and has
+# nothing to do with the LLM monthly USD cap. Same auth + onboarding gates
+# (Telegram initData + onboarded_at NOT NULL) are reused so client-side
+# integration is symmetric with the rest of /ai/*.
+# ---------------------------------------------------------------------------
+observation_router = APIRouter(
+    prefix="/ai",
+    tags=["ai"],
+    dependencies=[
+        Depends(get_current_user),
+        Depends(require_onboarded),
+    ],
+)
+
+
+@observation_router.get("/observation", response_model=ObservationResponse)
+async def get_observation(
+    db: Annotated[AsyncSession, Depends(get_db_with_tenant_scope)],
+    user_id: Annotated[int, Depends(get_current_user_id)],
+) -> ObservationResponse:
+    """GET /ai/observation — server-side rule-engine observation (AI-V10-03).
+
+    Returns one short RU sentence summarising the user's current state,
+    cached per-user for 1 hour. Pure Python — no LLM call, no token spend.
+
+    Rule priority (see app/services/ai_observation.py):
+        1. Over-limit category — "{Name} уже +N% к лимиту"
+        2. Subs charge tomorrow — "Завтра списание подписок на X ₽"
+        3. Last-7-days savings — "За неделю экономия Y ₽"
+        4. Month surplus — "{Month} в плюсе на Z ₽"
+        Fallback — "Веди учёт регулярно — {today}"
+    """
+    res = await obs_svc.build_observation(db, user_id=user_id)
+    return ObservationResponse(text=res.text, generated_at=res.generated_at)

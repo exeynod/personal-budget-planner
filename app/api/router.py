@@ -67,6 +67,7 @@ from app.api.routes.periods import periods_router
 from app.api.routes.plan_month import plan_month_router
 from app.api.routes.planned import planned_router
 from app.api.routes.settings import settings_router
+from app.api.routes.ai import observation_router as ai_observation_router
 from app.api.routes.ai import router as ai_router
 from app.api.routes.ai_suggest import router as ai_suggest_router
 from app.api.routes.analytics import router as analytics_router
@@ -156,6 +157,11 @@ public_router.include_router(analytics_router)
 
 # Phase 9 sub-router — AI chat endpoint (AI-03, AI-06, AI-10).
 public_router.include_router(ai_router)
+
+# Phase 27 sub-router — AI rule-engine observation (AI-V10-03, plan 27-01).
+# Lives on its own sub-router so it does NOT inherit the ``enforce_spending_cap``
+# dependency that ai_router uses (observation is pure-Python, no LLM call).
+public_router.include_router(ai_observation_router)
 
 # Phase 10 sub-router — AI categorization suggest endpoint (AICAT-03).
 public_router.include_router(ai_suggest_router, prefix="/ai")
