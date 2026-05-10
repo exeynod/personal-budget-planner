@@ -2,16 +2,17 @@
 gsd_state_version: 1.0
 milestone: v1.0.1
 milestone_name: — UI Conformance & Tech Debt
-status: completed
-stopped_at: Roadmap для v1.0 (Phases 22-28) создан, REQUIREMENTS.md traceability заполнен (92/92 REQs). Awaiting `/gsd-plan-phase 22`.
-last_updated: "2026-05-10T23:10:11.809Z"
-last_activity: 2026-05-10
+status: complete
+completed_at: "2026-05-11"
+stopped_at: Milestone v1.0.1 shipped — Phases 29-31 complete (10/10 plans, 16/16 requirements ✓).
+last_updated: "2026-05-11T00:00:00.000Z"
+last_activity: 2026-05-11
 progress:
-  total_phases: 10
-  completed_phases: 1
-  total_plans: 6
-  completed_plans: 5
-  percent: 83
+  total_phases: 3
+  completed_phases: 3
+  total_plans: 15
+  completed_plans: 15
+  percent: 100
 ---
 
 # Project State
@@ -25,10 +26,10 @@ See: .planning/PROJECT.md (updated 2026-05-09 — v1.0 milestone «Maximal Poste
 
 ## Current Position
 
-Phase: 28
-Plan: Not started
-Status: Phase 23 complete
-Last activity: 2026-05-10
+Phase: v1.0.1 milestone complete (Phases 29, 30, 31)
+Plan: All plans shipped (10/10)
+Status: Milestone v1.0.1 complete — UI Conformance & Tech Debt; 16/16 requirements ✓; awaiting next milestone start
+Last activity: 2026-05-11
 
 ## Milestone v1.0 Phases
 

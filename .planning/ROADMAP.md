@@ -8,7 +8,7 @@
 - ✅ **v0.5 — Security & AI Hardening** (Phase 16) — shipped 2026-05-07 → [archive](milestones/v0.5-ROADMAP.md)
 - ✅ **v0.6 — iOS App** (Phases 17-21) — shipped 2026-05-09 → [archive](milestones/v0.6-ROADMAP.md) (TestFlight distribution deferred — paid Apple Developer Account out of scope)
 - ✅ **v1.0 — Maximal Poster Full** (Phases 22-28) — shipped 2026-05-10 → [archive](milestones/v1.0-ROADMAP.md)
-- 🚧 **v1.0.1 — UI Conformance & Tech Debt** (Phases 29-31) — started 2026-05-11
+- ✅ **v1.0.1 — UI Conformance & Tech Debt** (Phases 29-31) — shipped 2026-05-11 → [archive](milestones/v1.0.1-ROADMAP.md)
 
 ## Phase Details (v1.0.1)
 
@@ -45,6 +45,15 @@
 7. iOS SettingsAPI moved to its own file (DEBT-07 cosmetic).
 8. User в Management→Настройки выбирает цвет Home-экрана (4 swatches: coral/cobalt/black/cream); сохранение в localStorage / @AppStorage, мгновенное применение без перезагрузки (DEBT-08).
 
+**Plans:** 7 plans
+- [x] 30-01-PLAN.md — TS errors fix (DEBT-01, no-op confirmed)
+- [x] 30-02-PLAN.md — AddSheet refetch + AccountPickerSheet web (DEBT-02+03 web)
+- [x] 30-03-PLAN.md — AddSheet refetch + AccountPickerSheet iOS (DEBT-02+03 iOS)
+- [x] 30-04-PLAN.md — Subscription editor PATCH toast (DEBT-04)
+- [x] 30-05-PLAN.md — Web Transactions swipe-left delete (DEBT-05)
+- [x] 30-06-PLAN.md — iOS posterAnimation + SettingsAPI split (DEBT-06+07)
+- [x] 30-07-PLAN.md — Home screen color picker (DEBT-08)
+
 ### Phase 31: Regression Hardening
 **Goal**: Добавить test fixtures для onboarded user, починить Playwright §14 acceptance + pixel snapshot tests; добавить iOS testRoundRubles + testCycleDayClampedInFebruary test bug fixes (или isolate как broken); finalize CI green.
 **Depends on**: Phase 30
@@ -54,6 +63,11 @@
 2. v10-acceptance-tz14 spec проходит на live dev-server.
 3. v10-pixel-snapshots генерирует 8 baselines + diff-fail на сознательной regression.
 4. iOS XCTest 358/358 (testRoundRubles + testCycleDayClampedInFebruary либо починены, либо marked .skip с reason).
+
+**Plans:** 3 plans
+- [x] 31-01-PLAN.md — Live-mode Playwright fixture + dev auth bypass (REG-01)
+- [x] 31-02-PLAN.md — §14 acceptance CTA flow + pixel sanity (REG-02+03)
+- [x] 31-03-PLAN.md — iOS XCTest 358/358 isolate failures (REG-04)
 
 ## Phases
 
