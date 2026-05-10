@@ -1,0 +1,40 @@
+.shellRoot {
+  min-height: 100vh;
+  background: var(--poster-coral);
+  color: var(--poster-paper);
+  font-family: 'Manrope Variable', 'Manrope', sans-serif;
+}
+
+.placeholder {
+  padding: 56px 22px;
+}
+
+.placeholderEyebrow {
+  font-family: 'JetBrains Mono Variable', monospace;
+  font-size: 11px;
+  letter-spacing: var(--poster-tracking-eye);
+  text-transform: uppercase;
+  opacity: 0.7;
+  margin-bottom: 12px;
+}
+
+.placeholderTitle {
+  font-family: 'PosterSerifItalic', serif;
+  font-style: italic;
+  font-size: 88px;
+  line-height: 0.85;
+  letter-spacing: -0.04em;
+}
+
+.placeholderHint {
+  font-size: 13px;
+  margin-top: 22px;
+  opacity: 0.85;
+}
+
+.placeholderHint code {
+  font-family: 'JetBrains Mono Variable', monospace;
+  font-size: 12px;
+  background: rgba(0, 0, 0, 0.18);
+  padding: 1px 4px;
+}
