@@ -132,18 +132,58 @@ async def _resolve_bearer(
     return user
 
 
+async def _dev_mode_resolve_test_user(
+    db: AsyncSession, tg_user_id: int
+) -> AppUser:
+    """Phase 31 REG-01 helper: dev-only `X-Test-User` header → AppUser.
+
+    Idempotent upsert on `tg_user_id` with `role=owner`. Used to allow
+    Playwright fixtures (and any other dev-only integration test harness)
+    to address a *specific* test user (e.g. 999000) instead of the single
+    OWNER_TG_ID slot. Only invoked when ``settings.DEV_MODE is True`` —
+    production codepath cannot reach this helper.
+
+    The role choice mirrors ``_dev_mode_resolve_owner``: test fixtures need
+    `owner` privilege so they can exercise admin-only routes if required.
+    """
+    stmt = (
+        pg_insert(AppUser)
+        .values(tg_user_id=tg_user_id, role=UserRole.owner)
+        .on_conflict_do_update(
+            index_elements=["tg_user_id"],
+            set_={"role": UserRole.owner},
+        )
+    )
+    await db.execute(stmt)
+    user = await _resolve_app_user(db, tg_user_id)
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="DEV_MODE: failed to upsert X-Test-User row",
+        )
+    return user
+
+
 async def get_current_user(
     x_telegram_init_data: Annotated[str | None, Header()] = None,
     authorization: Annotated[str | None, Header()] = None,
+    x_test_user: Annotated[str | None, Header()] = None,
     db: Annotated[AsyncSession, Depends(get_db)] = None,  # type: ignore[assignment]
 ) -> AppUser:
     """Validate auth credentials and return AppUser ORM (Phase 12 ROLE-02/03,
     extended in Phase 17 IOSAUTH-01 для Bearer-токенов от нативных клиентов).
 
-    Auth precedence (Phase 17, v0.6):
-    1. Authorization: Bearer <token> — нативный iOS-клиент. Lookup в
+    Auth precedence (Phase 17 + Phase 31 REG-01):
+    1. **DEV-only**: ``X-Test-User: <tg_user_id>`` header, *only* when
+       ``settings.DEV_MODE is True``. Bypasses HMAC, upserts AppUser by
+       supplied tg_user_id (role=owner). Used by Playwright live-mode
+       fixture (Phase 31-01) and ad-hoc integration tests. The header is
+       **silently ignored** in production (DEV_MODE=false) — no error,
+       no log, no behaviour change — so a leaked header from a malicious
+       client cannot escalate.
+    2. Authorization: Bearer <token> — нативный iOS-клиент. Lookup в
        auth_token, проверка revoked_at IS NULL, role IN (owner, member).
-    2. X-Telegram-Init-Data — web Mini App. HMAC + role-based whitelist
+    3. X-Telegram-Init-Data — web Mini App. HMAC + role-based whitelist
        (legacy path, не сломан Phase 17 changes).
 
     DEV_MODE поведение (без изменений Phase 17):
@@ -156,6 +196,26 @@ async def get_current_user(
 
     Returns: AppUser ORM. Downstream deps may read .id, .role, .tg_user_id, etc.
     """
+    # ---------- Phase 31 REG-01: DEV-only X-Test-User bypass ----------
+    # Highest precedence in DEV_MODE so a fixture can pin a specific test
+    # user (e.g. tg_user_id=999000) without the OWNER_TG_ID auto-upsert
+    # winning. Production path (DEV_MODE=false) skips this block entirely —
+    # the header is effectively ignored, no information leak, no auth bypass.
+    if settings.DEV_MODE and x_test_user:
+        try:
+            tg_user_id = int(x_test_user.strip())
+        except (ValueError, AttributeError):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="X-Test-User must be an integer tg_user_id",
+            )
+        if tg_user_id <= 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="X-Test-User must be a positive integer",
+            )
+        return await _dev_mode_resolve_test_user(db, tg_user_id)
+
     # ---------- Phase 17: Bearer token (native iOS) ----------
     # Try Bearer first when Authorization header present. На успехе — return.
     # На неудаче — fallback на legacy initData paths (web-фронт остаётся жить).
