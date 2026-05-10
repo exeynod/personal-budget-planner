@@ -222,14 +222,31 @@ test.describe('§14 ТЗ acceptance happy-path', () => {
     // ─── §14.3 FAB → AddSheet (open + keypad + СОХРАНИТЬ кнопка) ──
     await page.getByRole('button', { name: /Добавить транзакцию/ }).click();
     await expect(page.getByText(/NEW ENTRY/)).toBeVisible({ timeout: 5000 });
+    // Scope все ниже-уровневые queries в саму AddSheet, чтобы не подцепить
+    // FAB-button или dashboard chips, оставшиеся за overlay (BottomNav сам
+    // unmounts — ADD-V10-01, но Home-контейнер остаётся в DOM позади листа).
+    const addSheet = page.getByTestId('add-sheet');
+    await expect(addSheet).toBeVisible();
     // Keypad визуально присутствует (1..9 buttons). Проверим хотя бы одну.
     await expect(
-      page.getByRole('button', { name: /^1$/ }).first(),
+      addSheet.getByRole('button', { name: /^1$/ }).first(),
     ).toBeVisible();
+    // Plan 31-02 (REG-02): CTA дин��мически меняет label «ВВЕДИТЕ СУММУ» →
+    // «ВЫБЕРИТЕ КАТЕГОРИЮ» → «СОХРАНИТЬ» в зависимости от ctaState
+    // (computeAddSheet.ts:140-149). Чтобы дождаться ready-state и проверить
+    // contract «один tap», вводим сумму через keypad (100 рублей) и
+    // выбираем категорию «Кафе» — фиксированный mock в installPostOnboardingMocks.
+    await addSheet.getByRole('button', { name: /^1$/ }).first().click();
+    await addSheet.getByRole('button', { name: /^0$/ }).first().click();
+    await addSheet.getByRole('button', { name: /^0$/ }).first().click();
+    // Категория-чип «Кафе» внутри .catScroll (data-testid=add-sheet-categories).
+    await addSheet.getByTestId('add-sheet-categories').getByText('Кафе').click();
     // Кнопка СОХРАНИТЬ — закрепляет contract «один tap» (ADD-V10-04).
-    await expect(
-      page.getByRole('button', { name: /СОХРАНИТЬ/i }).first(),
-    ).toBeVisible();
+    // Локатор по data-testid не подвержен изменению label-эмодзи (↵).
+    await expect(addSheet.getByTestId('add-sheet-cta')).toHaveText(
+      /СОХРАНИТЬ/i,
+      { timeout: 5000 },
+    );
     // BottomNav unmounts while AddSheet is open (ADD-V10-01) — soft check.
     await expect(page.locator('[role="tablist"]')).toHaveCount(0);
     // Закрываем sheet через swipe-down аналог — Escape (доступный shortcut)
