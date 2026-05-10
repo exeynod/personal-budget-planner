@@ -5,6 +5,23 @@
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>TG Budget</title>
+    <!-- Preload top-2 Manrope variable weights for v10 (DS-02): no FOUT after first visit -->
+    <!-- Project audience is RU-only; latin + cyrillic 400 are LCP-critical (over Manrope 700) -->
+    <!-- TODO(Phase 28 POL-05): swap /node_modules/... for build-hashed paths via vite plugin -->
+    <link
+      rel="preload"
+      href="/node_modules/@fontsource-variable/manrope/files/manrope-latin-wght-normal.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <link
+      rel="preload"
+      href="/node_modules/@fontsource-variable/manrope/files/manrope-cyrillic-wght-normal.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
   </head>
   <body>
     <div id="root"></div>
