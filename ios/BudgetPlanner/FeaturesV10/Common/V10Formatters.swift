@@ -77,6 +77,22 @@ enum V10Formatters {
         return String(format: "%02d:%02d", h, m)
     }
 
+    // MARK: - formatShortDate
+
+    /// Short uppercase day-of-month format used by the AddSheet eyebrow:
+    /// `"{day} {MONTH_GENITIVE_UPPER}"` — e.g. `"9 МАЯ"`, `"31 ДЕКАБРЯ"`.
+    ///
+    /// CR-25-03 (review fix): the AddSheet eyebrow used to call
+    /// `formatDay(Date(), today: Date())` which always collapses to
+    /// "Сегодня" because both arguments are the same day. The eyebrow
+    /// should always render the actual short date (mirror of web
+    /// `formatShortDate` in `frontend/src/screensV10/common/format.ts`).
+    static func formatShortDate(_ date: Date, calendar: Calendar = .current) -> String {
+        let day = calendar.component(.day, from: date)
+        let monthIdx = calendar.component(.month, from: date) - 1
+        return "\(day) \(monthsRuGenitive[monthIdx].uppercased())"
+    }
+
     // MARK: - formatPeriodEyebrow
 
     /// Build the Home / Transactions period eyebrow string:

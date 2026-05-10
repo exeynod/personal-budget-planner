@@ -80,8 +80,11 @@ struct AddSheetView: View {
 
     private var headerRow: some View {
         HStack {
+            // CR-25-03 (review fix): use `formatShortDate` instead of
+            // `formatDay(Date(), today: Date())` which always returned
+            // "Сегодня". Spec ADD-V10-02 + web parity → "9 МАЯ".
             Eyebrow(
-                "NEW ENTRY · \(V10Formatters.formatDay(Date(), today: Date())) · \(V10Formatters.formatTimeHM(Date()))",
+                "NEW ENTRY · \(V10Formatters.formatShortDate(Date())) · \(V10Formatters.formatTimeHM(Date()))",
                 opacity: 0.7
             )
             Spacer()
