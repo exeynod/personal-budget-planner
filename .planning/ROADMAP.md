@@ -145,7 +145,18 @@
   3. На Step 03 user распределяет income по 8 default-категориям через slider (initial = `share * income`, step 500 ₽); live-счётчик показывает «остаётся X ₽ → накопления» / «превышение X ₽»; NEXT disabled при `Σ plan > income`; tap по числу → keyboard-input.
   4. На Step 04 user либо создаёт Goal (name + target_cents), либо нажимает «ПРОПУСТИТЬ» сверху; в обоих случаях видит Final-экран с резюме (доход, счета, план, цель) и CTA «НАЧАТЬ →»; tap → атомарный `POST /onboarding/complete` → переход на новый `PosterHomeView`.
   5. User закрывает приложение посреди Step 02 → возвращается через час → видит Step 02 с заполненными ранее данными (draft из `localStorage` / `UserDefaults`); после успешного `POST /onboarding/complete` черновик очищается.
-**Plans**: TBD
+**Plans**: 11 plans (6 waves)
+- [ ] 24-01-foundation-draft-flow-PLAN.md — useReducer/Observable + draft I/O + types + 8 default categories + API wrappers (ONB-V10-01, ONB-V10-07)
+- [ ] 24-02-web-step01-income-PLAN.md — Web OnboardingChrome + OnboardingFlow + Step01Income (ONB-V10-01, ONB-V10-02)
+- [ ] 24-03-ios-step01-income-PLAN.md — iOS OnboardingChrome + OnboardingView + Step01IncomeView + RubleFormatter (ONB-V10-01, ONB-V10-02)
+- [ ] 24-04-web-step02-accounts-PLAN.md — Web Step02Accounts + AccountBalanceForm + russian pluralisation hint (ONB-V10-01, ONB-V10-03)
+- [ ] 24-05-ios-step02-accounts-PLAN.md — iOS Step02AccountsView + AccountBalanceSheet via PosterSheet + PluralRu (ONB-V10-01, ONB-V10-03)
+- [ ] 24-06-web-step03-plan-PLAN.md — Web Step03Plan with 8 PosterSliders + live counter + overflow hintTone (ONB-V10-01, ONB-V10-04)
+- [ ] 24-07-ios-step03-plan-PLAN.md — iOS Step03PlanView with 8 PosterSliders + counter (ONB-V10-01, ONB-V10-04)
+- [ ] 24-08-web-step04-goal-final-PLAN.md — Web Step04Goal + Final + atomic submit + 200/409/422 handling (ONB-V10-01, ONB-V10-05, ONB-V10-06)
+- [ ] 24-09-ios-step04-goal-final-PLAN.md — iOS Step04GoalView + FinalView + submit + 200/409/422 (ONB-V10-01, ONB-V10-05, ONB-V10-06)
+- [ ] 24-10-web-wire-e2e-PLAN.md — Wire OnboardingMount into AppV10 + getMeV10 + Playwright e2e covering full flow + 409/422 + persistence (ONB-V10-01, ONB-V10-06, ONB-V10-07)
+- [ ] 24-11-ios-wire-shell-PLAN.md — Wire OnboardingMountView into V10MainShell + MeAPI + XCTest gateway + manual smoke checklist (ONB-V10-01, ONB-V10-06, ONB-V10-07)
 **UI hint**: yes
 
 ### Phase 25: Home + Transactions + Add Sheet
