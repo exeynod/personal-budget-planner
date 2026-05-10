@@ -50,21 +50,24 @@ enum AddSheetData {
 
     /// Append a digit (0-9) to the current amount string.
     ///
-    /// Rules:
-    ///   - If `current == "0"` and `digit != "."`, replace lone zero.
-    ///   - If `current` already contains "." and the decimal part is at
-    ///     two characters, return unchanged (cap at copecks precision).
+    /// Rules (matched 1:1 with web `computeAddSheet.ts::appendDigit` —
+    /// WR-25-08 review fix re-orders the guards so the cross-platform
+    /// state machine is identical):
+    ///   - Empty input + any digit → that digit ('5' or '0').
+    ///   - `current == "0"` and `digit != "0"` → replace ('0' + '5' = '5').
+    ///   - `current == "0"` and `digit == "0"` → unchanged ('0' stays '0').
+    ///   - In decimal mode (after dot) cap decimal at 2 chars.
     ///   - Else: append.
     static func appendDigit(_ current: String, _ digit: String) -> String {
-        // Cap decimal part at 2 chars.
+        // 1. Empty input → first digit becomes the whole string.
+        if current.isEmpty { return digit }
+        // 2. Leading-zero guard — '0' alone is the implicit empty input.
+        if current == "0" && digit != "0" { return digit }
+        if current == "0" && digit == "0" { return current }
+        // 3. Cap decimal part at 2 chars.
         if let dotIdx = current.firstIndex(of: ".") {
             let decimalPart = current[current.index(after: dotIdx)...]
-            if decimalPart.count >= 2 {
-                return current
-            }
-        }
-        if current == "0" {
-            return digit
+            if decimalPart.count >= 2 { return current }
         }
         return current + digit
     }

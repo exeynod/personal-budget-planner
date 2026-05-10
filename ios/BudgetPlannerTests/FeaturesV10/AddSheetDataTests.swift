@@ -57,6 +57,12 @@ final class AddSheetDataTests: XCTestCase {
         XCTAssertEqual(AddSheetData.appendDigit("0.05", "1"), "0.05")
     }
 
+    // WR-25-08 (review fix): explicit cross-platform parity case.
+    // Web: appendDigit("0", "0") == "0"; iOS must match.
+    func test_appendDigit_zero_plus_zero_stays_zero() {
+        XCTAssertEqual(AddSheetData.appendDigit("0", "0"), "0")
+    }
+
     // ─────────────── appendDot ───────────────
 
     func test_appendDot_to_empty_yields_zero_dot() {
