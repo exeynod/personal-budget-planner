@@ -34,11 +34,12 @@ import { Eyebrow, PosterButton } from '../../componentsV10';
 import { formatPeriodEyebrow, usePosterRouter } from '../common';
 import {
   AccountsListPlaceholder,
-  CategoryDetailPlaceholder,
   PlanViewPlaceholder,
 } from '../_placeholders';
 // Phase 25-08: real Transactions registry replaces the prior WIP placeholder.
 import { TransactionsMount } from '../Transactions';
+// Phase 26-02: real CategoryDetail replaces the prior WIP placeholder.
+import { CategoryDetailMount } from '../CategoryDetail';
 import { HomeView } from './HomeView';
 import {
   computeCategoryAggregates,
@@ -115,7 +116,7 @@ export function HomeMount() {
   }, [router]);
   const onCategoryTap = useCallback(
     (id: number) => {
-      router.push(<CategoryDetailPlaceholder catId={id} />);
+      router.push(<CategoryDetailMount categoryId={id} />);
     },
     [router],
   );

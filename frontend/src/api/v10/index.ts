@@ -20,5 +20,9 @@ export type {
 export { listAccounts } from './accounts';
 export type { AccountResponse, AccountKindStr } from './accounts';
 
-export { listCategoriesV10 } from './categories';
-export type { CategoryV10, CategoryRollover } from './categories';
+export { listCategoriesV10, updateCategoryV10 } from './categories';
+export type {
+  CategoryV10,
+  CategoryRollover,
+  CategoryV10UpdatePayload,
+} from './categories';
