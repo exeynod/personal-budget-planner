@@ -262,7 +262,11 @@ def _validate_accounts(accounts: list[dict[str, Any]]) -> int:
                 f"accounts[{idx}].balance_cents must be int; got "
                 f"{type(balance_cents).__name__}"
             )
-        if a.get("primary") is True:
+        # WR-07 (Phase 22 review): use bool(...) so direct service callers
+        # passing truthy ints (e.g. legacy ``primary=1`` from raw-dict tests
+        # or AI ops) cannot slip past — ``1 is True`` evaluates False in
+        # Python (only the singleton ``True`` matches ``is True``).
+        if bool(a.get("primary")):
             if explicit_primary_idx is not None:
                 raise ValueError(
                     "At most one accounts[].primary may be true; got both "
