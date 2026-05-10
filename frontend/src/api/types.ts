@@ -509,3 +509,125 @@ export interface AdminAiUsageResponse {
   users: AdminAiUsageRow[];
   generated_at: string; // ISO datetime UTC
 }
+
+// ---------- Phase 25 (plan 25-03): v1.0 typed wire shapes ----------
+
+/**
+ * Phase 25-03 — wire-level kind enum for the v1.0 actual surface.
+ *
+ * Mirrors `ActualKindStr` from `app/api/schemas/actual.py` (4-valued
+ * after Phase 25-01 lands). Legacy v0.x ActualRead still uses
+ * `CategoryKind` (2-valued); the v10 client wraps a separate
+ * ActualV10Read so v0.x consumers keep working untouched.
+ */
+export type ActualV10Kind = 'expense' | 'income' | 'roundup' | 'deposit';
+
+/**
+ * Phase 25-03 — extended ActualRead emitted by `POST /actual` and
+ * `GET /periods/{id}/actual` after Phase 25-01.
+ *
+ * Fields mirror `ActualRead` (`app/api/schemas/actual.py`); `account_id`
+ * and `parent_txn_id` are nullable (legacy v0.x rows have NULL).
+ */
+export interface ActualV10Read {
+  id: number;
+  period_id: number;
+  kind: ActualV10Kind;
+  amount_cents: number;
+  description: string | null;
+  category_id: number;
+  tx_date: string; // ISO date
+  source: ActualSource;
+  created_at: string; // ISO datetime
+  /** v1.0 added — nullable for legacy v0.x rows. */
+  account_id: number | null;
+  /** v1.0 added — non-null only on roundup children. */
+  parent_txn_id: number | null;
+}
+
+/**
+ * Phase 25-03 — request body for `POST /actual` (v1.0 path).
+ *
+ * `account_id` is optional: when present, the route delegates to
+ * `create_actual_v10` (delta-balance + roundup hook); when absent,
+ * legacy `create_actual` runs (per Phase 25-01 dispatch).
+ */
+export interface ActualV10CreatePayload {
+  kind: ActualV10Kind;
+  amount_cents: number;
+  description?: string | null;
+  category_id: number;
+  tx_date: string; // ISO date
+  account_id?: number | null;
+}
+
+/** Phase 25-03 — wire-level account.kind enum (mirrors `AccountKindStr`). */
+export type AccountKindStr = 'card' | 'cash' | 'savings';
+
+/**
+ * Phase 25-03 — `AccountRead` mirror (Phase 22 BE-02, see
+ * `app/api/schemas/accounts.py`).
+ *
+ * Note: the wire field is `primary` (not `is_primary`) — the backend
+ * exposes the ORM `is_primary` attribute via `serialization_alias`.
+ */
+export interface AccountResponse {
+  id: number;
+  bank: string;
+  mask: string | null;
+  kind: AccountKindStr;
+  balance_cents: number;
+  primary: boolean;
+  created_at: string; // ISO datetime
+}
+
+/**
+ * Phase 25-03 — wire-level rollover policy enum.
+ *
+ * Mirrors `RolloverPolicy` (`app.db.models`); the backend stores it as
+ * VARCHAR(8) with a CHECK constraint (alembic 0013) and currently
+ * exposes it on the ORM `Category` model. **NOTE**: as of Phase 22 BE,
+ * the public `CategoryRead` Pydantic schema (`app/api/schemas/
+ * categories.py`) does NOT yet emit this field — see `CategoryV10`
+ * comment below.
+ */
+export type CategoryRollover = 'misc' | 'savings';
+
+/**
+ * Phase 25-03 — v1.0 category wire shape.
+ *
+ * **Schema gap (documented in 25-03 SUMMARY)**: as of Phase 22 the
+ * public `CategoryRead` Pydantic schema (`app/api/schemas/categories.py`)
+ * still emits only the v0.x field set (`id, name, kind, is_archived,
+ * sort_order, created_at`). The ORM model already has the v1.0 columns
+ * (Phase 22 BE-04 / alembic 0013) — `code, plan_cents, ord, rollover,
+ * paused, parent_id` — but they are NOT yet exposed on the wire.
+ *
+ * Until the response schema is extended (likely Phase 25-04 or a
+ * follow-up backend tweak), the v1.0 fields below are typed as optional
+ * + nullable so consumers can defensively handle both pre- and
+ * post-extension responses without runtime type errors. UI code should
+ * fall back to safe defaults (`plan_cents ?? 0`, `paused ?? false`,
+ * `rollover ?? 'misc'`, `code ?? null`) until the schema lands.
+ */
+export interface CategoryV10 {
+  id: number;
+  name: string;
+  kind: CategoryKind;
+  is_archived: boolean;
+  sort_order: number;
+  created_at: string; // ISO datetime
+
+  /** v1.0 — pending Phase 22 schema update (ORM has it, wire does not). */
+  code?: string | null;
+  /** v1.0 — pending Phase 22 schema update. */
+  plan_cents?: number;
+  /** v1.0 — pending Phase 22 schema update. CHAR(2) on DB ('01'..'99'). */
+  ord?: string;
+  /** v1.0 — pending Phase 22 schema update. */
+  rollover?: CategoryRollover;
+  /** v1.0 — pending Phase 22 schema update. */
+  paused?: boolean;
+  /** v1.0 — pending Phase 22 schema update; null when no parent. */
+  parent_id?: number | null;
+}
