@@ -722,6 +722,24 @@ export interface AccountResponse {
 }
 
 /**
+ * Phase 27-04 — request body for `POST /api/v1/accounts` (ACCT-V10-02 form).
+ *
+ * Mirrors `AccountCreate` (`app/api/schemas/accounts.py`):
+ *   - bank: 1..40 chars (str_strip_whitespace)
+ *   - mask: optional ≤16 chars
+ *   - kind: 'card' | 'cash' | 'savings'
+ *   - balance_cents: bounded ±100M ₽ (BIGINT-safe; UI gate enforces ≥0)
+ *   - primary: defaults false
+ */
+export interface AccountCreatePayload {
+  bank: string;
+  kind: AccountKindStr;
+  mask?: string | null;
+  balance_cents: number;
+  primary?: boolean;
+}
+
+/**
  * Phase 25-03 — wire-level rollover policy enum.
  *
  * Mirrors `RolloverPolicy` (`app.db.models`); the backend stores it as
