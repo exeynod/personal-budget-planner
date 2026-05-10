@@ -53,6 +53,7 @@ from app.api.dependencies import get_current_user, get_db, verify_internal_token
 from app.api.routes.accounts import accounts_router
 from app.api.routes.actual import actual_router
 from app.api.routes.goals import goals_router
+from app.api.routes.me import me_router
 from app.api.routes.savings import savings_router
 from app.api.routes.admin import admin_router
 from app.api.routes.auth import auth_router
@@ -174,6 +175,10 @@ public_router.include_router(goals_router)
 
 # Phase 22 (v1.0) — Savings snapshot/config/deposit (BE-08, BE-09, BE-10).
 public_router.include_router(savings_router)
+
+# Phase 22 (v1.0) — PATCH /me extension (BE-01). Legacy GET /me stays defined
+# above on the same public_router; me_router only adds the PATCH handler.
+public_router.include_router(me_router)
 
 
 # ---- Internal router (requires X-Internal-Token) ----
