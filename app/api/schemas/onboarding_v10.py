@@ -140,7 +140,12 @@ class OnboardingV10Body(BaseModel):
 
     income_cents: int = Field(gt=0, le=INCOME_MAX_CENTS)
     accounts: list[OnboardingAccountItem] = Field(min_length=1, max_length=20)
-    category_plans: dict[str, int]
+    # WR-11 (Phase 22 review): max_length=20 caps the dict at the 8 valid
+    # category codes plus headroom. Without an explicit bound, an attacker
+    # could submit 1M unknown keys; the per-key whitelist validator rejects
+    # the first one, but only after O(N) traversal. Bounding the dict size
+    # is a cheap DoS-resilience knob.
+    category_plans: dict[str, int] = Field(max_length=20)
     goal: Optional[OnboardingGoalItem] = None
     savings_config: Optional[OnboardingSavingsConfigItem] = None
 
