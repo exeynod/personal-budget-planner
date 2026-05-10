@@ -71,7 +71,9 @@ describe('todayPlusOneISO', () => {
 describe('Step04Goal — render', () => {
   it('renders the «Зачем копишь?» headline', () => {
     render(<Step04Goal goal={null} dispatch={vi.fn()} />);
-    expect(screen.getByText(/Зачем копишь/)).toBeInTheDocument();
+    // Mass renders "Зачем" + <br/> + "копишь?" — two text nodes.
+    expect(screen.getByText('Зачем', { exact: false })).toBeInTheDocument();
+    expect(screen.getByText(/копишь/)).toBeInTheDocument();
   });
 
   it('renders the sub-eyebrow «МОЖНО ПРОПУСТИТЬ И НАСТРОИТЬ ПОЗЖЕ»', () => {

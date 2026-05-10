@@ -20,6 +20,7 @@ import { OnboardingChrome } from './OnboardingChrome';
 import { Step01Income } from './Step01Income';
 import { Step02Accounts } from './Step02Accounts';
 import { Step03Plan, computePlanFooter } from './Step03Plan';
+import { Step04Goal, isGoalValid } from './Step04Goal';
 import { pluraliseHint } from './format';
 import type { OnboardingDraft, OnboardingStep } from './types';
 import styles from './OnboardingFlow.module.css';
@@ -110,16 +111,26 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
       ? computePlanFooter(state.income_cents, state.category_plans)
       : null;
 
-  // NEXT-disabled rules: per-step gates. Step 4 still placeholder so it
-  // remains disabled until plan 24-08 ships.
+  // NEXT-disabled rules: per-step gates.
   const nextDisabled = (() => {
     if (isFinal) return true;
     if (state.step === 1) return state.income_cents <= 0;
     if (state.step === 2) return state.accounts.length === 0;
     if (state.step === 3) return step03Footer?.nextDisabled ?? true;
-    // Step 4 placeholder body — keep CTA muted.
+    // Step 4: NEXT enabled when goal valid; SKIP path bypasses NEXT.
+    if (state.step === 4) return !isGoalValid(state.goal);
     return true;
   })();
+
+  // Step 04 has a custom CTA label and exposes the chrome's ПРОПУСТИТЬ link.
+  const nextLabel = state.step === 4 ? 'ГОТОВО →' : undefined;
+  const onSkip =
+    state.step === 4
+      ? () => {
+          dispatch({ type: 'SKIP_GOAL' } satisfies OnboardingAction);
+          dispatch({ type: 'NEXT' } satisfies OnboardingAction);
+        }
+      : undefined;
 
   // Step 01 explicitly hides the back arrow (no previous screen).
   // Other steps allow back-stepping.
@@ -160,6 +171,9 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
         />
       );
     }
+    if (state.step === 4) {
+      return <Step04Goal goal={state.goal} dispatch={dispatch} />;
+    }
     return <PlaceholderStep step={state.step} />;
   };
 
@@ -169,7 +183,9 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
         step={state.step}
         label={label}
         onBack={state.step === 1 ? step01Back : onBack}
+        onSkip={onSkip}
         onNext={onNext}
+        nextLabel={nextLabel}
         nextDisabled={nextDisabled}
         hint={hint}
         hintTone={hintTone}
