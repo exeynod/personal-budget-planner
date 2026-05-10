@@ -21,8 +21,10 @@ import { Step01Income } from './Step01Income';
 import { Step02Accounts } from './Step02Accounts';
 import { Step03Plan, computePlanFooter } from './Step03Plan';
 import { Step04Goal, isGoalValid } from './Step04Goal';
+import { Final } from './Final';
 import { pluraliseHint } from './format';
 import type { OnboardingDraft, OnboardingStep } from './types';
+import type { OnboardingV10Response } from '../../api/onboardingV10';
 import styles from './OnboardingFlow.module.css';
 
 /** Eyebrow text for steps 1..4. Step 5 (Final) draws its own headline. */
@@ -33,23 +35,20 @@ const STEP_LABELS: Record<1 | 2 | 3 | 4, string> = {
   4: 'ШАГ 04 / 04 · ЦЕЛЬ',
 };
 
-/**
- * Server response shape for `POST /onboarding/complete` 200 OK. Mirrors
- * `OnboardingV10Result` from the BE schema. Plan 24-08 wires the actual
- * call; here we just type the prop.
- */
-export interface OnboardingV10Response {
-  user_id: number;
-  income_cents: number;
-  account_count: number;
-  category_count: number;
-  goal_id?: number | null;
-  onboarded_at: string;
-}
+// Re-export so existing callers `import { OnboardingV10Response } from
+// '.../OnboardingFlow'` keep compiling — canonical source of truth lives
+// next to the API wrapper now (`api/onboardingV10.ts`).
+export type { OnboardingV10Response };
 
 export interface OnboardingFlowProps {
-  /** Called when reducer reaches step=5 AND submit returns 200 (plan 24-08). */
-  onComplete: (response: OnboardingV10Response) => void;
+  /**
+   * Called when:
+   *   - 200 OK from POST /onboarding/complete (response forwarded), OR
+   *   - 409 conflict (response = null; draft cleared, toast shown first).
+   * 422 / network errors do NOT call onComplete — Final keeps the user
+   * on screen so they can retry.
+   */
+  onComplete: (response: OnboardingV10Response | null) => void;
 }
 
 interface PlaceholderStepProps {
@@ -85,11 +84,6 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
   useEffect(() => {
     draftRef.current.save(state);
   }, [state]);
-
-  // Wire the onComplete callback so the prop is "used" in this plan; the
-  // real submit lives in plan 24-08, which will fire it from the Final
-  // step button. For now: no-op reference.
-  void onComplete;
 
   const isFinal = state.step === 5;
   const label = isFinal ? '' : STEP_LABELS[state.step as 1 | 2 | 3 | 4];
@@ -176,6 +170,16 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
     }
     return <PlaceholderStep step={state.step} />;
   };
+
+  // Step 5 (Final) renders without OnboardingChrome — it owns its own
+  // hero/plate/CTA layout per plan 24-08 §case 5.
+  if (isFinal) {
+    return (
+      <div className={styles.flow}>
+        <Final state={state} onComplete={onComplete} />
+      </div>
+    );
+  }
 
   return (
     <div className={styles.flow}>

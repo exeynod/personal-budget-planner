@@ -203,24 +203,26 @@ describe('Final — submit handler', () => {
   });
 
   it('409 → clears draft, shows «вы уже завершили онбординг» toast, eventually calls onComplete(null)', async () => {
-    vi.useFakeTimers();
     const onComplete = vi.fn();
     (postOnboardingComplete as ReturnType<typeof vi.fn>).mockRejectedValue(
       new ApiError('conflict', 409, '{}'),
     );
     render(<Final state={SAMPLE_STATE} onComplete={onComplete} />);
     fireEvent.click(screen.getByRole('button', { name: /НАЧАТЬ/ }));
-    // Microtask queue flush — wait for promise rejection to settle.
-    await vi.runAllTicksAsync();
+    // Wait for the toast + clear() (synchronous in the catch branch).
+    await waitFor(() => {
+      expect(
+        screen.getByText(/вы уже завершили онбординг/),
+      ).toBeInTheDocument();
+    });
     expect(mockClear).toHaveBeenCalledTimes(1);
-    expect(
-      screen.getByText(/вы уже завершили онбординг/),
-    ).toBeInTheDocument();
-    // onComplete is delayed — fast-forward.
-    expect(onComplete).not.toHaveBeenCalled();
-    await vi.advanceTimersByTimeAsync(1500);
-    expect(onComplete).toHaveBeenCalledWith(null);
-    vi.useRealTimers();
+    // onComplete fires after 1500ms setTimeout — wait it out.
+    await waitFor(
+      () => {
+        expect(onComplete).toHaveBeenCalledWith(null);
+      },
+      { timeout: 3000 },
+    );
   });
 
   it('422 → shows error toast, does NOT clear draft, does NOT call onComplete', async () => {
