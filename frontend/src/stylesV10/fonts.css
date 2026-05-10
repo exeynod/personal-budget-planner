@@ -1,0 +1,65 @@
+/* fonts.css — Maximal Poster web font registry (Phase 23 DS-02)
+ *
+ * Strategy:
+ *   - Self-hosted woff2 only via @fontsource(-variable)/* packages — NO Google Fonts CDN at runtime.
+ *   - Variable axes (Manrope, JetBrains Mono) imported through package CSS (auto wght 200-800).
+ *   - PosterSerifItalic alias = dual-source per ADR-001:
+ *       Latin glyphs  -> DM Serif Display Italic (brand exact)
+ *       Cyrillic       -> PT Serif Italic (DM Serif lacks cyrillic subset)
+ *     Browser routes glyphs by `unicode-range` automatically — single
+ *     `font-family: 'PosterSerifItalic'` on a component flips between fonts per code-point.
+ *   - `font-display: optional` kills FOUT after first paint:
+ *       browser shows fallback for ~100ms, commits to fallback if font not cached,
+ *       uses real font on next visit (LCP-friendly).
+ *
+ * NOTE: @fontsource-variable/manrope ships only `wght.css` (no italic variable axis).
+ *       Manrope italic, when needed, must be drawn from a static instance — out of scope
+ *       for v10 components (Mass + body do not require Manrope italic; PosterSerifItalic
+ *       alias covers all italic accents).
+ *
+ * NOTE: Vite resolves `@fontsource/...` bare specifiers in `url(...)` via the standard
+ *       module resolver. If a future Vite version regresses on this, switch to relative
+ *       paths under `../../../node_modules/...`.
+ */
+
+/* ─── Variable Manrope — primary body (wght 200-800, latin + cyrillic auto) ─── */
+@import '@fontsource-variable/manrope/wght.css';
+
+/* ─── Variable JetBrains Mono — numbers + eyebrow (wght + ital axes) ─── */
+@import '@fontsource-variable/jetbrains-mono/wght.css';
+@import '@fontsource-variable/jetbrains-mono/wght-italic.css';
+
+/* ─── Archivo Black 900 — uppercase mass headers, CTAs ─── */
+@import '@fontsource/archivo-black/400.css';
+
+/* ─── DM Serif Display Italic — Latin only (subset chosen explicitly) ─── */
+@import '@fontsource/dm-serif-display/latin-400-italic.css';
+
+/* ─── PT Serif Italic — Cyrillic fallback only (cf. ADR-001) ─── */
+@import '@fontsource/pt-serif/cyrillic-400-italic.css';
+
+/* ─── Dual-source italic serif alias (ADR-001) ───────────────────────────────
+ * Single font-family name 'PosterSerifItalic' resolved by browser unicode-range:
+ *   "May" (Latin) → DM Serif Display Italic
+ *   "Май" (Cyrillic) → PT Serif Italic
+ * Components opt in via tokens: `font-family: var(--poster-font-poster-serif-italic), serif;`
+ */
+@font-face {
+  font-family: 'PosterSerifItalic';
+  font-style: italic;
+  font-weight: 400;
+  font-display: optional;
+  src: local('DM Serif Display Italic'),
+       url('@fontsource/dm-serif-display/files/dm-serif-display-latin-400-italic.woff2') format('woff2');
+  unicode-range: U+0000-024F, U+1E00-1EFF, U+2000-206F;
+}
+
+@font-face {
+  font-family: 'PosterSerifItalic';
+  font-style: italic;
+  font-weight: 400;
+  font-display: optional;
+  src: local('PT Serif Italic'),
+       url('@fontsource/pt-serif/files/pt-serif-cyrillic-400-italic.woff2') format('woff2');
+  unicode-range: U+0400-04FF, U+0500-052F;
+}
