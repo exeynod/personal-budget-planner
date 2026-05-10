@@ -75,7 +75,7 @@
 - [ ] **Phase 23: Design System Foundation** — codegen tokens, 4 self-hosted шрифта + PT Serif fallback, 11 keyframe-анимаций, PosterNavStack + PosterSheet, dual-shell coexistence (web ║ iOS параллельно)
 - [ ] **Phase 24: Onboarding 4-step** — Доход → Счета → План → Цель → Final с persistence draft и atomic commit
 - [x] **Phase 25: Home + Transactions + Add Sheet** — coral hero «дневной темп», push-stack реестр, custom 3×4 keypad, FAB на каждом экране (completed 2026-05-10)
-- [ ] **Phase 26: Category Detail + PLAN мая + Subscriptions** — red/cobalt category screen, PLAN со sliders + регулярные «провести в факт», подписки с editor-меню
+- [x] **Phase 26: Category Detail + PLAN мая + Subscriptions** — red/cobalt category screen, PLAN со sliders + регулярные «провести в факт», подписки с editor-меню (completed 2026-05-10)
 - [ ] **Phase 27: AI + Savings + Accounts + Analytics + Management** — AI initial-state observation + 4 chips, Копилка с roundup-toggle, Accounts list + detail, Analytics rewrite, Mgmt-хаб
 - [ ] **Phase 28: Animations Polish + Acceptance** — `prefers-reduced-motion`, accessibility audit, pixel-perfect side-by-side QA, performance, migration safety, acceptance §14 ТЗ
 
@@ -195,13 +195,13 @@
   4. User в block «РЕГУЛЯРНЫЕ · ПРОВЕСТИ В ФАКТ» видит список из `/subscriptions` (cycle=monthly, day_of_month set); каждая строка: имя · «N числа · комментарий» · сумма · кнопка «ПРОВЕСТИ →» (post создаёт actual_transaction kind=expense + Subscription.posted_txn_id) / «ОТМЕНА» (unpost откатывает); tap → toast «✓ ПРОВЕДЕНО · −X ₽ → реестр».
   5. User в Subscriptions (coral) видит Mass italic «Подписки.» + BigFig «X ₽/мес»; tap на `···` → bottom-sheet menu с 3 ghost-кнопками (ПАУЗА toggle, СМЕНИТЬ ДЕНЬ → secondary sheet с DatePicker, ИЗМЕНИТЬ ЦЕНУ → secondary sheet с numeric input) + destructive «ОТМЕНИТЬ ПОДПИСКУ» (red фон) → confirm → `DELETE /subscriptions/:id`.
 **Plans**: 7 plans (2 waves)
-- [ ] 26-01-PLAN.md — backend ext: CategoryUpdate plan_cents/rollover/paused + PATCH /plan-month atomic endpoint (BE-04 ext + new BE-08 — backend prereq для Wave 2)
-- [ ] 26-02-PLAN.md — web Category Detail screen + updateCategoryV10 + HomeMount swap (CAT-V10-01..06)
-- [ ] 26-03-PLAN.md — iOS Category Detail screen + CategoryV10UpdateRequest + HomePlaceholders zero-touch swap (CAT-V10-01..06)
-- [ ] 26-04-PLAN.md — web PLAN мая + planMonth.ts + subscriptions.ts API + sliders + regulars + HomeMount swap (PLAN-V10-01..06)
-- [ ] 26-05-PLAN.md — iOS PLAN мая + PlanMonthAPI + SubscriptionsV10API + sliders + regulars + zero-touch swap (PLAN-V10-01..06)
-- [ ] 26-06-PLAN.md — web Subscriptions screen + bottom-sheet menu + day/price editors + delete confirm (SUBS-V10-01..04)
-- [ ] 26-07-PLAN.md — iOS Subscriptions screen + nested posterSheet menu + .confirmationDialog (SUBS-V10-01..04)
+- [x] 26-01-PLAN.md — backend ext: CategoryUpdate plan_cents/rollover/paused + PATCH /plan-month atomic endpoint (BE-04 ext + new BE-08 — backend prereq для Wave 2)
+- [x] 26-02-PLAN.md — web Category Detail screen + updateCategoryV10 + HomeMount swap (CAT-V10-01..06)
+- [x] 26-03-PLAN.md — iOS Category Detail screen + CategoryV10UpdateRequest + HomePlaceholders zero-touch swap (CAT-V10-01..06)
+- [x] 26-04-PLAN.md — web PLAN мая + planMonth.ts + subscriptions.ts API + sliders + regulars + HomeMount swap (PLAN-V10-01..06)
+- [x] 26-05-PLAN.md — iOS PLAN мая + PlanMonthAPI + SubscriptionsV10API + sliders + regulars + zero-touch swap (PLAN-V10-01..06)
+- [x] 26-06-PLAN.md — web Subscriptions screen + bottom-sheet menu + day/price editors + delete confirm (SUBS-V10-01..04)
+- [x] 26-07-PLAN.md — iOS Subscriptions screen + nested posterSheet menu + .confirmationDialog (SUBS-V10-01..04)
 **UI hint**: yes
 
 ### Phase 27: AI + Savings + Accounts + Analytics + Management
@@ -268,7 +268,7 @@
 | 23 - Design System Foundation | 0/12 | Not started | - |
 | 24 - Onboarding 4-step | 0/0 | Not started | - |
 | 25 - Home + Transactions + Add Sheet | 12/12 | Complete    | 2026-05-10 |
-| 26 - Category Detail + PLAN мая + Subscriptions | 0/7 | Not started | - |
+| 26 - Category Detail + PLAN мая + Subscriptions | 7/7 | Complete    | 2026-05-10 |
 | 27 - AI + Savings + Accounts + Analytics + Management | 0/0 | Not started | - |
 | 28 - Animations Polish + Acceptance | 0/0 | Not started | - |
 
