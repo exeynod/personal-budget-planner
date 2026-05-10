@@ -120,7 +120,19 @@
   4. Все 11 keyframe-анимаций (posterRowIn, posterRiseIn, posterBarFill, posterTabPop, posterPopIn, posterCheck, posterDot, posterSlideInFwd/Back, posterTabSwap, posterToastIn) демонстрируются на Storybook-page (web) и SwiftUI Preview (iOS); включение OS-флага `prefers-reduced-motion` / `accessibilityReduceMotion` редуцирует их до opacity-only без in-app toggle.
   5. iOS `PosterNavStack` (50 LOC, ZStack + asymmetric transitions + @Observable router) + ручной edge-swipe-back (`UIScreenEdgePanGestureRecognizer`, minimumDistance 24, threshold 80px, accessibility label «Назад») работает на real device test (iPhone 11/Pro): push 3 экрана → swipe-back → assert top of stack; `PosterSheet` покрывает sheetEase + backdrop.
   6. Dual-shell flag — `AppRouter` switch на `@AppStorage("ui.theme")` рендерит либо `V06MainShell` (текущий v0.6 код, untouched), либо `V10MainShell` (новый); web `main.tsx` проверяет `localStorage.getItem('ui.theme') === 'v10'` или `VITE_UI_THEME=v10` для выбора между `App.tsx` и `AppV10.tsx`.
-**Plans**: TBD
+**Plans**: 12 plans (5 waves)
+- [ ] 23-01-tokens-codegen-PLAN.md — design/tokens.json + gen-tokens.ts + Makefile tokens-check (DS-01)
+- [ ] 23-02-web-fonts-PLAN.md — @fontsource self-hosted woff2 + fonts.css with unicode-range cyrillic fallback + index.html preload (DS-02)
+- [ ] 23-03-ios-fonts-PLAN.md — 5 TTF in Resources/Fonts + UIAppFonts + XcodeGen regen + cyrillic visual smoke (DS-03)
+- [ ] 23-04-web-animations-PLAN.md — 11 @keyframes + utility classes + prefers-reduced-motion media query (DS-04, DS-05)
+- [ ] 23-05-web-components-PLAN.md — 10 React components in componentsV10/ + useCountUp hook + index.ts barrel (DS-06)
+- [ ] 23-06-ios-animations-PLAN.md — PosterAnimations.swift (11 animations) + reduce-motion view modifiers (DS-04, DS-05)
+- [ ] 23-07-ios-components-PLAN.md — 10 SwiftUI components in FeaturesV10/Common + PosterStyle shared (DS-06)
+- [ ] 23-08-ios-nav-stack-PLAN.md — PosterRouter + PosterNavStack + PosterTransitions + PosterEdgeSwipe + PosterSheet (DS-07)
+- [ ] 23-09-web-shell-preview-PLAN.md — main.tsx theme dispatcher + AppV10 + /preview gallery (DS-08)
+- [ ] 23-10-ios-shell-PLAN.md — AppRouter @AppStorage switch + V10MainShell + PreviewGallery (DS-08, DS-07)
+- [ ] 23-11-web-smoke-test-PLAN.md — Playwright e2e suite covering DS-02/04/05/06/08 (DS-02, DS-04, DS-05, DS-06, DS-08)
+- [ ] 23-12-ios-smoke-test-PLAN.md — Manual simulator + real-device verification + ADR-002 risk closure (DS-03, DS-04, DS-05, DS-06, DS-07, DS-08)
 **UI hint**: yes
 
 ### Phase 24: Onboarding 4-step
@@ -223,7 +235,7 @@
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 22 - Backend Schema & Logic Foundation | 0/16 | Not started | - |
-| 23 - Design System Foundation | 0/0 | Not started | - |
+| 23 - Design System Foundation | 0/12 | Not started | - |
 | 24 - Onboarding 4-step | 0/0 | Not started | - |
 | 25 - Home + Transactions + Add Sheet | 0/0 | Not started | - |
 | 26 - Category Detail + PLAN мая + Subscriptions | 0/0 | Not started | - |
