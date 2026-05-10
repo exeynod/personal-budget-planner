@@ -138,6 +138,19 @@ async def create_actual(
         404: category not found OR cross-tenant / missing account_id
         422: Pydantic validation
     """
+    # CR-25-01 (review fix): the legacy ``create_actual`` path in
+    # ``app.services.actual`` constructs ``CategoryKind(kind)`` (a 2-valued
+    # enum: expense|income). If a v1.0 client sends ``kind ∈ {roundup,
+    # deposit}`` WITHOUT ``account_id``, dispatch falls to the legacy branch
+    # and the enum constructor raises an unhandled ``ValueError`` → 500.
+    # Reject the unsupported combination at the route boundary with a clear
+    # 400 BEFORE entering the legacy service.
+    if body.account_id is None and body.kind not in ("expense", "income"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="kind 'roundup'/'deposit' requires account_id",
+        )
+
     try:
         if body.account_id is not None:
             # T-25-01-01 mitigation — pre-validate the account belongs to the
@@ -171,6 +184,8 @@ async def create_actual(
             # Legacy v0.x path — preserved for backwards compatibility
             # (T-25-01-04 — explicit fallback prevents silent regressions
             # for v0.x clients that never opted into account_id).
+            # NOTE: guarded above; ``body.kind`` is now restricted to the
+            # 2-valued ``CategoryKind`` (expense|income).
             row = await actual_svc.create_actual(
                 db,
                 user_id=user_id,
