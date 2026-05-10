@@ -41,7 +41,7 @@ struct PosterPress: ViewModifier {
     func body(content: Content) -> some View {
         content
             .scaleEffect(pressed ? 0.97 : 1.0)
-            .animation(.easeOut(duration: 0.15), value: pressed)
+            .posterAnimation(PosterAnimations.easeOut(0.15), value: pressed)
             .contentShape(Rectangle())
             .onTapGesture { onTap() }
             .gesture(

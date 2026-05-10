@@ -69,7 +69,7 @@ private struct KeyButton: View {
         }
         .buttonStyle(.plain)
         .scaleEffect(pressed ? 0.95 : 1.0)
-        .animation(.easeOut(duration: 0.08), value: pressed)
+        .posterAnimation(PosterAnimations.easeOut(0.08), value: pressed)
         .pressEvents(onPress: { pressed = true }, onRelease: { pressed = false })
     }
 }
