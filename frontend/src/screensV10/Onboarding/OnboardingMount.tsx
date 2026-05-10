@@ -1,32 +1,37 @@
 // Phase 24-10 (ONB-V10-01 / ONB-V10-06 / ONB-V10-07): conditional gateway.
+// Phase 25-06: HomePlaceholder replaced by HomeMount; gateway logic
+// (loading / error / OnboardingFlow / Home) is unchanged. OnboardingMount
+// is now mounted as the PosterRouter root inside V10MainShell, so HomeMount
+// (rendered in the onboarded branch below) finds usePosterRouter() in
+// context and can push child screens.
 //
-// Mounted at AppV10 root (when surface !== 'preview'). Fetches /me once,
-// then dispatches:
+// Mounted at AppV10 root via V10MainShell (when surface !== 'preview').
+// Fetches /me once, then dispatches:
 //   - me.onboarded_at == null → <OnboardingFlow onComplete={refetch}>
-//   - me.onboarded_at != null → <HomePlaceholder /> (Phase 25 will replace)
+//   - me.onboarded_at != null → <HomeMount /> (real Home, replaced placeholder)
 //
 // State machine:
 //   - loading      → "ЗАГРУЗКА…"
 //   - error        → russian error + "ПОВТОРИТЬ" button
 //   - me, !onboard → OnboardingFlow with onComplete that refetches /me
-//   - me, onboard  → HomePlaceholder
+//   - me, onboard  → HomeMount
 //
 // After successful POST /onboarding/complete, the Final view calls
 // onComplete(response). We refetch /me — server has now flipped
 // onboarded_at to a real ISO timestamp — so the next render path swaps
-// to HomePlaceholder. No client-side optimistic state; refetch is the
-// single source of truth (T-24-10-03 — onboarded_at always comes from
-// server).
+// to HomeMount. No client-side optimistic state; refetch is the single
+// source of truth (T-24-10-03 — onboarded_at always comes from server).
 //
 // 409 path: Final calls onComplete(null) after showing the toast. We
 // still refetch /me; if the server says we're already onboarded, the
-// component flips to HomePlaceholder. If somehow not (race), the user
-// sees the onboarding flow again with a clean draft (Final has cleared
+// component flips to HomeMount. If somehow not (race), the user sees
+// the onboarding flow again with a clean draft (Final has cleared
 // localStorage before invoking onComplete).
 
 import { useCallback, useEffect, useState } from 'react';
 import { OnboardingFlow } from './OnboardingFlow';
 import { getMeV10, type MeV10Response } from '../../api/me';
+import { HomeMount } from '../Home';
 import styles from './OnboardingMount.module.css';
 
 interface MountState {
@@ -40,19 +45,6 @@ const INITIAL: MountState = {
   me: null,
   errorMsg: null,
 };
-
-/** Тонкая заглушка Home — Phase 25 заменит на реальный экран. */
-export function HomePlaceholder() {
-  return (
-    <div className={styles.gate} data-testid="home-placeholder">
-      <div className={styles.eyebrow}>VOL.01 / V1.0 HOME</div>
-      <div className={styles.homeTitle}>Готово.</div>
-      <div className={styles.homeHint}>
-        Home WIP — Phase 25. Onboarding закрыт сервером.
-      </div>
-    </div>
-  );
-}
 
 export function OnboardingMount() {
   const [state, setState] = useState<MountState>(INITIAL);
@@ -114,5 +106,5 @@ export function OnboardingMount() {
     );
   }
 
-  return <HomePlaceholder />;
+  return <HomeMount />;
 }
