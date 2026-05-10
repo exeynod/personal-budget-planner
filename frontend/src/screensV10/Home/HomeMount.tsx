@@ -32,14 +32,13 @@ import { getCurrentPeriod } from '../../api/periods';
 import type { PeriodRead } from '../../api/types';
 import { Eyebrow, PosterButton } from '../../componentsV10';
 import { formatPeriodEyebrow, usePosterRouter } from '../common';
-import {
-  AccountsListPlaceholder,
-  PlanViewPlaceholder,
-} from '../_placeholders';
+import { AccountsListPlaceholder } from '../_placeholders';
 // Phase 25-08: real Transactions registry replaces the prior WIP placeholder.
 import { TransactionsMount } from '../Transactions';
 // Phase 26-02: real CategoryDetail replaces the prior WIP placeholder.
 import { CategoryDetailMount } from '../CategoryDetail';
+// Phase 26-04: real Plan editor replaces the prior WIP PlanViewPlaceholder.
+import { PlanMount } from '../Plan';
 import { HomeView } from './HomeView';
 import {
   computeCategoryAggregates,
@@ -112,7 +111,7 @@ export function HomeMount() {
     router.push(<AccountsListPlaceholder />);
   }, [router]);
   const onPlanTap = useCallback(() => {
-    router.push(<PlanViewPlaceholder />);
+    router.push(<PlanMount />);
   }, [router]);
   const onCategoryTap = useCallback(
     (id: number) => {

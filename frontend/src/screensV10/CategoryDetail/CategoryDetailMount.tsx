@@ -11,9 +11,8 @@
 // Mount layer is intentionally thin — all sort/filter/aggregate logic lives
 // in pure functions in computeCategoryDetail.ts (unit-tested separately).
 //
-// NOTE for Plan 26-04 wiring: `+ ПОДНЯТЬ ЛИМИТ` currently pushes the WIP
-// PlanViewPlaceholder; Plan 26-04 swaps it for `<PlanMount focusCategoryId={id} />`.
-// Search for «PLAN_FOCUS_TODO» in this file when retrofitting.
+// Phase 26-04: «+ ПОДНЯТЬ ЛИМИТ» now pushes the real <PlanMount focusCategoryId>
+// deep-link (Plan 26-04 retrofit; PLAN_FOCUS_TODO marker resolved).
 
 import {
   useCallback,
@@ -31,7 +30,9 @@ import {
 import { getCurrentPeriod } from '../../api/periods';
 import { Eyebrow, PosterButton } from '../../componentsV10';
 import { usePosterRouter } from '../common';
-import { PlanViewPlaceholder } from '../_placeholders';
+// Phase 26-04: real Plan editor with focusCategoryId deep-link replaces the
+// prior WIP PlanViewPlaceholder push.
+import { PlanMount } from '../Plan';
 import { CategoryDetailView } from './CategoryDetailView';
 
 // ─────────────────── Props ───────────────────
@@ -143,9 +144,10 @@ export function CategoryDetailMount({ categoryId }: CategoryDetailMountProps) {
   }, [state]);
 
   const handlePushPlan = useCallback(
-    (_catId: number) => {
-      // PLAN_FOCUS_TODO (Plan 26-04): swap for `<PlanMount focusCategoryId={_catId} />`.
-      router.push(<PlanViewPlaceholder />);
+    (catId: number) => {
+      // Phase 26-04: PLAN_FOCUS_TODO resolved — real PlanMount with deep-link
+      // scroll to this category.
+      router.push(<PlanMount focusCategoryId={catId} />);
     },
     [router],
   );
