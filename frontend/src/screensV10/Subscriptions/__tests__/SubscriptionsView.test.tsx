@@ -318,7 +318,7 @@ describe('SubscriptionMenuSheet', () => {
     fireEvent.click(screen.getByText('ИЗМЕНИТЬ ЦЕНУ'));
     const input = screen.getByTestId('sub-price-input') as HTMLInputElement;
     fireEvent.change(input, { target: { value: '12abc34xyz5' } });
-    expect(input.value).toBe('123450');
+    expect(input.value).toBe('12345');
   });
 
   it('price editor save aborts when value parses to 0', async () => {
