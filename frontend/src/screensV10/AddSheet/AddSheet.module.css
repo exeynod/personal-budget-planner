@@ -1,0 +1,251 @@
+/* Phase 25-10: AddSheet body styling — laid out on the dark sheet
+   background (#0E0E0E injected by V10MainShell's PosterSheet wrapper).
+   Internal padding only — no own background or fixed positioning.
+*/
+
+.sheet {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 24px 22px 32px;
+  color: var(--poster-paper);
+}
+
+/* ── Header ─────────────────────────────────────────────── */
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.closeBtn {
+  background: transparent;
+  border: 1px solid rgba(255, 246, 232, 0.25);
+  color: var(--poster-paper);
+  width: 32px;
+  height: 32px;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.closeBtn:hover {
+  background: rgba(255, 246, 232, 0.08);
+}
+
+/* ── BigFig amount ──────────────────────────────────────── */
+
+.amountBlock {
+  display: flex;
+  justify-content: center;
+  padding: 8px 0 4px;
+  min-height: 100px;
+}
+
+.bigFigDecimals {
+  font-family: var(--poster-font-archivo-black), 'Archivo Black', sans-serif;
+  font-size: 0.8em;
+  margin-right: 4px;
+}
+
+.bigFigCurrency {
+  font-family: var(--poster-font-archivo-black), 'Archivo Black', sans-serif;
+}
+
+/* ── Keypad ─────────────────────────────────────────────── */
+
+.keypadBlock {
+  margin-top: 4px;
+}
+
+/* ── Description ────────────────────────────────────────── */
+
+.descInput {
+  width: 100%;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid rgba(255, 246, 232, 0.25);
+  color: var(--poster-paper);
+  font-family: var(--poster-font-pt-serif-italic), 'PT Serif', serif;
+  font-style: italic;
+  font-size: 17px;
+  padding: 10px 0;
+  outline: none;
+}
+
+.descInput::placeholder {
+  color: rgba(255, 246, 232, 0.45);
+  font-family: var(--poster-font-pt-serif-italic), 'PT Serif', serif;
+  font-style: italic;
+}
+
+.descInput:focus {
+  border-bottom-color: var(--poster-yellow);
+}
+
+/* ── Date chips ─────────────────────────────────────────── */
+
+.dateChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.hiddenDateInput {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* ── Category chip-scroll ───────────────────────────────── */
+
+.catScroll {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.catScroll::-webkit-scrollbar {
+  display: none;
+}
+
+/* ── Account row ────────────────────────────────────────── */
+
+.accountRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: transparent;
+  border: 1px solid rgba(255, 246, 232, 0.2);
+  color: var(--poster-paper);
+  padding: 12px 14px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.accountLabel {
+  font-family: var(--poster-font-archivo-black), 'Archivo Black', sans-serif;
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  opacity: 0.55;
+}
+
+.accountValue {
+  flex: 1;
+  font-family: var(--poster-font-manrope), system-ui, sans-serif;
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.accountChev {
+  font-size: 16px;
+  opacity: 0.7;
+}
+
+/* ── Error banner ───────────────────────────────────────── */
+
+.errorBanner {
+  background: rgba(194, 74, 42, 0.18);
+  border: 1px solid var(--poster-red);
+  padding: 10px 12px;
+  font-family: var(--poster-font-jet-brains-mono), ui-monospace, monospace;
+  font-size: 12px;
+  color: var(--poster-paper);
+}
+
+/* ── CTA ────────────────────────────────────────────────── */
+
+.cta {
+  width: 100%;
+  padding: 16px 0;
+  font-family: var(--poster-font-archivo-black), 'Archivo Black', sans-serif;
+  font-size: 14px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  border: none;
+  cursor: pointer;
+  margin-top: 4px;
+}
+
+.ctaReady {
+  background: var(--poster-yellow);
+  color: var(--poster-ink);
+}
+
+.ctaDisabled {
+  background: rgba(255, 246, 232, 0.12);
+  color: rgba(255, 246, 232, 0.45);
+  cursor: not-allowed;
+}
+
+/* ── Cancel confirm overlay ─────────────────────────────── */
+
+.confirmOverlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(14, 14, 14, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+}
+
+.confirmBox {
+  background: var(--poster-black);
+  border: 1px solid rgba(255, 246, 232, 0.25);
+  padding: 28px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-width: 320px;
+  width: 90%;
+}
+
+.confirmHint {
+  font-family: var(--poster-font-jet-brains-mono), ui-monospace, monospace;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  opacity: 0.6;
+  color: var(--poster-paper);
+}
+
+.confirmActions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.confirmBtn {
+  width: 100%;
+  padding: 14px 0;
+  font-family: var(--poster-font-archivo-black), 'Archivo Black', sans-serif;
+  font-size: 13px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  border: none;
+  cursor: pointer;
+}
+
+.confirmContinue {
+  background: var(--poster-yellow);
+  color: var(--poster-ink);
+}
+
+.confirmCancel {
+  background: var(--poster-red);
+  color: var(--poster-paper);
+}
