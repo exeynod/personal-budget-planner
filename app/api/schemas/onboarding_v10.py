@@ -79,6 +79,22 @@ class OnboardingGoalItem(BaseModel):
     target_cents: int = Field(gt=0, le=INCOME_MAX_CENTS)
     due: Optional[_date] = None
 
+    @field_validator("due", mode="before")
+    @classmethod
+    def _coerce_due(cls, v):
+        # Pydantic strict=True rejects ISO date strings on ``date`` fields;
+        # parse them here so JSON wire format keeps working.
+        if v is None or isinstance(v, _date):
+            return v
+        if isinstance(v, str):
+            try:
+                return _date.fromisoformat(v)
+            except ValueError as exc:
+                raise ValueError(
+                    f"goal.due must be ISO-8601 date (YYYY-MM-DD); got {v!r}"
+                ) from exc
+        return v
+
     @field_validator("due")
     @classmethod
     def _due_in_future(cls, v: Optional[_date]) -> Optional[_date]:

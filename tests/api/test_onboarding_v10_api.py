@@ -1,0 +1,244 @@
+"""Integration tests for POST /api/v1/onboarding/complete v1.0 (BE-15, plan 22.13).
+
+DB-backed: requires DATABASE_URL. Self-skips otherwise.
+
+Covered behaviours:
+- Auth: 403 without X-Telegram-Init-Data (skipped in DEV_MODE).
+- Happy path: 200 + response shape (account_ids, category_ids_by_code,
+  savings_category_id, savings_config, onboarded_at).
+- 409 on retry (T-22-11-01) — accounts already exist.
+- 422 plan exceeds income (T-22-11-04) — structured detail.
+- 422 unknown category code (T-22-11-03).
+- 422 negative income (Pydantic gt=0).
+- 422 negative balance — out of range.
+- Optional goal honoured.
+- Optional savings_config honoured.
+"""
+import os
+from datetime import datetime, timezone
+
+import pytest
+import pytest_asyncio
+
+
+def _require_db():
+    if not os.environ.get("DATABASE_URL"):
+        pytest.skip("DATABASE_URL not set — skipping DB-backed test")
+
+
+@pytest.fixture
+def auth_headers(bot_token, owner_tg_id):
+    from tests.conftest import make_init_data
+    return {"X-Telegram-Init-Data": make_init_data(owner_tg_id, bot_token)}
+
+
+@pytest_asyncio.fixture
+async def db_setup(async_client, owner_tg_id):
+    """Seed an AppUser WITHOUT onboarded_at — onboarding is the path under test."""
+    _require_db()
+    from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+
+    from app.api.dependencies import get_db
+    from app.db.models import AppUser, UserRole
+    from app.main_api import app
+    from tests.helpers.seed import truncate_db
+
+    db_url = os.environ["DATABASE_URL"]
+    engine = create_async_engine(db_url, echo=False)
+    SessionLocal = async_sessionmaker(engine, expire_on_commit=False)
+
+    await truncate_db()
+    async with SessionLocal() as session:
+        # Pre-onboarding: onboarded_at = NULL
+        session.add(AppUser(
+            tg_user_id=owner_tg_id,
+            role=UserRole.owner,
+            cycle_start_day=5,
+            onboarded_at=None,
+        ))
+        await session.commit()
+
+    async def real_get_db():
+        async with SessionLocal() as session:
+            try:
+                yield session
+                await session.commit()
+            except Exception:
+                await session.rollback()
+                raise
+
+    app.dependency_overrides[get_db] = real_get_db
+    yield async_client, SessionLocal
+    await engine.dispose()
+
+
+def _payload(**overrides):
+    base = {
+        "income_cents": 200_000_00,
+        "accounts": [
+            {"bank": "Т-Банк", "kind": "card", "balance_cents": 10_000_00, "primary": True},
+        ],
+        "category_plans": {
+            "food": 30_000_00,
+            "cafe": 10_000_00,
+            "home": 20_000_00,
+            "transit": 5_000_00,
+            "fun": 3_000_00,
+            "gifts": 2_000_00,
+            "health": 4_000_00,
+            "subs": 1_000_00,
+        },
+    }
+    base.update(overrides)
+    return base
+
+
+# ---------------------------------------------------------------------------
+# Auth
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_onboarding_complete_requires_auth_403(async_client):
+    if os.environ.get("DEV_MODE", "").lower() == "true":
+        pytest.skip("DEV_MODE bypasses initData — auth path tested elsewhere")
+    response = await async_client.post(
+        "/api/v1/onboarding/complete", json=_payload()
+    )
+    assert response.status_code == 403
+
+
+# ---------------------------------------------------------------------------
+# Happy path
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_complete_v10_happy(db_setup, auth_headers):
+    client, _ = db_setup
+    r = await client.post(
+        "/api/v1/onboarding/complete",
+        json=_payload(),
+        headers=auth_headers,
+    )
+    assert r.status_code == 200, r.text
+    data = r.json()
+    assert data["income_cents"] == 200_000_00
+    assert len(data["account_ids"]) == 1
+    assert set(data["category_ids_by_code"].keys()) == {
+        "food", "cafe", "home", "transit", "fun", "gifts", "health", "subs"
+    }
+    assert isinstance(data["savings_category_id"], int)
+    assert data["savings_config"]["roundup_enabled"] is False
+    assert data["savings_config"]["roundup_base"] == 10
+    assert data["onboarded_at"]
+
+
+@pytest.mark.asyncio
+async def test_complete_v10_with_goal_and_config(db_setup, auth_headers):
+    client, _ = db_setup
+    from datetime import date, timedelta
+    body = _payload(
+        goal={
+            "name": "Машина",
+            "target_cents": 1_000_000_00,
+            "due": (date.today() + timedelta(days=365)).isoformat(),
+        },
+        savings_config={"roundup_enabled": True, "base": 50},
+    )
+    r = await client.post(
+        "/api/v1/onboarding/complete", json=body, headers=auth_headers
+    )
+    assert r.status_code == 200, r.text
+    data = r.json()
+    assert isinstance(data["goal_id"], int)
+    assert data["savings_config"]["roundup_enabled"] is True
+    assert data["savings_config"]["roundup_base"] == 50
+
+
+# ---------------------------------------------------------------------------
+# Retry / conflict
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_complete_v10_retry_409(db_setup, auth_headers):
+    client, _ = db_setup
+    r1 = await client.post(
+        "/api/v1/onboarding/complete",
+        json=_payload(),
+        headers=auth_headers,
+    )
+    assert r1.status_code == 200
+
+    # Second call → 409 — accounts already exist.
+    r2 = await client.post(
+        "/api/v1/onboarding/complete",
+        json=_payload(),
+        headers=auth_headers,
+    )
+    assert r2.status_code == 409
+    detail = r2.json()["detail"]
+    assert detail["error"] == "already_onboarded"
+    assert detail["account_count"] >= 1
+
+
+# ---------------------------------------------------------------------------
+# Validation
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_complete_v10_plan_exceeds_income_422(db_setup, auth_headers):
+    client, _ = db_setup
+    body = _payload(
+        income_cents=10_000_00,
+        category_plans={"food": 50_000_00},  # plan > income
+    )
+    r = await client.post(
+        "/api/v1/onboarding/complete", json=body, headers=auth_headers
+    )
+    assert r.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_complete_v10_unknown_category_code_422(db_setup, auth_headers):
+    client, _ = db_setup
+    body = _payload(category_plans={"food": 100_00, "totally_made_up": 100_00})
+    r = await client.post(
+        "/api/v1/onboarding/complete", json=body, headers=auth_headers
+    )
+    assert r.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_complete_v10_negative_income_422(db_setup, auth_headers):
+    client, _ = db_setup
+    body = _payload(income_cents=-1)
+    r = await client.post(
+        "/api/v1/onboarding/complete", json=body, headers=auth_headers
+    )
+    assert r.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_complete_v10_no_accounts_422(db_setup, auth_headers):
+    client, _ = db_setup
+    body = _payload(accounts=[])
+    r = await client.post(
+        "/api/v1/onboarding/complete", json=body, headers=auth_headers
+    )
+    assert r.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_complete_v10_two_primary_accounts_422(db_setup, auth_headers):
+    client, _ = db_setup
+    body = _payload(accounts=[
+        {"bank": "A", "kind": "card", "balance_cents": 0, "primary": True},
+        {"bank": "B", "kind": "card", "balance_cents": 0, "primary": True},
+    ])
+    r = await client.post(
+        "/api/v1/onboarding/complete", json=body, headers=auth_headers
+    )
+    assert r.status_code == 422

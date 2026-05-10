@@ -340,6 +340,15 @@ async def create_deposit(
     # Normalise to negative storage (D-02): deposits debit the source account.
     signed_amount = -abs(int(amount_cents))
 
+    # Validate account_id BEFORE writing anything so a bad id surfaces a clean
+    # AccountNotFoundError (route → 404) rather than an FK IntegrityError on
+    # the txn insert. Local import to avoid module-import cycle with accounts.py.
+    from app.services.accounts import (
+        AccountNotFoundError,  # noqa: F401  (re-export for caller)
+        get_or_404 as get_account_or_404,
+    )
+    await get_account_or_404(db, user_id=user_id, account_id=account_id)
+
     # Validate goal_id BEFORE writing anything so a bad id can't leave a
     # half-created txn / balance delta behind.
     if goal_id is not None:

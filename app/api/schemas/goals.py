@@ -24,6 +24,26 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 _TARGET_MAX: int = 100_000_000_00
 
 
+def _coerce_iso_date(v):
+    """Parse ISO-8601 strings into ``date`` for wire compatibility.
+
+    Pydantic v2 ``strict=True`` rejects ISO date strings on ``date`` fields
+    by default; clients MUST send dates as JSON strings, so we parse them
+    in a ``mode="before"`` step and let the standard validators run on the
+    resulting ``date`` instance. ``None`` and ``date`` instances pass through.
+    """
+    if v is None or isinstance(v, _date):
+        return v
+    if isinstance(v, str):
+        try:
+            return _date.fromisoformat(v)
+        except ValueError as exc:
+            raise ValueError(
+                f"Goal due must be ISO-8601 date (YYYY-MM-DD); got {v!r}"
+            ) from exc
+    return v  # let the strict validator reject other types
+
+
 def _ensure_future_date(v: Optional[_date]) -> Optional[_date]:
     """Reject due-dates that are today or earlier (DATA-MODEL §6, T-22-12-07).
 
@@ -53,6 +73,11 @@ class GoalCreate(BaseModel):
     target_cents: int = Field(gt=0, le=_TARGET_MAX)
     due: Optional[_date] = None
 
+    @field_validator("due", mode="before")
+    @classmethod
+    def _coerce_due(cls, v):
+        return _coerce_iso_date(v)
+
     @field_validator("due")
     @classmethod
     def _due_in_future(cls, v: Optional[_date]) -> Optional[_date]:
@@ -69,6 +94,11 @@ class GoalUpdate(BaseModel):
     name: Optional[str] = Field(default=None, min_length=1, max_length=80)
     target_cents: Optional[int] = Field(default=None, gt=0, le=_TARGET_MAX)
     due: Optional[_date] = None
+
+    @field_validator("due", mode="before")
+    @classmethod
+    def _coerce_due(cls, v):
+        return _coerce_iso_date(v)
 
     @field_validator("due")
     @classmethod
