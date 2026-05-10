@@ -24,6 +24,13 @@
 4. Все BLOCKER-deviations исправлены inline; WARNING/INFO задокументированы для v1.1.
 5. Re-run Playwright snapshots green после fix-ов.
 
+**Plans:** 5 plans
+- [ ] 29-01-PLAN.md — Web Playwright onboarded fixture + 8 baseline PNG snapshots (UICONF-01)
+- [ ] 29-02-PLAN.md — Web side-by-side audit vs prototype/index.html → UI-REVIEW.md (web) (UICONF-02)
+- [ ] 29-03-PLAN.md — iOS XcodeBuildMCP screenshots + UI-REVIEW.md iOS section (UICONF-03)
+- [ ] 29-04-PLAN.md — BLOCKER fix wave (conditional, data-driven from 29-02/29-03 findings) (UICONF-04)
+- [ ] 29-05-PLAN.md — Re-snapshot pixel baselines + DIVERGENCES.md WARNING/INFO append (UICONF-04 verify + UICONF-05)
+
 ### Phase 30: Tech Debt Cleanup
 **Goal**: Закрыть 7 achievable v1.0 tech debt items: pre-existing TS errors (analytics.ts, AiView.tsx, TxV10TabDemote.test.tsx), AddSheet refetch-after-submit, account picker UI upgrade (web+iOS), iOS Subscription editor error surface, web swipe-left delete, iOS press-feedback animation transition, iOS SettingsAPI file split.
 **Depends on**: Phase 29 (UI fixes might overlap with these files)
