@@ -157,41 +157,55 @@ export function SavingsView(props: SavingsViewProps) {
         Копилка.
       </Mass>
 
-      {/* ───── total plate (yellow) ───── */}
+      {/* ───── total plate (yellow, two-column composite) ───── */}
+      {/* Phase 29-04 §7 Savings BLOCKER #3 — prototype line 1009-1018:
+       * yellow plate is ONE composite with «НАКОПЛЕНО ВСЕГО {total}» on
+       * the left and «В МАЕ + {monthIn}» on the right (flex-end).
+       * Previously split into a left-only plate + a separate eyebrow row. */}
       <Plate tone="yellow" className={styles.totalPlate}>
-        <Eyebrow color="var(--poster-ink)">НАКОПЛЕНО ВСЕГО</Eyebrow>
-        <BigFig
-          value={totalRubles}
-          sup="₽"
-          size={86}
-          color="var(--poster-ink)"
-          animate={bigFigAnimate ?? true}
-          className={styles.totalFig}
-        />
+        <div className={styles.totalPlateLeft}>
+          <Eyebrow color="var(--poster-ink)">НАКОПЛЕНО ВСЕГО</Eyebrow>
+          <BigFig
+            value={totalRubles}
+            sup="₽"
+            size={56}
+            color="var(--poster-ink)"
+            animate={bigFigAnimate ?? true}
+            className={styles.totalFig}
+          />
+        </div>
+        <div className={styles.totalPlateRight}>
+          <Eyebrow color="var(--poster-ink)">{`В ${monthLabel}`}</Eyebrow>
+          <div className={styles.totalPlateMonthValue}>
+            {`+ ${monthInRubles.toLocaleString('ru-RU')} ₽`}
+          </div>
+        </div>
       </Plate>
 
-      {/* ───── month-in eyebrow ───── */}
-      <div className={styles.monthRow}>
-        <Eyebrow color="var(--poster-paper)">
-          {`В ${monthLabel} + ${monthInRubles.toLocaleString('ru-RU')} ₽`}
-        </Eyebrow>
-      </div>
-
-      {/* ───── roundup section ───── */}
+      {/* ───── roundup section (single inline plate) ───── */}
+      {/* Phase 29-04 §7 Savings BLOCKER #4 — prototype line 1021-1043:
+       * ONE inline bordered plate containing toggle + label inline,
+       * mtd-amount mono line, and 3 base chips. Previously split into
+       * three separate flex rows. */}
       <div className={styles.sectionEyebrow}>
         <Eyebrow color="var(--poster-paper)">ОКРУГЛЕНИЕ ТРАТ</Eyebrow>
       </div>
-      <div className={styles.toggleRow}>
-        <button
-          type="button"
-          className={`${styles.toggleBtn} ${
-            snap.config.roundup_enabled ? styles.toggleOn : styles.toggleOff
-          }`}
-          onClick={() => onToggleRoundup(!snap.config.roundup_enabled)}
-          data-testid="roundup-toggle"
-        >
-          {snap.config.roundup_enabled ? 'ВКЛ' : 'ВЫКЛ'}
-        </button>
+      <div className={styles.roundupPlate}>
+        <div className={styles.roundupHeader}>
+          <span className={styles.roundupLabel}>
+            {`ОКРУГЛЯТЬ ДО ${snap.config.roundup_base} ₽`}
+          </span>
+          <button
+            type="button"
+            className={`${styles.toggleBtn} ${
+              snap.config.roundup_enabled ? styles.toggleOn : styles.toggleOff
+            }`}
+            onClick={() => onToggleRoundup(!snap.config.roundup_enabled)}
+            data-testid="roundup-toggle"
+          >
+            {snap.config.roundup_enabled ? 'ВКЛ' : 'ВЫКЛ'}
+          </button>
+        </div>
         <div className={styles.chipsRow}>
           {BASE_CHIPS.map((b) => (
             <Chip

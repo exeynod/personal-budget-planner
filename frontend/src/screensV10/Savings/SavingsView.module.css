@@ -41,43 +41,82 @@
   line-height: 1.0;
 }
 
-/* ───── total plate (yellow) ───── */
+/* ───── total plate (yellow, two-column) ───── */
+/* Phase 29-04 §7 BLOCKER #3 — composite plate per prototype line 1009. */
 .totalPlate {
   margin-top: 8px;
-  padding: 22px;
+  padding: 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 16px;
+}
+.totalPlateLeft {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
+  min-width: 0;
+}
+.totalPlateRight {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+.totalPlateMonthValue {
+  font-family: var(--poster-font-jet-brains-mono), ui-monospace, monospace;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--poster-ink);
+  margin-top: 4px;
 }
 .totalFig {
   margin-top: 4px;
 }
 
-.monthRow {
-  margin-top: -4px;
-  margin-bottom: 4px;
-}
-
 /* ───── section header (eyebrow stripe) ───── */
 .sectionEyebrow {
-  margin-top: 10px;
-  margin-bottom: -4px;
+  margin-top: 18px;
+  margin-bottom: 6px;
 }
 
-/* ───── roundup row ───── */
+/* ───── roundup plate (Phase 29-04 §7 BLOCKER #4) ───── */
+/* Single inline bordered plate per prototype line 1021. */
+.roundupPlate {
+  padding: 14px;
+  border: 1px solid rgba(255, 246, 232, 0.18);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.roundupHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+.roundupLabel {
+  font-family: var(--poster-font-archivo-black), system-ui, sans-serif;
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  color: var(--poster-paper);
+}
+
+/* ───── roundup row (deprecated by .roundupPlate but retained for legacy) ───── */
 .toggleRow {
   display: flex;
   align-items: center;
   gap: 14px;
   flex-wrap: wrap;
 }
+/* Phase 29-04 §7 BLOCKER #4 — compact toggle per prototype line 1024-1030.
+ * Padding 5px 10px; yellow border + yellow-on fill (ink text) / transparent off. */
 .toggleBtn {
   font-family: var(--poster-font-archivo-black), system-ui, sans-serif;
-  font-size: 14px;
-  font-weight: 900;
-  letter-spacing: 0.18em;
-  padding: 10px 22px;
-  border: 1.5px solid var(--poster-paper);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  padding: 5px 10px;
+  border: 1px solid var(--poster-yellow);
   background: transparent;
   color: var(--poster-paper);
   cursor: pointer;
@@ -85,13 +124,12 @@
   transition: background 120ms ease, color 120ms ease;
 }
 .toggleOn {
-  background: var(--poster-paper);
+  background: var(--poster-yellow);
   color: var(--poster-ink);
 }
 .toggleOff {
   background: transparent;
   color: var(--poster-paper);
-  opacity: 0.65;
 }
 
 .chipsRow {
