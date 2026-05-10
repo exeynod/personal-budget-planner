@@ -17,12 +17,14 @@
 //     from any caller (e.g. PlanView regulars row in Phase 27 Mgmt-хаб).
 //   - On Phase 26 there is no direct bottom-nav entry — Phase 27 will add one.
 //
-// Failure mode: window.alert (parity with CategoryDetailMount + Plan 28 polish
-// will replace with PosterToast).
+// Failure mode (Plan 30-04 / DEBT-04): PATCH/DELETE errors surface via PosterToast
+// with the backend error message (replaces silent fail + the legacy window.alert
+// stub). Toast state is lifted to the Mount so the same component can show
+// errors for togglePause / changeDay / changePrice / delete from a single source.
 
 import { useCallback, useEffect, useState } from 'react';
 import { usePosterRouter } from '../common';
-import { Eyebrow, PosterButton } from '../../componentsV10';
+import { Eyebrow, PosterButton, Toast } from '../../componentsV10';
 import {
   listSubscriptionsV10,
   patchSubscriptionV10,
@@ -32,6 +34,17 @@ import {
 import { SubscriptionsView } from './SubscriptionsView';
 import { SubscriptionMenuSheet } from './SubscriptionMenuSheet';
 import styles from './SubscriptionsView.module.css';
+
+// Toast duration for error surfaces — 4s gives the user enough time to read
+// a backend message (longer than the default 1.7s success toast).
+const ERROR_TOAST_MS = 4000;
+
+/** Extract a human-readable error message from a thrown value. */
+function errMessage(err: unknown, fallback: string): string {
+  if (err instanceof Error && err.message) return err.message;
+  if (typeof err === 'string' && err.length > 0) return err;
+  return fallback;
+}
 
 // ─────────────────── State ───────────────────
 
@@ -47,6 +60,8 @@ export function SubscriptionsMount() {
   const [state, setState] = useState<LoadState>({ status: 'loading' });
   const [reloadToken, setReloadToken] = useState(0);
   const [menuSub, setMenuSub] = useState<SubscriptionV10Read | null>(null);
+  // DEBT-04: PATCH/DELETE error surface (single toast slot, last error wins).
+  const [toastMsg, setToastMsg] = useState<string | null>(null);
 
   // ─────────── fetch effect ───────────
   useEffect(() => {
@@ -79,8 +94,11 @@ export function SubscriptionsMount() {
       try {
         await patchSubscriptionV10(sub.id, { is_active: !sub.is_active });
         refresh();
-      } catch {
-        window.alert('Не удалось обновить статус подписки');
+      } catch (err) {
+        setToastMsg(
+          'Не удалось обновить · ' +
+            errMessage(err, 'статус подписки не сохранён'),
+        );
       }
     },
     [refresh],
@@ -91,8 +109,11 @@ export function SubscriptionsMount() {
       try {
         await patchSubscriptionV10(sub.id, { day_of_month: day });
         refresh();
-      } catch {
-        window.alert('Не удалось обновить день');
+      } catch (err) {
+        setToastMsg(
+          'Не удалось обновить · ' +
+            errMessage(err, 'день не сохранён'),
+        );
       }
     },
     [refresh],
@@ -103,8 +124,11 @@ export function SubscriptionsMount() {
       try {
         await patchSubscriptionV10(sub.id, { amount_cents: cents });
         refresh();
-      } catch {
-        window.alert('Не удалось обновить цену');
+      } catch (err) {
+        setToastMsg(
+          'Не удалось обновить · ' +
+            errMessage(err, 'цена не сохранена'),
+        );
       }
     },
     [refresh],
@@ -115,8 +139,11 @@ export function SubscriptionsMount() {
       try {
         await deleteSubscription(sub.id);
         refresh();
-      } catch {
-        window.alert('Не удалось удалить подписку');
+      } catch (err) {
+        setToastMsg(
+          'Не удалось удалить · ' +
+            errMessage(err, 'подписка не удалена'),
+        );
       }
     },
     [refresh],
@@ -186,6 +213,12 @@ export function SubscriptionsMount() {
         onChangeDay={handleChangeDay}
         onChangePrice={handleChangePrice}
         onDelete={handleDelete}
+      />
+      <Toast
+        message={toastMsg ?? ''}
+        visible={toastMsg !== null}
+        onDismiss={() => setToastMsg(null)}
+        duration={ERROR_TOAST_MS}
       />
     </>
   );

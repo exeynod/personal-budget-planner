@@ -49,6 +49,11 @@ final class SubscriptionsV10ViewModel {
     /// Drives the .confirmationDialog binding.
     var pendingDeleteSub: SubscriptionV10DTO? = nil
 
+    /// DEBT-04 / Plan 30-04: error toast text — non-nil triggers `toastVisible`
+    /// in the view. Set on PATCH/DELETE failure so users see the backend
+    /// error message instead of a silent fail.
+    var toastMessage: String? = nil
+
     private var inFlight = false
 
     // MARK: - Load
@@ -70,8 +75,8 @@ final class SubscriptionsV10ViewModel {
 
     // MARK: - Mutations (SUBS-V10-03 / SUBS-V10-04)
 
-    /// Flip `is_active` via PATCH. Refetches on success. Silent on failure
-    /// (Phase 28 polish wires a toast).
+    /// Flip `is_active` via PATCH. Refetches on success. On failure surfaces a
+    /// toast with the backend error message (DEBT-04 — replaces silent fail).
     func togglePause(_ sub: SubscriptionV10DTO) async {
         do {
             _ = try await SubscriptionsV10API.patch(
@@ -80,7 +85,7 @@ final class SubscriptionsV10ViewModel {
             )
             await load()
         } catch {
-            // Silent for v1.0; Phase 28 polish: toast/banner.
+            toastMessage = "Не удалось обновить · " + errMessage(error, fallback: "статус не сохранён")
         }
     }
 
@@ -94,7 +99,7 @@ final class SubscriptionsV10ViewModel {
             )
             await load()
         } catch {
-            // Silent for v1.0.
+            toastMessage = "Не удалось обновить · " + errMessage(error, fallback: "день не сохранён")
         }
     }
 
@@ -108,7 +113,7 @@ final class SubscriptionsV10ViewModel {
             )
             await load()
         } catch {
-            // Silent for v1.0.
+            toastMessage = "Не удалось обновить · " + errMessage(error, fallback: "цена не сохранена")
         }
     }
 
@@ -118,8 +123,20 @@ final class SubscriptionsV10ViewModel {
             try await SubscriptionsV10API.delete(id: sub.id)
             await load()
         } catch {
-            // Silent for v1.0.
+            toastMessage = "Не удалось удалить · " + errMessage(error, fallback: "подписка не удалена")
         }
+    }
+
+    // MARK: - Helpers
+
+    /// Best-effort human-readable error string for toast surfaces.
+    /// Falls back to `fallback` when the error has no usable description
+    /// (e.g. a raw URLError with localizedDescription == "operation could not
+    /// be completed"). Phase 30-04 (DEBT-04).
+    private func errMessage(_ error: Error, fallback: String) -> String {
+        let desc = error.localizedDescription
+        if desc.isEmpty { return fallback }
+        return desc
     }
 
     // MARK: - Derived (consumed by View)

@@ -27,14 +27,33 @@ import SwiftUI
 
 struct SubscriptionsV10View: View {
     @State private var model = SubscriptionsV10ViewModel()
+    // Plan 30-04 (DEBT-04): drives the error-toast overlay. Mirrors the
+    // pattern used in PlanView — toastMessage on the VM is the source of
+    // truth, this @State just flips visibility for the Toast component.
+    @State private var toastVisible = false
     @Environment(\.posterRouter) private var router
 
     var body: some View {
-        ZStack {
+        ZStack(alignment: .top) {
             PosterTokens.Color.coral.ignoresSafeArea()
             content
+            // Error toast overlay — DEBT-04. Renders only while
+            // `toastVisible == true`; auto-dismisses after Toast's 1.7s life,
+            // then the .onChange handler clears the source string so a
+            // subsequent identical message still re-triggers visibility.
+            Toast(message: model.toastMessage ?? "", visible: $toastVisible)
+                .padding(.top, 16)
         }
         .task { await model.load() }
+        .onChange(of: model.toastMessage) { _, msg in
+            if msg != nil {
+                toastVisible = true
+                Task {
+                    try? await Task.sleep(nanoseconds: 2_000_000_000)
+                    if !toastVisible { model.toastMessage = nil }
+                }
+            }
+        }
         // Primary menu sheet — bound to menuSub, suppressed while a destructive
         // confirm dialog is pending so the OS dialog renders without overlap.
         .posterSheet(
