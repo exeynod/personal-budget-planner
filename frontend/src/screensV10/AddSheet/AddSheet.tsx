@@ -291,7 +291,111 @@ export function AddSheet({ onSubmitted, onClose }: AddSheetProps) {
         {renderAmountInBigFig(amountString)}
       </div>
 
-      {/* Keypad */}
+      {/* Phase 29-04 §3 AddSheet BLOCKER #1 — element-order swap:
+       * the Keypad is the LAST input section before CTA per prototype
+       * (poster-screens.jsx:1215-1225). The previous order rendered the
+       * keypad ABOVE description/date/category/account; moved to bottom. */}
+
+      {/* Description */}
+      <div className={styles.descBlock}>
+        <Eyebrow color="var(--poster-paper)" opacity={0.55}>
+          Описание
+        </Eyebrow>
+        <input
+          type="text"
+          className={styles.descInput}
+          placeholder="кафе / продукты / …"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          aria-label="Описание операции"
+          data-testid="add-sheet-description"
+        />
+      </div>
+
+      {/* Date chips */}
+      <div className={styles.dateBlock}>
+        <Eyebrow color="var(--poster-paper)" opacity={0.55}>
+          Когда
+        </Eyebrow>
+        <div className={styles.dateChips} role="group" aria-label="Дата операции">
+          <Chip
+            active={dateChip === 'today'}
+            onClick={() => setDateChip('today')}
+          >
+            Сегодня
+          </Chip>
+          <Chip
+            active={dateChip === 'yesterday'}
+            onClick={() => setDateChip('yesterday')}
+          >
+            Вчера
+          </Chip>
+          <Chip
+            active={dateChip === 'custom'}
+            onClick={onPickCustomDate}
+          >
+            {dateChip === 'custom' && customDate ? customDate : 'Своя дата'}
+          </Chip>
+          <input
+            ref={dateInputRef}
+            type="date"
+            className={styles.hiddenDateInput}
+            value={customDate}
+            onChange={onChangeCustomDate}
+            aria-hidden="true"
+            tabIndex={-1}
+          />
+        </div>
+      </div>
+
+      {/* Category chip-scroll */}
+      <div className={styles.catBlock}>
+        <Eyebrow color="var(--poster-paper)" opacity={0.55}>
+          Категория
+        </Eyebrow>
+        <div
+          className={styles.catScroll}
+          role="group"
+          aria-label="Категория"
+          data-testid="add-sheet-categories"
+        >
+          {visibleCategories.map((cat) => (
+            <Chip
+              key={cat.id}
+              active={categoryId === cat.id}
+              onClick={() => setCategoryId(cat.id)}
+            >
+              {cat.name}
+            </Chip>
+          ))}
+        </div>
+      </div>
+
+      {/* Account row — Phase 29-04 §3 AddSheet BLOCKERs #2/#3:
+       * - Eyebrow «Счёт» now lives ABOVE the row plate (was inline label).
+       * - Display content is `{BANK uppercased} · {MASK}` with a single
+       *   middle dot; right-side caption is mono «сменить ↓» (not chevron).
+       * Mirrors prototype/poster-screens.jsx:1209-1213. */}
+      <div className={styles.accountBlock}>
+        <Eyebrow color="var(--poster-paper)" opacity={0.55}>
+          Счёт
+        </Eyebrow>
+        <button
+          type="button"
+          className={styles.accountRow}
+          onClick={onCycleAccount}
+          data-testid="add-sheet-account-row"
+        >
+          <span className={styles.accountValue}>
+            {currentAccount
+              ? `${(currentAccount.bank ?? '').toUpperCase()}${currentAccount.mask ? ' · ' + currentAccount.mask : ''}`
+              : '—'}
+          </span>
+          <span className={styles.accountSwitch}>сменить ↓</span>
+        </button>
+      </div>
+
+      {/* Keypad (LAST input section per prototype) */}
       <div className={styles.keypadBlock}>
         <Keypad
           onAppendDigit={(d) =>
@@ -301,82 +405,6 @@ export function AddSheet({ onSubmitted, onClose }: AddSheetProps) {
           onBackspace={() => setAmountString((cur) => backspace(cur))}
         />
       </div>
-
-      {/* Description */}
-      <input
-        type="text"
-        className={styles.descInput}
-        placeholder="кафе / продукты / …"
-        value={description}
-        onChange={(e) => setDescription(e.target.value)}
-        aria-label="Описание операции"
-        data-testid="add-sheet-description"
-      />
-
-      {/* Date chips */}
-      <div className={styles.dateChips} role="group" aria-label="Дата операции">
-        <Chip
-          active={dateChip === 'today'}
-          onClick={() => setDateChip('today')}
-        >
-          Сегодня
-        </Chip>
-        <Chip
-          active={dateChip === 'yesterday'}
-          onClick={() => setDateChip('yesterday')}
-        >
-          Вчера
-        </Chip>
-        <Chip
-          active={dateChip === 'custom'}
-          onClick={onPickCustomDate}
-        >
-          {dateChip === 'custom' && customDate ? customDate : 'Своя дата'}
-        </Chip>
-        <input
-          ref={dateInputRef}
-          type="date"
-          className={styles.hiddenDateInput}
-          value={customDate}
-          onChange={onChangeCustomDate}
-          aria-hidden="true"
-          tabIndex={-1}
-        />
-      </div>
-
-      {/* Category chip-scroll */}
-      <div
-        className={styles.catScroll}
-        role="group"
-        aria-label="Категория"
-        data-testid="add-sheet-categories"
-      >
-        {visibleCategories.map((cat) => (
-          <Chip
-            key={cat.id}
-            active={categoryId === cat.id}
-            onClick={() => setCategoryId(cat.id)}
-          >
-            {cat.name}
-          </Chip>
-        ))}
-      </div>
-
-      {/* Account row */}
-      <button
-        type="button"
-        className={styles.accountRow}
-        onClick={onCycleAccount}
-        data-testid="add-sheet-account-row"
-      >
-        <span className={styles.accountLabel}>СЧЁТ</span>
-        <span className={styles.accountValue}>
-          {currentAccount
-            ? `${currentAccount.bank}${currentAccount.mask ? ' ·· ' + currentAccount.mask : ''}`
-            : '—'}
-        </span>
-        <span className={styles.accountChev}>{'→'}</span>
-      </button>
 
       {/* Optional submit error banner */}
       {submitError !== null ? (

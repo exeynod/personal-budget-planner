@@ -65,18 +65,24 @@
   margin-top: 4px;
 }
 
-/* ── Description ────────────────────────────────────────── */
+/* ── Description block (eyebrow + input) ────────────────── */
+
+.descBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
 
 .descInput {
   width: 100%;
   background: transparent;
   border: none;
-  border-bottom: 1px solid rgba(255, 246, 232, 0.25);
+  border-bottom: 1px dashed rgba(255, 246, 232, 0.45);
   color: var(--poster-paper);
   font-family: var(--poster-font-pt-serif-italic), 'PT Serif', serif;
   font-style: italic;
-  font-size: 17px;
-  padding: 10px 0;
+  font-size: 24px;
+  padding: 0 0 6px;
   outline: none;
 }
 
@@ -91,6 +97,12 @@
 }
 
 /* ── Date chips ─────────────────────────────────────────── */
+
+.dateBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
 
 .dateChips {
   display: flex;
@@ -108,6 +120,12 @@
 
 /* ── Category chip-scroll ───────────────────────────────── */
 
+.catBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
 .catScroll {
   display: flex;
   gap: 6px;
@@ -121,38 +139,42 @@
   display: none;
 }
 
-/* ── Account row ────────────────────────────────────────── */
+/* ── Account row (Phase 29-04 §3 BLOCKERs #2/#3) ────────── */
+/* Prototype: eyebrow «Счёт» ABOVE the plate; plate is mono BANK · MASK
+ * left + mono caption «сменить ↓» right; 13px 14px padding;
+ * 1px paper-25% border (poster-screens.jsx:1209-1213). */
+
+.accountBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
 
 .accountRow {
   display: flex;
+  justify-content: space-between;
   align-items: center;
   gap: 12px;
   background: transparent;
-  border: 1px solid rgba(255, 246, 232, 0.2);
+  border: 1px solid rgba(255, 246, 232, 0.25);
   color: var(--poster-paper);
-  padding: 12px 14px;
+  padding: 13px 14px;
   cursor: pointer;
   text-align: left;
 }
 
-.accountLabel {
-  font-family: var(--poster-font-archivo-black), 'Archivo Black', sans-serif;
-  font-size: 11px;
-  letter-spacing: 0.18em;
-  opacity: 0.55;
-}
-
 .accountValue {
-  flex: 1;
-  font-family: var(--poster-font-manrope), system-ui, sans-serif;
-  font-size: 14px;
-  text-transform: uppercase;
+  font-family: var(--poster-font-jet-brains-mono), ui-monospace, monospace;
+  font-size: 13px;
+  font-weight: 600;
   letter-spacing: 0.04em;
 }
 
-.accountChev {
-  font-size: 16px;
-  opacity: 0.7;
+.accountSwitch {
+  font-family: var(--poster-font-jet-brains-mono), ui-monospace, monospace;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  opacity: 0.55;
 }
 
 /* ── Error banner ───────────────────────────────────────── */

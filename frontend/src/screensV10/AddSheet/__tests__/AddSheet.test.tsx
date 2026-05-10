@@ -161,9 +161,12 @@ describe('AddSheet — header & layout', () => {
 
   it('renders the primary account in the account row by default', async () => {
     await renderSheet();
-    // Account row shows «Т-Банк ·· 1234» — primary first.
+    // Account row shows «Т-БАНК · 1234» (bank UPPERCASED, single mid-dot
+    // separator per Phase 29-04 §3 AddSheet BLOCKER #3 — matches the
+    // Transactions sub-line pattern TXN-V10-04). Match case-insensitively
+    // so the assertion survives any future label-case tweaks.
     expect(screen.getByTestId('add-sheet-account-row').textContent).toMatch(
-      /Т-Банк/,
+      /Т-БАНК/i,
     );
   });
 });
