@@ -47,3 +47,20 @@ export type {
   PlanMonthPatchPayload,
   PlanMonthResponse,
 } from './planMonth';
+
+// Phase 27-03 — Savings + Goals (SAV-V10-01..04).
+export {
+  fetchSavingsSummary,
+  patchSavingsConfig,
+  postDeposit,
+} from './savings';
+export type {
+  SavingsSnapshot,
+  SavingsConfig,
+  SavingsConfigPatchPayload,
+  DepositCreatePayload,
+  DepositResponse,
+} from './savings';
+
+export { listGoals, createGoal, deleteGoal } from './goals';
+export type { GoalRead, GoalCreatePayload } from './goals';

@@ -357,6 +357,87 @@ export interface PlanMonthResponse {
   categories: CategoryV10[];
 }
 
+// ---------- Phase 27-03: Savings (SAV-V10-01..04) ----------
+
+/**
+ * Phase 27-03 — per-user roundup config (mirrors backend SavingsConfig).
+ * `roundup_base` is constrained to {10, 50, 100} ₽ both server-side
+ * (Pydantic Literal + DB CHECK) and on the wire — matches the chip set
+ * in SavingsView.
+ */
+export interface SavingsConfig {
+  roundup_enabled: boolean;
+  roundup_base: 10 | 50 | 100;
+}
+
+/** Phase 27-03 — single goal row (mirrors backend GoalRead).
+ *
+ *  `due` is ISO YYYY-MM-DD when set; the backend Pydantic schema serializes
+ *  the underlying `date` to the ISO string form. `created_at` is full
+ *  ISO datetime UTC.
+ */
+export interface GoalRead {
+  id: number;
+  name: string;
+  target_cents: number;
+  current_cents: number;
+  due: string | null;
+  created_at: string;
+}
+
+/** Phase 27-03 — GET /api/v1/savings response (mirrors SavingsSnapshotResponse). */
+export interface SavingsSnapshot {
+  total_cents: number;
+  month_in_cents: number;
+  config: SavingsConfig;
+  goals: GoalRead[];
+}
+
+/** Phase 27-03 — PATCH /api/v1/savings/config request body. */
+export interface SavingsConfigPatchPayload {
+  roundup_enabled?: boolean;
+  roundup_base?: 10 | 50 | 100;
+}
+
+/**
+ * Phase 27-03 — POST /api/v1/savings/deposit request body.
+ *
+ * Backend's `DepositCreate.account_id` is `int = Field(gt=0)` — REQUIRED,
+ * not optional. UI's DepositSheet enforces this via `isValidDepositDraft`
+ * which gates the СОХРАНИТЬ button until an account is picked.
+ *
+ * `amount_cents` is positive on the wire — the backend service negates it
+ * internally so deposits show as outflow on the source account.
+ */
+export interface DepositCreatePayload {
+  amount_cents: number;
+  account_id: number;
+  goal_id?: number | null;
+}
+
+/**
+ * Phase 27-03 — POST /api/v1/savings/deposit response (mirrors DepositResponse).
+ *
+ * `amount_cents` is the SIGNED storage amount (negative — deposits debit
+ * the source). Frontend should display `Math.abs(amount_cents)` if it
+ * shows the value back to the user.
+ */
+export interface DepositResponse {
+  id: number;
+  amount_cents: number;
+  account_id: number | null;
+  category_id: number;
+  tx_date: string;
+  description: string | null;
+}
+
+/** Phase 27-03 — POST /api/v1/goals request body (mirrors GoalCreate). */
+export interface GoalCreatePayload {
+  name: string;
+  target_cents: number;
+  due?: string | null;
+}
+
 // ---------- Phase 8: Analytics ----------
 
 export interface TrendPoint {
