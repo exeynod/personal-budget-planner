@@ -1,17 +1,17 @@
 ---
 gsd_state_version: 1.0
 milestone: v1.0.1
-milestone_name: UI Conformance & Tech Debt
-status: in_progress
-stopped_at: v1.0.1 patch milestone created — 3 phases (29 UI conformance, 30 tech debt, 31 regression). Awaiting plan-phase.
-last_updated: "2026-05-11T00:10:00.000Z"
-last_activity: 2026-05-11 -- v1.0.1 milestone setup
+milestone_name: — UI Conformance & Tech Debt
+status: completed
+stopped_at: Roadmap для v1.0 (Phases 22-28) создан, REQUIREMENTS.md traceability заполнен (92/92 REQs). Awaiting `/gsd-plan-phase 22`.
+last_updated: "2026-05-10T22:46:06.728Z"
+last_activity: 2026-05-10
 progress:
-  total_phases: 3
+  total_phases: 10
   completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
-  percent: 0
+  total_plans: 6
+  completed_plans: 3
+  percent: 50
 ---
 
 # Project State
@@ -69,6 +69,7 @@ Last activity: 2026-05-10
 | v0.6 (Phases 17-21 + wise-tide) | ~25 | — | — |
 
 *Updated after each plan completion*
+| Phase 29 P02 | 6min | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -93,6 +94,8 @@ Recent decisions from v0.6 (preserved for context):
 
 - v0.6 (2026-05-09): wise-tide refactor — pixel-perfect web port → native iOS 26 rewrite; user feedback «детская игрушка» triggered −500 LOC removal of peach aurora + 6-layer fake glass + Material Design FAB; replaced with native `.glassEffect()`, semantic typography, system materials, Form/List(.insetGrouped). Branded orange как `Color.accentColor`.
 - v0.6 (2026-05-08): IOS-04 (APIClient, все CRUD endpoints) полностью лежит в Phase 17 — сетевой слой готов до начала Phase 18 UI-работы.
+- [Phase ?]: 29-02 audit complete
+- [Phase v1.0.1 Phase 29-02]: Web UI audit found 26 BLOCKERs concentrated in 7 screens; only Home passes. 3 setup-issue BLOCKERs (W-05 selector materialised, /savings + /ai/observation fixtures missing) gate 29-04. Cross-platform DS §1 palette violations between web and iOS (Subscriptions ink-on-coral, AI bg-black) coincide — single per-platform fix can close 4 BLOCKERs.
 
 ### Pending Todos
 
@@ -177,7 +180,7 @@ v1.0 deferred (acknowledged at planning):
 
 ## Session Continuity
 
-Last session: 2026-05-09T17:00:00.000Z
+Last session: 2026-05-10T22:45:33.115Z
 Stopped at: Roadmap для v1.0 (Phases 22-28) создан, REQUIREMENTS.md traceability заполнен (92/92 REQs). Awaiting `/gsd-plan-phase 22`.
 Resume file: None
 

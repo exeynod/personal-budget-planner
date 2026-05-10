@@ -25,9 +25,9 @@
 5. Re-run Playwright snapshots green после fix-ов.
 
 **Plans:** 5 plans
-- [ ] 29-01-PLAN.md — Web Playwright onboarded fixture + 8 baseline PNG snapshots (UICONF-01)
-- [ ] 29-02-PLAN.md — Web side-by-side audit vs prototype/index.html → UI-REVIEW.md (web) (UICONF-02)
-- [ ] 29-03-PLAN.md — iOS XcodeBuildMCP screenshots + UI-REVIEW.md iOS section (UICONF-03)
+- [x] 29-01-PLAN.md — Web Playwright onboarded fixture + 8 baseline PNG snapshots (UICONF-01)
+- [x] 29-02-PLAN.md — Web side-by-side audit vs prototype/index.html → UI-REVIEW.md (web) (UICONF-02)
+- [x] 29-03-PLAN.md — iOS XcodeBuildMCP screenshots + UI-REVIEW.md iOS section (UICONF-03)
 - [ ] 29-04-PLAN.md — BLOCKER fix wave (conditional, data-driven from 29-02/29-03 findings) (UICONF-04)
 - [ ] 29-05-PLAN.md — Re-snapshot pixel baselines + DIVERGENCES.md WARNING/INFO append (UICONF-04 verify + UICONF-05)
 

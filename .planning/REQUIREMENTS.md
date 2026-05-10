@@ -3,7 +3,7 @@
 ## Phase 29 — UI Conformance Audit & Critical Fixes
 
 - [ ] **UICONF-01** — Web Playwright snapshot baselines созданы для всех 8 V10 экранов (Home, Transactions, AddSheet, CategoryDetail, PLAN мая, Subscriptions, Savings, AI initial-state) с onboarded test fixture.
-- [ ] **UICONF-02** — UI-REVIEW.md содержит per-screen deviation report против `prototype/index.html` (web) с severity classification (BLOCKER / WARNING / INFO).
+- [x] **UICONF-02** — UI-REVIEW.md содержит per-screen deviation report против `prototype/index.html` (web) с severity classification (BLOCKER / WARNING / INFO).
 - [ ] **UICONF-03** — iOS UI-REVIEW.md содержит per-screen deviation report через XcodeBuildMCP screenshots vs DESIGN-SYSTEM.md spec.
 - [ ] **UICONF-04** — Все BLOCKER-уровневые deviations исправлены (commits с `fix(ui-conf):` префиксом); re-run snapshots green.
 - [ ] **UICONF-05** — WARNING/INFO deviations задокументированы в DIVERGENCES.md с v1.1 backlog reference.
@@ -33,7 +33,7 @@
 | ID | Phase | Status |
 |----|-------|--------|
 | UICONF-01 | Phase 29 | Pending |
-| UICONF-02 | Phase 29 | Pending |
+| UICONF-02 | Phase 29 | Complete |
 | UICONF-03 | Phase 29 | Pending |
 | UICONF-04 | Phase 29 | Pending |
 | UICONF-05 | Phase 29 | Pending |
