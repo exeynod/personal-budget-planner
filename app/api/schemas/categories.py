@@ -2,6 +2,12 @@
 
 Uses string Literal for `kind` (not enum import) to keep serialization
 simple; the service layer converts to ``CategoryKind`` before persisting.
+
+Phase 25 (gap-fix during exec): ``CategoryRead`` exposes the v1.0 ORM
+columns (``code``, ``ord``, ``plan_cents``, ``rollover``, ``paused``,
+``parent_id``) so HOME-V10 / TXN-V10 / CAT-V10 web + iOS UIs can sort,
+filter, and badge without a second roundtrip. Legacy v0.6 clients that
+don't reference these fields are unaffected (additive only).
 """
 from datetime import datetime
 from typing import Literal, Optional
@@ -10,6 +16,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 CategoryKindStr = Literal["expense", "income"]
+RolloverPolicyStr = Literal["misc", "savings"]
 
 
 class CategoryCreate(BaseModel):
@@ -43,3 +50,11 @@ class CategoryRead(BaseModel):
     is_archived: bool
     sort_order: int
     created_at: datetime
+    # Phase 25 v1.0 ORM columns surfaced for HOME-V10 / TXN-V10 / CAT-V10
+    # web + iOS UIs (sort by plan_cents, filter by code/paused, etc.).
+    code: str
+    ord: str
+    plan_cents: int = 0
+    rollover: RolloverPolicyStr = "misc"
+    paused: bool = False
+    parent_id: Optional[int] = None
