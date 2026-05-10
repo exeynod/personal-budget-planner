@@ -1,0 +1,133 @@
+// Phase 27-04 Task 3: AccountsListMount — data fetcher + new-account sheet wiring.
+//
+// Lifecycle:
+//   1. On mount, fetch listAccounts() (re-fetch on reloadToken bump).
+//   2. Render <AccountsListView> wired to:
+//      - onAccountTap(id) → router.push(<AccountDetailMount accountId={id} />)
+//      - onAddAccount → setSheet('newAccount') → opens <NewAccountSheet>
+//      - onTransfer → no-op (button disabled in view)
+//      - onBack → router.pop()
+//   3. <NewAccountSheet> POST handler → createAccount → close + reload.
+//   4. canPop is taken from the router (true when this Mount is on a deeper
+//      stack frame; false when it's a tab-root in V10MainShell).
+//
+// Reachability:
+//   - Phase 27-06 will mount this from V10MainShell tab='savings' or Mgmt-хаб
+//     «02 СЧЕТА» row. This plan only ships the Mount — no shell wiring.
+//
+// Failure mode: window.alert (parity with TransactionsMount / SubscriptionsMount;
+// Plan 28 polish replaces with PosterToast).
+
+import { useCallback, useEffect, useState } from 'react';
+import { usePosterRouter, PosterSheet } from '../common';
+import {
+  listAccounts,
+  createAccount,
+  type AccountResponse,
+  type AccountCreatePayload,
+} from '../../api/v10';
+import { AccountsListView } from './AccountsListView';
+import { AccountDetailMount } from './AccountDetailMount';
+import { NewAccountSheet } from './NewAccountSheet';
+
+export interface AccountsListMountProps {
+  /** Whether ← НАЗАД is rendered. Defaults to false (tab-root usage). */
+  canPop?: boolean;
+}
+
+export function AccountsListMount(props: AccountsListMountProps = {}) {
+  const router = usePosterRouter();
+  const canPop = props.canPop ?? false;
+
+  const [accounts, setAccounts] = useState<AccountResponse[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [sheet, setSheet] = useState<'none' | 'newAccount'>('none');
+  const [submitting, setSubmitting] = useState(false);
+  const [reloadToken, setReloadToken] = useState(0);
+
+  // ─────────── fetch ───────────
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    (async () => {
+      try {
+        const list = await listAccounts();
+        if (cancelled) return;
+        setAccounts(list);
+      } catch (err) {
+        if (cancelled) return;
+        setError(
+          err instanceof Error ? err.message : 'Не удалось загрузить счета',
+        );
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [reloadToken]);
+
+  // ─────────── handlers ───────────
+  const onAccountTap = useCallback(
+    (id: number) => {
+      router.push(<AccountDetailMount accountId={id} />);
+    },
+    [router],
+  );
+
+  const onAddAccount = useCallback(() => setSheet('newAccount'), []);
+  const onTransfer = useCallback(() => {
+    /* disabled CTA — no-op (DF-V11-01 deferred per plan threat model T-27-04-04) */
+  }, []);
+  const onBack = useCallback(() => router.pop(), [router]);
+  const onSheetClose = useCallback(() => setSheet('none'), []);
+
+  const handleNewAccountSave = useCallback(
+    async (payload: AccountCreatePayload) => {
+      if (submitting) return;
+      setSubmitting(true);
+      try {
+        await createAccount(payload);
+        setSheet('none');
+        setReloadToken((n) => n + 1);
+      } catch {
+        if (typeof window !== 'undefined') {
+          window.alert('Не удалось создать счёт — попробуйте снова');
+        }
+      } finally {
+        setSubmitting(false);
+      }
+    },
+    [submitting],
+  );
+
+  return (
+    <>
+      <AccountsListView
+        accounts={accounts}
+        loading={loading}
+        error={error}
+        onAccountTap={onAccountTap}
+        onAddAccount={onAddAccount}
+        onTransfer={onTransfer}
+        canPop={canPop}
+        onBack={onBack}
+      />
+      <PosterSheet
+        isOpen={sheet === 'newAccount'}
+        onClose={onSheetClose}
+        backgroundColor="var(--poster-paper)"
+        testId="new-account-poster-sheet"
+      >
+        <NewAccountSheet
+          onSave={handleNewAccountSave}
+          onClose={onSheetClose}
+          submitting={submitting}
+        />
+      </PosterSheet>
+    </>
+  );
+}
