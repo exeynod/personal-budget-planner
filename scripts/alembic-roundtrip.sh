@@ -30,15 +30,15 @@ echo "Compose: $DOCKER_COMPOSE   Service: $API_SERVICE"
 echo ""
 
 echo "Step 1/3: alembic upgrade head"
-$DOCKER_COMPOSE exec -T "$API_SERVICE" alembic upgrade head
+$DOCKER_COMPOSE exec -T "$API_SERVICE" uv run alembic upgrade head
 
 echo ""
 echo "Step 2/3: alembic downgrade -1"
-$DOCKER_COMPOSE exec -T "$API_SERVICE" alembic downgrade -1
+$DOCKER_COMPOSE exec -T "$API_SERVICE" uv run alembic downgrade -1
 
 echo ""
 echo "Step 3/3: alembic upgrade head (re-apply)"
-$DOCKER_COMPOSE exec -T "$API_SERVICE" alembic upgrade head
+$DOCKER_COMPOSE exec -T "$API_SERVICE" uv run alembic upgrade head
 
 echo ""
 echo "Round-trip OK — миграции применяются в обе стороны без ошибок."
