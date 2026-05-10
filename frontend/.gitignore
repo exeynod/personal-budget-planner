@@ -18,3 +18,7 @@ pnpm-debug.log*
 
 # TS build info (per tsBuildInfoFile path)
 node_modules/.tmp/
+
+# Playwright artifacts (HTML report, traces, screenshots, videos)
+playwright-report/
+test-results/

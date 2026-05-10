@@ -72,9 +72,15 @@ test.describe('Phase 23 — Design System Preview', () => {
   test('DS-08: localStorage v06 → renders existing App (NOT preview gallery)', async ({
     page,
   }) => {
+    // The v06 App boots `useUser()` against /api/v1/me — backend isn't up
+    // during smoke tests, so we abort all /api/v1/* calls to keep the load
+    // deterministic. The dispatcher decision is what we're testing — not
+    // network. Without this, networkidle never settles and the test 30s-times-out.
+    await page.route('**/api/v1/**', (route) => route.abort());
     await page.addInitScript(() => localStorage.setItem('ui.theme', 'v06'));
     await page.goto('/');
-    await page.waitForLoadState('networkidle');
+    // Give the v06 dynamic-import chain a beat to mount its shell.
+    await page.waitForTimeout(500);
     // The v06 App lacks the V10 preview eyebrow string — proves dispatcher routed away.
     await expect(page.getByText('VOL.23 / DESIGN SYSTEM PREVIEW')).toHaveCount(0);
   });
