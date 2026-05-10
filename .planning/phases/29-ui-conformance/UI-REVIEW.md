@@ -94,7 +94,7 @@ suppressed from the audit:
 
 **Findings:**
 
-- **[BLOCKER] Eyebrow position order swapped relative to prototype.**
+- **[RESOLVED] Eyebrow position order swapped relative to prototype.**
   - **File:** `frontend/src/screensV10/Transactions/TransactionsView.tsx:113-124`
   - **Expected (prototype `poster-screens.jsx:331-333`):**
     1. `<Eye>SECTION II</Eye>` (top, standalone)
@@ -104,12 +104,12 @@ suppressed from the audit:
     ABOVE the Mass headline. The count eyebrow never sits below the mass.
     Baseline PNG (`transactions-chromium-mobile-darwin.png`) confirms.
 
-- **[BLOCKER] Mass headline size differs.**
+- **[RESOLVED] Mass headline size differs.**
   - **File:** `frontend/src/screensV10/Transactions/TransactionsView.tsx:122`
   - **Expected:** `<Mass italic size={70}>` (prototype line 332).
   - **Actual:** `<Mass italic size={88}>` — +18px, outside ±4px tolerance.
 
-- **[BLOCKER] Broken CSS variable references — `var(--poster-font-dm-serif)`
+- **[RESOLVED] Broken CSS variable references — `var(--poster-font-dm-serif)`
   и `var(--poster-font-pt-serif)` НЕ определены в `frontend/src/stylesV10/tokens.css`.**
   - **File:** `frontend/src/screensV10/Transactions/TransactionsView.module.css:83, 186`
   - **Expected:** font-family chain resolves via defined tokens
@@ -142,7 +142,7 @@ suppressed from the audit:
 
 **Findings:**
 
-- **[BLOCKER] Element-order swap — Keypad rendered BEFORE description /
+- **[RESOLVED] Element-order swap — Keypad rendered BEFORE description /
   date chips / category chips / account row.**
   - **File:** `frontend/src/screensV10/AddSheet/AddSheet.tsx:289-398`
   - **Expected (prototype `poster-screens.jsx:1165-1235`):**
@@ -159,7 +159,7 @@ suppressed from the audit:
     плавает наверх с позиции 7 на позицию 3. Baseline PNG подтверждает:
     keypad visible в верхней половине, description ниже.
 
-- **[BLOCKER] Account row styling — prototype shows Eye eyebrow «Счёт»
+- **[RESOLVED] Account row styling — prototype shows Eye eyebrow «Счёт»
   ABOVE the row, with mono `ТИНЬКОФФ · 3477` left + mono «сменить ↓» right.
   Impl has «СЧЁТ» label inline в самой row плюс chevron `→`.**
   - **File:** `frontend/src/screensV10/AddSheet/AddSheet.tsx:365-379`
@@ -169,7 +169,7 @@ suppressed from the audit:
   - **Actual:** Single-row button с инлайн `СЧЁТ` label, разное
     padding, chevron `→` вместо caption «сменить ↓».
 
-- **[BLOCKER] Account display content differs.**
+- **[RESOLVED] Account display content differs.**
   - **File:** `frontend/src/screensV10/AddSheet/AddSheet.tsx:374-376`
   - **Expected:** `{BANK.toUpperCase()} · {mask}` (соответствует
     Transactions sub-line pattern, TXN-V10-04).
@@ -194,7 +194,7 @@ suppressed from the audit:
 
 **Findings:**
 
-- **[BLOCKER] Eyebrow copy / structure differs.**
+- **[RESOLVED] Eyebrow copy / structure differs.**
   - **File:** `frontend/src/screensV10/CategoryDetail/CategoryDetailView.tsx:92-95`
   - **Expected (prototype `poster-screens.jsx:526`):** Eye text
     `{over ? 'OVERDRAFT' : 'IN PLAN'} · CAT`. Передаёт state inline.
@@ -202,12 +202,12 @@ suppressed from the audit:
     OVERDRAFT/IN-PLAN state suffix; используется ordinal. Baseline PNG
     показывает «CATEGORY · 01»; prototype показал бы «IN PLAN · CAT».
 
-- **[BLOCKER] BigFig size mismatch.**
+- **[RESOLVED] BigFig size mismatch.**
   - **File:** `frontend/src/screensV10/CategoryDetail/CategoryDetailView.tsx:110`
   - **Expected:** `size={64}` (prototype `poster-screens.jsx:534`).
   - **Actual:** `size={88}` — +24px, далеко за ±4px tolerance.
 
-- **[BLOCKER] Missing «{N} осталось» / «{N} over» segment в bar caption.**
+- **[RESOLVED] Missing «{N} осталось» / «{N} over» segment в bar caption.**
   - **File:** `frontend/src/screensV10/CategoryDetail/CategoryDetailView.tsx:131-133`
   - **Expected (prototype `poster-screens.jsx:535-537`):**
     `из {fmt(plan)} ₽ · {over ? '−{N} over' : '{N} осталось'}` — двух-сегментная
@@ -215,7 +215,7 @@ suppressed from the audit:
   - **Actual:** `из {planRubles} ₽` only — правая половина отсутствует.
     Baseline PNG подтверждает single-segment caption.
 
-- **[BLOCKER] Rollover plate styling и content.**
+- **[RESOLVED] Rollover plate styling и content.**
   - **File:** `frontend/src/screensV10/CategoryDetail/CategoryDetailView.tsx:136-143`
     + `CategoryDetailView.module.css:104-119`
   - **Expected (prototype `poster-screens.jsx:550-555`):** dark plate
@@ -227,7 +227,7 @@ suppressed from the audit:
     archivo-black uppercase label «ОСТАТОК → ПРОЧЕЕ», money line
     отсутствует целиком. Baseline PNG подтверждает.
 
-- **[BLOCKER] CTA pair styling.**
+- **[RESOLVED] CTA pair styling.**
   - **File:** `frontend/src/screensV10/CategoryDetail/CategoryDetailView.tsx:146-156`
   - **Expected (prototype `poster-screens.jsx:557-560`):** «+ ПОДНЯТЬ
     ЛИМИТ» = inline chip `background:yellow, color:cobalt,
@@ -238,7 +238,7 @@ suppressed from the audit:
     paper-outlined ghost прямоугольники — не prototype's
     yellow-pill + bordered-pill mix.
 
-- **[BLOCKER] Broken token reference (same as Transactions).**
+- **[RESOLVED] Broken token reference (same as Transactions).**
   - **File:** `frontend/src/screensV10/CategoryDetail/CategoryDetailView.module.css:148`
   - `var(--poster-font-dm-serif), var(--poster-font-pt-serif)` —
     undefined; correct tokens `--poster-font-dm-serif-italic` /
@@ -253,7 +253,7 @@ suppressed from the audit:
 
 **Findings:**
 
-- **[BLOCKER] Baseline PNG `plan-month-chromium-mobile-darwin.png`
+- **[RESOLVED] Baseline PNG `plan-month-chromium-mobile-darwin.png`
   captured HOME, not PlanMonth.**
   - **File:** `frontend/tests/e2e/v10-pixel-snapshots.spec.ts` (helper
     `gotoPlanMonth`) — uses W-05 permissive selector chain. The helper
@@ -269,7 +269,7 @@ suppressed from the audit:
     stable `data-testid="nav-plan"` (см. W-05 Decision row) и tighten
     helper, затем re-run `--update-snapshots`.
 
-- **[BLOCKER] Headline copy mismatch.**
+- **[RESOLVED] Headline copy mismatch.**
   - **File:** `frontend/src/screensV10/Plan/PlanView.tsx:133-135`
   - **Expected (prototype `poster-screens.jsx:738`):**
     `<Mass size={56}>PLAN<br/>МАЯ.</Mass>` — two-line, 56px, dynamic
@@ -277,7 +277,7 @@ suppressed from the audit:
   - **Actual:** `<Mass size={70}>PLAN МЕСЯЦА.</Mass>` — single-line,
     70px, hardcoded «МЕСЯЦА». +14px size diff + different word.
 
-- **[BLOCKER] Rollover aggregate plates: prototype имеет ASYMMETRIC
+- **[RESOLVED] Rollover aggregate plates: prototype имеет ASYMMETRIC
   styling (левый = bordered ghost, правый = yellow plate когда
   has-savings), `prototype/poster-screens.jsx:749-758`.**
   - **File:** `frontend/src/screensV10/Plan/PlanView.tsx:151-158`
@@ -285,13 +285,13 @@ suppressed from the audit:
     (`PlanView.module.css` определяет одну class). Asymmetric
     yellow-tinted right plate отсутствует.
 
-- **[BLOCKER] Eyebrow «ОСТАТОК ПО ИТОГУ МЕСЯЦА» отсутствует.**
+- **[RESOLVED] Eyebrow «ОСТАТОК ПО ИТОГУ МЕСЯЦА» отсутствует.**
   - **File:** `frontend/src/screensV10/Plan/PlanView.tsx`
   - **Expected (prototype `poster-screens.jsx:748`):** Eye eyebrow
     «ОСТАТОК ПО ИТОГУ МЕСЯЦА» над 2 aggregate plates.
   - **Actual:** Plates рендерятся напрямую без этого eyebrow caption.
 
-- **[BLOCKER] Regulars block: «РЕГУЛЯРНЫЕ · ПРОВЕСТИ В ФАКТ» dark plate
+- **[RESOLVED] Regulars block: «РЕГУЛЯРНЫЕ · ПРОВЕСТИ В ФАКТ» dark plate
   summary line missing.**
   - **File:** `frontend/src/screensV10/Plan/PlanView.tsx:166-202`
   - **Expected (prototype `poster-screens.jsx:795-798`):** dark plate
@@ -320,7 +320,7 @@ suppressed from the audit:
 
 **Findings:**
 
-- **[BLOCKER] Text colour is INK on coral background.**
+- **[RESOLVED] Text colour is INK on coral background.**
   - **File:** `frontend/src/screensV10/Subscriptions/SubscriptionsView.module.css:7`
   - **Expected (prototype `poster-screens.jsx:1091`):** `color: POSTER.paper`
     (`#FFF6E8` paper на `#FF5A3C` coral). Per DESIGN-SYSTEM.md §1
@@ -330,12 +330,12 @@ suppressed from the audit:
     высокий, но color relationship inverts spec. Hex diff: каждая цифра
     `#1B1A18` vs `#FFF6E8` отличается — maximal BLOCKER per rubric.
 
-- **[BLOCKER] BigFig size mismatch.**
+- **[RESOLVED] BigFig size mismatch.**
   - **File:** `frontend/src/screensV10/Subscriptions/SubscriptionsView.tsx:77`
   - **Expected:** `size={56}` (prototype `poster-screens.jsx:1097`).
   - **Actual:** `size={86}` — +30px, далеко за ±4px.
 
-- **[BLOCKER] Row separator color matches ink-text choice
+- **[RESOLVED] Row separator color matches ink-text choice
   (`rgba(0,0,0,0.12)` в `SubscriptionsView.module.css:81`); prototype
   использует `rgba(255,246,232,0.25)` paper (line 1102).** Consequence of
   BLOCKER #1; flagged together.
@@ -363,7 +363,7 @@ suppressed from the audit:
 
 **Findings:**
 
-- **[BLOCKER] Baseline PNG рендерится полностью WHITE/EMPTY surface
+- **[RESOLVED] Baseline PNG рендерится полностью WHITE/EMPTY surface
   (2 374 bytes — см. 29-01-SUMMARY.md inventory).**
   - **File:** `frontend/src/screensV10/Savings/SavingsMount.tsx:52`
     вызывает `fetchSavingsSummary()` → `GET /api/v1/savings`.
@@ -381,7 +381,7 @@ suppressed from the audit:
     empty state) корректно рендерился.
   - **Actual:** Render-time exception → blank screen.
 
-- **[BLOCKER] Same broken-fixture problem предотвращает pixel-level
+- **[RESOLVED] Same broken-fixture problem предотвращает pixel-level
   audit всех SavingsView elements.** Cannot evaluate:
     - Yellow plate «НАКОПЛЕНО ВСЕГО»
     - В МАЕ + Y ₽ eyebrow
@@ -391,7 +391,7 @@ suppressed from the audit:
   Plan 29-04 must extend 29-01 fixture с `savings/` `extraRoutes`
   entry (используя `installOnboardedFixture` opts) BEFORE re-snapshotting.
 
-- **[BLOCKER] (source-only, pending visual confirmation) Layout: yellow
+- **[RESOLVED] (source-only, pending visual confirmation) Layout: yellow
   plate в prototype содержит TWO columns — «НАКОПЛЕНО ВСЕГО {S.total} ₽»
   (left) AND «В МАЕ + {S.monthIn} ₽» (right, flex-end), стилизованных
   как single horizontal plate (`prototype/poster-screens.jsx:1009-1018`).**
@@ -401,7 +401,7 @@ suppressed from the audit:
     (lines 173-178). Two-column composite layout разделён на две UI
     strips.
 
-- **[BLOCKER] Roundup section: prototype использует ONE inline plate
+- **[RESOLVED] Roundup section: prototype использует ONE inline plate
   с toggle (ВКЛ/ВЫКЛ) справа ОТ «ОКРУГЛЯТЬ ДО {base} ₽» Archivo Black
   текста, плюс mtd-amount mono line ниже, плюс 3 base chips ниже того
   (`prototype/poster-screens.jsx:1021-1043`).** Impl splits this in
@@ -414,7 +414,7 @@ suppressed from the audit:
 
 **Findings:**
 
-- **[BLOCKER] Background color is BLACK instead of CREAM.**
+- **[RESOLVED] Background color is BLACK instead of CREAM.**
   - **File:** `frontend/src/screensV10/Ai/AiView.module.css:18`
   - **Expected (prototype `poster-screens.jsx:424`):** `background:
     POSTER.cream` (`#F4EAD9`). Per DESIGN-SYSTEM.md §1 AI surface в
@@ -422,13 +422,13 @@ suppressed from the audit:
   - **Actual:** `background: var(--poster-black) (#0E0E0E)`. Hex diff:
     `#F4EAD9` vs `#0E0E0E` — каждая цифра отличается. Maximal BLOCKER.
 
-- **[BLOCKER] Text color paper вместо ink (consequence of bg flip).**
+- **[RESOLVED] Text color paper вместо ink (consequence of bg flip).**
   - **File:** `frontend/src/screensV10/Ai/AiView.module.css:19`
   - **Expected:** `color: var(--poster-ink)`.
   - **Actual:** `color: var(--poster-paper)`. Вся AI surface inverted
     vs prototype's cream/ink палитра.
 
-- **[BLOCKER] DM Serif italic 36px observation block рендерится EMPTY
+- **[RESOLVED] DM Serif italic 36px observation block рендерится EMPTY
   в baseline (observation = null т.к. нет API mock для
   `/ai/observation`).**
   - **File:** `frontend/src/screensV10/Ai/AiView.tsx:124-128`
@@ -440,7 +440,7 @@ suppressed from the audit:
     + 4 chips.
   - Setup BLOCKER — same nature as W-05 / Savings: fixture deficit.
 
-- **[BLOCKER] Composer input + message bubbles имеют `border-radius: 4px`.**
+- **[RESOLVED] Composer input + message bubbles имеют `border-radius: 4px`.**
   - **File:** `frontend/src/screensV10/Ai/AiView.module.css:159, 173, 234`
   - **Expected (DESIGN-SYSTEM.md §4):** «**Радиусы:** **0** на 95%
     компонентов. Это «постер», не «пузырь»». Bubble border-radius должен
@@ -449,7 +449,7 @@ suppressed from the audit:
   - **Actual:** 4px rounded на user msg bubble, AI msg bubble, и composer
     input. Direct violation DS rule.
 
-- **[BLOCKER] Composer padding / structure differs.**
+- **[RESOLVED] Composer padding / structure differs.**
   - **File:** `frontend/src/screensV10/Ai/AiView.module.css:212-225`
   - **Expected (prototype `poster-screens.jsx:486-501`):** composer — single
     inline plate `padding:'14px 16px', background:POSTER.ink,
@@ -600,7 +600,7 @@ These rows are NOT re-opened by this audit.
 
 **Findings:**
 
-- **[BLOCKER] Text rendered in `ink` (dark) on coral bg instead of `paper` (light).**
+- **[RESOLVED] Text rendered in `ink` (dark) on coral bg instead of `paper` (light).**
   - **Spec (DESIGN-SYSTEM §1, palette rule table row «Подписки»):** background `coral`, text `paper`, accent `yellow`.
   - **Implementation:** `SubscriptionsV10View.swift:111, 120, 122-123, 147, 152, 157, 177, 192, 199, 214-215, 218-219, ...` — Mass, BigFig, Eyebrow, Subscription rows, back button, divider all use `PosterTokens.Color.ink` (`#1B1A18` — dark) on coral bg.
   - **Visual impact:** All Subscriptions content is **dark-on-coral**, not light-on-coral. The screenshot confirms «Подписки.» italic, «0 ₽/мес», «0 АКТИВНЫХ · 0 ₽ В ГОД», «Нет подписок» — all rendered in dark ink. Web prototype `prototype/index.html` PosterSubs uses paper text on coral.
@@ -646,7 +646,7 @@ These rows are NOT re-opened by this audit.
 
 **Findings:**
 
-- **[BLOCKER] Background is black (`PosterTokens.Color.black`), spec is cream.**
+- **[RESOLVED] Background is black (`PosterTokens.Color.black`), spec is cream.**
   - **Spec (DESIGN-SYSTEM §1, palette rule row «AI»):** background `cream` (`#F4EAD9`), text `ink` (`#1B1A18`), accent `red` (italic accent).
   - **SCREENS §03:** «Фон: cream, текст ink.»
   - **Implementation:** `AiV10View.swift` — background fill is `PosterTokens.Color.black`.
@@ -654,7 +654,7 @@ These rows are NOT re-opened by this audit.
   - **Fix:** Replace background fill `PosterTokens.Color.black` → `PosterTokens.Color.cream` in `AiV10View.swift` body's `ZStack` background; flip foreground colors paper → ink across the view.
   - **Severity:** BLOCKER — wrong background palette token (hex difference in all 6 digits between `#0E0E0E` and `#F4EAD9`).
 
-- **[BLOCKER] Initial observation does not render in DM Serif italic 36px hero.**
+- **[RESOLVED] Initial observation does not render in DM Serif italic 36px hero.**
   - **Spec (SCREENS §03):** «Большая фраза-наблюдение DM Serif 36px («Май в плюсе на 21 170 ₽.»)»
   - **Implementation:** screenshot shows red-tinted error line «Не удалось загрузить наблюдение» at small size — fallback for offline/error state (backend not reachable from sim).
   - This is partly justified by the network error (acceptable degraded state) BUT the *fallback* itself is not the SCREENS §03 spec hero element. When the observation loads, it should be DM Serif italic 36px in **ink** on **cream**.
@@ -672,13 +672,19 @@ These rows are NOT re-opened by this audit.
 
 ## Summary
 
+**Phase 29-04 status:** All BLOCKER findings below were resolved inline
+(in-tree fixes; see `29-04-FIX-LOG.md` for per-finding commit hashes).
+The `[RESOLVED]` prefix replaces `[BLOCKER]` on every closed finding.
+Pre-conditions (W-05 selector hardening + Savings/AI fixture extensions)
+were fixed first; per-screen visual fixes followed.
+
 | Platform | Severity | Count | Screens affected |
 |----------|----------|-------|------------------|
-| Web      | BLOCKER  | 26    | Transactions (3), AddSheet (3), CategoryDetail (6), PlanMonth (6), Subscriptions (3), Savings (4), AI (5) — counts include the 1 setup-issue BLOCKER each on PlanMonth, Savings, and AI (fixture/selector gaps) |
+| Web      | RESOLVED | 26    | Transactions (3), AddSheet (3), CategoryDetail (6), PlanMonth (6), Subscriptions (3), Savings (4), AI (5) — closed in plan 29-04 (was BLOCKER) |
 | Web      | WARNING  | 7     | Home (1), Transactions (1), AddSheet (1), CategoryDetail (1), PlanMonth (1), Subscriptions (2) |
 | Web      | INFO     | 6     | Home (1), Transactions (1), AddSheet (1), Subscriptions (1), AI (2) |
 | Web      | PASS     | 1     | Home (passes overall; WARNING + INFO items don't disqualify) |
-| iOS      | BLOCKER  | 2     | iOS-6 Subscriptions, iOS-8 AI |
+| iOS      | RESOLVED | 2     | iOS-6 Subscriptions, iOS-8 AI — closed in plan 29-04 (was BLOCKER) |
 | iOS      | WARNING  | 1     | iOS-2 Transactions |
 | iOS      | INFO     | 2     | iOS-7 Savings (locale), iOS-8 AI (error-state capture) |
 | iOS      | PASS     | 5     | iOS-1 Home, iOS-3 AddSheet, iOS-4 CategoryDetail, iOS-5 PLAN мая, iOS-7 Savings (apart from locale INFO) |
