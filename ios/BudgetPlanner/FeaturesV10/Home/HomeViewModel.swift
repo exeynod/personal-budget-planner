@@ -99,7 +99,11 @@ final class HomeV10ViewModel {
             let lastDayOfMonth = calendar.range(of: .day, in: .month, for: now)
                 .map { $0.upperBound - 1 } ?? 30
             let todayDay = calendar.component(.day, from: now)
-            let computedDaysLeft = Swift.max(0, lastDayOfMonth - todayDay + 1)
+            // WR-25-04 (review fix): clamp to 1 (not 0) for cross-platform
+            // parity with web (`HomeMount.tsx` + `format.ts` both use
+            // `Math.max(1, ...)`). Showing "0 ДНЕЙ" on the last day of the
+            // month while web shows "1 ДЕНЬ" was a parity bug.
+            let computedDaysLeft = Swift.max(1, lastDayOfMonth - todayDay + 1)
 
             self.daysLeft = computedDaysLeft
             self.walletCents = HomeData.computeWalletTotal(accs)

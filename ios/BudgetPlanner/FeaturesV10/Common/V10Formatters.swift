@@ -115,7 +115,9 @@ enum V10Formatters {
             let range = calendar.range(of: .day, in: .month, for: date)
             return range?.upperBound != nil ? (range!.upperBound - 1) : 30
         }()
-        let daysLeft = lastDay - day + 1
+        // WR-25-04 (review fix): clamp to 1 for parity with web
+        // `format.ts::formatPeriodEyebrow` and HomeViewModel.
+        let daysLeft = Swift.max(1, lastDay - day + 1)
         return "VOL.\(volStr) / \(monthEn) \(year) · \(daysLeft) \(pluralDays(daysLeft))"
     }
 }

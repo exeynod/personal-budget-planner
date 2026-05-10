@@ -96,6 +96,11 @@ export function formatPeriodEyebrow(d: Date): string {
   const year = d.getFullYear();
   // new Date(y, m+1, 0) → day-0 of next month = last day of current month.
   const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
-  const daysLeft = lastDay - d.getDate() + 1;
+  // WR-25-04 (review fix): clamp to 1 so eyebrow can never display a
+  // non-positive day count (clock skew, future-dated input, off-by-one).
+  // Mirrors HomeMount's `Math.max(1, ...)` and the iOS HomeViewModel
+  // counterpart so dailyPace + eyebrow stay perfectly in sync across
+  // platforms.
+  const daysLeft = Math.max(1, lastDay - d.getDate() + 1);
   return `VOL.${volStr} / ${month} ${year} · ${daysLeft} ${pluralDays(daysLeft)}`;
 }
