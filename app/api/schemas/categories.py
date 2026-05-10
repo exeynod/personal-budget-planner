@@ -32,11 +32,27 @@ class CategoryUpdate(BaseModel):
 
     Caller may pass only the fields they want to change. Empty body is
     valid (no-op). The service layer applies non-None fields only.
+
+    Phase 26 (BE Plan 26-01, CAT-V10-04 / PLAN-V10-05) extension: accepts
+    the v1.0 ORM columns (``plan_cents``, ``rollover``, ``paused``,
+    ``parent_id``) so the CategoryDetail rollover/paused toggles + atomic
+    plan-month batch can drive them through the existing
+    ``model_dump(exclude_unset=True)`` setattr loop in
+    ``app.services.categories.update_category`` без service-side изменений.
+    Composite FK (``parent_id``, ``user_id``) → (``id``, ``user_id``)
+    enforced на DB-level (alembic 0013); request layer accepts the integer
+    and surfaces violations as IntegrityError → 500. Full FK pre-validation
+    в Phase 27.
     """
 
     name: Optional[str] = Field(default=None, min_length=1, max_length=200)
     sort_order: Optional[int] = Field(default=None, ge=0)
     is_archived: Optional[bool] = None
+    # Phase 26 BE — v1.0 fields per CAT-V10-04 / PLAN-V10-05.
+    plan_cents: Optional[int] = Field(default=None, ge=0)
+    rollover: Optional[RolloverPolicyStr] = None
+    paused: Optional[bool] = None
+    parent_id: Optional[int] = None
 
 
 class CategoryRead(BaseModel):
