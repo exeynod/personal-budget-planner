@@ -149,6 +149,24 @@ export async function installOnboardedFixture(
     }
   });
 
+  // Playwright route precedence: handlers registered LATER win for
+  // overlapping patterns. We therefore install the broad catch-all FIRST
+  // (default `[]` for any GET we haven't enumerated), then layer the
+  // specific endpoints on top so they take precedence. Finally, optional
+  // `extraRoutes` are registered last so per-test overrides win against
+  // both layers.
+  await page.route('**/api/v1/**', (route) => {
+    if (route.request().method() === 'GET') {
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: '[]',
+      });
+    } else {
+      route.continue();
+    }
+  });
+
   await page.route('**/api/v1/me', (route) =>
     route.fulfill({
       status: 200,
@@ -184,17 +202,6 @@ export async function installOnboardedFixture(
       body: JSON.stringify([]),
     }),
   );
-  await page.route('**/api/v1/**', (route) => {
-    if (route.request().method() === 'GET') {
-      route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: '[]',
-      });
-    } else {
-      route.continue();
-    }
-  });
 
   if (opts.extraRoutes) {
     for (const { pattern, handler } of opts.extraRoutes) {

@@ -2,6 +2,10 @@
 // 8 key V10 screens. The intent is to lock the visual surface so any
 // later styling regression shows up as a Playwright snapshot diff.
 //
+// Phase 29-01 — UICONF-01: refactored to consume the shared
+// `installOnboardedFixture` from `./fixtures/onboarded-user` so audit
+// (29-02) and regression (31 REG-01) suites share the same mock surface.
+//
 // Storage layout (Playwright default):
 //   tests/e2e/__screenshots__/v10-pixel-snapshots.spec.ts/
 //     pixel-home-1-chromium-mobile-{platform}.png
@@ -28,115 +32,7 @@
 // before the snapshot to freeze BigFig count-up, FAB pulse, etc.
 
 import { expect, test, type Page } from '@playwright/test';
-
-// ─────────────────── shared mock fixtures ───────────────────
-
-const ME_ONBOARDED = {
-  tg_user_id: 100_000_001,
-  tg_chat_id: 200_000_001,
-  cycle_start_day: 1,
-  onboarded_at: '2026-04-01T10:00:00+00:00',
-  chat_id_known: true,
-  role: 'owner' as const,
-  ai_spend_cents: 0,
-  ai_spending_cap_cents: 46_500,
-  income_cents: 150_000_00,
-};
-
-const ACCOUNTS = [
-  {
-    id: 1,
-    bank: 'Т-Банк',
-    mask: '3477',
-    kind: 'card',
-    balance_cents: 50_000_00,
-    primary: true,
-    created_at: '2026-04-01T00:00:00Z',
-  },
-];
-
-const CATEGORIES = [
-  {
-    id: 7,
-    name: 'Кафе',
-    kind: 'expense',
-    code: 'cafe',
-    is_archived: false,
-    sort_order: 1,
-    plan_cents: 5_000_00,
-    rollover: 'misc',
-    paused: false,
-    parent_id: null,
-    ord: '01',
-    created_at: '2026-04-01T00:00:00Z',
-  },
-  {
-    id: 99,
-    name: 'savings',
-    kind: 'expense',
-    code: 'savings',
-    is_archived: false,
-    sort_order: 99,
-    plan_cents: 0,
-    rollover: 'misc',
-    paused: false,
-    parent_id: null,
-    ord: '99',
-    created_at: '2026-04-01T00:00:00Z',
-  },
-];
-
-const PERIOD_CURRENT = {
-  id: 5,
-  period_start: '2026-05-01',
-  period_end: '2026-05-31',
-  starting_balance_cents: 0,
-  ending_balance_cents: null,
-  status: 'active',
-  closed_at: null,
-};
-
-async function installMocks(page: Page) {
-  await page.route('**/api/v1/me', (route) =>
-    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(ME_ONBOARDED) }),
-  );
-  await page.route('**/api/v1/accounts', (route) =>
-    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(ACCOUNTS) }),
-  );
-  await page.route('**/api/v1/categories**', (route) =>
-    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(CATEGORIES) }),
-  );
-  await page.route('**/api/v1/periods/current', (route) =>
-    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(PERIOD_CURRENT) }),
-  );
-  await page.route('**/api/v1/periods/5/actual**', (route) =>
-    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([]) }),
-  );
-  // Catch-all for v10 endpoints not yet enumerated above — return [] so
-  // screens render their empty/initial state instead of error fallback.
-  await page.route('**/api/v1/**', (route) => {
-    if (route.request().method() === 'GET') {
-      route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
-    } else {
-      route.continue();
-    }
-  });
-}
-
-// Inject after each navigation to neutralise count-up + animations.
-async function freezeMotion(page: Page) {
-  await page.addStyleTag({
-    content: `
-      *, *::before, *::after {
-        animation-duration: 0s !important;
-        animation-delay: 0s !important;
-        transition-duration: 0s !important;
-        transition-delay: 0s !important;
-      }
-    `,
-  });
-  await page.waitForTimeout(150);
-}
+import { freezeMotion, installOnboardedFixture } from './fixtures/onboarded-user';
 
 // ─────────────────── per-screen setup helpers ───────────────────
 
@@ -223,14 +119,7 @@ const SCREENS: Screen[] = [
 
 test.describe('V10 pixel-perfect baseline (Plan 28-03 / POL-04 web)', () => {
   test.beforeEach(async ({ page }) => {
-    await page.addInitScript(() => {
-      try {
-        window.localStorage.setItem('ui.theme', 'v10');
-      } catch {
-        /* private mode — fall through to default 'v10' */
-      }
-    });
-    await installMocks(page);
+    await installOnboardedFixture(page);
   });
 
   for (const screen of SCREENS) {
