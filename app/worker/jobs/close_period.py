@@ -102,11 +102,19 @@ async def close_period_job() -> None:
         finally:
             if lock_acquired:
                 try:
+                    # WR-06 (Phase 22 review): drop the outer.commit() — the
+                    # outer session only ran a SELECT and the advisory unlock
+                    # itself. ``pg_try_advisory_lock`` is connection-scoped
+                    # (NOT transaction-scoped, unlike the xact variant used
+                    # in rollover.py), so the unlock does not require a
+                    # commit to take effect. Issuing commit here would only
+                    # flush any unrelated dirty state that an autoflush had
+                    # silently captured — a pure footgun for a read-only
+                    # outer session.
                     await outer.execute(
                         text("SELECT pg_advisory_unlock(:key)"),
                         {"key": ADVISORY_LOCK_KEY},
                     )
-                    await outer.commit()
                 except Exception:
                     logger.exception("close_period.unlock_failed")
 
