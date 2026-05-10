@@ -32,6 +32,12 @@ export interface OnboardingChromeProps {
   nextDisabled?: boolean;
   /** Optional small hint above the dots (e.g. «можно пропустить»). */
   hint?: string;
+  /**
+   * Tone for `hint` — 'normal' (default) renders muted paper text;
+   * 'overflow' renders red (var(--poster-red)) for Step 03 sum-overflow
+   * warning. Phase 24-06 introduces this; older callers default to 'normal'.
+   */
+  hintTone?: 'normal' | 'overflow';
   /** Body content — fills flex:1 between header and footer. */
   children: ReactNode;
 }
@@ -48,6 +54,7 @@ export function OnboardingChrome({
   nextLabel = FALLBACK_NEXT_LABEL,
   nextDisabled = false,
   hint,
+  hintTone = 'normal',
   children,
 }: OnboardingChromeProps) {
   const isFinal = step === 5;
@@ -91,7 +98,15 @@ export function OnboardingChrome({
       <div className={styles.body}>{children}</div>
 
       <div className={styles.footer}>
-        {hint ? <div className={styles.hint}>{hint}</div> : null}
+        {hint ? (
+          <div
+            className={`${styles.hint}${
+              hintTone === 'overflow' ? ' ' + styles.hintOverflow : ''
+            }`}
+          >
+            {hint}
+          </div>
+        ) : null}
 
         {showDots ? (
           <div

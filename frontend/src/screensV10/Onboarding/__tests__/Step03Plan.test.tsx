@@ -127,9 +127,9 @@ describe('Step03Plan — rendering', () => {
       />,
     );
     // food initial = 16_000₽ → display "16{thin}000 ₽"
-    expect(screen.getByText('16.000 ₽')).toBeInTheDocument();
+    expect(screen.getByText(/^16.000 ₽$/)).toBeInTheDocument();
     // home initial = 80_000 * 0.30 = 24_000₽ → "24{thin}000 ₽"
-    expect(screen.getByText('24.000 ₽')).toBeInTheDocument();
+    expect(screen.getByText(/^24.000 ₽$/)).toBeInTheDocument();
   });
 
   it('uses categoryPlans value when provided (overrides default)', () => {
@@ -141,7 +141,7 @@ describe('Step03Plan — rendering', () => {
       />,
     );
     // food override = 25_000₽
-    expect(screen.getByText('25.000 ₽')).toBeInTheDocument();
+    expect(screen.getByText(/^25.000 ₽$/)).toBeInTheDocument();
   });
 });
 

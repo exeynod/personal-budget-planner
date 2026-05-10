@@ -92,6 +92,11 @@
   opacity: 0.65;
 }
 
+.hintOverflow {
+  color: var(--poster-red);
+  opacity: 1;
+}
+
 .dots {
   display: grid;
   grid-auto-flow: column;

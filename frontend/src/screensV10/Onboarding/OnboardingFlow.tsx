@@ -19,6 +19,7 @@ import type { UseOnboardingDraftHook } from './useOnboardingDraft';
 import { OnboardingChrome } from './OnboardingChrome';
 import { Step01Income } from './Step01Income';
 import { Step02Accounts } from './Step02Accounts';
+import { Step03Plan, computePlanFooter } from './Step03Plan';
 import { pluraliseHint } from './format';
 import type { OnboardingDraft, OnboardingStep } from './types';
 import styles from './OnboardingFlow.module.css';
@@ -103,13 +104,20 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
     ? () => dispatch({ type: 'NEXT' } satisfies OnboardingAction)
     : undefined;
 
-  // NEXT-disabled rules: per-step gates. Steps 3..4 still placeholder so
-  // they remain disabled until plans 24-06 / 24-08 ship.
+  // Step 03 footer (hint + tone + nextDisabled) — pure helper.
+  const step03Footer =
+    state.step === 3
+      ? computePlanFooter(state.income_cents, state.category_plans)
+      : null;
+
+  // NEXT-disabled rules: per-step gates. Step 4 still placeholder so it
+  // remains disabled until plan 24-08 ships.
   const nextDisabled = (() => {
     if (isFinal) return true;
     if (state.step === 1) return state.income_cents <= 0;
     if (state.step === 2) return state.accounts.length === 0;
-    // Steps 3..4 placeholder bodies — keep CTA muted.
+    if (state.step === 3) return step03Footer?.nextDisabled ?? true;
+    // Step 4 placeholder body — keep CTA muted.
     return true;
   })();
 
@@ -117,8 +125,17 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
   // Other steps allow back-stepping.
   const step01Back = undefined;
 
-  // Step 02 hint shows pluralised account count + total balance.
-  const hint = state.step === 2 ? pluraliseHint(state.accounts) : undefined;
+  // Hint per step:
+  //  - step 2 → pluralised account count + total balance
+  //  - step 3 → live plan-vs-income counter (computePlanFooter)
+  const hint =
+    state.step === 2
+      ? pluraliseHint(state.accounts)
+      : state.step === 3
+        ? step03Footer?.hint
+        : undefined;
+  const hintTone: 'normal' | 'overflow' =
+    state.step === 3 ? (step03Footer?.tone ?? 'normal') : 'normal';
 
   const renderStepBody = () => {
     if (state.step === 1) {
@@ -134,6 +151,15 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
         <Step02Accounts accounts={state.accounts} dispatch={dispatch} />
       );
     }
+    if (state.step === 3) {
+      return (
+        <Step03Plan
+          incomeCents={state.income_cents}
+          categoryPlans={state.category_plans}
+          dispatch={dispatch}
+        />
+      );
+    }
     return <PlaceholderStep step={state.step} />;
   };
 
@@ -146,6 +172,7 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
         onNext={onNext}
         nextDisabled={nextDisabled}
         hint={hint}
+        hintTone={hintTone}
       >
         {renderStepBody()}
       </OnboardingChrome>
