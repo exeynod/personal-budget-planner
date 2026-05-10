@@ -29,6 +29,7 @@ from app.api.dependencies import (
 from app.api.schemas.subscriptions import (
     ChargeNowResponse,
     SubscriptionCreate,
+    SubscriptionPostResponse,
     SubscriptionRead,
     SubscriptionUpdate,
 )
@@ -194,4 +195,119 @@ async def charge_now(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="subscription not found",
+        ) from exc
+
+
+# ---------- Phase 22 (v1.0) — POST/UNPOST endpoints (BE-13) ----------
+#
+# These v1.0 routes wrap the post/unpost service-layer functions added in
+# plan 22.09. They live alongside the legacy CRUD + charge-now endpoints
+# (which remain unchanged for v0.x compatibility — only their schemas were
+# extended in plan 22.12). Threat model: see plan 22.13 PLAN.md
+# <threat_model> entries T-22-13-07 (post race) and T-22-13-08 (info-disc).
+
+
+@router.post(
+    "/{sub_id}/post",
+    response_model=SubscriptionPostResponse,
+    status_code=status.HTTP_200_OK,
+    responses={
+        404: {"description": "Subscription not found / cross-tenant"},
+        409: {"description": "Already posted (T-22-09-01) or inactive"},
+        422: {"description": "Subscription has no account_id"},
+    },
+)
+async def post_subscription(
+    sub_id: int,
+    db: Annotated[AsyncSession, Depends(get_db_with_tenant_scope)],
+    user_id: Annotated[int, Depends(get_current_user_id)],
+) -> SubscriptionPostResponse:
+    """POST /api/v1/subscriptions/{id}/post — manual «провести в факт» (BE-13).
+
+    Service contract: see ``app.services.subscriptions.post_subscription``.
+
+    Status codes:
+        200: posted; returns ``{txn_id, subscription_id, posted_at}``.
+        404: subscription not found / cross-tenant.
+        409: ``SubscriptionAlreadyPostedError`` (idempotency, T-22-09-01) OR
+             ``SubscriptionInactiveError`` (T-22-09-05).
+        422: subscription has no ``account_id`` (cannot apply balance delta).
+    """
+    try:
+        txn = await sub_service.post_subscription(db, sub_id, user_id=user_id)
+    except LookupError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
+        ) from exc
+    except sub_service.SubscriptionAlreadyPostedError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "error": "already_posted",
+                "subscription_id": exc.sub_id,
+                "posted_txn_id": exc.posted_txn_id,
+            },
+        ) from exc
+    except sub_service.SubscriptionInactiveError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "error": "subscription_inactive",
+                "subscription_id": exc.sub_id,
+            },
+        ) from exc
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
+        ) from exc
+
+    return SubscriptionPostResponse(
+        txn_id=txn.id,
+        subscription_id=sub_id,
+        posted_at=(
+            txn.created_at.isoformat()
+            if getattr(txn, "created_at", None) is not None
+            else ""
+        ),
+    )
+
+
+@router.post(
+    "/{sub_id}/unpost",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses={
+        404: {
+            "description": (
+                "Subscription not found / cross-tenant OR not currently posted"
+            )
+        },
+    },
+)
+async def unpost_subscription(
+    sub_id: int,
+    db: Annotated[AsyncSession, Depends(get_db_with_tenant_scope)],
+    user_id: Annotated[int, Depends(get_current_user_id)],
+) -> None:
+    """POST /api/v1/subscriptions/{id}/unpost — отменить ручную проводку (BE-13).
+
+    Service contract: see ``app.services.subscriptions.unpost_subscription``.
+
+    Status codes:
+        204: unposted (linked actual_transaction deleted; balance restored).
+        404: subscription not found / cross-tenant OR ``posted_txn_id IS NULL``
+             (per T-22-09-03 — there is nothing to unpost).
+    """
+    try:
+        await sub_service.unpost_subscription(db, sub_id, user_id=user_id)
+    except LookupError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
+        ) from exc
+    except sub_service.SubscriptionNotPostedError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "error": "not_posted",
+                "subscription_id": exc.sub_id,
+            },
         ) from exc
