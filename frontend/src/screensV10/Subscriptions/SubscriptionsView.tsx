@@ -62,7 +62,7 @@ export function SubscriptionsView(props: SubscriptionsViewProps) {
 
       {/* ─────────── eyebrow ─────────── */}
       <div className={styles.eyebrowRow}>
-        <Eyebrow color="var(--poster-ink)">SUBSCRIPTIONS</Eyebrow>
+        <Eyebrow color="var(--poster-paper)">SUBSCRIPTIONS</Eyebrow>
       </div>
 
       {/* ─────────── headline ─────────── */}
@@ -71,18 +71,20 @@ export function SubscriptionsView(props: SubscriptionsViewProps) {
       </Mass>
 
       {/* ─────────── BigFig monthly_total ₽/мес ─────────── */}
+      {/* Phase 29-04 §6 Subscriptions BLOCKER #2 — size 86 → 56 per
+       * prototype/poster-screens.jsx:1097 (was +30px out of ±4px). */}
       <BigFig
         value={monthlyRubles}
         sup="₽/мес"
-        size={86}
-        color="var(--poster-ink)"
+        size={56}
+        color="var(--poster-paper)"
         animate={props.bigFigAnimate ?? true}
         className={styles.bigFig}
       />
 
       {/* ─────────── eyebrow N АКТИВНЫХ · Y ₽ В ГОД ─────────── */}
       <div className={styles.statsRow}>
-        <Eyebrow color="var(--poster-ink)">
+        <Eyebrow color="var(--poster-paper)">
           {`${activeCount} АКТИВНЫХ · ${yearlyRubles.toLocaleString('ru-RU')} ₽ В ГОД`}
         </Eyebrow>
       </div>
