@@ -10,10 +10,19 @@
 //   - T-24-02-01: non-digit input chars are stripped before dispatch
 //   - T-24-02-02: paste >100M ₽ is clamped to the cap
 
-import { describe, it, expect, vi } from 'vitest';
-import { render, fireEvent, screen } from '@testing-library/react';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import {
+  render,
+  fireEvent,
+  screen,
+  cleanup,
+} from '@testing-library/react';
 import { Step01Income } from '../Step01Income';
 import { formatRubles, THIN_SPACE } from '../format';
+
+// Vitest config has `globals: false`, so RTL's auto-cleanup-on-import is
+// inactive — register it explicitly to keep DOM isolated between tests.
+afterEach(cleanup);
 
 describe('formatRubles', () => {
   it('returns "0" for 0 cents', () => {
@@ -67,10 +76,16 @@ describe('Step01Income — render', () => {
 
   it('renders the 4 preset chips (50/80/120/200K)', () => {
     render(<Step01Income incomeCents={0} dispatch={vi.fn()} />);
-    expect(screen.getByText(`50${THIN_SPACE}000 ₽`)).toBeInTheDocument();
-    expect(screen.getByText(`80${THIN_SPACE}000 ₽`)).toBeInTheDocument();
-    expect(screen.getByText(`120${THIN_SPACE}000 ₽`)).toBeInTheDocument();
-    expect(screen.getByText(`200${THIN_SPACE}000 ₽`)).toBeInTheDocument();
+    // Match each chip by regex against the normalised group of digits +
+    // ₽ — RTL's default text matcher is finicky about exact U+202F.
+    const presets = screen.getAllByRole('button', { name: /\d.*₽/ });
+    const labels = presets.map((b) => b.textContent ?? '');
+    expect(labels).toEqual([
+      `50${THIN_SPACE}000 ₽`,
+      `80${THIN_SPACE}000 ₽`,
+      `120${THIN_SPACE}000 ₽`,
+      `200${THIN_SPACE}000 ₽`,
+    ]);
   });
 });
 
@@ -115,7 +130,8 @@ describe('Step01Income — input change', () => {
     const input = screen.getByRole('textbox') as HTMLInputElement;
     // 1e15 rubles → exceeds 100_000_000 ₽ cap.
     fireEvent.change(input, { target: { value: '1000000000000000' } });
-    const last = dispatch.mock.calls.at(-1)?.[0];
+    const calls = dispatch.mock.calls;
+    const last = calls[calls.length - 1]?.[0];
     expect(last).toEqual({
       type: 'SET_INCOME',
       payload: { income_cents: 100_000_000_00 },
@@ -124,10 +140,23 @@ describe('Step01Income — input change', () => {
 });
 
 describe('Step01Income — preset chips', () => {
+  function findChipByText(text: string): HTMLElement {
+    const chips = screen.getAllByRole('button', { name: /\d.*₽/ });
+    const found = chips.find((c) => (c.textContent ?? '') === text);
+    if (!found) {
+      throw new Error(
+        `chip "${text}" not found among ${chips
+          .map((c) => JSON.stringify(c.textContent))
+          .join(', ')}`,
+      );
+    }
+    return found;
+  }
+
   it('clicking 80 000 ₽ dispatches SET_INCOME with 8_000_000 cents', () => {
     const dispatch = vi.fn();
     render(<Step01Income incomeCents={0} dispatch={dispatch} />);
-    fireEvent.click(screen.getByText(`80${THIN_SPACE}000 ₽`));
+    fireEvent.click(findChipByText(`80${THIN_SPACE}000 ₽`));
     expect(dispatch).toHaveBeenCalledWith({
       type: 'SET_INCOME',
       payload: { income_cents: 8_000_000 },
@@ -137,7 +166,7 @@ describe('Step01Income — preset chips', () => {
   it('clicking 200 000 ₽ dispatches SET_INCOME with 20_000_000 cents', () => {
     const dispatch = vi.fn();
     render(<Step01Income incomeCents={0} dispatch={dispatch} />);
-    fireEvent.click(screen.getByText(`200${THIN_SPACE}000 ₽`));
+    fireEvent.click(findChipByText(`200${THIN_SPACE}000 ₽`));
     expect(dispatch).toHaveBeenCalledWith({
       type: 'SET_INCOME',
       payload: { income_cents: 20_000_000 },
@@ -148,14 +177,14 @@ describe('Step01Income — preset chips', () => {
     const { rerender } = render(
       <Step01Income incomeCents={8_000_000} dispatch={vi.fn()} />,
     );
-    const chip80 = screen.getByText(`80${THIN_SPACE}000 ₽`);
+    const chip80 = findChipByText(`80${THIN_SPACE}000 ₽`);
     expect(chip80.getAttribute('data-active')).toBe('true');
     // Switching to 50K should swap the active chip.
     rerender(<Step01Income incomeCents={5_000_000} dispatch={vi.fn()} />);
-    const chip50 = screen.getByText(`50${THIN_SPACE}000 ₽`);
+    const chip50 = findChipByText(`50${THIN_SPACE}000 ₽`);
     expect(chip50.getAttribute('data-active')).toBe('true');
     expect(
-      screen.getByText(`80${THIN_SPACE}000 ₽`).getAttribute('data-active'),
+      findChipByText(`80${THIN_SPACE}000 ₽`).getAttribute('data-active'),
     ).toBe('false');
   });
 });

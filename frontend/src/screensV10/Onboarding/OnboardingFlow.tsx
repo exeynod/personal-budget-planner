@@ -17,6 +17,7 @@ import type { OnboardingAction } from './onboardingReducer';
 import { useOnboardingDraft } from './useOnboardingDraft';
 import type { UseOnboardingDraftHook } from './useOnboardingDraft';
 import { OnboardingChrome } from './OnboardingChrome';
+import { Step01Income } from './Step01Income';
 import type { OnboardingDraft, OnboardingStep } from './types';
 import styles from './OnboardingFlow.module.css';
 
@@ -87,7 +88,7 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
   void onComplete;
 
   const isFinal = state.step === 5;
-  const label = isFinal ? '' : STEP_LABELS[state.step];
+  const label = isFinal ? '' : STEP_LABELS[state.step as 1 | 2 | 3 | 4];
 
   const onBack =
     state.step > 1
@@ -111,16 +112,28 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
     return true;
   })();
 
+  // Step 01 has the only Step 01 also explicitly hides the back arrow
+  // (no previous screen). Other placeholder steps allow back-stepping
+  // for QA convenience.
+  const step01Back = undefined;
+
   return (
     <div className={styles.flow}>
       <OnboardingChrome
         step={state.step}
         label={label}
-        onBack={onBack}
+        onBack={state.step === 1 ? step01Back : onBack}
         onNext={onNext}
         nextDisabled={nextDisabled}
       >
-        <PlaceholderStep step={state.step} />
+        {state.step === 1 ? (
+          <Step01Income
+            incomeCents={state.income_cents}
+            dispatch={dispatch}
+          />
+        ) : (
+          <PlaceholderStep step={state.step} />
+        )}
       </OnboardingChrome>
     </div>
   );
