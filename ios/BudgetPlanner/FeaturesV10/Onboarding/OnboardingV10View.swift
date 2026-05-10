@@ -25,7 +25,9 @@ import SwiftUI
 
 struct OnboardingV10View: View {
     @Bindable var flow: OnboardingFlow
-    var onComplete: (OnboardingAPIResponse) -> Void
+    /// Called by FinalView on 200 (response) or 409 (nil after toast). 422
+    /// / network errors keep the user on Final; onComplete is NOT called.
+    var onComplete: (OnboardingAPIResponse?) -> Void
 
     var body: some View {
         Group {
