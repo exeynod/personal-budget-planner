@@ -52,6 +52,11 @@
   line-height: 1.0;
 }
 
+/* ───── eyebrow count row (below headline) ───── */
+.eyebrowCountRow {
+  margin-top: 4px;
+}
+
 /* ───── chip-bar ───── */
 .chipBar {
   display: flex;
@@ -79,8 +84,12 @@
 }
 .dayLabel {
   /* DM Serif italic 28px paper — fall back to PT Serif (Cyrillic per ADR-001).
-   * The exact CSS variable depends on tokens; we list the fallbacks here. */
-  font-family: var(--poster-font-dm-serif), var(--poster-font-pt-serif), 'PT Serif', 'DM Serif Display', Georgia, serif;
+   * Phase 29-04 §2 Transactions BLOCKER #3: the previous
+   * `var(--poster-font-dm-serif)` / `var(--poster-font-pt-serif)` tokens
+   * are NOT defined in stylesV10/tokens.css — they resolved to empty and
+   * the chain fell through to literal `'PT Serif'`. Use the canonical
+   * `*-italic` tokens that ARE defined (tokens.css lines 28-29). */
+  font-family: var(--poster-font-dm-serif-italic), var(--poster-font-pt-serif-italic), 'PT Serif', 'DM Serif Display', Georgia, serif;
   font-style: italic;
   font-size: 28px;
   color: var(--poster-paper);
@@ -183,7 +192,8 @@
   opacity: 0.85;
 }
 .emptyHeadline {
-  font-family: var(--poster-font-dm-serif), var(--poster-font-pt-serif), 'PT Serif', Georgia, serif;
+  /* Phase 29-04 §2 BLOCKER #3 — see .dayLabel comment above. */
+  font-family: var(--poster-font-dm-serif-italic), var(--poster-font-pt-serif-italic), 'PT Serif', Georgia, serif;
   font-style: italic;
   font-size: 36px;
   color: var(--poster-paper);

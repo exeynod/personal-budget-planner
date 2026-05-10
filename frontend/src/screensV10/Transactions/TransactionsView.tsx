@@ -110,18 +110,25 @@ export function TransactionsView(props: TransactionsViewProps) {
         </button>
       </div>
 
-      {/* ─────────── eyebrow row ─────────── */}
+      {/* ─────────── eyebrow (top, standalone) ─────────── */}
+      {/* Per prototype/poster-screens.jsx:331 — «SECTION II» sits ABOVE
+       * the Mass headline on its own line; the count eyebrow lives BELOW
+       * the headline (rendered after Mass). */}
       <div className={styles.eyebrowRow}>
         <Eyebrow color="var(--poster-paper)">SECTION II</Eyebrow>
-        <Eyebrow color="var(--poster-paper)">
-          {`${headerCount} ЗАПИСЕЙ · ${formatRubles(headerSumCents)} ₽`}
-        </Eyebrow>
       </div>
 
       {/* ─────────── headline ─────────── */}
-      <Mass italic size={88} className={styles.headlineMass}>
+      <Mass italic size={70} className={styles.headlineMass}>
         Реестр.
       </Mass>
+
+      {/* ─────────── eyebrow count (below mass, dimmed) ─────────── */}
+      <div className={styles.eyebrowCountRow}>
+        <Eyebrow color="var(--poster-paper)" opacity={0.6}>
+          {`${headerCount} ЗАПИСЕЙ · ${formatRubles(headerSumCents)} ₽`}
+        </Eyebrow>
+      </div>
 
       {/* ─────────── chip-bar ─────────── */}
       <div className={styles.chipBar} role="tablist" aria-label="Фильтр транзакций">
