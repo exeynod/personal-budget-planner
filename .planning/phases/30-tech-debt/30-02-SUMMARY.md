@@ -118,9 +118,17 @@ HomeView root `<div>` directly — the sentinel approach has zero visual impact
 and works uniformly for loading / error / ready states without needing prop
 plumbing into HomeView / TransactionsView.
 
-## Self-Check
+## Self-Check: PASSED
 
-Confirmed below in the `## Self-Check` section appended after writing this file.
+Files verified on disk:
+- `frontend/src/screensV10/common/RefetchContext.tsx`
+- `frontend/src/screensV10/AddSheet/AccountPickerSheet.tsx`
+- `frontend/src/screensV10/AddSheet/AccountPickerSheet.module.css`
+- `frontend/src/screensV10/AddSheet/__tests__/AccountPickerSheet.test.tsx`
+- `frontend/src/screensV10/Home/__tests__/HomeMount.refetch.test.tsx`
+- `frontend/src/screensV10/Transactions/__tests__/TransactionsMount.refetch.test.tsx`
+
+Commit verified: `f5fe509` — feat(30-02): AddSheet refetch + AccountPickerSheet (DEBT-02+03 web)
 
 ## TDD Gate Compliance
 
