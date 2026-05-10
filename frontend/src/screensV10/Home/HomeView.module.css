@@ -1,0 +1,213 @@
+/* Phase 25-04: HomeView (coral) — static layout styles.
+ *
+ * Animations live in stylesV10/animations.css (.poster-row-in / .poster-bar-fill);
+ * this module owns layout, typography baseline, and tone-fixed colours.
+ *
+ * Mirror of prototype/poster-screens.jsx PosterHome (lines 202-299), adapted
+ * to the existing componentsV10 primitives.
+ */
+
+.root {
+  position: absolute;
+  inset: 0;
+  background: var(--poster-coral);
+  color: var(--poster-paper);
+  padding: 56px 22px 90px;
+  overflow: auto;
+  font-family: var(--poster-font-manrope), system-ui, sans-serif;
+}
+
+/* ───── header row ───── */
+.headerRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+.menuLink {
+  font-family: var(--poster-font-jet-brains-mono), ui-monospace, monospace;
+  font-size: 11px;
+  opacity: 0.7;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  /* Phase 27 will wire this; for now it's a static placeholder. */
+  cursor: default;
+  user-select: none;
+}
+
+/* ───── hero block ───── */
+.heroHeadline {
+  margin-top: 6px;
+  line-height: 1.05;
+}
+.heroHeadlineMass {
+  color: var(--poster-paper);
+  opacity: 0.75;
+}
+.heroBigFig {
+  margin-top: 14px;
+}
+.heroSubline {
+  margin-top: 6px;
+  font-family: var(--poster-font-jet-brains-mono), ui-monospace, monospace;
+  font-size: 11px;
+  opacity: 0.7;
+  letter-spacing: 0.06em;
+}
+.walletLink {
+  cursor: pointer;
+  border-bottom: 1px dashed rgba(255, 246, 232, 0.4);
+  /* Inherit colour/font from parent .heroSubline. */
+}
+
+/* ───── plan plate ───── */
+.planPlate {
+  margin-top: 14px;
+  padding: 10px 12px;
+  background: rgba(0, 0, 0, 0.22);
+  color: var(--poster-paper);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  gap: 10px;
+}
+.planLabel {
+  font-family: var(--poster-font-jet-brains-mono), ui-monospace, monospace;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  opacity: 0.7;
+  text-transform: uppercase;
+}
+.planRight {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.planAmount {
+  font-family: var(--poster-font-jet-brains-mono), ui-monospace, monospace;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.planAmountPositive {
+  color: var(--poster-yellow);
+}
+.planAmountNegative {
+  color: var(--poster-red);
+}
+.planChevron {
+  font-family: var(--poster-font-jet-brains-mono), ui-monospace, monospace;
+  font-size: 14px;
+  opacity: 0.55;
+}
+
+/* ───── categories block ───── */
+.categoriesBlock {
+  margin-top: 22px;
+}
+.categoriesHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 6px;
+}
+.allOpsLink {
+  cursor: pointer;
+  font-family: var(--poster-font-jet-brains-mono), ui-monospace, monospace;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--poster-paper);
+  opacity: 0.7;
+  border-bottom: 1px dashed rgba(255, 246, 232, 0.4);
+}
+
+.categoryRow {
+  padding: 10px 0;
+  border-top: 1px solid rgba(255, 246, 232, 0.22);
+  cursor: pointer;
+}
+.categoryRowGrid {
+  display: grid;
+  grid-template-columns: 1fr auto 14px;
+  gap: 10px;
+  align-items: baseline;
+  font-size: 13px;
+  font-weight: 700;
+}
+.categoryRowName {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+}
+.categoryOrd {
+  opacity: 0.5;
+  font-size: 11px;
+  font-family: var(--poster-font-jet-brains-mono), ui-monospace, monospace;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+}
+.categoryName {
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.categoryRowMeta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.overPlate {
+  font-family: var(--poster-font-archivo-black), system-ui, sans-serif;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  padding: 3px 6px;
+  background: var(--poster-paper);
+  color: var(--poster-ink);
+}
+.categoryPct {
+  font-family: var(--poster-font-jet-brains-mono), ui-monospace, monospace;
+}
+.categoryChevron {
+  font-family: var(--poster-font-jet-brains-mono), ui-monospace, monospace;
+  font-size: 13px;
+  opacity: 0.5;
+  text-align: right;
+}
+
+.barTrack {
+  margin-top: 6px;
+  height: 3px;
+  background: rgba(255, 246, 232, 0.15);
+  position: relative;
+  overflow: hidden;
+}
+.barFill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  background: var(--poster-paper);
+  transform-origin: left center;
+}
+.barFillOver {
+  background: var(--poster-yellow);
+}
+.barBreakTick {
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  width: 1px;
+  background: var(--poster-paper);
+  opacity: 0.6;
+}
+
+.amountsRow {
+  margin-top: 4px;
+  font-family: var(--poster-font-jet-brains-mono), ui-monospace, monospace;
+  font-size: 11px;
+  opacity: 0.6;
+  display: flex;
+  justify-content: space-between;
+}

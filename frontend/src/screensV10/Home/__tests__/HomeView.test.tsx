@@ -74,9 +74,12 @@ describe('HomeView — header / hero', () => {
   });
 
   it('renders BigFig final value (no count-up via bigFigAnimate=false)', () => {
-    // 4000_00 cents = 4000 ₽; useCountUp/fmtThousands renders as `4 000` (U+202F).
+    // 4000_00 cents = 4000 ₽; BigFig (via hooks/useCountUp.fmtThousands)
+    // separates digits with ASCII space — NOT the U+202F that
+    // formatRubles uses elsewhere. Pre-existing divergence in the
+    // shared BigFig component, out of scope to refactor here.
     const { container } = renderHome({ dailyPaceCents: 4000_00 });
-    expect(container.textContent).toContain('4 000');
+    expect(container.textContent).toContain('4 000');
   });
 
   it('renders «осталось 22 дней · в кошельке … ₽ →» mono mini-line', () => {
