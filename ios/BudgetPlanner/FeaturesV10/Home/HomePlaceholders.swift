@@ -41,16 +41,13 @@ private struct PosterPlaceholder: View {
     }
 }
 
+/// Phase 27-09 (gap-fix during milestone audit, zero-touch swap):
+/// superseded — now renders the real `AccountsListV10View`. Kept under
+/// the old type name so HomeV10View's wallet-link tap callsite (Plan 25-05)
+/// continues to work without modification — same pattern as the other
+/// PlaceholderView swaps (Plans 25-09, 26-03, 26-05).
 struct AccountsListPlaceholderView: View {
-    var body: some View {
-        PosterPlaceholder(
-            section: "WALLET",
-            title: "Кошелёк.",
-            note: "WIP — Accounts list (Phase 27).",
-            bg: PosterTokens.Color.cream,
-            fg: PosterTokens.Color.ink
-        )
-    }
+    var body: some View { AccountsListV10View() }
 }
 
 /// Phase 26-05 (zero-touch swap): superseded — now renders the real

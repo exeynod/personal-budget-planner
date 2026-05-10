@@ -21,6 +21,7 @@ import { SettingsMount } from './SettingsMount';
 import { AccessMount } from './AccessMount';
 import { AccountsListMount } from '../Accounts';
 import { AnalyticsMount } from '../Analytics';
+import { SubscriptionsMount } from '../Subscriptions';
 
 export function MgmtHubMount() {
   const router = usePosterRouter();
@@ -48,6 +49,8 @@ export function MgmtHubMount() {
       router.push(<AccountsListMount />);
     } else if (id === 'analytics') {
       router.push(<AnalyticsMount />);
+    } else if (id === 'subscriptions') {
+      router.push(<SubscriptionsMount />);
     } else if (id === 'settings') {
       router.push(<SettingsMount />);
     } else if (id === 'access') {

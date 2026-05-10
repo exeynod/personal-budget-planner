@@ -32,7 +32,9 @@ import { getCurrentPeriod } from '../../api/periods';
 import type { PeriodRead } from '../../api/types';
 import { Eyebrow, PosterButton } from '../../componentsV10';
 import { formatPeriodEyebrow, usePosterRouter } from '../common';
-import { AccountsListPlaceholder } from '../_placeholders';
+// Phase 27-04 (gap-fix during milestone audit): real AccountsListMount
+// replaces AccountsListPlaceholder for HOME-V10-02 wallet-link tap target.
+import { AccountsListMount } from '../Accounts';
 // Phase 25-08: real Transactions registry replaces the prior WIP placeholder.
 import { TransactionsMount } from '../Transactions';
 // Phase 26-02: real CategoryDetail replaces the prior WIP placeholder.
@@ -108,7 +110,7 @@ export function HomeMount() {
 
   // ─────────── push handlers (router-bound) ───────────
   const onWalletTap = useCallback(() => {
-    router.push(<AccountsListPlaceholder />);
+    router.push(<AccountsListMount />);
   }, [router]);
   const onPlanTap = useCallback(() => {
     router.push(<PlanMount />);

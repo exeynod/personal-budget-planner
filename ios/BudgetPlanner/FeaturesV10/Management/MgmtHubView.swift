@@ -31,7 +31,7 @@ struct MgmtHubView: View {
     @State private var model = MgmtHubViewModel()
     @Environment(\.posterRouter) private var router
 
-    private enum RowId: String { case plan, accounts, analytics, settings, access }
+    private enum RowId: String { case plan, accounts, analytics, subscriptions, settings, access }
 
     private struct Row: Identifiable {
         let id: RowId
@@ -41,11 +41,12 @@ struct MgmtHubView: View {
     }
 
     private let rows: [Row] = [
-        Row(id: .plan,      n: "01", name: "PLAN МЕСЯЦА", ownerOnly: false),
-        Row(id: .accounts,  n: "02", name: "СЧЕТА",        ownerOnly: false),
-        Row(id: .analytics, n: "03", name: "АНАЛИТИКА",    ownerOnly: false),
-        Row(id: .settings,  n: "04", name: "НАСТРОЙКИ",    ownerOnly: false),
-        Row(id: .access,    n: "05", name: "ДОСТУП",       ownerOnly: true),
+        Row(id: .plan,          n: "01", name: "PLAN МЕСЯЦА", ownerOnly: false),
+        Row(id: .accounts,      n: "02", name: "СЧЕТА",        ownerOnly: false),
+        Row(id: .analytics,     n: "03", name: "АНАЛИТИКА",    ownerOnly: false),
+        Row(id: .subscriptions, n: "04", name: "ПОДПИСКИ",     ownerOnly: false),
+        Row(id: .settings,      n: "05", name: "НАСТРОЙКИ",    ownerOnly: false),
+        Row(id: .access,        n: "06", name: "ДОСТУП",       ownerOnly: true),
     ]
 
     var body: some View {
@@ -131,6 +132,11 @@ struct MgmtHubView: View {
         case .analytics:
             // Sibling Plan 27-10 real view (zero-touch swap from stub).
             router.push(AnalyticsV10View())
+        case .subscriptions:
+            // Phase 27 milestone-audit gap-fix (W-01): wire Plan 26-07
+            // SubscriptionsV10View into Mgmt-хаб so SUBS-V10-01..04 reach
+            // the user from the in-app router (was orphaned).
+            router.push(SubscriptionsV10View())
         case .settings:
             router.push(SettingsV10View())
         case .access:
