@@ -1,0 +1,7 @@
+.eyebrow {
+  font-family: 'JetBrains Mono Variable', 'JetBrains Mono', monospace;
+  font-size: var(--poster-font-size-eye);
+  font-weight: 600;
+  letter-spacing: var(--poster-tracking-eye);
+  text-transform: uppercase;
+}
