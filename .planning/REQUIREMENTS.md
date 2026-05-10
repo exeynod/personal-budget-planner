@@ -17,6 +17,7 @@
 - [ ] **DEBT-05** — Web Transactions row swipe-left delete (parity с iOS swipeActions); fallback right-click context menu для desktop.
 - [ ] **DEBT-06** — iOS PosterStyle.swift + KeypadView.swift press-feedback uses `.posterAnimation(...)` modifier (replace bare `.animation()`); reduce-motion respected.
 - [ ] **DEBT-07** — iOS SettingsAPI extracted to own `SettingsAPI.swift` file (cosmetic re-org per Plan 27-11 frontmatter intent).
+- [ ] **DEBT-08** — Настраиваемый цвет фона Home-экрана. User в Management → Настройки выбирает один из палитры цветов (coral default / cobalt / black / cream); выбор сохраняется (`localStorage['ui.home-color']` для web, `@AppStorage("ui.home-color")` для iOS) и применяется к Home при загрузке (`--color-home` CSS-var override / `homeBackground` token resolver на iOS). Изменение мгновенно отражается на Home без перезагрузки.
 
 ## Phase 31 — Regression Hardening
 
@@ -43,6 +44,7 @@
 | DEBT-05 | Phase 30 | Pending |
 | DEBT-06 | Phase 30 | Pending |
 | DEBT-07 | Phase 30 | Pending |
+| DEBT-08 | Phase 30 | Pending |
 | REG-01 | Phase 31 | Pending |
 | REG-02 | Phase 31 | Pending |
 | REG-03 | Phase 31 | Pending |

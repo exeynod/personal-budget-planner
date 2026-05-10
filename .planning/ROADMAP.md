@@ -32,9 +32,9 @@
 - [ ] 29-05-PLAN.md — Re-snapshot pixel baselines + DIVERGENCES.md WARNING/INFO append (UICONF-04 verify + UICONF-05)
 
 ### Phase 30: Tech Debt Cleanup
-**Goal**: Закрыть 7 achievable v1.0 tech debt items: pre-existing TS errors (analytics.ts, AiView.tsx, TxV10TabDemote.test.tsx), AddSheet refetch-after-submit, account picker UI upgrade (web+iOS), iOS Subscription editor error surface, web swipe-left delete, iOS press-feedback animation transition, iOS SettingsAPI file split.
+**Goal**: Закрыть 7 achievable v1.0 tech debt items + 1 user-feature: pre-existing TS errors (analytics.ts, AiView.tsx, TxV10TabDemote.test.tsx), AddSheet refetch-after-submit, account picker UI upgrade (web+iOS), iOS Subscription editor error surface, web swipe-left delete, iOS press-feedback animation transition, iOS SettingsAPI file split, + Home screen color customization picker (DEBT-08, продвинуто из v1.1 backlog DF-V11-04 по запросу 2026-05-11).
 **Depends on**: Phase 29 (UI fixes might overlap with these files)
-**Requirements**: DEBT-01..DEBT-07
+**Requirements**: DEBT-01..DEBT-08
 **Success Criteria**:
 1. tsc --noEmit clean (DEBT-01: TS errors resolved).
 2. AddSheet submit triggers parent screen refetch (Home + Transactions) — no stale data (DEBT-02).
@@ -43,6 +43,7 @@
 5. Web Transactions row supports swipe-left delete (parity with iOS) (DEBT-05).
 6. iOS press-feedback in PosterStyle.swift + KeypadView.swift uses .posterAnimation (not bare .animation) (DEBT-06).
 7. iOS SettingsAPI moved to its own file (DEBT-07 cosmetic).
+8. User в Management→Настройки выбирает цвет Home-экрана (4 swatches: coral/cobalt/black/cream); сохранение в localStorage / @AppStorage, мгновенное применение без перезагрузки (DEBT-08).
 
 ### Phase 31: Regression Hardening
 **Goal**: Добавить test fixtures для onboarded user, починить Playwright §14 acceptance + pixel snapshot tests; добавить iOS testRoundRubles + testCycleDayClampedInFebruary test bug fixes (или isolate как broken); finalize CI green.

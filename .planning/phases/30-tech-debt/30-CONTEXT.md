@@ -17,6 +17,7 @@
 5. **DEBT-05** — Web Transactions row swipe-left delete (parity с iOS)
 6. **DEBT-06** — iOS PosterStyle.swift + KeypadView.swift press-feedback uses .posterAnimation (not bare .animation)
 7. **DEBT-07** — iOS SettingsAPI extracted to own file (cosmetic)
+8. **DEBT-08** — Настраиваемый цвет Home-экрана. User в Management → Настройки выбирает цвет фона Home из палитры (coral / cobalt / black / cream). Сохранение: `localStorage['ui.home-color']` (web) / `@AppStorage("ui.home-color")` (iOS). Применение мгновенно — CSS-var `--color-home` override (web) и token resolver (iOS).
 
 </domain>
 
@@ -37,6 +38,7 @@
 - **DEBT-05 swipe:** add `react-swipeable` или native CSS scroll-snap для swipe-left → expose delete button. Right-click → context-menu fallback.
 - **DEBT-06 anim:** simple grep + replace `.animation(.easeOut(duration: X), value: pressed)` → `.posterAnimation(PosterAnimations.snap, value: pressed)` (or appropriate posterAnimation alias).
 - **DEBT-07 file split:** `git mv` SettingsAPI enum from TransactionsAPI.swift to new SettingsAPI.swift; update imports.
+- **DEBT-08 home color:** новый row в Management→Настройки «Цвет Home». Palette: coral (default) / cobalt / black / cream — все 4 уже определены в `tokens.css` и `PosterTokens.swift`. Web: новый `HomeColorPicker.tsx` (bottom-sheet с 4 swatches + ✓ на выбранном); `HomeMount.tsx` читает `localStorage['ui.home-color']` и применяет CSS-var override `style={{ '--color-home': ... }}` на root container. iOS: `HomeColorPickerSheet.swift` (PosterSheet с 4 colorChip); `HomeView.swift` читает `@AppStorage("ui.home-color")` и резолвит `homeBackground` через switch. Default = coral если не задано.
 
 </decisions>
 
@@ -67,6 +69,7 @@
 - 30-04: Subscription editor error surface (DEBT-04 web+iOS)
 - 30-05: Web swipe-left delete (DEBT-05)
 - 30-06: iOS press-feedback animation switch + SettingsAPI file split (DEBT-06 + DEBT-07)
+- 30-07: Home color customization web+iOS (DEBT-08) — picker UI в Management, persistence, mount-уровень apply
 
 </specifics>
 
@@ -75,6 +78,6 @@
 
 - AI rule-engine NLP/personalization (v1.1, large scope)
 - ACCT-V10 «ПЕРЕВОД» account-to-account transfer (v1.1, full feature)
-- Background-color toggle DF-V11-04 (v1.1)
+- ~~Background-color toggle DF-V11-04 (v1.1)~~ — продвинуто в Phase 30 DEBT-08 (user request 2026-05-11)
 - woff2 +16% size optimization (v1.1, requires font subset re-export)
 </deferred>
