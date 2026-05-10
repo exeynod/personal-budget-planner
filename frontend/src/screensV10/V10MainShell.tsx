@@ -25,10 +25,12 @@
 //   - While sheet is open, BottomNavV10.isHidden=true → nav unmounted (no DOM).
 //   - Sheet dismissal: AddSheet's own × button (with dirty-form gate),
 //     Escape key, backdrop tap, drag-to-close → setAddSheet(false) → nav reappears.
-//   - On successful submit (createActualV10 ok) → onSubmitted(_id) → close sheet.
-//     Refetch of Home / Transactions deferred to Plan 25-12 polish (user can
-//     pop back to Home for fresh data; submit is rare-enough that staleness
-//     is a minor UX gap, not a correctness issue).
+//   - On successful submit (createActualV10 ok) → onSubmitted(_id) → close sheet
+//     AND bump `refetchToken` so HomeMount/TransactionsMount re-run their fetch
+//     effect (Phase 30-02 DEBT-02). The token is a monotonic counter; both
+//     mounts include it in their `useEffect` deps array via the `refetchToken`
+//     prop. Tests can observe the bump via the `parent-refetched` sentinel
+//     rendered alongside each mount.
 //
 // Tab-tap routing (Phase 27 wiring — Plan 27-06 connects Mgmt-hub for real,
 // Savings/AI use temporary stubs from Management/_externalMountStubs.tsx until
@@ -47,6 +49,7 @@ import {
   PosterRouterView,
   PosterSheet,
   BottomNavV10,
+  RefetchTokenProvider,
   usePosterRouter,
 } from './common';
 import type { TabId } from '../componentsV10';
@@ -117,34 +120,41 @@ function ShellChrome({ active, onTab, onFab, isAddSheetOpen }: ShellChromeProps)
 export function V10MainShell() {
   const [active, setActive] = useState<TabId>('home');
   const [isAddSheetOpen, setAddSheet] = useState(false);
+  // Phase 30-02 (DEBT-02): monotonic counter — bumped on AddSheet submit
+  // success. HomeMount / TransactionsMount include the token in their
+  // `useEffect` deps so a fresh fetch fires immediately after submit.
+  const [refetchToken, setRefetchToken] = useState(0);
 
   const closeSheet = () => setAddSheet(false);
 
   return (
     <>
-      <PosterRouterProvider root={<OnboardingMount />}>
-        <ShellChrome
-          active={active}
-          onTab={setActive}
-          onFab={() => setAddSheet(true)}
-          isAddSheetOpen={isAddSheetOpen}
-        />
-      </PosterRouterProvider>
-      <PosterSheet
-        isOpen={isAddSheetOpen}
-        onClose={closeSheet}
-        backgroundColor="#0E0E0E"
-      >
-        <AddSheet
-          onSubmitted={(_id) => {
-            // Plan 25-10: simply close the sheet — refetch deferred to 25-12
-            // polish (user can pop back to Home for fresh data; submit is
-            // rare-enough that staleness is a minor UX gap, not correctness).
-            setAddSheet(false);
-          }}
+      <RefetchTokenProvider value={refetchToken}>
+        <PosterRouterProvider root={<OnboardingMount />}>
+          <ShellChrome
+            active={active}
+            onTab={setActive}
+            onFab={() => setAddSheet(true)}
+            isAddSheetOpen={isAddSheetOpen}
+          />
+        </PosterRouterProvider>
+        <PosterSheet
+          isOpen={isAddSheetOpen}
           onClose={closeSheet}
-        />
-      </PosterSheet>
+          backgroundColor="#0E0E0E"
+        >
+          <AddSheet
+            onSubmitted={(_id) => {
+              // Phase 30-02 (DEBT-02): close the sheet AND bump refetchToken
+              // so HomeMount / TransactionsMount re-fetch with fresh actuals.
+              // Replaces the Plan 25-10 «refetch deferred to 25-12» note.
+              setAddSheet(false);
+              setRefetchToken((t) => t + 1);
+            }}
+            onClose={closeSheet}
+          />
+        </PosterSheet>
+      </RefetchTokenProvider>
     </>
   );
 }

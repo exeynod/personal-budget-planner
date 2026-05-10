@@ -31,7 +31,7 @@ import {
 import { getCurrentPeriod } from '../../api/periods';
 import type { PeriodRead } from '../../api/types';
 import { Eyebrow, PosterButton } from '../../componentsV10';
-import { formatPeriodEyebrow, usePosterRouter } from '../common';
+import { formatPeriodEyebrow, useRefetchToken, usePosterRouter } from '../common';
 // Phase 27-04 (gap-fix during milestone audit): real AccountsListMount
 // replaces AccountsListPlaceholder for HOME-V10-02 wallet-link tap target.
 import { AccountsListMount } from '../Accounts';
@@ -72,6 +72,11 @@ export function HomeMount() {
   const router = usePosterRouter();
   const [state, setState] = useState<LoadState>({ status: 'loading' });
   const [reloadToken, setReloadToken] = useState(0);
+  // Phase 30-02 (DEBT-02): AddSheet submit bumps this token via V10MainShell
+  // → RefetchTokenProvider → useRefetchToken. We include it in the fetch
+  // effect deps so Home actuals refresh immediately after a successful POST.
+  // Falls back to `0` outside the provider (unit tests rendering Mount alone).
+  const refetchToken = useRefetchToken();
   // Phase 30-07 (DEBT-08): user's saved Home background color (default coral).
   // Setter is wired up in SettingsMount; here we only read for rendering.
   const [homeColor] = useHomeColor();
@@ -110,7 +115,8 @@ export function HomeMount() {
     return () => {
       cancelled = true;
     };
-  }, [reloadToken]);
+    // refetchToken in deps: external bump (AddSheet submit) re-runs the fetch.
+  }, [reloadToken, refetchToken]);
 
   // ─────────── push handlers (router-bound) ───────────
   const onWalletTap = useCallback(() => {
@@ -178,33 +184,59 @@ export function HomeMount() {
     };
   }, [state]);
 
+  // Phase 30-02 (DEBT-02): hidden sentinel that surfaces the current
+  // refetchToken value so Playwright / vitest can assert «parent re-fetched
+  // after AddSheet submit» without inspecting fetch mocks. Hidden via
+  // `display: none` so it has zero visual impact.
+  const refetchSentinel = (
+    <span
+      data-testid="parent-refetched"
+      data-refetch-token={refetchToken}
+      style={{ display: 'none' }}
+      aria-hidden="true"
+    />
+  );
+
   // ─────────── render ───────────
-  if (state.status === 'loading') return <LoadingPlate />;
+  if (state.status === 'loading') {
+    return (
+      <>
+        {refetchSentinel}
+        <LoadingPlate />
+      </>
+    );
+  }
   if (state.status === 'error') {
     return (
-      <ErrorPlate
-        message={state.message}
-        onRetry={() => setReloadToken((t) => t + 1)}
-      />
+      <>
+        {refetchSentinel}
+        <ErrorPlate
+          message={state.message}
+          onRetry={() => setReloadToken((t) => t + 1)}
+        />
+      </>
     );
   }
   // status === 'ready' → vm is non-null.
-  if (!vm) return null;
+  if (!vm) return refetchSentinel;
 
   return (
-    <HomeView
-      eyebrow={vm.eyebrow}
-      dailyPaceCents={vm.dailyPaceCents}
-      daysLeft={vm.daysLeft}
-      walletCents={vm.walletCents}
-      surplusCents={vm.surplusCents}
-      categoryRows={vm.categoryRows}
-      onWalletTap={onWalletTap}
-      onPlanTap={onPlanTap}
-      onCategoryTap={onCategoryTap}
-      onAllOperationsTap={onAllOperationsTap}
-      homeColor={homeColor}
-    />
+    <>
+      {refetchSentinel}
+      <HomeView
+        eyebrow={vm.eyebrow}
+        dailyPaceCents={vm.dailyPaceCents}
+        daysLeft={vm.daysLeft}
+        walletCents={vm.walletCents}
+        surplusCents={vm.surplusCents}
+        categoryRows={vm.categoryRows}
+        onWalletTap={onWalletTap}
+        onPlanTap={onPlanTap}
+        onCategoryTap={onCategoryTap}
+        onAllOperationsTap={onAllOperationsTap}
+        homeColor={homeColor}
+      />
+    </>
   );
 }
 

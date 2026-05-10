@@ -5,6 +5,12 @@
 
 export { AddSheet, type AddSheetProps } from './AddSheet';
 export { Keypad, type KeypadProps } from './Keypad';
+// Phase 30-02 (DEBT-03): bottom-sheet account picker — usually consumed
+// inside AddSheet, but exported for direct rendering in tests.
+export {
+  AccountPickerSheet,
+  type AccountPickerSheetProps,
+} from './AccountPickerSheet';
 export {
   appendDigit,
   appendDot,

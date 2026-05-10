@@ -35,7 +35,7 @@ import {
 import { getCurrentPeriod } from '../../api/periods';
 import { deleteActual } from '../../api/actual';
 import { Eyebrow, PosterButton } from '../../componentsV10';
-import { PosterSheet, usePosterRouter } from '../common';
+import { PosterSheet, useRefetchToken, usePosterRouter } from '../common';
 import { TransactionsView } from './TransactionsView';
 import {
   applyFilterChip,
@@ -65,6 +65,11 @@ export function TransactionsMount() {
   const [reloadToken, setReloadToken] = useState(0);
   const [chip, setChip] = useState<TxFilterChip>('all');
   const [editingTx, setEditingTx] = useState<ActualV10Read | null>(null);
+  // Phase 30-02 (DEBT-02): AddSheet submit bumps this token via V10MainShell
+  // → RefetchTokenProvider → useRefetchToken. Including it in the fetch-effect
+  // deps array refreshes the registry immediately after a new tx is created.
+  // Falls back to `0` outside the provider (unit tests rendering Mount alone).
+  const refetchToken = useRefetchToken();
 
   // ─────────── fetch effect ───────────
   useEffect(() => {
@@ -100,7 +105,8 @@ export function TransactionsMount() {
     return () => {
       cancelled = true;
     };
-  }, [reloadToken]);
+    // refetchToken in deps: external bump (AddSheet submit) re-runs the fetch.
+  }, [reloadToken, refetchToken]);
 
   // Stable today reference for the duration of this render — recreated each
   // render is fine (Date construction is cheap; useMemo would over-engineer).
@@ -135,20 +141,43 @@ export function TransactionsMount() {
   }, [router]);
   const handleEditClose = useCallback(() => setEditingTx(null), []);
 
+  // Phase 30-02 (DEBT-02): hidden sentinel surfacing the current refetchToken.
+  // Same role as in HomeMount — lets tests assert «registry re-fetched after
+  // AddSheet submit» without inspecting fetch mocks. Hidden via inline style.
+  const refetchSentinel = (
+    <span
+      data-testid="parent-refetched"
+      data-refetch-token={refetchToken}
+      style={{ display: 'none' }}
+      aria-hidden="true"
+    />
+  );
+
   // ─────────── render ───────────
-  if (state.status === 'loading') return <LoadingPlate />;
-  if (state.status === 'error') {
+  if (state.status === 'loading') {
     return (
-      <ErrorPlate
-        message={state.message}
-        onRetry={() => setReloadToken((t) => t + 1)}
-      />
+      <>
+        {refetchSentinel}
+        <LoadingPlate />
+      </>
     );
   }
-  if (!vm) return null;
+  if (state.status === 'error') {
+    return (
+      <>
+        {refetchSentinel}
+        <ErrorPlate
+          message={state.message}
+          onRetry={() => setReloadToken((t) => t + 1)}
+        />
+      </>
+    );
+  }
+  if (!vm) return refetchSentinel;
 
   return (
     <>
+      {refetchSentinel}
       <TransactionsView
         headerCount={vm.summary.count}
         headerSumCents={vm.summary.sumCents}

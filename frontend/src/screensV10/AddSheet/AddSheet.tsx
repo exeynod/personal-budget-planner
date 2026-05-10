@@ -18,10 +18,15 @@
 //   - T-25-10-04: amount built via Keypad → digit/dot tokens only;
 //     parseAmountToCents validates input + createActualV10 enforces > 0.
 //
-// Refresh strategy after submit (per Plan note): caller is responsible for
-// any refetch. AddSheet only signals success via onSubmitted(txId); the
-// Plan 25-12 polish pass may add a global refresh-bump if user testing
-// flags stale Home/Transactions data after submit.
+// Refresh strategy after submit: AddSheet still only signals success via
+// onSubmitted(txId). Phase 30-02 (DEBT-02) wires V10MainShell to bump a
+// RefetchTokenProvider value in that callback so HomeMount/TransactionsMount
+// re-run their fetch effects. AddSheet itself stays caller-agnostic.
+//
+// Account selection (Phase 30-02 DEBT-03): the account row no longer cycles
+// through accounts on tap. Instead it opens AccountPickerSheet (a bottom-sheet
+// list); selecting a row writes the id back via onSelectAccount and closes
+// the picker. Replaces the legacy `onCycleAccount` UX.
 
 import {
   useEffect,
@@ -40,6 +45,7 @@ import {
 } from '../../api/v10';
 import { formatTimeHM, MONTHS_RU_GENITIVE } from '../common';
 import { Keypad } from './Keypad';
+import { AccountPickerSheet } from './AccountPickerSheet';
 import {
   appendDigit,
   appendDot,
@@ -142,6 +148,10 @@ export function AddSheet({ onSubmitted, onClose }: AddSheetProps) {
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  // Phase 30-02 (DEBT-03): bottom-sheet account picker replaces the
+  // tap-to-cycle behaviour. The button on the account row now opens
+  // a PosterSheet-based list instead of advancing the selection in-place.
+  const [accountPickerOpen, setAccountPickerOpen] = useState(false);
   // We mount once for the «NEW ENTRY · {date} · {time}» eyebrow.
   const today = useMemo(() => new Date(), []);
   const dateInputRef = useRef<HTMLInputElement | null>(null);
@@ -258,15 +268,19 @@ export function AddSheet({ onSubmitted, onClose }: AddSheetProps) {
     }
   };
 
-  // ── Account picker (lightweight inline cycler) ────────────────────
-  // Phase 25-10 ships a cycler-style picker (tap row → next account).
-  // Plan 25-12 polish pass may upgrade this to a dedicated PosterSheet.
-  const onCycleAccount = () => {
+  // ── Account picker (bottom-sheet — Phase 30-02 DEBT-03) ──────────
+  // Replaces the previous tap-to-cycle behaviour: tap on the account row
+  // opens AccountPickerSheet (a PosterSheet-rendered list); selecting a
+  // row writes back via `setAccountId` and closes the picker.
+  const onOpenAccountPicker = () => {
     if (accounts.length === 0) return;
-    const idx = accounts.findIndex((a) => a.id === accountId);
-    const next = accounts[(idx + 1) % accounts.length];
-    setAccountId(next.id);
+    setAccountPickerOpen(true);
   };
+  const onSelectAccount = (id: number) => {
+    setAccountId(id);
+    setAccountPickerOpen(false);
+  };
+  const onCloseAccountPicker = () => setAccountPickerOpen(false);
 
   // ── Render ────────────────────────────────────────────────────────
   return (
@@ -383,8 +397,10 @@ export function AddSheet({ onSubmitted, onClose }: AddSheetProps) {
         <button
           type="button"
           className={styles.accountRow}
-          onClick={onCycleAccount}
+          onClick={onOpenAccountPicker}
           data-testid="add-sheet-account-row"
+          aria-haspopup="dialog"
+          aria-expanded={accountPickerOpen}
         >
           <span className={styles.accountValue}>
             {currentAccount
@@ -461,6 +477,19 @@ export function AddSheet({ onSubmitted, onClose }: AddSheetProps) {
           </div>
         </div>
       ) : null}
+
+      {/* Phase 30-02 (DEBT-03): bottom-sheet account picker.
+       * Rendered AFTER the cancel-confirm overlay so its PosterSheet portal
+       * is appended to document.body and layers above the AddSheet's own
+       * dark background. Open state lives in `accountPickerOpen`.
+       */}
+      <AccountPickerSheet
+        isOpen={accountPickerOpen}
+        accounts={accounts}
+        selectedAccountId={accountId}
+        onSelect={onSelectAccount}
+        onClose={onCloseAccountPicker}
+      />
     </div>
   );
 }

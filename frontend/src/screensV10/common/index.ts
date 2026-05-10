@@ -21,6 +21,14 @@ export { PosterSheet, type PosterSheetProps } from './PosterSheet';
 
 export { BottomNavV10, type BottomNavV10Props } from './BottomNavV10';
 
+// Phase 30-02 (DEBT-02): refetch-token context so AddSheet submit triggers
+// HomeMount / TransactionsMount re-fetch without prop-drilling.
+export {
+  RefetchTokenProvider,
+  useRefetchToken,
+  type RefetchTokenProviderProps,
+} from './RefetchContext';
+
 export {
   MONTHS_EN,
   MONTHS_RU_GENITIVE,

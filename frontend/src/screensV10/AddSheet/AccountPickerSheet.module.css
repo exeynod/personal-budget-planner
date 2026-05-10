@@ -1,0 +1,124 @@
+/* Phase 30-02 (DEBT-03): AccountPickerSheet — list-of-accounts bottom-sheet
+   replacing the row-cycler in AddSheet. Rendered inside a PosterSheet
+   (paper background) so it visually layers above the dark AddSheet.
+*/
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 18px 18px 28px;
+  color: var(--poster-ink);
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 4px 12px;
+}
+
+.title {
+  font-family: var(--poster-font-archivo-black), 'Archivo Black', sans-serif;
+  font-size: 18px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--poster-ink);
+}
+
+.subtitle {
+  font-family: var(--poster-font-jet-brains-mono), ui-monospace, monospace;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--poster-ink);
+  opacity: 0.55;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border-top: 1px solid rgba(14, 14, 14, 0.12);
+}
+
+.row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid rgba(14, 14, 14, 0.12);
+  color: var(--poster-ink);
+  padding: 16px 6px;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+}
+
+.row:hover {
+  background: rgba(14, 14, 14, 0.04);
+}
+
+.rowSelected {
+  background: rgba(14, 14, 14, 0.06);
+}
+
+.rowLeft {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.rowName {
+  font-family: var(--poster-font-jet-brains-mono), ui-monospace, monospace;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--poster-ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rowBalance {
+  font-family: var(--poster-font-jet-brains-mono), ui-monospace, monospace;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--poster-ink);
+  opacity: 0.6;
+}
+
+.rowRight {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.badge {
+  font-family: var(--poster-font-archivo-black), 'Archivo Black', sans-serif;
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  background: var(--poster-yellow);
+  color: var(--poster-ink);
+  padding: 4px 6px;
+  line-height: 1;
+}
+
+.check {
+  font-family: var(--poster-font-jet-brains-mono), ui-monospace, monospace;
+  font-size: 14px;
+  color: var(--poster-ink);
+}
+
+.empty {
+  font-family: var(--poster-font-jet-brains-mono), ui-monospace, monospace;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  opacity: 0.6;
+  padding: 24px 6px;
+  text-align: center;
+}
