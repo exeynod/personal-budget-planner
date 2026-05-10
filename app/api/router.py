@@ -59,7 +59,8 @@ from app.api.routes.auth import auth_router
 from app.api.routes.categories import categories_router
 from app.api.routes.internal_bot import internal_bot_router
 from app.api.routes.internal_telegram import internal_telegram_router
-from app.api.routes.onboarding import onboarding_router
+from app.api.routes.onboarding import onboarding_router  # noqa: F401  (legacy, kept importable)
+from app.api.routes.onboarding_v10 import onboarding_v10_router
 from app.api.routes.periods import periods_router
 from app.api.routes.planned import planned_router
 from app.api.routes.settings import settings_router
@@ -127,7 +128,12 @@ async def get_me(
 # Each sub-router brings its own router-level Depends(get_current_user).
 public_router.include_router(categories_router)
 public_router.include_router(periods_router)
-public_router.include_router(onboarding_router)
+# Phase 22 (plan 22.13): legacy onboarding_router is REPLACED by the v1.0
+# router below. Per CONTEXT D-04 v0.x backwards compat is dropped — single
+# user, single client. The legacy module remains importable so any deferred
+# code paths (tests/manual scripts) can still reference it.
+# public_router.include_router(onboarding_router)  # noqa: E800  (replaced)
+public_router.include_router(onboarding_v10_router)
 public_router.include_router(settings_router)
 
 # Phase 3 sub-routers — share the same /api/v1 prefix and bring their own
