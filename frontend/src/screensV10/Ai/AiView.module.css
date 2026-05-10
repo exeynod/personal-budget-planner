@@ -12,11 +12,13 @@
  *   - posterDot (3-dot typing loop) referenced by `.dot` keyframe usage.
  */
 
+/* Phase 29-04 §8 AI BLOCKERs #1+#2 — cream bg + ink text per
+ * DESIGN-SYSTEM.md §1 palette rule «AI → cream / ink / red». */
 .root {
   position: absolute;
   inset: 0;
-  background: var(--poster-black, #0e0e0e);
-  color: var(--poster-paper, #fff6e8);
+  background: var(--poster-cream, #f4ead9);
+  color: var(--poster-ink, #1b1a18);
   padding: 56px 22px 90px;
   display: flex;
   flex-direction: column;
@@ -38,7 +40,7 @@
   font-weight: 700;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--poster-paper, #fff6e8);
+  color: var(--poster-ink, #1b1a18);
   background: transparent;
   border: 0;
   padding: 0;
@@ -56,9 +58,11 @@
   min-height: 0;
 }
 .observation {
+  /* Phase 29-04 §8 BLOCKER #3 (token ref) — switch to canonical
+   * *-italic tokens defined in stylesV10/tokens.css. */
   font-family:
-    var(--poster-font-dm-serif),
-    var(--poster-font-pt-serif),
+    var(--poster-font-dm-serif-italic),
+    var(--poster-font-pt-serif-italic),
     'PT Serif',
     Georgia,
     serif;
@@ -66,21 +70,21 @@
   font-weight: 400;
   font-size: 36px;
   line-height: 1.18;
-  color: var(--poster-paper, #fff6e8);
+  color: var(--poster-ink, #1b1a18);
   letter-spacing: -0.005em;
   margin-top: 8px;
 }
 .obsError {
   font-family:
-    var(--poster-font-dm-serif),
-    var(--poster-font-pt-serif),
+    var(--poster-font-dm-serif-italic),
+    var(--poster-font-pt-serif-italic),
     'PT Serif',
     Georgia,
     serif;
   font-style: italic;
   font-size: 18px;
   line-height: 1.3;
-  color: rgba(255, 108, 108, 0.92);
+  color: var(--poster-red, #c24a2a);
   margin-top: 4px;
 }
 
@@ -102,16 +106,17 @@
   padding: 14px 0;
   background: transparent;
   border: 0;
-  border-bottom: 1px solid rgba(255, 246, 232, 0.22);
-  color: var(--poster-paper, #fff6e8);
+  /* Ink-on-cream separator (was paper-on-black). */
+  border-bottom: 1px solid rgba(27, 26, 24, 0.22);
+  color: var(--poster-ink, #1b1a18);
   display: flex;
   justify-content: space-between;
   align-items: center;
   text-align: left;
   cursor: pointer;
   font-family:
-    var(--poster-font-dm-serif),
-    var(--poster-font-pt-serif),
+    var(--poster-font-dm-serif-italic),
+    var(--poster-font-pt-serif-italic),
     'PT Serif',
     Georgia,
     serif;
@@ -151,12 +156,14 @@
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
 }
+/* Phase 29-04 §8 AI BLOCKER #4 — DS §4 «Радиусы: 0 на 95% компонентов».
+ * border-radius 4px → 0 on user bubble, AI bubble, and composer input. */
 .msgUser {
   align-self: flex-end;
-  background: var(--poster-paper, #fff6e8);
-  color: var(--poster-ink, #1a1a1a);
+  background: var(--poster-ink, #1b1a18);
+  color: var(--poster-paper, #fff6e8);
   padding: 10px 14px;
-  border-radius: 4px;
+  border-radius: 0;
   font-family: var(--poster-font-jet-brains-mono), ui-monospace, monospace;
   font-size: 13px;
   line-height: 1.4;
@@ -167,13 +174,13 @@
 .msgAi {
   align-self: flex-start;
   background: transparent;
-  color: var(--poster-paper, #fff6e8);
-  border: 1px solid rgba(255, 246, 232, 0.32);
+  color: var(--poster-ink, #1b1a18);
+  border: 1px solid rgba(27, 26, 24, 0.32);
   padding: 12px 14px;
-  border-radius: 4px;
+  border-radius: 0;
   font-family:
-    var(--poster-font-dm-serif),
-    var(--poster-font-pt-serif),
+    var(--poster-font-dm-serif-italic),
+    var(--poster-font-pt-serif-italic),
     'PT Serif',
     Georgia,
     serif;
@@ -194,7 +201,9 @@
 .dot {
   width: 6px;
   height: 6px;
-  background: var(--poster-paper, #fff6e8);
+  background: var(--poster-ink, #1b1a18);
+  /* posterDot indicator is the documented exception to DS §4 («0 на 95%»):
+   * dots are circles, so the 50% radius is intentional. */
   border-radius: 50%;
   display: inline-block;
   animation: posterDot 1.2s infinite ease-in-out;
@@ -210,33 +219,38 @@
 }
 
 /* ───────────────── composer (sticky) ───────────────── */
+/* Phase 29-04 §8 BLOCKER #5 — composer is now a single inline ink-bg
+ * plate per prototype line 486-501; placeholder input + yellow «↵
+ * ОТПРАВИТЬ» pill live INSIDE the plate (not as separate layers).
+ * Border-radius: 0 enforced (DS §4). */
 .composer {
   position: sticky;
   bottom: 0;
   left: 0;
   right: 0;
-  background: var(--poster-black, #0e0e0e);
-  padding: 14px 0 6px;
+  background: var(--poster-ink, #1b1a18);
+  color: var(--poster-cream, #f4ead9);
+  padding: 14px 16px;
   display: flex;
   gap: 8px;
   align-items: center;
   flex-shrink: 0;
-  border-top: 1px solid rgba(255, 246, 232, 0.08);
+  border-top: 0;
 }
 .composerInput {
   flex: 1 1 auto;
   font-family: var(--poster-font-jet-brains-mono), ui-monospace, monospace;
   font-size: 14px;
-  background: rgba(255, 246, 232, 0.10);
+  background: transparent;
   border: 0;
-  color: var(--poster-paper, #fff6e8);
+  color: var(--poster-cream, #f4ead9);
   padding: 12px 14px;
-  border-radius: 4px;
+  border-radius: 0;
   outline: none;
   caret-color: var(--poster-yellow, #f6c845);
 }
 .composerInput::placeholder {
-  color: rgba(255, 246, 232, 0.45);
+  color: rgba(244, 234, 217, 0.5);
   font-family: var(--poster-font-jet-brains-mono), ui-monospace, monospace;
 }
 .composerInput:disabled {

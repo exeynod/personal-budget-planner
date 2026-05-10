@@ -110,7 +110,7 @@ export function AiView(props: AiViewProps) {
         ) : (
           <span />
         )}
-        <Eyebrow color="var(--poster-paper)">AI · ASSISTANT / ONLINE</Eyebrow>
+        <Eyebrow color="var(--poster-ink)">AI · ASSISTANT / ONLINE</Eyebrow>
       </header>
 
       {/* ─────────── body: initial vs active ─────────── */}
@@ -131,12 +131,12 @@ export function AiView(props: AiViewProps) {
               {observationError}
             </div>
           )}
-          <Eyebrow color="var(--poster-paper)">
+          <Eyebrow color="var(--poster-ink)">
             — из ваших данных, {todayLabel}
           </Eyebrow>
 
           <div className={styles.chipsHeader}>
-            <Eyebrow color="var(--poster-paper)">ПОДСКАЗКИ · ТАПНИ</Eyebrow>
+            <Eyebrow color="var(--poster-ink)">ПОДСКАЗКИ · ТАПНИ</Eyebrow>
           </div>
           <ul className={styles.chips} data-testid="ai-chips">
             {suggestionChips.map((chip, i) => (
