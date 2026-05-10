@@ -173,12 +173,20 @@ final class AddSheetViewModel {
 
     // MARK: - Wire date format (DATE on the API)
 
-    /// Static DateFormatter — `yyyy-MM-dd`, UTC (server-side DATE has no TZ).
+    /// Static DateFormatter — `yyyy-MM-dd`, business TZ `Europe/Moscow`.
+    ///
+    /// CR-25-02 (review fix): formatting `Date()` in UTC shifts the calendar
+    /// day for users east of UTC after their local 21:00, sending the txn
+    /// to the wrong budget period. CLAUDE.md §Conventions pins period
+    /// boundaries to `Europe/Moscow`; the web `computeAddSheet.ts` uses
+    /// local-time components for the same reason. Falls back to `.current`
+    /// only if the named TZ is unknown (defensive — should never happen on
+    /// supported iOS versions).
     /// Lazy-initialized once per process.
     private static let txDateFormatter: DateFormatter = {
         let f = DateFormatter()
         f.dateFormat = "yyyy-MM-dd"
-        f.timeZone = TimeZone(identifier: "UTC")
+        f.timeZone = TimeZone(identifier: "Europe/Moscow") ?? .current
         f.locale = Locale(identifier: "en_US_POSIX")
         return f
     }()
