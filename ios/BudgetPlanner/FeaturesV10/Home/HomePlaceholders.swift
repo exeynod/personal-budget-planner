@@ -65,16 +65,15 @@ struct PlanViewPlaceholderView: View {
     }
 }
 
+/// Phase 26-03 (zero-touch swap): superseded — now renders the real
+/// `CategoryDetailView`. Kept under the old type name so HomeV10View's
+/// `router?.push(CategoryDetailPlaceholderView(categoryId:))` callsite
+/// (Plan 25-05) continues to work without modification — same pattern as
+/// TransactionsViewPlaceholderView (Plan 25-09).
 struct CategoryDetailPlaceholderView: View {
     let categoryId: Int
     var body: some View {
-        PosterPlaceholder(
-            section: "CATEGORY",
-            title: "Категория #\(categoryId).",
-            note: "WIP — Category detail (Phase 26).",
-            bg: PosterTokens.Color.cream,
-            fg: PosterTokens.Color.ink
-        )
+        CategoryDetailView(categoryId: categoryId)
     }
 }
 
