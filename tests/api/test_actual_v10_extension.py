@@ -269,7 +269,6 @@ async def seeded_with_account_savings_and_categories(db_setup, owner_tg_id):
         CategoryKind,
         PeriodStatus,
         SavingsConfig,
-        SavingsRoundupBase,
     )
     from datetime import timedelta
 
@@ -295,6 +294,8 @@ async def seeded_with_account_savings_and_categories(db_setup, owner_tg_id):
         session.add(acct)
 
         # Categories — expense food + system savings.
+        # NOTE: Category.ord is NOT NULL CHAR(2) per migration 0013 — must
+        # supply a 2-char ordinal even in tests (CHECK enforces format).
         food_cat = Category(
             user_id=user_id,
             name="Кафе",
@@ -303,6 +304,7 @@ async def seeded_with_account_savings_and_categories(db_setup, owner_tg_id):
             is_archived=False,
             sort_order=10,
             plan_cents=500_00,
+            ord="01",
         )
         savings_cat = Category(
             user_id=user_id,
@@ -312,14 +314,18 @@ async def seeded_with_account_savings_and_categories(db_setup, owner_tg_id):
             is_archived=False,
             sort_order=99,
             plan_cents=0,
+            ord="99",
         )
         session.add_all([food_cat, savings_cat])
 
-        # SavingsConfig — roundup enabled, base=10.
+        # SavingsConfig — roundup enabled, base=10. The DB CHECK enforces
+        # roundup_base IN (10, 50, 100) literally; the existing v0.x roundup
+        # service uses ``int(cfg.roundup_base)`` directly as the rounding
+        # granularity in the same unit as ``amount_cents`` (копейки).
         cfg = SavingsConfig(
             user_id=user_id,
             roundup_enabled=True,
-            roundup_base=SavingsRoundupBase.r10,
+            roundup_base=10,
         )
         session.add(cfg)
 

@@ -54,6 +54,7 @@ from app.api.schemas.actual import (
 from app.db.models import ActualSource
 from app.services import actual as actual_svc
 from app.services import periods as periods_svc
+from app.services.accounts import AccountNotFoundError
 from app.services.actual import ActualNotFoundError, FutureDateError
 from app.services.categories import CategoryNotFoundError
 from app.services.planned import (
@@ -116,23 +117,75 @@ async def create_actual(
 
     D-52: if no BudgetPeriod covers ``tx_date``, one is auto-created (scoped by user_id).
 
+    D-25-01 (Phase 25, plan 25-01): when ``account_id`` is supplied, the
+    handler delegates to ``create_actual_v10`` which applies a balance delta
+    to the account and runs the roundup hook (Phase 22 BE-07). Legacy clients
+    that omit ``account_id`` continue using ``create_actual`` — no balance
+    side-effect, no roundup child. This dispatch lets v0.x bots / older Mini
+    App builds keep working untouched while the v1.0 UI passes ``account_id``
+    explicitly to enable the wallet/savings story.
+
+    Cross-tenant ``account_id`` (account exists but belongs to another user)
+    surfaces as 404 (not 403) — REST convention is to not leak existence of
+    out-of-scope resources (T-25-01-01). The composite FK
+    ``fk_actual_account_composite`` on ``actual_transaction`` would otherwise
+    raise IntegrityError → 500; we pre-validate via ``accounts.get_or_404`` so
+    the error path stays clean.
+
     Status codes:
         200: created
         400: FutureDateError / InvalidCategoryError / KindMismatchError
-        404: category not found
+        404: category not found OR cross-tenant / missing account_id
         422: Pydantic validation
     """
     try:
-        row = await actual_svc.create_actual(
-            db,
-            user_id=user_id,
-            kind=body.kind,
-            amount_cents=body.amount_cents,
-            description=body.description,
-            category_id=body.category_id,
-            tx_date=body.tx_date,
-            source=ActualSource.mini_app,
-        )
+        if body.account_id is not None:
+            # T-25-01-01 mitigation — pre-validate the account belongs to the
+            # caller's tenant BEFORE the parent INSERT. Without this check the
+            # composite FK ``fk_actual_account_composite`` (account_id, user_id)
+            # raises IntegrityError → 500 for a cross-tenant account_id.
+            # ``get_or_404`` raises ``AccountNotFoundError`` → 404 below.
+            from app.services.accounts import get_or_404 as _account_or_404
+
+            await _account_or_404(
+                db, user_id=user_id, account_id=body.account_id
+            )
+
+            # Plan 25-01 v10 dispatch — service applies balance delta +
+            # roundup hook in the same DB transaction. Returns
+            # ``(parent, child_or_None)``; we only return the parent because
+            # callers query the period listing for the child txn separately.
+            parent, _child = await actual_svc.create_actual_v10(
+                db,
+                user_id=user_id,
+                kind=body.kind,
+                amount_cents=body.amount_cents,
+                description=body.description,
+                category_id=body.category_id,
+                tx_date=body.tx_date,
+                source=ActualSource.mini_app,
+                account_id=body.account_id,
+            )
+            row = parent
+        else:
+            # Legacy v0.x path — preserved for backwards compatibility
+            # (T-25-01-04 — explicit fallback prevents silent regressions
+            # for v0.x clients that never opted into account_id).
+            row = await actual_svc.create_actual(
+                db,
+                user_id=user_id,
+                kind=body.kind,
+                amount_cents=body.amount_cents,
+                description=body.description,
+                category_id=body.category_id,
+                tx_date=body.tx_date,
+                source=ActualSource.mini_app,
+            )
+    except AccountNotFoundError as exc:
+        # Plan 25-01: cross-tenant or non-existent account_id → 404.
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
+        ) from exc
     except CategoryNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
