@@ -7,6 +7,9 @@ export {
   PosterRouterProvider,
   PosterRouterView,
   usePosterRouter,
+  // WR-25-07 (review fix): soft-fallback variant for previews / standalone
+  // use without `<PosterRouterProvider>`.
+  usePosterRouterOptional,
   MAX_STACK,
   type PosterRouterAPI,
   type PosterRouterProviderProps,

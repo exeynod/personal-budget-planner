@@ -140,6 +140,20 @@ export function usePosterRouter(): PosterRouterAPI {
 }
 
 /**
+ * Soft-fallback variant — returns `null` when there is no surrounding
+ * `<PosterRouterProvider>` instead of throwing. Use this in components
+ * that may also be rendered standalone (Storybook previews, isolated
+ * unit-tests, placeholder shells outside the v10 nav stack).
+ *
+ * WR-25-07 (review fix): added so `_placeholders.tsx` and similar
+ * components can degrade gracefully (hide back-buttons / no-op pop)
+ * without try/catch around `usePosterRouter`.
+ */
+export function usePosterRouterOptional(): PosterRouterAPI | null {
+  return useContext(RouterCtx);
+}
+
+/**
  * Renders only the top-of-stack entry inside an animated wrapper.
  *
  * The wrapper's `key={top.id}` causes React to remount the wrapper on every

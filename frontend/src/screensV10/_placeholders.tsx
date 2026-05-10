@@ -19,7 +19,12 @@
 
 import type { CSSProperties } from 'react';
 import { Eyebrow, Mass } from '../componentsV10';
-import { usePosterRouter } from './common';
+// WR-25-07 (review fix): use the soft-fallback variant so placeholders
+// can be rendered standalone (Storybook / preview) without requiring a
+// surrounding `<PosterRouterProvider>`. Production callsites still get
+// the full router (back button visible); standalone callsites just hide
+// the back button.
+import { usePosterRouterOptional } from './common';
 
 // ─────────── shared layout helper ───────────
 
@@ -32,7 +37,7 @@ interface PlaceholderShellProps {
 }
 
 function PlaceholderShell({ bg = 'var(--poster-cream)', fg = 'var(--poster-ink)', eyebrow, headline, hint }: PlaceholderShellProps) {
-  const router = usePosterRouter();
+  const router = usePosterRouterOptional();
   const root: CSSProperties = {
     position: 'absolute',
     inset: 0,
@@ -69,7 +74,7 @@ function PlaceholderShell({ bg = 'var(--poster-cream)', fg = 'var(--poster-ink)'
     <div style={root}>
       <div style={headerRow}>
         <Eyebrow color={fg}>{eyebrow}</Eyebrow>
-        {router.canPop && (
+        {router && router.canPop && (
           <span
             style={backLink}
             onClick={router.pop}
