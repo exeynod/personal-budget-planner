@@ -63,6 +63,7 @@ suppressed from the audit:
     21, что грамматически ОК для 21/31, но disagrees with prototype's
     static «ДНЯ» choice. Demoted to WARNING because the prototype
     itself doesn't pluralize.
+  - _Logged as DIVERGENCES.md §W-06._
 
 - **[INFO] BigFig count-up displays mid-flight value `184`/`214` в
   baseline PNG.**
@@ -74,6 +75,7 @@ suppressed from the audit:
     `animation-duration: 0s` kills CSS animations only, not rAF.
   - **Fix candidate** (informational): `freezeMotion` could monkey-patch
     `BigFig.value` to terminal synchronously.
+  - _Logged as DIVERGENCES.md §W-13._
 
 - **Other PASS items:**
   - Layout order (eyebrow → italic «Дневной темп —» 28px → BigFig 88px
@@ -129,12 +131,14 @@ suppressed from the audit:
   - **Actual:** `display:flex; overflow-x: auto` — чипы скроллятся
     горизонтально. Поведенческая divergence с visible impact, когда
     filter list растёт за viewport width.
+  - _Logged as DIVERGENCES.md §W-07._
 
 - **[INFO] Empty-state copy «Реестр пуст —» / «добавьте первую трату
   через FAB»** is impl's own creation (`TransactionsView.tsx:142-143`).
   Prototype shows «Ничего не найдено в фильтре «{filter}».»
   (`poster-screens.jsx:347-349`) — но ТОЛЬКО когда filter narrows to zero,
   not for a globally-empty registry. Justified design — INFO.
+  - _Logged as DIVERGENCES.md §W-14._
 
 ### 3. AddSheet
 
@@ -182,11 +186,13 @@ suppressed from the audit:
   В impl Keypad cells показываются на full opacity в screenshot.
   - **File:** `frontend/src/screensV10/AddSheet/Keypad.tsx` + `Keypad.module.css`.
   - Plan 29-04 to confirm via CSS read.
+  - _Logged as DIVERGENCES.md §W-08._
 
 - **[INFO] BigFig:** prototype `size={86}` yellow, impl `size={86}` yellow.
   PASS. Description input: prototype `fontFamily:'DM Serif Display',
   fontStyle:'italic', fontSize:24` — impl uses serif-italic; визуально
   совпадает в baseline. PASS pending CSS-exact match.
+  - _Logged as DIVERGENCES.md §W-15 (description CSS-exact deferred)._
 
 ### 4. CategoryDetail
 
@@ -246,6 +252,7 @@ suppressed from the audit:
 
 - **[WARNING] Mass headline size:** 70 (impl line 98) vs 68 (prototype
   line 528). 2px diff — WARNING tier.
+  - _Logged as DIVERGENCES.md §W-09._
 
 ### 5. PlanMonth
 
@@ -300,7 +307,7 @@ suppressed from the audit:
   - **Actual:** Блок прыгает с eyebrow прямо на первую regular row;
     summary plate omitted.
 
-- **[WARNING] Surplus plate visual style differs.**
+- **[RESOLVED] Surplus plate visual style differs.**
   - **File:** `frontend/src/screensV10/Plan/PlanView.module.css`
     (`.surplusPlate.ok` / `.overflow`)
   - **Expected (prototype `poster-screens.jsx:740-746`):** dark plate
@@ -309,6 +316,9 @@ suppressed from the audit:
     `left<0`); inline `OK` / `OVER` badge справа.
   - **Actual:** Custom `.surplusPlate.ok` / `.overflow` — full CSS
     comparison deferred к plan 29-04 inline review.
+  - _Resolved in plan 29-04 commit `46a8bcc` as part of PlanMonth
+    cluster; auto-fixed alongside the 5 PlanMonth BLOCKERs in the same
+    file. Not migrated to DIVERGENCES.md._
 
 - Note: BLOCKERs derived из source-code comparison (baseline PNG —
   wrong-screen). Plan 29-04 must regenerate the PlanMonth baseline
@@ -342,17 +352,20 @@ suppressed from the audit:
 
 - **[WARNING] Mass headline size:** 70 (impl line 69) vs 68 (prototype
   line 1095). 2px diff — WARNING tier.
+  - _Logged as DIVERGENCES.md §W-10._
 
 - **[WARNING] Empty-state typography использует литеральный
   `'DM Serif Display'` family напрямую (`SubscriptionsView.module.css:68`)
   вместо canonical token chain. Should reference
   `--poster-font-dm-serif-italic` для consistency.** Demoted to WARNING
   — visually identical, but not token-anchored.
+  - _Logged as DIVERGENCES.md §W-11._
 
 - **[INFO] Row trailing `···` rendered as `<button>` (impl line 110-118);
   prototype uses `<span>` plate с `background: rgba(0,0,0,0.18)`.**
   Prototype имеет небольшой dark plate around dots; impl — bare 22px
   char без plate. INFO.
+  - _Logged as DIVERGENCES.md §W-16._
 
 - **PASS items:** Layout order ← НАЗАД → eyebrow → Mass italic → BigFig
   → eyebrow «N АКТИВНЫХ · Y ₽ В ГОД» → list совпадает с prototype.
@@ -466,11 +479,13 @@ suppressed from the audit:
   `border-bottom` на каждом chip (`AiView.module.css:105`). Visual
   difference: prototype top-borders каждый row (первый row получает top
   line), impl bottom-borders (последний row получает bottom line).
+  - _Logged as DIVERGENCES.md §W-12._
 
 - **[INFO] Chip suggestion copy.** Prototype: «Сколько я потратил на
   еду?», «Запиши: кофе 350 ₽», «На что трачу больше всего?», «Шаблон на
   отпуск». Impl chips (из `computeAi.ts` default chips): другой список.
   Copy choice — product decision, не visual conformance.
+  - _Logged as DIVERGENCES.md §W-17._
 
 ---
 
@@ -524,6 +539,7 @@ These rows are NOT re-opened by this audit.
   - Expected (SCREENS §02): `Eyebrow: «SECTION II»` standalone.
   - Actual: `← НАЗАД` + `SECTION II` rendered inline (back chevron is per `I-02`/PosterNavStack contract — acceptable). The eyebrow part itself matches spec.
   - Severity downgrade: WARNING because the back button is a navigation affordance (acceptable per I-02), not extra eyebrow text.
+  - _Logged as DIVERGENCES.md §I-06 (covered by I-02 navigation contract; logged for audit traceability)._
 
 - **[INFO] Mass-italic «Реестр.» rendered at ~70pt** matches SCREENS §02 → PASS.
 
@@ -633,6 +649,7 @@ These rows are NOT re-opened by this audit.
   - Expected (SCREENS §11): «В МАЕ + X ₽» (Cyrillic locale).
   - Actual: «В MAY + 0 ₽» (default `DateFormatter` short Latin abbreviation).
   - Severity: **INFO** — locale formatting micro-issue; one-line fix (`DateFormatter.locale = Locale(identifier: "ru_RU")` or hardcoded month-in-Russian map). Logged for v1.1 (or fix inline in plan 29-04 if cheap).
+  - _Logged as DIVERGENCES.md §I-07._
 
 ---
 
@@ -660,6 +677,7 @@ These rows are NOT re-opened by this audit.
   - This is partly justified by the network error (acceptable degraded state) BUT the *fallback* itself is not the SCREENS §03 spec hero element. When the observation loads, it should be DM Serif italic 36px in **ink** on **cream**.
   - **Fix:** (a) Out-of-scope: fix dev environment to seed observation (plan 29-04 backend setup). (b) In-scope visually: confirm in code that `success` branch renders the spec hero. Source review of `AiV10View.swift` shows the observation IS rendered in DM Serif italic when present — so this finding reduces to **the bg-color BLOCKER above + an INFO note that the error-path was captured**.
   - **Severity (revised):** **INFO** (network error captured the wrong state, not a real layout bug).
+  - _Logged as DIVERGENCES.md §I-08 (audit-artefact, not a real layout bug)._
 
 - **[INFO] Hint chips «Сколько я потратил на кафе в мае?» etc. rendered in DM Serif italic with `→` arrows** — matches §03 «4 строки-чипа (DM Serif italic 18px) с →». PASS.
 - **[INFO] Eyebrow `ASSISTANT / ONLINE` is partially obscured by the device Dynamic Island in screenshot** — purely a screenshot-capture artifact (status bar overlap), not an app bug. The on-device layout offsets via safe-area inset (I-04).
