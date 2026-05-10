@@ -27,9 +27,20 @@ struct HomeV10View: View {
     @State private var model = HomeV10ViewModel()
     @Environment(\.posterRouter) private var router
 
+    // Phase 30-07 (DEBT-08): user-selected Home background color. Storage key
+    // mirrors web `ui.home-color`. SwiftUI rebinds the view whenever the
+    // backing UserDefaults value changes — picker tap propagates instantly
+    // because @AppStorage observes UserDefaults.didChangeNotification.
+    @AppStorage("ui.home-color") private var homeColorRaw: String = HomeColor.coral.rawValue
+
+    /// Whitelist-mapped resolved color (falls back to coral on invalid input).
+    private var resolvedHomeColor: Color {
+        HomeColor.resolve(homeColorRaw).swiftColor
+    }
+
     var body: some View {
         ZStack {
-            PosterTokens.Color.coral.ignoresSafeArea()
+            resolvedHomeColor.ignoresSafeArea()
             content
         }
         .task { await model.load() }
@@ -337,9 +348,14 @@ private struct CategoryRowView: View {
 }
 
 private struct HomeV10ViewPreviewWrapper: View {
+    // Phase 30-07 (DEBT-08): preview honors stored user preference like the
+    // production view. Falls back to coral when no value is set (matches
+    // pre-DEBT-08 preview look).
+    @AppStorage("ui.home-color") private var homeColorRaw: String = HomeColor.coral.rawValue
+
     var body: some View {
         ZStack {
-            PosterTokens.Color.coral.ignoresSafeArea()
+            HomeColor.resolve(homeColorRaw).swiftColor.ignoresSafeArea()
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
                     HStack(alignment: .firstTextBaseline) {

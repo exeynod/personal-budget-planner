@@ -20,12 +20,33 @@ struct SettingsV10View: View {
     @State private var model = SettingsV10ViewModel()
     @Environment(\.posterRouter) private var router
 
+    // Phase 30-07 (DEBT-08): Home background color preference (client-only,
+    // no API call). Same storage key as web `localStorage['ui.home-color']`.
+    @AppStorage("ui.home-color") private var homeColorRaw: String = HomeColor.coral.rawValue
+    @State private var homeColorPickerOpen = false
+
+    /// Two-way binding bridging the raw string in @AppStorage with the
+    /// enum type that HomeColorPickerSheet operates on. Whitelist-resolve
+    /// on read; write back the rawValue.
+    private var homeColorBinding: Binding<HomeColor> {
+        Binding(
+            get: { HomeColor.resolve(homeColorRaw) },
+            set: { homeColorRaw = $0.rawValue }
+        )
+    }
+
     var body: some View {
         ZStack {
             PosterTokens.Color.paper.ignoresSafeArea()
             content
         }
         .task { await model.load() }
+        .posterSheet(isPresented: $homeColorPickerOpen) {
+            HomeColorPickerSheet(
+                selection: homeColorBinding,
+                isPresented: $homeColorPickerOpen
+            )
+        }
     }
 
     @ViewBuilder
@@ -80,6 +101,8 @@ struct SettingsV10View: View {
                 aiToggleRow
                 divider
                 aiCapRow
+                divider
+                homeColorRow
 
                 if let err = model.saveError {
                     Text(err)
@@ -202,6 +225,41 @@ struct SettingsV10View: View {
         let s = String(format: "%.2f", Double(spend) / 100.0)
         let c = String(format: "%.2f", Double(cap) / 100.0)
         return "$\(s) / $\(c)"
+    }
+
+    // MARK: - Phase 30-07 (DEBT-08): Home color row
+
+    /// Tappable row in Settings: shows current Home color preview (small
+    /// swatch + RU label) + chevron. Tap opens HomeColorPickerSheet via
+    /// `.posterSheet(isPresented:)` modifier attached on `body`.
+    private var homeColorRow: some View {
+        let current = HomeColor.resolve(homeColorRaw)
+        return Button {
+            homeColorPickerOpen = true
+        } label: {
+            HStack(alignment: .center, spacing: 8) {
+                Eyebrow("ЦВЕТ HOME", color: PosterTokens.Color.ink)
+                Spacer()
+                Rectangle()
+                    .fill(current.swiftColor)
+                    .frame(width: 14, height: 14)
+                    .overlay(
+                        Rectangle()
+                            .stroke(PosterTokens.Color.ink.opacity(0.2), lineWidth: 1)
+                    )
+                Text(current.ruLabel)
+                    .font(.posterMono(size: 11, weight: .semibold))
+                    .tracking(0.14 * 11)
+                    .foregroundColor(PosterTokens.Color.ink)
+                Text("→")
+                    .font(.posterMono(size: 14))
+                    .foregroundColor(PosterTokens.Color.ink.opacity(0.4))
+            }
+            .padding(.vertical, 12)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("home-color-row")
     }
 }
 
