@@ -78,16 +78,12 @@ struct CategoryDetailPlaceholderView: View {
     }
 }
 
+/// Phase 25-09 (gap-closure): superseded — now renders the real
+/// `TransactionsV10View`. Kept under the old type name so HomeV10View's
+/// `router?.push(TransactionsViewPlaceholderView())` callsite continues to
+/// work without modification (zero-touch swap into the real screen).
 struct TransactionsViewPlaceholderView: View {
-    var body: some View {
-        PosterPlaceholder(
-            section: "SECTION II",
-            title: "Реестр.",
-            note: "WIP — Transactions registry (Plan 25-07).",
-            bg: PosterTokens.Color.cobalt,
-            fg: PosterTokens.Color.paper
-        )
-    }
+    var body: some View { TransactionsV10View() }
 }
 
 #Preview("Placeholders") {
