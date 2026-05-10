@@ -50,6 +50,7 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_current_user, get_db, verify_internal_token
+from app.api.routes.accounts import accounts_router
 from app.api.routes.actual import actual_router
 from app.api.routes.admin import admin_router
 from app.api.routes.auth import auth_router
@@ -156,6 +157,9 @@ public_router.include_router(admin_router)
 # initData (это и есть точка входа без него). Endpoint защищён shared secret
 # и сам идентифицирует пользователя как OWNER_TG_ID.
 public_router.include_router(auth_router)
+
+# Phase 22 (v1.0) — Accounts CRUD + set-primary (BE-02). Plan 22.13.
+public_router.include_router(accounts_router)
 
 
 # ---- Internal router (requires X-Internal-Token) ----
