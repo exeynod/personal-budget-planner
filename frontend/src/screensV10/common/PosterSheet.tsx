@@ -55,6 +55,10 @@ export function PosterSheet({
   testId = 'poster-sheet',
 }: PosterSheetProps) {
   const [dragOffset, setDragOffset] = useState(0);
+  // WR-25-03 (review fix): track active-drag vs settling so we can apply
+  // a CSS transition on release (smooth snap-back) without animating the
+  // user's finger movement during the drag itself.
+  const [isDragging, setIsDragging] = useState(false);
   const dragStartRef = useRef<{ y: number; t: number } | null>(null);
 
   // Latest onClose ref so the Escape effect doesn't re-bind on every prop change.
@@ -85,11 +89,15 @@ export function PosterSheet({
 
   // Reset drag offset when sheet closes/opens.
   useEffect(() => {
-    if (!isOpen) setDragOffset(0);
+    if (!isOpen) {
+      setDragOffset(0);
+      setIsDragging(false);
+    }
   }, [isOpen]);
 
   const handlePointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     dragStartRef.current = { y: e.clientY, t: performance.now() };
+    setIsDragging(true);
     e.currentTarget.setPointerCapture(e.pointerId);
   }, []);
 
@@ -112,13 +120,18 @@ export function PosterSheet({
       } catch {
         // releasePointerCapture can throw if pointer was already released; safe ignore.
       }
+      // WR-25-03 (review fix): release the active-drag flag BEFORE deciding
+      // close vs snap-back. With `isDragging=false`, the inline-style transform
+      // change to 0 animates via CSS transition (smooth snap-back) instead of
+      // jumping in one frame. On the close branch React unmounts before
+      // transition runs anyway, so it costs nothing.
+      setIsDragging(false);
       if (
         dy > DRAG_CLOSE_TRANSLATION_PX ||
         velocityY > DRAG_CLOSE_VELOCITY_PX_PER_S
       ) {
         onCloseRef.current();
       } else {
-        // Snap back to 0 — CSS transition could be added; for now just reset state.
         setDragOffset(0);
       }
     },
@@ -129,6 +142,10 @@ export function PosterSheet({
 
   const sheetStyle: CSSProperties = {
     transform: dragOffset > 0 ? `translateY(${dragOffset}px)` : undefined,
+    // WR-25-03 (review fix): only animate transform when settling AFTER a
+    // drag, not during it. Animating during the drag would lag behind the
+    // user's finger and feel unresponsive.
+    transition: isDragging ? 'none' : 'transform 200ms cubic-bezier(0.32, 0.72, 0, 1)',
     background: backgroundColor,
   };
 
