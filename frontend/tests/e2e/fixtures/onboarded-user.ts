@@ -9,18 +9,27 @@
 // Mock shapes mirror MeV10Response (app/api/schemas/me_v10.py) and the
 // /accounts, /categories, /periods/* contracts wired in Phase 22-25.
 //
-// Usage:
+// Phase 31-01 — REG-01: opt-in `mode: 'live'` upgrades the fixture to
+// real-backend integration mode (no route mocks). When `live` is set,
+// the fixture calls POST `/api/v1/internal/onboarding/seed?tg_user_id=999000`
+// on the backend (using INTERNAL_TOKEN from env) to materialise an
+// onboarded user, then attaches `X-Test-User: 999000` to every Playwright
+// request so the FastAPI `get_current_user` dev-mode bypass routes
+// downstream calls to that user. `mode='mock'` remains the default —
+// existing pixel specs are untouched.
+//
+// Usage (mock — default):
 //   import { installOnboardedFixture, freezeMotion } from './fixtures/onboarded-user';
 //   test.beforeEach(async ({ page }) => {
 //     await installOnboardedFixture(page);
 //   });
-//   test('something', async ({ page }) => {
-//     await page.goto('/');
-//     await freezeMotion(page);
-//     // …assertions / screenshots…
+//
+// Usage (live — real backend, requires docker stack on :8000):
+//   test.beforeEach(async ({ page, context }) => {
+//     await installOnboardedFixture(page, { mode: 'live', context });
 //   });
 
-import type { Page, Route } from '@playwright/test';
+import type { BrowserContext, Page, Route } from '@playwright/test';
 
 // ─────────────────── mock data constants ───────────────────
 
@@ -149,12 +158,55 @@ export interface ExtraRoute {
 
 export interface InstallOptions {
   extraRoutes?: ExtraRoute[];
+  /**
+   * Phase 31-01 (REG-01): fixture mode.
+   *
+   * - `'mock'` (default): install per-endpoint `page.route` mocks against
+   *   the SPA's `/api/v1/*` calls. The backend is never contacted. Used
+   *   by all Phase 29 pixel + acceptance specs.
+   *
+   * - `'live'`: skip route mocking entirely. Instead, call the backend
+   *   seed endpoint to materialise tg_user_id=999000 + 8 categories +
+   *   period + 1 account, and attach `X-Test-User: 999000` to every
+   *   Playwright request so the dev-mode auth bypass routes downstream
+   *   calls to that user. Requires:
+   *     - docker stack on `localhost:8000`
+   *     - `DEV_MODE=true` on the backend (auth bypass)
+   *     - `INTERNAL_TOKEN` env var (or fallback `test_internal_secret_token`)
+   *     - `context` option passed in (Playwright BrowserContext) so we
+   *       can call `context.setExtraHTTPHeaders`.
+   */
+  mode?: 'mock' | 'live';
+  /**
+   * Playwright BrowserContext. **Required when `mode === 'live'`** so the
+   * fixture can `context.setExtraHTTPHeaders({ 'X-Test-User': '...' })`.
+   * Ignored in `mock` mode.
+   */
+  context?: BrowserContext;
+  /**
+   * Override the test user id in live mode. Default `999000`. Useful for
+   * future tests that exercise multi-user scenarios. Ignored in mock mode.
+   */
+  testUserId?: number;
+  /**
+   * Override the backend base URL for the seed call. Default
+   * `http://localhost:8000`. Ignored in mock mode.
+   */
+  backendBaseUrl?: string;
+  /**
+   * Override the internal token for the seed call. Default reads
+   * `process.env.INTERNAL_TOKEN` or falls back to `test_internal_secret_token`
+   * (the value baked into `.env.example`). Ignored in mock mode.
+   */
+  internalToken?: string;
 }
 
 /**
- * Install onboarded-user mocks + V10 theme bootstrap on a Page.
+ * Install onboarded-user fixture on a Page.
  *
- * Effects:
+ * Two modes (see `InstallOptions.mode`):
+ *
+ * **mock** (default) — Effects:
  *   1. `addInitScript` writes `localStorage['ui.theme'] = 'v10'` BEFORE
  *      the SPA boots so the V10 shell renders on first paint.
  *   2. Per-endpoint `page.route` handlers fulfil /me, /accounts,
@@ -162,6 +214,14 @@ export interface InstallOptions {
  *   3. Catch-all `**\/api/v1/**` returns `[]` for GETs and falls through
  *      for non-GET (so onboarding mutations etc. behave normally).
  *   4. Optional `extraRoutes` registered last → win precedence.
+ *
+ * **live** — Effects:
+ *   1. `addInitScript` writes `localStorage['ui.theme'] = 'v10'` (same).
+ *   2. Call POST `/api/v1/internal/onboarding/seed?tg_user_id=N` on the
+ *      backend so the user is fully onboarded.
+ *   3. `context.setExtraHTTPHeaders({ 'X-Test-User': 'N' })` so every
+ *      page request lands as that user under the dev-mode bypass.
+ *   4. NO route mocks installed — SPA hits the real backend.
  *
  * Idempotent per-page: call once in `test.beforeEach`.
  */
@@ -177,6 +237,54 @@ export async function installOnboardedFixture(
     }
   });
 
+  // ─── Live mode: seed backend + attach X-Test-User header ───
+  if (opts.mode === 'live') {
+    const testUserId = opts.testUserId ?? 999_000;
+    const baseUrl = opts.backendBaseUrl ?? 'http://localhost:8000';
+    const token =
+      opts.internalToken ??
+      process.env.INTERNAL_TOKEN ??
+      'test_internal_secret_token';
+    const context = opts.context;
+    if (!context) {
+      throw new Error(
+        "installOnboardedFixture({ mode: 'live' }) requires `context` " +
+          'to be passed so X-Test-User can be set as an extra HTTP header. ' +
+          'Pass it from the Playwright test fixture: ' +
+          'test.beforeEach(async ({ page, context }) => ' +
+          "{ await installOnboardedFixture(page, { mode: 'live', context }); })",
+      );
+    }
+    const seedUrl =
+      `${baseUrl}/api/v1/internal/onboarding/seed` +
+      `?tg_user_id=${testUserId}`;
+    const seedResp = await fetch(seedUrl, {
+      method: 'POST',
+      headers: { 'X-Internal-Token': token },
+    });
+    if (!seedResp.ok) {
+      const body = await seedResp.text();
+      throw new Error(
+        `Live-mode fixture: seed call failed (${seedResp.status}): ${body}. ` +
+          `Verify: docker stack is up on ${baseUrl}, DEV_MODE=true, and ` +
+          `INTERNAL_TOKEN matches the backend's .env.`,
+      );
+    }
+    await context.setExtraHTTPHeaders({
+      'X-Test-User': String(testUserId),
+    });
+    // Per-test overrides still honoured (registered now so they win over
+    // any future default registrations a caller might add — though in
+    // live mode we install no defaults).
+    if (opts.extraRoutes) {
+      for (const { pattern, handler } of opts.extraRoutes) {
+        await page.route(pattern, handler);
+      }
+    }
+    return;
+  }
+
+  // ─── Mock mode (default) — existing behaviour preserved verbatim ───
   // Playwright route precedence: handlers registered LATER win for
   // overlapping patterns. We therefore install the broad catch-all FIRST
   // (default `[]` for any GET we haven't enumerated), then layer the
