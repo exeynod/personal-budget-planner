@@ -6,9 +6,16 @@
 // design, no TextField bound to amount); description TextField (italic
 // serif placeholder); date chips (Сегодня / Вчера / Своя дата + custom
 // DatePicker); horizontal category chip-scroll (drops 'savings' +
-// paused); account row (defaults to primary, opens confirmationDialog
-// picker on tap); CTA button with three states (empty / noCat / ready);
-// cancel-confirm alert when × tapped on dirty form (T-25-11-02).
+// paused); account row (defaults to primary, opens posterSheet picker
+// on tap — Phase 30-03 / DEBT-03); CTA button with three states
+// (empty / noCat / ready); cancel-confirm alert when × tapped on dirty
+// form (T-25-11-02).
+//
+// Phase 30-03 (DEBT-03): replaced system `.confirmationDialog` account
+// picker with the poster-styled `AccountPickerSheet` (nested
+// `.posterSheet`). The system dialog broke the DS surface and clipped
+// long bank names on small phones — the new sheet renders a labeled
+// row per account with balance + kind badge + selection stripe.
 
 import SwiftUI
 
@@ -36,15 +43,19 @@ struct AddSheetView: View {
         } message: {
             Text("Введённые данные будут потеряны.")
         }
-        .confirmationDialog(
-            "Выбрать счёт",
-            isPresented: $showAccountPicker,
-            titleVisibility: .visible
-        ) {
-            ForEach(model.accounts) { acc in
-                Button(accountLabel(acc)) { model.accountId = acc.id }
-            }
-            Button("Отмена", role: .cancel) {}
+        // Phase 30-03 (DEBT-03): poster account picker replaces the prior
+        // `.confirmationDialog` — closer to web parity and renders the
+        // bank/mask label, kind badge, and balance per account on the
+        // poster paper surface.
+        .posterSheet(isPresented: $showAccountPicker) {
+            AccountPickerSheet(
+                selection: Binding(
+                    get: { model.accountId },
+                    set: { model.accountId = $0 }
+                ),
+                isPresented: $showAccountPicker,
+                accounts: model.accounts
+            )
         }
         .sheet(isPresented: $showCustomDatePicker) {
             customDatePickerSheet

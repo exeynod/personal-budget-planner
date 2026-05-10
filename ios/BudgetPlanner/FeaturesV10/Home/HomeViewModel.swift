@@ -11,6 +11,11 @@
 // Status state machine:
 //   .idle → .loading → (.ready | .error(msg)). On error, the ViewModel keeps
 //   any previously-loaded state intact so a retry does not flash empty UI.
+//
+// Phase 30-03 (DEBT-02): subscribes to `Notification.Name.txnCreated`
+// (posted by AddSheetViewModel after successful POST /actual) and calls
+// `load()` so the home screen reflects the new fact-line without a
+// manual refresh. Observer registered in `init()`, removed in `deinit`.
 
 import Foundation
 import Observation
@@ -52,6 +57,39 @@ final class HomeV10ViewModel {
         var c = Calendar(identifier: .gregorian)
         c.timeZone = TimeZone(identifier: "Europe/Moscow") ?? .current
         return c
+    }
+
+    // MARK: - Observer lifecycle (Phase 30-03 / DEBT-02)
+
+    /// Token kept @ObservationIgnored — the observer is internal plumbing,
+    /// SwiftUI views never read it. Reference is held so `deinit` can
+    /// `removeObserver` and avoid retain-cycle leaks when the screen tears
+    /// down (e.g. user logs out and the shell rebuilds).
+    @ObservationIgnored
+    private var txnCreatedObserver: NSObjectProtocol?
+
+    init() {
+        // Subscribe on .main so the closure (which mutates @Observable state
+        // and triggers `load()`) is delivered on the MainActor — matches
+        // the class's @MainActor isolation.
+        self.txnCreatedObserver = NotificationCenter.default.addObserver(
+            forName: .txnCreated,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            // Hop onto MainActor explicitly — the @MainActor-isolated `load()`
+            // requires it, and forName:object:queue: closures are not
+            // automatically actor-isolated.
+            Task { @MainActor [weak self] in
+                await self?.load()
+            }
+        }
+    }
+
+    deinit {
+        if let observer = txnCreatedObserver {
+            NotificationCenter.default.removeObserver(observer)
+        }
     }
 
     /// Trigger a full reload. Re-entrancy is guarded — a second call while a

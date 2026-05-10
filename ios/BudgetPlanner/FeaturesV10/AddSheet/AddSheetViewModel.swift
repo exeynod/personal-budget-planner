@@ -11,9 +11,24 @@
 // All form mutation goes through AddSheetData pure helpers — the
 // ViewModel is a thin orchestrator over them, keeping mutations testable
 // without instantiating SwiftUI.
+//
+// Phase 30-03 (DEBT-02): после успешного создания транзакции
+// постится `Notification.Name.txnCreated` в `NotificationCenter.default`.
+// HomeV10ViewModel и TransactionsV10ViewModel слушают это уведомление и
+// перезагружают данные — закрывает iOS-сторону DEBT-02 (web уже делает
+// рефетч через reloadToken).
 
 import Foundation
 import Observation
+
+extension Notification.Name {
+    /// Phase 30-03 (DEBT-02): posted by `AddSheetViewModel.submit()`
+    /// after a successful POST /actual. Observers (HomeV10ViewModel,
+    /// TransactionsV10ViewModel) call their `load()` to refetch state.
+    /// userInfo carries `"id": Int` — the new transaction id (currently
+    /// informational; observers refetch wholesale rather than splicing).
+    static let txnCreated = Notification.Name("budgetplanner.txnCreated")
+}
 
 @MainActor
 @Observable
@@ -149,6 +164,17 @@ final class AddSheetViewModel {
         do {
             let result = try await ActualV10API.create(request)
             submitStatus = .success
+            // Phase 30-03 (DEBT-02): broadcast so Home + Transactions
+            // ViewModels refetch and reflect the new fact-line without a
+            // manual pull-to-refresh. userInfo carries the new id for
+            // future incremental observers; current observers refetch
+            // wholesale (simpler, matches the v0.x ActualAPI.delete →
+            // load() pattern in TransactionsV10ViewModel.delete).
+            NotificationCenter.default.post(
+                name: .txnCreated,
+                object: nil,
+                userInfo: ["id": result.id]
+            )
             return result.id
         } catch {
             submitStatus = .error("не удалось сохранить — попробуйте снова")

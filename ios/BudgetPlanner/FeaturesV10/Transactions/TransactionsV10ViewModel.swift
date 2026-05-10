@@ -18,6 +18,11 @@
 // is shared on the server). After a successful delete, `load()` is called
 // to refetch the registry — simpler than splicing the deleted row out
 // locally and avoids drift if another client has changed state.
+//
+// Phase 30-03 (DEBT-02): subscribes to `Notification.Name.txnCreated`
+// (posted by AddSheetViewModel after successful POST /actual) and calls
+// `load()` so the registry reflects the new row without a manual refresh.
+// Observer registered in `init()`, removed in `deinit`.
 
 import Foundation
 import Observation
@@ -63,6 +68,32 @@ final class TransactionsV10ViewModel {
         var c = Calendar(identifier: .gregorian)
         c.timeZone = TimeZone(identifier: "Europe/Moscow") ?? .current
         return c
+    }
+
+    // MARK: - Observer lifecycle (Phase 30-03 / DEBT-02)
+
+    /// Token kept @ObservationIgnored — internal plumbing, not surfaced to
+    /// SwiftUI. Holding the reference lets `deinit` removeObserver and avoid
+    /// a leak when the registry screen is popped from the nav-stack.
+    @ObservationIgnored
+    private var txnCreatedObserver: NSObjectProtocol?
+
+    init() {
+        self.txnCreatedObserver = NotificationCenter.default.addObserver(
+            forName: .txnCreated,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                await self?.load()
+            }
+        }
+    }
+
+    deinit {
+        if let observer = txnCreatedObserver {
+            NotificationCenter.default.removeObserver(observer)
+        }
     }
 
     // MARK: - Computed views (re-evaluate on observed changes)
