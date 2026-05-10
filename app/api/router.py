@@ -64,6 +64,7 @@ from app.api.routes.internal_telegram import internal_telegram_router
 from app.api.routes.onboarding import onboarding_router  # noqa: F401  (legacy, kept importable)
 from app.api.routes.onboarding_v10 import onboarding_v10_router
 from app.api.routes.periods import periods_router
+from app.api.routes.plan_month import plan_month_router
 from app.api.routes.planned import planned_router
 from app.api.routes.settings import settings_router
 from app.api.routes.ai import router as ai_router
@@ -180,6 +181,10 @@ public_router.include_router(savings_router)
 # Phase 22 (v1.0) — PATCH /me extension (BE-01). Legacy GET /me stays defined
 # above on the same public_router; me_router only adds the PATCH handler.
 public_router.include_router(me_router)
+
+# Phase 26 (v1.0, plan 26-01) — PLAN-V10-06 atomic batch plan-month update.
+# Single PATCH /api/v1/plan-month with Σplan ≤ income validation server-side.
+public_router.include_router(plan_month_router)
 
 
 # ---- Internal router (requires X-Internal-Token) ----

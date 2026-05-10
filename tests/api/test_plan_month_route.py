@@ -342,10 +342,12 @@ async def test_phase_26_plan_month_atomic_rollback_on_late_404(
     from sqlalchemy import select
 
     cat_a = db_setup["cat_a_id"]
+    # Σ = 30_000_00 + 1_000_00 = 31_000_00 ≪ income 100_000_00 — overflow
+    # check passes; failure comes ONLY from the missing 888_888 id.
     response = await db_setup["client"].patch(
         "/api/v1/plan-month",
         json={"plans": [
-            {"category_id": cat_a, "plan_cents": 999_999_00},
+            {"category_id": cat_a, "plan_cents": 30_000_00},
             {"category_id": 888_888, "plan_cents": 1_000_00},
         ]},
         headers=auth_headers,
