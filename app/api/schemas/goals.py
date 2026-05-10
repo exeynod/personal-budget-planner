@@ -12,10 +12,19 @@ may leave it unchanged by omitting the key). When the caller does pass
 ``due``, we still enforce the future-date rule because moving the
 deadline into the past would violate DATA-MODEL §6 just as much as on
 create.
+
+WR-04 fix (Phase 22 review): the future-date check uses Europe/Moscow
+"today" (matching the service-layer ``_today_in_app_tz`` helper) rather
+than ``date.today()`` (server local TZ). On a UTC-deployed container at
+23:30 UTC = 02:30 MSK, server-local "today" lags MSK by one calendar day —
+a goal due on the next MSK day would pass schema validation but fail the
+service validator, surfacing as 422 at a different layer for the same
+input. Aligning both layers eliminates the discrepancy.
 """
 from datetime import date as _date
 from datetime import datetime
 from typing import Optional
+from zoneinfo import ZoneInfo
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -44,16 +53,32 @@ def _coerce_iso_date(v):
     return v  # let the strict validator reject other types
 
 
+def _today_msk() -> _date:
+    """Return today's date in Europe/Moscow.
+
+    Mirrors :func:`app.services.periods._today_in_app_tz` but lives in the
+    schema module to avoid a DB-dependent import (the service module pulls
+    in SQLAlchemy through its sibling imports). Schema-layer validators
+    must agree with the service-layer's notion of "today" or 422s surface
+    at different layers for the same input (WR-04 fix).
+    """
+    return datetime.now(ZoneInfo("Europe/Moscow")).date()
+
+
 def _ensure_future_date(v: Optional[_date]) -> Optional[_date]:
     """Reject due-dates that are today or earlier (DATA-MODEL §6, T-22-12-07).
 
     Shared between :class:`GoalCreate` and :class:`GoalUpdate` so both
     entry points apply the same gate. ``None`` is allowed — meaning
     "no deadline" on create, or "leave unchanged" on update.
+
+    WR-04: uses Europe/Moscow "today" so the schema agrees with the
+    service-layer validator (CLAUDE.md: расчёты периодов и шедулер
+    Europe/Moscow, БД UTC).
     """
     if v is None:
         return v
-    today = _date.today()
+    today = _today_msk()
     if v <= today:
         raise ValueError(
             f"Goal due must be strictly after today ({today.isoformat()}); "

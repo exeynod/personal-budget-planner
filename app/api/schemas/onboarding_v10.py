@@ -25,7 +25,9 @@ the service layer share one definition. The service-side validators
 remain (defense-in-depth + reset endpoint reuses them with raw dicts).
 """
 from datetime import date as _date
+from datetime import datetime as _datetime
 from typing import Literal, Optional
+from zoneinfo import ZoneInfo
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -100,7 +102,10 @@ class OnboardingGoalItem(BaseModel):
     def _due_in_future(cls, v: Optional[_date]) -> Optional[_date]:
         if v is None:
             return v
-        today = _date.today()
+        # WR-04: Europe/Moscow "today" so the schema agrees with the
+        # service-layer ``_today_in_app_tz`` validator. CLAUDE.md: расчёты
+        # периодов и шедулер Europe/Moscow, БД UTC.
+        today = _datetime.now(ZoneInfo("Europe/Moscow")).date()
         if v <= today:
             raise ValueError(
                 f"goal.due must be strictly after today ({today.isoformat()}); "
