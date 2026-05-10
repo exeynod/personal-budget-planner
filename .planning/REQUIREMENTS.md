@@ -5,8 +5,8 @@
 - [ ] **UICONF-01** — Web Playwright snapshot baselines созданы для всех 8 V10 экранов (Home, Transactions, AddSheet, CategoryDetail, PLAN мая, Subscriptions, Savings, AI initial-state) с onboarded test fixture.
 - [x] **UICONF-02** — UI-REVIEW.md содержит per-screen deviation report против `prototype/index.html` (web) с severity classification (BLOCKER / WARNING / INFO).
 - [ ] **UICONF-03** — iOS UI-REVIEW.md содержит per-screen deviation report через XcodeBuildMCP screenshots vs DESIGN-SYSTEM.md spec.
-- [ ] **UICONF-04** — Все BLOCKER-уровневые deviations исправлены (commits с `fix(ui-conf):` префиксом); re-run snapshots green.
-- [ ] **UICONF-05** — WARNING/INFO deviations задокументированы в DIVERGENCES.md с v1.1 backlog reference.
+- [x] **UICONF-04** — Все BLOCKER-уровневые deviations исправлены (commits с `fix(ui-conf):` префиксом); re-run snapshots green.
+- [x] **UICONF-05** — WARNING/INFO deviations задокументированы в DIVERGENCES.md с v1.1 backlog reference.
 
 ## Phase 30 — Tech Debt Cleanup
 
@@ -35,8 +35,8 @@
 | UICONF-01 | Phase 29 | Pending |
 | UICONF-02 | Phase 29 | Complete |
 | UICONF-03 | Phase 29 | Pending |
-| UICONF-04 | Phase 29 | Pending |
-| UICONF-05 | Phase 29 | Pending |
+| UICONF-04 | Phase 29 | Complete |
+| UICONF-05 | Phase 29 | Complete |
 | DEBT-01 | Phase 30 | Pending |
 | DEBT-02 | Phase 30 | Pending |
 | DEBT-03 | Phase 30 | Pending |

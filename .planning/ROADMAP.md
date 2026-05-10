@@ -28,8 +28,8 @@
 - [x] 29-01-PLAN.md — Web Playwright onboarded fixture + 8 baseline PNG snapshots (UICONF-01)
 - [x] 29-02-PLAN.md — Web side-by-side audit vs prototype/index.html → UI-REVIEW.md (web) (UICONF-02)
 - [x] 29-03-PLAN.md — iOS XcodeBuildMCP screenshots + UI-REVIEW.md iOS section (UICONF-03)
-- [ ] 29-04-PLAN.md — BLOCKER fix wave (conditional, data-driven from 29-02/29-03 findings) (UICONF-04)
-- [ ] 29-05-PLAN.md — Re-snapshot pixel baselines + DIVERGENCES.md WARNING/INFO append (UICONF-04 verify + UICONF-05)
+- [x] 29-04-PLAN.md — BLOCKER fix wave (conditional, data-driven from 29-02/29-03 findings) (UICONF-04)
+- [x] 29-05-PLAN.md — Re-snapshot pixel baselines + DIVERGENCES.md WARNING/INFO append (UICONF-04 verify + UICONF-05)
 
 ### Phase 30: Tech Debt Cleanup
 **Goal**: Закрыть 7 achievable v1.0 tech debt items + 1 user-feature: pre-existing TS errors (analytics.ts, AiView.tsx, TxV10TabDemote.test.tsx), AddSheet refetch-after-submit, account picker UI upgrade (web+iOS), iOS Subscription editor error surface, web swipe-left delete, iOS press-feedback animation transition, iOS SettingsAPI file split, + Home screen color customization picker (DEBT-08, продвинуто из v1.1 backlog DF-V11-04 по запросу 2026-05-11).

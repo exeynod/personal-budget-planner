@@ -4,14 +4,14 @@ milestone: v1.0.1
 milestone_name: — UI Conformance & Tech Debt
 status: completed
 stopped_at: Roadmap для v1.0 (Phases 22-28) создан, REQUIREMENTS.md traceability заполнен (92/92 REQs). Awaiting `/gsd-plan-phase 22`.
-last_updated: "2026-05-10T22:46:06.728Z"
+last_updated: "2026-05-10T23:10:11.809Z"
 last_activity: 2026-05-10
 progress:
   total_phases: 10
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 6
-  completed_plans: 3
-  percent: 50
+  completed_plans: 5
+  percent: 83
 ---
 
 # Project State
@@ -70,6 +70,7 @@ Last activity: 2026-05-10
 
 *Updated after each plan completion*
 | Phase 29 P02 | 6min | 1 tasks | 1 files |
+| Phase 29 P05 | 6min | 2 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -96,6 +97,7 @@ Recent decisions from v0.6 (preserved for context):
 - v0.6 (2026-05-08): IOS-04 (APIClient, все CRUD endpoints) полностью лежит в Phase 17 — сетевой слой готов до начала Phase 18 UI-работы.
 - [Phase ?]: 29-02 audit complete
 - [Phase v1.0.1 Phase 29-02]: Web UI audit found 26 BLOCKERs concentrated in 7 screens; only Home passes. 3 setup-issue BLOCKERs (W-05 selector materialised, /savings + /ai/observation fixtures missing) gate 29-04. Cross-platform DS §1 palette violations between web and iOS (Subscriptions ink-on-coral, AI bg-black) coincide — single per-platform fix can close 4 BLOCKERs.
+- [Phase ?]: v1.0.1 Phase 29-05 (2026-05-11): DIVERGENCES.md numbering schema confirmed platform-based (W- web, I- iOS, X- cross-platform), not severity-based — WARNINGs and INFOs share same platform namespace. 15 audit findings migrated as W-06..W-17 + I-06..I-08; v1.1 backlog clustered by work-type tag.
 
 ### Pending Todos
 
@@ -180,7 +182,7 @@ v1.0 deferred (acknowledged at planning):
 
 ## Session Continuity
 
-Last session: 2026-05-10T22:45:33.115Z
+Last session: 2026-05-10T23:09:58.677Z
 Stopped at: Roadmap для v1.0 (Phases 22-28) создан, REQUIREMENTS.md traceability заполнен (92/92 REQs). Awaiting `/gsd-plan-phase 22`.
 Resume file: None
 
