@@ -4,7 +4,7 @@ milestone: v1.0
 milestone_name: Maximal Poster Full
 status: completed
 stopped_at: Roadmap для v1.0 (Phases 22-28) создан, REQUIREMENTS.md traceability заполнен (92/92 REQs). Awaiting `/gsd-plan-phase 22`.
-last_updated: "2026-05-10T20:40:44.203Z"
+last_updated: "2026-05-10T20:49:36.529Z"
 last_activity: 2026-05-10
 progress:
   total_phases: 7
@@ -180,3 +180,17 @@ v1.0 deferred (acknowledged at planning):
 Last session: 2026-05-09T17:00:00.000Z
 Stopped at: Roadmap для v1.0 (Phases 22-28) создан, REQUIREMENTS.md traceability заполнен (92/92 REQs). Awaiting `/gsd-plan-phase 22`.
 Resume file: None
+
+## Deferred Items
+
+Items acknowledged and deferred at v1.0 milestone close on 2026-05-10:
+
+| Category | Item | Status |
+|----------|------|--------|
+| verification_gaps | Phase 22 (22-VERIFICATION.md) | human_needed |
+| verification_gaps | Phase 23 (23-VERIFICATION.md) | human_needed |
+| quick_task | ux-fixes (20260506) | unknown |
+| quick_task | 260508-fib-tma-playwright-mobile-viewport-dev-mode- | awaiting-human-verify |
+
+Pre-existing items inherited from earlier phases / quick tasks — do not block v1.0
+shipping but should be reviewed by owner. Documented for follow-up in v1.1.
