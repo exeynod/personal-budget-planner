@@ -211,6 +211,15 @@ class AppUser(Base):
     deleted_at: Mapped[Optional[datetime]] = mapped_column(
         TIMESTAMP(timezone=True), nullable=True
     )
+    # Phase 35 REQ-35-01: tier resolution + reverse-trial.
+    # trial_ends_at: NOW()+14d on user creation; NULL = trial expired/never granted.
+    # pro_active_until: explicit Pro access timestamp (set by Phase 34 payment webhook).
+    trial_ends_at: Mapped[Optional[datetime]] = mapped_column(
+        TIMESTAMP(timezone=True), nullable=True
+    )
+    pro_active_until: Mapped[Optional[datetime]] = mapped_column(
+        TIMESTAMP(timezone=True), nullable=True
+    )
 
 
 class PdnAuditLog(Base):
