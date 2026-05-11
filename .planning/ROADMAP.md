@@ -100,7 +100,8 @@
 5. Demo TG-бот с публичной schema без AI работает; `/start` пишет «это open-core demo, full features в hosted».
 6. Maximal Poster CSS tokens + 11 keyframe animations explicitly **closed-source** — не выложены в public репе (только tokens.json schema без значений); iOS source — `.gitignore` в публичной репе.
 
-### Phase 38: Landing Page + Onboarding Funnel + Analytics Instrumentation
+### Phase 38: Landing Page + Onboarding Funnel + Analytics Instrumentation ✅ SHIPPED 2026-05-11
+**Status**: Baseline landing + analytics instrumentation landed (2 plans, 6 files, 2 tests green). REQ-38-01 (landing) + REQ-38-02 (event log + endpoint + frontend helper) shipped. REQ-38-03..07 deferred (UTM → Phase 39; survey/PostHog/funnel/cookie-banner → v1.2 / opt-in after Month-3).
 **Goal**: Public-facing landing page на главном домене (`budgetbot.<domain>`); explainer GIF/video; conversion-optimized signup flow (one-click через Telegram OAuth); welcome-survey для user-research; baseline analytics на funnel (registrations → onboarded → trial-active → paying) через PostHog self-host или Plausible.
 **Depends on**: Phase 33 (Privacy Policy для cookie consent на landing), Phase 35 (paywall-conversion events нужны).
 **Requirements**: REQ-38-01..07

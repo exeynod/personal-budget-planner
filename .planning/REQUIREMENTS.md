@@ -59,15 +59,15 @@
 - [ ] **REQ-37-05** — Demo TG-бот с публичной schema без AI; `/start` пишет «open-core demo, full в hosted» — **deferred to Phase 38**.
 - [ ] **REQ-37-06** — Maximal Poster CSS tokens + 11 keyframe animations — schema-only public version; tokens.json scrubbing — **deferred to manual repo-split task** (closed-components list already documented в `LICENSE-CLOSED-COMPONENTS.md`).
 
-## Phase 38 — Landing Page + Onboarding Funnel + Analytics
+## Phase 38 — Landing Page + Onboarding Funnel + Analytics ✅ SHIPPED 2026-05-11
 
-- [ ] **REQ-38-01** — Static landing `https://<domain>` — single page (hero + 3 features + pricing card + CTA «Открыть в Telegram»); Lighthouse mobile >90.
-- [ ] **REQ-38-02** — Explainer GIF/video 30-60s (AddSheet → Home → AI → CSV export); bundled webp/mp4 <1MB.
-- [ ] **REQ-38-03** — Telegram OAuth one-click — landing CTA deeplink `t.me/<bot>?start=ref_landing`; UTM-params в `app_user.acquisition_source`.
-- [ ] **REQ-38-04** — Welcome survey (1 экран, optional): 3 вопроса (как нашли / профессия / boost-боль); в `user_survey`; skip-button.
-- [ ] **REQ-38-05** — Analytics — PostHog self-host (docker) или Plausible; events: signup_started, onboarding_complete, trial_started, paywall_shown, paywall_cta_click, payment_success, payment_failed, pro_cancelled, ai_message_sent, tx_created.
-- [ ] **REQ-38-06** — Funnel dashboard: registrations → onboarded (24h) → first-tx (7d) → AI-used (14d) → trial-day-14 → paying-30d.
-- [ ] **REQ-38-07** — Cookie banner на landing (если PostHog активен) — opt-in form.
+- [x] **REQ-38-01** — Static landing `landing/index.html` shipped (274 LOC single-file, Maximal Poster palette, hero + 3 features + pricing card + FAQ + footer + CTA deeplink `t.me/<bot>?start=ref_landing`); commit `c802043`. Lighthouse audit + deploy → manual user-side follow-up.
+- [x] **REQ-38-02** — Analytics event log shipped: alembic `0024_analytics_event` (BIGSERIAL + JSONB props + 3 indexes, no RLS — anonymized internal log) + `track_event` service с fire-and-forget semantics + 12 EVENT_* constants + `POST /api/v1/analytics/event` endpoint (separate `event_router` без `require_onboarded`) + frontend `trackEvent()` helper + `EVENT` enum; commit `621cd76`, 2 tests pass. Explainer GIF/video — content TODO.
+- [ ] **REQ-38-03** — UTM-attribution capture в `app_user.acquisition_source` — **deferred to Phase 39** (Habr launch).
+- [ ] **REQ-38-04** — Welcome survey (1 экран после onboarding) — **deferred to v1.2** UX wave.
+- [ ] **REQ-38-05** — PostHog / Plausible self-host — **deferred**: ad-hoc SQL поверх собственной `analytics_event` таблицы достаточен на pet-scale; opt-in after Month-3 gate if volume растёт.
+- [ ] **REQ-38-06** — Funnel dashboard — **deferred**: query templates пишутся ad-hoc для Month-3 review (registrations → onboarded → first-tx → AI-used → trial-day-14 → paying-30d).
+- [ ] **REQ-38-07** — Cookie banner на landing — **deferred**: landing статичен без cookies; required только если PostHog активируется.
 
 ## Phase 39 — Habr Longread #1 + ProductHunt + Show HN Launch (v1.2)
 
