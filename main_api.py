@@ -150,3 +150,9 @@ async def healthz() -> dict:
 # Mount routers
 app.include_router(public_router, prefix="/api/v1", tags=["public"])
 app.include_router(internal_router, prefix="/api/v1", tags=["internal"])
+
+# Phase 33 CMP-33-03 — public legal docs (Privacy + ToS).
+# Mounted WITHOUT /api/v1 prefix so users can read policy BEFORE
+# Telegram auth occurs. No auth dependency.
+from app.api.routes.legal import legal_router  # noqa: E402
+app.include_router(legal_router, tags=["legal"])

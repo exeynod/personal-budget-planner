@@ -36,6 +36,9 @@ RUN uv sync --locked --no-install-project --no-dev 2>/dev/null \
 COPY app/ ./app/
 COPY alembic/ ./alembic/
 COPY alembic.ini ./
+# Phase 33 CMP-33-03: legal docs bundled into image so /legal/* endpoints
+# can read them at runtime.
+COPY docs/legal/ ./docs/legal/
 
 # Copy entrypoints and migration script.
 COPY main_api.py main_bot.py main_worker.py ./
