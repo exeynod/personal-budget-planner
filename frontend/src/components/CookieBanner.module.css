@@ -1,0 +1,48 @@
+/* Phase 33 CMP-33-05: cookie banner styling.
+ *
+ * Pinned to viewport bottom so it never blocks active interactions
+ * (FAB lives above z-index 1000; banner uses 999 to sit just below).
+ */
+
+.banner {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 12px 16px;
+  background: rgba(20, 20, 20, 0.95);
+  color: white;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  z-index: 999;
+  font-size: 13px;
+  line-height: 1.4;
+  box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.3);
+}
+
+.text {
+  margin: 0;
+  flex: 1;
+}
+
+.link {
+  color: #ffd166;
+  text-decoration: underline;
+}
+
+.button {
+  flex-shrink: 0;
+  padding: 8px 16px;
+  background: white;
+  color: #141414;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.button:hover {
+  background: #f5f5f5;
+}

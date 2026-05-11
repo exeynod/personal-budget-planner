@@ -16,6 +16,9 @@
 //   requires `require_onboarded` (Phase 22 BE-04) — fetching it before
 //   onboarding completes returns 409. `onboarded_at` is the canonical
 //   server-side signal and the only one available pre-completion.
+//
+// Phase 33 (CMP-33-04/06): compliance endpoints for consent / export /
+// account deletion (see app/api/routes/me.py § ---- Phase 33 ----).
 
 import { apiFetch } from './client';
 import type { MeV10Response } from './types';
@@ -31,4 +34,59 @@ export type { MeV10Response };
  */
 export function getMeV10(): Promise<MeV10Response> {
   return apiFetch<MeV10Response>('/me');
+}
+
+// ---------- Phase 33: ПДн compliance helpers ----------
+
+export interface ConsentResponse {
+  pdn_consent_at: string | null;
+  policy_version?: string;
+  revoked?: boolean;
+}
+
+export interface DeleteAccountResponse {
+  deleted_at: string;
+  purge_after_days: number;
+  message: string;
+}
+
+/**
+ * POST /api/v1/me/consent — idempotent ПДн consent grant.
+ *
+ * On 200, the user's `app_user.pdn_consent_at` is set (timestamp returned).
+ * Subsequent calls preserve the original timestamp (idempotency contract).
+ */
+export function grantConsent(): Promise<ConsentResponse> {
+  return apiFetch<ConsentResponse>('/me/consent', { method: 'POST' });
+}
+
+/**
+ * DELETE /api/v1/me/consent — revoke ПДн consent.
+ *
+ * Nulls `pdn_consent_at`. After revoke, attempts to call
+ * /onboarding/complete return 403 `pdn_consent_required` until the user
+ * grants again.
+ */
+export function revokeConsent(): Promise<ConsentResponse> {
+  return apiFetch<ConsentResponse>('/me/consent', { method: 'DELETE' });
+}
+
+/**
+ * GET /api/v1/me/export — JSON dump of all ПДн (CMP-33-06).
+ *
+ * Returns the full export payload — the client can offer "save as JSON"
+ * via blob download. Audit-event `data_export` is written server-side.
+ */
+export function exportData(): Promise<Record<string, unknown>> {
+  return apiFetch<Record<string, unknown>>('/me/export');
+}
+
+/**
+ * DELETE /api/v1/me/account — soft-delete with 30-day cooling (CMP-33-02).
+ *
+ * After 200, the worker job `purge_deleted_users` hard-deletes the user's
+ * data after 30 days. Repeating the call returns 410 Gone.
+ */
+export function deleteAccount(): Promise<DeleteAccountResponse> {
+  return apiFetch<DeleteAccountResponse>('/me/account', { method: 'DELETE' });
 }

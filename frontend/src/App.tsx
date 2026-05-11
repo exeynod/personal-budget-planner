@@ -20,6 +20,7 @@ import { AnalyticsScreen } from './screens/AnalyticsScreen';
 import { AiScreen } from './screens/AiScreen';
 import { BottomNav, type BottomNavTint, type TabId } from './components/BottomNav';
 import { BottomSheet } from './components/BottomSheet';
+import { CookieBanner } from './components/CookieBanner';
 import { TransactionEditor } from './components/TransactionEditor';
 import styles from './App.module.css';
 
@@ -160,6 +161,7 @@ export default function App() {
 
   return (
     <FabActionContext.Provider value={{ setAction }}>
+    <CookieBanner />
     <div className={styles.appWrapper}>
       <div className={styles.appRoot}>
         <div className={styles.screenContainer}>
