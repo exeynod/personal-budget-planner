@@ -1,12 +1,12 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.2
-milestone_name: Acquisition & Retention
-status: planned
-started_at: null
-stopped_at: v1.1 shipped 2026-05-11. v1.2 (Phases 39-44) готов к старту.
-last_updated: "2026-05-11T17:15:00.000Z"
-last_activity: 2026-05-11 — v1.1 Monetization Foundation milestone closed
+milestone: v1.1.1
+milestone_name: Liquid Glass Theme
+status: planning
+started_at: "2026-05-11"
+stopped_at: v1.1.1 milestone scaffolded — Phases 50-55 готовы к discuss/plan/execute.
+last_updated: "2026-05-11T17:30:00.000Z"
+last_activity: 2026-05-11 — v1.1.1 Liquid Glass Theme milestone created (patch между v1.1 shipped и v1.2 planned)
 progress:
   total_phases: 6
   completed_phases: 0

@@ -1,3 +1,56 @@
+# REQUIREMENTS — v1.1.1 Liquid Glass Theme
+
+> Patch milestone между v1.1 shipped и v1.2 planned. Target ship: 2026-06-11.
+> Goal: Liquid Glass (iOS 26) + Maximal Poster + iOS Default — три темы через единый toggle.
+
+## Phase 50 — Theme Registry Foundation
+
+- [ ] **THEME-01** — `frontend/src/stylesV10/themes/registry.ts` экспортирует `Theme = 'maximal_poster' | 'liquid_glass' | 'ios_default'`; `THEMES: readonly Theme[]`; `themeLabel(t)`, `themeDescription(t)` helpers.
+- [ ] **THEME-02** — `useTheme()` React hook (расширение pattern от `useHomeColor`): читает `localStorage['ui.theme']`, validate whitelist, default = `maximal_poster` (current); setter dispatches CustomEvent `theme-changed` + storage event listener.
+- [ ] **THEME-03** — `tokens.json` расширен с per-theme секцией: `themes.maximal_poster.{colors,typography,materials,shadows}`, `themes.liquid_glass.{...}`, `themes.ios_default.{...}`; codegen `scripts/gen-css.ts` генерирует CSS-vars с `[data-theme="liquid_glass"]` селекторами; `scripts/gen-swift.ts` генерирует `enum Theme { case maximalPoster, liquidGlass, iosDefault }` + per-case token resolver.
+- [ ] **THEME-04** — iOS `Theme` enum в `PosterTokens.swift`: `@AppStorage("ui.theme")` binding в `BudgetPlannerApp.swift`, `PosterTokens.currentTheme` static accessor для component-level access.
+
+## Phase 51 — Liquid Glass Design System
+
+- [ ] **LG-SYS-01** — LG palette tokens defined: `--lg-bg-primary` (system Light/Dark adaptive), `--lg-glass-tint`, `--lg-glass-border`, `--lg-shadow-elevated/floating/floating-strong`, `--lg-text-primary/secondary/tertiary` (Apple HIG-spec colors).
+- [ ] **LG-SYS-02** — Material tokens: `--lg-material-ultra-thin` (`backdrop-filter: blur(20px) saturate(180%)` + 12% white tint), `--lg-material-thin` (40px blur), `--lg-material-regular` (60px blur), `--lg-material-thick` (80px blur). iOS native maps к `.ultraThinMaterial` / `.thinMaterial` / `.regularMaterial` / `.thickMaterial`.
+- [ ] **LG-SYS-03** — Typography: SF Pro Display / SF Pro Text mapping для web (via `font-family: -apple-system, BlinkMacSystemFont, ...`) + iOS native (default `Font.system`). Sizes per iOS 26 HIG: `largeTitle` 34pt, `title1` 28pt, `title2` 22pt, `body` 17pt, `caption` 12pt.
+- [ ] **LG-SYS-04** — Motion tokens: `--lg-spring-default` (`response: 0.4, damping: 0.85`), `--lg-spring-bouncy`, `--lg-easing-decel` (cubic-bezier system standard). Reduce-motion fallback: opacity-only transitions.
+- [ ] **LG-SYS-05** — Glass card component primitive: `<GlassCard>` (web) + `GlassCard` (SwiftUI) — translucent surface, optional inner border highlight, rounded 14pt corner (iOS default). Used as building block для Plate / Sheet / Toast.
+
+## Phase 52 — Web Liquid Glass Port
+
+- [ ] **LG-WEB-01** — Все 9 V10 screens (Home, Transactions, AddSheet, CategoryDetail, Plan, Subscriptions, Savings, AI, Management) рендерятся под `[data-theme="liquid_glass"]` без визуальных регрессий: background = system adaptive, surfaces = glass-tinted, text = SF Pro.
+- [ ] **LG-WEB-02** — Хero/headlines в Maximal Poster (DM Serif Italic / Archivo Black) под Liquid Glass переключаются на SF Pro Display (largeTitle weight 700) — `font-family` через CSS-var `--lg-font-display`.
+- [ ] **LG-WEB-03** — Existing Maximal Poster screens НЕ сломаны (theme=maximal_poster — default retention path); Playwright pixel-snapshots для Maximal Poster baselines re-run green (zero diff vs v1.1 baselines).
+- [ ] **LG-WEB-04** — Playwright pixel-snapshots для Liquid Glass baselines созданы (9 PNGs) под `frontend/tests/e2e/v10-pixel-snapshots-liquid-glass.spec.ts-snapshots/`.
+- [ ] **LG-WEB-05** — Theme switch performance: < 100ms perceived delay от tap → full re-render (через CSS-var swap, без full page reload). `data-testid="theme-applied"` обновляется когда switch завершён.
+
+## Phase 53 — iOS Liquid Glass Native
+
+- [ ] **LG-IOS-01** — `GlassCard` SwiftUI view с `.glassEffect()` (iOS 26 API) когда theme=liquidGlass; fallback `.background(.ultraThinMaterial)` если iOS < 26.
+- [ ] **LG-IOS-02** — `PosterCard`, `PosterSheet`, `PosterBottomSheet`, `BottomNavV10` обёрнуты в conditional rendering: theme=maximalPoster → existing implementation; theme=liquidGlass → GlassCard-based variant; theme=iosDefault → system `Form` / `List(.insetGrouped)` / `.sheet()` (v0.6 wise-tide baseline).
+- [ ] **LG-IOS-03** — Все 9 V10 screens на iOS работают под обеими темами (Maximal Poster + Liquid Glass) без регрессий; XCTest 358/358 остаётся green; manual screenshots через XcodeBuildMCP для каждой темы (18 PNG).
+- [ ] **LG-IOS-04** — iOS unfreeze ограничен только GlassCard primitive + 5 V10 component обёртки — без full re-design (Q4=b spirit preserved: iOS остаётся «frozen for new features», тема — single-purpose extension).
+
+## Phase 54 — Theme Switcher UI
+
+- [ ] **LG-SW-01** — Web `frontend/src/screensV10/Management/ThemePickerSheet.tsx` — PosterSheet с 3 swatches (Maximal Poster / Liquid Glass / iOS Default), каждый показывает mini-preview (BigFig + headline под theme tokens) + label + ✓ на текущем.
+- [ ] **LG-SW-02** — Web `SettingsView.tsx` добавляет row «Тема» (после «Цвет Home» row) с current swatch preview + chevron; tap → opens ThemePickerSheet.
+- [ ] **LG-SW-03** — iOS `ThemePickerSheet.swift` (SwiftUI) — `.posterSheet` с теми же 3 options + mini-preview cards.
+- [ ] **LG-SW-04** — iOS `SettingsV10View.swift` добавляет row «Тема» (после «Цвет Home») с binding к `@AppStorage("ui.theme")`.
+- [ ] **LG-SW-05** — Instant apply без full reload: web через `theme-changed` CustomEvent + React state re-render; iOS через `@AppStorage` SwiftUI binding observer.
+
+## Phase 55 — Polish + Acceptance
+
+- [ ] **LG-POL-01** — Side-by-side acceptance: каждый из 9 V10 screens × 3 темы = 27 screenshots для web (Playwright) + 27 для iOS (XcodeBuildMCP). Visual diff approval — manual user-side.
+- [ ] **LG-POL-02** — `prefers-reduced-motion` honored для Liquid Glass: blur/material — static (без mid-scroll animation); iOS native respects `accessibilityReduceMotion`.
+- [ ] **LG-POL-03** — VoiceOver / accessibility audit Liquid Glass: contrast ratios ≥ WCAG AA на light + dark adaptive surfaces; glass tint не блокирует screen-reader element identification.
+- [ ] **LG-POL-04** — Performance: web theme switch < 100ms (LG-WEB-05); iOS theme switch < 200ms first paint после @AppStorage change.
+- [ ] **LG-POL-05** — Documentation: `docs/THEMES.md` — table tokens × 3 themes + screenshots каждой темы для onboarding новых contributors.
+
+---
+
 # REQUIREMENTS — v1.1 Monetization Foundation
 
 > v1.0.1 (Phase 29-31) shipped 2026-05-11 — see traceability table ниже.

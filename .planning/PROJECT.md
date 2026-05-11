@@ -38,7 +38,39 @@ Telegram Mini App для планирования и ведения месячн
 - AI cost cap не enforced (только observability через `GET /ai/usage`)
 - 11 deferred items (UAT/verification gaps, см. STATE.md)
 
-## Current Milestone: v1.0 — Maximal Poster Full
+## Current Milestone: v1.1.1 — Liquid Glass Theme
+
+**Goal:** Добавить тему iOS 26 Liquid Glass как опциональный toggle в Settings (Maximal Poster / Liquid Glass / iOS Default). Идентичный switch на web (через CSS `backdrop-filter` эмуляцию) и iOS (через native `.glassEffect()` API iOS 26), синхронизация через `localStorage['ui.theme']` / `@AppStorage("ui.theme")` (расширение DEBT-08 home color picker pattern).
+
+**Target features:**
+- **Theme registry:** `tokens.json` → multi-theme (поддерживает 3 темы); codegen генерирует CSS-vars + Swift enum per theme.
+- **Liquid Glass design system:** прозрачные слои (`backdrop-filter: blur(40px) saturate(180%)` web / system materials iOS), depth-тени, SF Pro typography mapping, system spring animations.
+- **Web port:** все V10 screens работают под обеими палитрами (Maximal Poster + Liquid Glass) без визуальных регрессий; switch мгновенный через CSS-var swap.
+- **iOS native:** обёртки PosterCard/PosterSheet/PosterNav используют `.glassEffect()` когда theme=liquid_glass; SF Pro как primary typography (DM Serif Italic — Maximal-only).
+- **Theme switcher UI:** новый row «Тема» в Settings (web + iOS) с 3 swatches + preview text; instant apply через CustomEvent (web) и @AppStorage observer (iOS).
+- **Acceptance:** screenshot diff side-by-side каждого экрана под обеими темами; prefers-reduced-motion / accessibility VoiceOver — не сломаны.
+
+**Phase numbering:** Phases 50-55 (39-49 уже запланированы для v1.2 Acquisition + v2.0 Scale).
+
+**Phases (6):**
+- Phase 50 — Theme Registry Foundation (multi-theme tokens.json + codegen + theme-resolver service)
+- Phase 51 — Liquid Glass Design System (LG tokens, materials, shadows, SF Pro typography map)
+- Phase 52 — Web Liquid Glass Port (apply LG tokens to V10 screens — Home/Tx/AddSheet/CatDet/Plan/Subs/Savings/AI/Mgmt)
+- Phase 53 — iOS Liquid Glass Native (.glassEffect() wrapper + Poster components conditional)
+- Phase 54 — Theme Switcher UI (Settings row, web + iOS, instant apply)
+- Phase 55 — Polish + Acceptance (screenshots, reduced-motion, VoiceOver, pixel-perfect both themes)
+
+**Source of truth:**
+- iOS 26 Liquid Glass spec: Apple HIG WWDC 2025 («Liquid Glass» introduction).
+- Существующие tokens: `frontend/src/stylesV10/tokens.css`, `ios/BudgetPlanner/PosterTokens.swift`.
+- Existing theme switch pattern: DEBT-08 `home-color-picker` (commit 5c1afb8 + 08d2870 — useHomeColor.ts + HomeColor.swift).
+- iOS v0.6 wise-tide refactor — pre-existing `.glassEffect()` usage в Form/List/Card.
+
+**Target ship:** 2026-06-11 (1 месяц от v1.1 ship).
+
+---
+
+## Previous Milestone: v1.0 — Maximal Poster Full (Shipped 2026-05-10)
 
 **Goal:** Полная миграция iOS + Web на дизайн-систему «Maximal Poster» из handoff-пакета (`.planning/v1.0-handoff/`) с расширением схемы БД/API под Копилку, Счета, Цели и Регулярные платежи.
 
