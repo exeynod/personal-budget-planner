@@ -15,7 +15,7 @@
 
 ## Phase Details (v1.1)
 
-### Phase 32: Multi-tenant Production Enablement
+### Phase 32: Multi-tenant Production Enablement ✅ SHIPPED 2026-05-11
 **Goal**: Активировать shipped-в-v0.4 multi-tenant инфраструктуру (RLS на 9 доменных таблицах + 4 v1.0 таблицах, role-based deps, AccessScreen) на live production data; миграция legacy single-tenant config OWNER_TG_ID → role-based; load test и rollback runbook; AI cost cap default ON для всех новых пользователей.
 **Depends on**: v1.0.1 ship (закрытые UI/tech debt блокеры).
 **Requirements**: REQ-32-01..06

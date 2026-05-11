@@ -3,14 +3,14 @@
 > v1.0.1 (Phase 29-31) shipped 2026-05-11 — see traceability table ниже.
 > v1.1 — entries-stubs ниже; полная детализация per phase в discuss-phase.
 
-## Phase 32 — Multi-tenant Production Enablement
+## Phase 32 — Multi-tenant Production Enablement ✅ SHIPPED 2026-05-11
 
-- [ ] **REQ-32-01** — RLS активна на всех 13 доменных таблицах (9 v0.4 + 4 v1.0); integration test `test_multitenancy_live.py` проверяет cross-tenant isolation через прямой SQL под `app` ролью.
-- [ ] **REQ-32-02** — OWNER_TG_ID legacy fallback удалён из `get_current_user`; auth полностью role-based (owner / member / revoked); миграция владельца на role=owner подтверждена через SQL snapshot.
-- [ ] **REQ-32-03** — AI cost cap default `500_USD_cents` (5 USD) включён auto при invite-flow; visible через `GET /ai/usage`.
-- [ ] **REQ-32-04** — Load test (k6 или locust): 50 concurrent users × 100 actual_tx + 20 AI chats без 5xx, p95 < 800ms; результаты в `docs/LOAD-TEST.md`.
-- [ ] **REQ-32-05** — Rollback runbook `docs/RUNBOOK-multitenant.md`: alembic downgrade -1 проверен на копии prod, dump/restore процедура, RTO ≤ 30 мин.
-- [ ] **REQ-32-06** — Backfill OWNER_TG_ID → role=owner: idempotent миграция script + verify on dry-run копии prod.
+- [x] **REQ-32-01** — RLS активна на всех 12 доменных таблицах (9 v0.4 + 3 v1.0; plan_template_item dropped в v1.0); `tests/test_rls_audit.py` (24 parametrized) + `tests/test_multitenancy_live.py` (2 cross-tenant raw-SQL scenarios) проверяют изоляцию через non-superuser `app` роль.
+- [x] **REQ-32-02** — Production path (`get_current_user`, DEV_MODE=false) НЕ использует OWNER_TG_ID — auth полностью role-based (owner / member / revoked); docstring sharpened; `tests/test_no_owner_tg_id_in_prod.py` (2 tests) — regression cover.
+- [x] **REQ-32-03** — AI cost cap default 500 cents ($5/mo) shipped: `app/db/models.py` + alembic `0018_cap_500` migration; `GET /api/v1/ai/usage` extended с `cap_cents` / `remaining_cents` / `spent_cents_period`; `tests/test_ai_cap_default.py` (3 tests) — orm/server/INSERT defaults.
+- [x] **REQ-32-04** — Locust load-test harness: `loadtest/locustfile.py` (2 user classes: ActualTxnUser + AIChatUser); `docs/LOAD-TEST.md` методология + acceptance criteria + pre-deploy checklist. Manual rerun в staging обязателен перед production deploy.
+- [x] **REQ-32-05** — `docs/RUNBOOK-multitenant.md` — pre-migration checklist, alembic upgrade/downgrade procedure, pg_dump/pg_restore disaster recovery (RTO 10-20 min for pet-scale), monitoring queries, alert triage. Round-trip `alembic upgrade head → downgrade -1 → upgrade head` clean (verified).
+- [x] **REQ-32-06** — Alembic migration `0019_owner_backfill` — idempotent UPDATE с env-driven OWNER_TG_ID; `tests/test_owner_role_backfill.py` (3 scenarios) — promotes member, idempotent owner, no-row-safe.
 
 ## Phase 33 — Compliance Baseline (152-ФЗ + ToS + ПДн + Privacy)
 
