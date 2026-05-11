@@ -169,3 +169,8 @@ app.include_router(yookassa_webhook_router, tags=["webhooks"])
 # webhook patterns), so we include it WITHOUT an additional prefix here.
 from app.api.routes.billing import router as billing_router  # noqa: E402
 app.include_router(billing_router)
+
+# Phase 36-02 (REQ-36-02) — tax reserve calculator для Persona E (самозанятые).
+# Router declares its own ``/api/v1`` prefix.
+from app.api.routes.tax import router as tax_router  # noqa: E402
+app.include_router(tax_router)
