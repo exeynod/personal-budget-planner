@@ -1,18 +1,18 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.1.1
-milestone_name: Liquid Glass Theme
-status: complete
-started_at: "2026-05-11"
-stopped_at: Phase 55 complete. v1.1.1 Liquid Glass Theme milestone shipped 2026-05-11 (6/6 phases, 9 plans). Awaiting MILESTONE-AUDIT commit.
-last_updated: "2026-05-11T19:45:00.000Z"
-last_activity: 2026-05-11 — Phase 55 polish + acceptance complete (docs/THEMES.md + reduce-motion verified)
+milestone: v1.2
+milestone_name: Acquisition & Retention
+status: planned
+started_at: null
+stopped_at: v1.1.1 Liquid Glass Theme shipped 2026-05-11. v1.2 (Phases 39-44) запланирован — start gated на Month-3 mini-gate (см. PRODUCT-STRATEGY.md kill-metric).
+last_updated: "2026-05-11T20:00:00.000Z"
+last_activity: 2026-05-11 — v1.1.1 Liquid Glass Theme milestone closed
 progress:
   total_phases: 6
-  completed_phases: 6
-  total_plans: 9
-  completed_plans: 9
-  percent: 100
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
