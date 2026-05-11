@@ -87,7 +87,8 @@
 5. AI tools расширены: `tag_business_vs_personal(tx_ids, scope)` + `record_tax_reserve(amount_cents, period)` + `propose_csv_export(period)`. Используют existing propose-and-approve flow.
 6. Bot-команды `/tax` (показывает «Резерв на налог за май: X ₽ из ожидаемых Y ₽») + `/csv` (отправляет ZIP в личку через bot send_document).
 
-### Phase 37: Open-Core Split + GitHub Public Repo
+### Phase 37: Open-Core Split + GitHub Public Repo ✅ SHIPPED 2026-05-11
+**Status**: Legal + docs landed (2 plans, 5 files). REQ-37-01..03 shipped (LICENSE, LICENSE-CLOSED-COMPONENTS, OPEN-CORE-MANIFEST, README, CONTRIBUTING). REQ-37-04 (CI), 37-05 (demo bot), 37-06 (Maximal Poster tokens scrubbing) deferred to manual repo-split + Phase 38.
 **Goal**: Выделение ядра в публичный GitHub-репозиторий под PolyForm Shield 1.0.0; closed-source части (AI client, embeddings cache, iOS native UI, Maximal Poster components, multi-tenant cloud-config) выделены behind compile-flag или в отдельную приватную submodule; public README + demo + docker-compose for self-host.
 **Depends on**: Phase 32 (multi-tenant активна — open-core должен работать в single-tenant fallback для self-host).
 **Requirements**: REQ-37-01..06

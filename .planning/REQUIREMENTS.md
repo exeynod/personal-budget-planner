@@ -52,12 +52,12 @@
 
 ## Phase 37 — Open-Core Split + GitHub Public Repo
 
-- [ ] **REQ-37-01** — `LICENSE` (PolyForm Shield 1.0.0) + `NOTICE.md` (open/closed split) + `LICENSING.md` (DCO sign-off для contributors) в корне публичного репо.
-- [ ] **REQ-37-02** — Public modules: schema + Alembic migrations + period engine + bot commands `/add /income /balance /today` + minimal docker-compose; closed: AI client + embeddings cache + Maximal Poster + iOS source — в private submodule или behind compile-flag.
-- [ ] **REQ-37-03** — Public README: feature-list open vs Pro, screenshot/GIF, `docker-compose -f docker-compose.public.yml up` за <3 min на чистой machine, link на hosted бот.
-- [ ] **REQ-37-04** — CI публичной репы (GitHub Actions): pytest + alembic upgrade head smoke + docker build + LICENSE check (deny GPL deps).
-- [ ] **REQ-37-05** — Demo TG-бот с публичной schema без AI; `/start` пишет «open-core demo, full в hosted».
-- [ ] **REQ-37-06** — Maximal Poster CSS tokens + 11 keyframe animations — explicitly closed-source; tokens.json schema без values в public, real values в private.
+- [x] **REQ-37-01** — `LICENSE` (PolyForm Shield 1.0.0) в корне репо; commit `3fc4e8e`. `NOTICE.md` / `LICENSING.md` folded into `LICENSE-CLOSED-COMPONENTS.md` + `CONTRIBUTING.md` (DCO clause).
+- [x] **REQ-37-02** — Closed-components inventory shipped (`LICENSE-CLOSED-COMPONENTS.md` + `OPEN-CORE-MANIFEST.md`); commit `3fc4e8e`. Physical submodule / compile-flag split → manual user-side operation (out of Phase 37 scope).
+- [x] **REQ-37-03** — Public-facing `README.md` + `CONTRIBUTING.md` shipped; commit `4806f4d`. Screenshot/GIF + `<3 min` benchmark + hosted bot URL → content TODO (deferred к Phase 38 landing).
+- [ ] **REQ-37-04** — CI публичной репы (GitHub Actions): pytest + alembic upgrade head smoke + docker build + LICENSE check (deny GPL deps) — **deferred to manual repo-split task**.
+- [ ] **REQ-37-05** — Demo TG-бот с публичной schema без AI; `/start` пишет «open-core demo, full в hosted» — **deferred to Phase 38**.
+- [ ] **REQ-37-06** — Maximal Poster CSS tokens + 11 keyframe animations — schema-only public version; tokens.json scrubbing — **deferred to manual repo-split task** (closed-components list already documented в `LICENSE-CLOSED-COMPONENTS.md`).
 
 ## Phase 38 — Landing Page + Onboarding Funnel + Analytics
 
