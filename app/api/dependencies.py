@@ -24,7 +24,7 @@ from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from app.core.auth import validate_init_data
 from app.core.settings import settings
@@ -64,9 +64,17 @@ async def _dev_mode_resolve_owner(db: AsyncSession) -> AppUser:
     onboarding flows that rely on the OWNER privilege.
     """
     tg_user_id = settings.OWNER_TG_ID
+    # Phase 35 REQ-35-04: grant reverse-trial on initial INSERT only;
+    # ON CONFLICT path leaves trial_ends_at untouched so a dev-restart of
+    # an existing OWNER row does not refresh / extend the trial window.
+    trial_ends = datetime.now(timezone.utc) + timedelta(days=14)
     stmt = (
         pg_insert(AppUser)
-        .values(tg_user_id=tg_user_id, role=UserRole.owner)
+        .values(
+            tg_user_id=tg_user_id,
+            role=UserRole.owner,
+            trial_ends_at=trial_ends,
+        )
         .on_conflict_do_update(
             index_elements=["tg_user_id"],
             set_={"role": UserRole.owner},
@@ -145,10 +153,24 @@ async def _dev_mode_resolve_test_user(
 
     The role choice mirrors ``_dev_mode_resolve_owner``: test fixtures need
     `owner` privilege so they can exercise admin-only routes if required.
+
+    Phase 35 REQ-35-04: when this helper *inserts* a brand-new row (the user
+    has never been seen before) the dev-only registration path becomes the
+    de-facto onboarding entry point for Playwright/iOS-sim/local-dev users.
+    Grant a 14-day reverse-trial (``trial_ends_at = NOW() + 14d``) on insert
+    so downstream tier resolution treats new dev users the same way a
+    production signup would. ON CONFLICT DO UPDATE deliberately does NOT
+    touch ``trial_ends_at`` — re-resolving an existing user must not refresh
+    or extend their trial window.
     """
+    trial_ends = datetime.now(timezone.utc) + timedelta(days=14)
     stmt = (
         pg_insert(AppUser)
-        .values(tg_user_id=tg_user_id, role=UserRole.owner)
+        .values(
+            tg_user_id=tg_user_id,
+            role=UserRole.owner,
+            trial_ends_at=trial_ends,
+        )
         .on_conflict_do_update(
             index_elements=["tg_user_id"],
             set_={"role": UserRole.owner},
