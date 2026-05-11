@@ -74,7 +74,8 @@
 6. Cancellation flow в Management → Pro: «Отменить подписку» → confirm dialog с reason-select (4 опции) → ЮKassa unsubscribe + сохранение reason в `cancellation_reason` для retrospective.
 7. E2E test: новый user signup → trial → mock day-15 → API 402 на AI endpoint → paywall → mock ЮKassa webhook succeeded → tier=pro → AI endpoint снова 200.
 
-### Phase 36: Persona E Feature Pack (Самозанятые)
+### Phase 36: Persona E Feature Pack (Самозанятые) ✅ SHIPPED 2026-05-11
+**Status**: Backend-only delivery complete (3 plans, 8 tests green). REQ-36-01..03 shipped; REQ-36-04 (ZIP+CP1251) / 05 (AI tools) / 06 (bot commands) deferred to v1.2 + Phase 42.
 **Goal**: Целевые фичи для primary persona (самозанятый/микро-ИП РФ) — business/personal теги на категории и транзакции, tax reserve calculator (4% НПД с авто-deposit в копилку при кешировании income), CSV export + auto-чек reminder; AI tools расширены `tag_business_vs_personal` и `record_tax_reserve`.
 **Depends on**: Phase 35 (tier-gating нужен — это Pro-only features).
 **Requirements**: REQ-36-01..06

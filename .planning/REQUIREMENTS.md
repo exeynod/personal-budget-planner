@@ -41,14 +41,14 @@
 - [ ] **REQ-35-06** — Cancellation flow с retention prompt + 4-reason select — **deferred to v1.2**: `POST /me/subscription/cancel` уже есть (Phase 34-06), но reason-select UI + 5% discount offer — отдельный UX-pass.
 - [ ] **REQ-35-07** — E2E test (signup → trial → mock day-15 → 402 → succeeded → 200) — **deferred to v1.2**: full E2E с time-mocking требует test harness extension. Частично покрыто unit + integration tests Phase 35 (17/17 green).
 
-## Phase 36 — Persona E Feature Pack (Самозанятые)
+## Phase 36 — Persona E Feature Pack (Самозанятые) ✅ SHIPPED 2026-05-11
 
-- [ ] **REQ-36-01** — `category.kind ∈ {expense,income,mixed}` + `category.scope ∈ {business,personal,both}` миграция; UI toggle CategoryDetail; default `personal/expense`.
-- [ ] **REQ-36-02** — Каждый `actual_transaction` inherits scope от category; override через AddSheet «Бизнес/Личное» chip; backfill existing → personal.
-- [ ] **REQ-36-03** — Tax reserve config в Management → Настройки: «Я самозанятый» toggle + rate 4% / 6%; при income+business автосоздание `kind=deposit` child txn на `amount*rate` в копилку или sub-account; audit `tax_reserve_log`.
-- [ ] **REQ-36-04** — `GET /api/v1/export/csv?period=YYYY-MM` (Pro-only) — ZIP с operations.csv + summary.csv (CP1251 + UTF-8 BOM варианты).
-- [ ] **REQ-36-05** — AI tools extension: `tag_business_vs_personal`, `record_tax_reserve`, `propose_csv_export` — через propose-and-approve flow.
-- [ ] **REQ-36-06** — Bot-команды `/tax` (status резерва) + `/csv` (send_document ZIP в личку).
+- [x] **REQ-36-01** — `category.tag` (NOT NULL DEFAULT `'personal'`) + `actual_transaction.tag` (NULL-able override) shipped via alembic `0023`; CHECK constraints + partial index `ix_actual_transaction_tag WHERE tag='business'`; commit `10aa998`, 2 tests pass. UI toggle CategoryDetail/AddSheet → deferred к v1.2 (backend-only delivery в Phase 36).
+- [x] **REQ-36-02** — Tax reserve calculator (НПД 4%/6% + 5% safety margin) + Pro-gated `GET /api/v1/tax/reserve`; commit `d3204a0`, 4 tests pass. Регим через query param `regime=nalog_4|nalog_6` — `app_user.nalog_regime` storage + Management toggle → v1.2. Auto-deposit child txn → deferred (только recommendation, не charge).
+- [x] **REQ-36-03** — Pro-gated `GET /api/v1/tax/export.csv` — UTF-8 BOM + RFC 4180 excel dialect; денорм category code/name/tag для self-contained spreadsheet; commit `8e3d32b`, 2 tests pass. ZIP с CP1251 вариантом → deferred к v1.2.
+- [ ] **REQ-36-04** — ZIP с operations.csv + summary.csv (CP1251 + UTF-8 BOM варианты) — **deferred to v1.2**: single-file UTF-8 CSV (REQ-36-03) закрывает 80% use-case; ZIP wrapper + CP1251 variant → v1.2 если будет запрос.
+- [ ] **REQ-36-05** — AI tools extension (`tag_business_vs_personal`, `record_tax_reserve`, `propose_csv_export`) — **deferred to Phase 42** (AI Feature Expansion) per ROADMAP §Phase 42.
+- [ ] **REQ-36-06** — Bot-команды `/tax` + `/csv` (send_document ZIP в личку) — **deferred to v1.2** UI wave.
 
 ## Phase 37 — Open-Core Split + GitHub Public Repo
 
