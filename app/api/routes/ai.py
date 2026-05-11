@@ -52,7 +52,7 @@ from app.api.schemas.ai import (
     UsageResponse,
 )
 from app.core.settings import settings
-from app.db.models import AiUsageLog
+from app.db.models import AiUsageLog, AppUser
 from app.db.session import AsyncSessionLocal
 from app.services import ai_conversation_service as conv_svc
 from app.services import ai_observation as obs_svc
@@ -694,13 +694,18 @@ async def clear_conversation(
 
 
 @router.get("/usage", response_model=UsageResponse)
-async def get_usage() -> UsageResponse:
-    """GET /ai/usage — token usage and estimated USD cost (Phase 10.1).
+async def get_usage(
+    current_user: Annotated[AppUser, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db_with_tenant_scope)],
+) -> UsageResponse:
+    """GET /ai/usage — token usage + per-user spending cap (Phase 32 REQ-32-03).
 
-    Aggregates the in-process ring buffer into today / total session totals.
-    Per-process scope: stats reset on api container restart. Acceptable for
-    a single-tenant pet app; promote to DB if cross-process visibility needed.
+    Per-process ring buffer (legacy `today` / `session_total`) preserved
+    для backward-compat. New per-user fields populated from
+    `app_user.spending_cap_cents` + ai_usage_log aggregation.
     """
+    from app.services.spend_cap import get_user_spend_cents
+
     today = datetime.now(timezone.utc).date().isoformat()
     today_records = [r for r in _usage_buffer if r["ts"][:10] == today]
 
@@ -716,11 +721,19 @@ async def get_usage() -> UsageResponse:
             ),
         }
 
+    # Per-user fields (Phase 32 REQ-32-03)
+    cap = int(current_user.spending_cap_cents or 0)
+    spent = await get_user_spend_cents(db, user_id=current_user.id)
+    remaining = max(0, cap - int(spent))
+
     return UsageResponse(
         today=_agg(today_records),
         session_total=_agg(list(_usage_buffer)),
         buffer_size=len(_usage_buffer),
         buffer_max=_USAGE_BUFFER_MAX,
+        cap_cents=cap,
+        remaining_cents=remaining,
+        spent_cents_period=int(spent),
     )
 
 

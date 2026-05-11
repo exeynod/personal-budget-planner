@@ -69,6 +69,11 @@ class UsageResponse(BaseModel):
     session_total: everything currently in the ring buffer.
     buffer_size / buffer_max: the in-memory window we currently track.
     Per-process scope — counters reset when api container restarts.
+
+    Phase 32 REQ-32-03: per-user AI cap visibility.
+    cap_cents/remaining_cents/spent_cents_period — optional fields populated
+    from ai_usage_log aggregation для current user. Legacy callers (без cap
+    awareness) продолжают работать через optional/default=None.
     """
 
     model_config = ConfigDict(from_attributes=True)
@@ -77,6 +82,10 @@ class UsageResponse(BaseModel):
     session_total: UsageBucket
     buffer_size: int
     buffer_max: int
+    # Phase 32 REQ-32-03: per-user AI cap visibility.
+    cap_cents: int | None = None  # current user's spending_cap_cents (USD-storage)
+    remaining_cents: int | None = None  # cap_cents - spent_cents_period (>=0)
+    spent_cents_period: int | None = None  # spend для current MSK month (cents)
 
 
 class ObservationResponse(BaseModel):

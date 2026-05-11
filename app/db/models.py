@@ -159,12 +159,15 @@ class AppUser(Base):
         Boolean, default=True, nullable=False, server_default="true"
     )
     # Scale 100/USD per spend_cap.py (1 USD == 100 storage units).
-    # Default = 100 cents = $1/month per user (alembic 0009 migration).
+    # Default = 500 cents = $5/month per user (Phase 32 REQ-32-03,
+    # alembic 0018 migration). Bumped from 100 ($1) per PRODUCT-STRATEGY
+    # v1.1 monetization foundation — $5/mo даёт comfortable headroom
+    # для conversational AI usage в paying tier.
     spending_cap_cents: Mapped[int] = mapped_column(
         BigInteger,
         nullable=False,
-        default=100,
-        server_default="100",
+        default=500,
+        server_default="500",
     )
     # Phase 22 (BE-01): месячный доход после налогов (копейки).
     # NULL = "не вводил доход" — UI редиректит на onboarding-edit
