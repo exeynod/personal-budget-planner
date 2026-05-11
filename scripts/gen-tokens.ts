@@ -12,6 +12,13 @@ const SRC = join(ROOT, 'design/tokens.json');
 const OUT_CSS = join(ROOT, 'frontend/src/stylesV10/tokens.css');
 const OUT_SWIFT = join(ROOT, 'ios/BudgetPlanner/FeaturesV10/Common/PosterTokens.swift');
 
+type ThemeOverride = {
+  color?: Record<string, string>;
+  font?: Record<string, string>;
+  shadow?: Record<string, string>;
+  material?: Record<string, string>;
+};
+
 type Tokens = {
   version: string;
   color: Record<string, string>;
@@ -22,6 +29,11 @@ type Tokens = {
   fontSize: Record<string, number>;
   letterSpacing: Record<string, string>;
   easing: Record<string, string>;
+  themes?: {
+    maximal_poster?: ThemeOverride;
+    liquid_glass?: ThemeOverride;
+    ios_default?: ThemeOverride;
+  };
 };
 
 const t: Tokens = JSON.parse(readFileSync(SRC, 'utf8'));
@@ -41,6 +53,33 @@ for (const [k, v] of entries(t.fontSize))      cssLines.push(`  --poster-font-si
 for (const [k, v] of entries(t.letterSpacing)) cssLines.push(`  --poster-tracking-${kebab(k)}: ${v};`);
 for (const [k, v] of entries(t.easing))        cssLines.push(`  --poster-easing-${kebab(k)}: ${v};`);
 cssLines.push('}', '');
+
+// ---------- per-theme CSS emit ----------
+const themePrefix: Record<string, string> = {
+  maximal_poster: 'poster',
+  liquid_glass:   'lg',
+  ios_default:    'ios',
+};
+
+const emitThemeBlock = (themeKey: 'maximal_poster' | 'liquid_glass' | 'ios_default') => {
+  const theme = t.themes?.[themeKey];
+  if (!theme) return;
+  const prefix = themePrefix[themeKey];
+  const lines: string[] = [];
+  for (const [k, v] of entries(theme.color ?? {}))    lines.push(`  --${prefix}-${kebab(k)}: ${v};`);
+  for (const [k, v] of entries(theme.font ?? {}))     lines.push(`  --${prefix}-font-${kebab(k)}: ${v};`);
+  for (const [k, v] of entries(theme.shadow ?? {}))   lines.push(`  --${prefix}-shadow-${kebab(k)}: ${v};`);
+  for (const [k, v] of entries(theme.material ?? {})) lines.push(`  --${prefix}-material-${kebab(k)}: ${v};`);
+  if (lines.length === 0) return;
+  cssLines.push(`[data-theme="${themeKey}"] {`);
+  cssLines.push(...lines);
+  cssLines.push('}', '');
+};
+
+emitThemeBlock('maximal_poster');
+emitThemeBlock('liquid_glass');
+emitThemeBlock('ios_default');
+
 mkdirSync(dirname(OUT_CSS), { recursive: true });
 writeFileSync(OUT_CSS, cssLines.join('\n'));
 
@@ -88,6 +127,48 @@ const swiftLines: string[] = [
     return `        static let ${k} = (x: CGFloat(${x}), y: CGFloat(${y}), blur: CGFloat(${blur}), opacity: ${opacity})`;
   }),
   '    }',
+  '}',
+  '',
+  '// MARK: - Theme enum (multi-theme support, Phase 50)',
+  '',
+  'enum Theme: String, CaseIterable {',
+  '    case maximalPoster = "maximal_poster"',
+  '    case liquidGlass = "liquid_glass"',
+  '    case iosDefault = "ios_default"',
+  '',
+  '    static func resolve(_ raw: String) -> Theme {',
+  '        Theme(rawValue: raw) ?? .maximalPoster',
+  '    }',
+  '',
+  '    var ruLabel: String {',
+  '        switch self {',
+  '        case .maximalPoster: return "MAXIMAL POSTER"',
+  '        case .liquidGlass:   return "LIQUID GLASS"',
+  '        case .iosDefault:    return "IOS DEFAULT"',
+  '        }',
+  '    }',
+  '}',
+  '',
+  '// MARK: - Per-theme token enums',
+  '',
+  'enum LiquidGlassTokens {',
+  '    static let bgPrimary       = SwiftUI.Color(hex: "F2F2F7")',
+  '    static let glassTintLight  = SwiftUI.Color.white.opacity(0.72)',
+  '    static let glassTintDark   = SwiftUI.Color(.sRGB, red: 28.0/255, green: 28.0/255, blue: 30.0/255, opacity: 0.72)',
+  '    static let glassBorder     = SwiftUI.Color.white.opacity(0.18)',
+  '    static let textPrimary     = SwiftUI.Color(hex: "1C1C1E")',
+  '    static let textSecondary   = SwiftUI.Color(.sRGB, red: 60.0/255, green: 60.0/255, blue: 67.0/255, opacity: 0.6)',
+  '    static let textTertiary    = SwiftUI.Color(.sRGB, red: 60.0/255, green: 60.0/255, blue: 67.0/255, opacity: 0.3)',
+  '',
+  '    static let shadowElevatedRadius: CGFloat = 8',
+  '    static let shadowFloatingRadius: CGFloat = 24',
+  '    static let shadowFloatingStrongRadius: CGFloat = 48',
+  '}',
+  '',
+  'enum IOSDefaultTokens {',
+  '    static let bgPrimary    = SwiftUI.Color(hex: "F2F2F7")',
+  '    static let textPrimary  = SwiftUI.Color(hex: "000000")',
+  '    static let tint         = SwiftUI.Color(hex: "007AFF")',
   '}',
   '',
   'extension SwiftUI.Color {',

@@ -62,6 +62,48 @@ enum PosterTokens {
     }
 }
 
+// MARK: - Theme enum (multi-theme support, Phase 50)
+
+enum Theme: String, CaseIterable {
+    case maximalPoster = "maximal_poster"
+    case liquidGlass = "liquid_glass"
+    case iosDefault = "ios_default"
+
+    static func resolve(_ raw: String) -> Theme {
+        Theme(rawValue: raw) ?? .maximalPoster
+    }
+
+    var ruLabel: String {
+        switch self {
+        case .maximalPoster: return "MAXIMAL POSTER"
+        case .liquidGlass:   return "LIQUID GLASS"
+        case .iosDefault:    return "IOS DEFAULT"
+        }
+    }
+}
+
+// MARK: - Per-theme token enums
+
+enum LiquidGlassTokens {
+    static let bgPrimary       = SwiftUI.Color(hex: "F2F2F7")
+    static let glassTintLight  = SwiftUI.Color.white.opacity(0.72)
+    static let glassTintDark   = SwiftUI.Color(.sRGB, red: 28.0/255, green: 28.0/255, blue: 30.0/255, opacity: 0.72)
+    static let glassBorder     = SwiftUI.Color.white.opacity(0.18)
+    static let textPrimary     = SwiftUI.Color(hex: "1C1C1E")
+    static let textSecondary   = SwiftUI.Color(.sRGB, red: 60.0/255, green: 60.0/255, blue: 67.0/255, opacity: 0.6)
+    static let textTertiary    = SwiftUI.Color(.sRGB, red: 60.0/255, green: 60.0/255, blue: 67.0/255, opacity: 0.3)
+
+    static let shadowElevatedRadius: CGFloat = 8
+    static let shadowFloatingRadius: CGFloat = 24
+    static let shadowFloatingStrongRadius: CGFloat = 48
+}
+
+enum IOSDefaultTokens {
+    static let bgPrimary    = SwiftUI.Color(hex: "F2F2F7")
+    static let textPrimary  = SwiftUI.Color(hex: "000000")
+    static let tint         = SwiftUI.Color(hex: "007AFF")
+}
+
 extension SwiftUI.Color {
     init(hex: String) {
         var s = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
