@@ -37,3 +37,12 @@ export {
   pluralDays,
   formatPeriodEyebrow,
 } from './format';
+
+// Phase 50-02 (THEME-01): multi-theme runtime selector.
+export {
+  useTheme,
+  THEMES,
+  themeLabel,
+  themeDescription,
+  type Theme,
+} from './useTheme';

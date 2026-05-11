@@ -45,6 +45,29 @@ function readTheme(): Theme {
   return 'v10';
 }
 
+// Phase 50-02 (THEME-02): early-bootstrap hydration of <html data-theme="…">
+// so per-theme CSS variables (Phase 50-01) apply BEFORE first paint, preventing
+// a flash of the default theme. Must run before createRoot(...).render().
+//
+// Whitelist mirrors `useTheme` hook in screensV10/common/useTheme.ts. Note
+// that legacy `ui.theme` shell-dispatcher values (`v06`/`v10`) fall through
+// to default `maximal_poster` here, while the dispatcher below still
+// honours them.
+(() => {
+  try {
+    const raw = localStorage.getItem('ui.theme');
+    const initial =
+      raw === 'maximal_poster' ||
+      raw === 'liquid_glass' ||
+      raw === 'ios_default'
+        ? raw
+        : 'maximal_poster';
+    document.documentElement.setAttribute('data-theme', initial);
+  } catch {
+    document.documentElement.setAttribute('data-theme', 'maximal_poster');
+  }
+})();
+
 const root = createRoot(document.getElementById('root')!);
 const theme = readTheme();
 

@@ -1,0 +1,126 @@
+// Phase 50-02 (THEME-01, THEME-02, THEME-04): multi-theme runtime selector.
+//
+// Reactive React hook returning `[theme, setTheme]` over localStorage key
+// `ui.theme`. Persists choice and applies `data-theme` attribute on
+// `<html>` so per-theme CSS rules (Phase 50-01 codegen output in
+// `stylesV10/tokens.css`) take effect across the entire SPA.
+//
+// Style mirrors `useHomeColor` (Phase 30-07 / DEBT-08): both hooks share
+// the same persistence + cross-tab broadcast pattern (localStorage write +
+// `CustomEvent` dispatch + `storage` event listener), so any number of
+// mounted instances re-render in the same frame after the picker tap.
+//
+// Note: main.tsx historically used `ui.theme` for v06/v10 shell dispatch.
+// That legacy whitelist (`v06`/`v10`) falls through to default `v10` when
+// the new theme values (`maximal_poster` / `liquid_glass` / `ios_default`)
+// are stored — and this hook falls through to `maximal_poster` for the
+// legacy values — so both systems coexist during the transition.
+//
+// User-request 2026-05-11 — Phase 50 multi-theme milestone (v1.1.1).
+
+import { useCallback, useEffect, useState } from 'react';
+
+export type Theme = 'maximal_poster' | 'liquid_glass' | 'ios_default';
+export const THEMES: readonly Theme[] = [
+  'maximal_poster',
+  'liquid_glass',
+  'ios_default',
+] as const;
+
+const STORAGE_KEY = 'ui.theme';
+const EVENT = 'theme-changed';
+const DEFAULT: Theme = 'maximal_poster';
+
+function isTheme(v: unknown): v is Theme {
+  return (
+    v === 'maximal_poster' || v === 'liquid_glass' || v === 'ios_default'
+  );
+}
+
+function readStored(): Theme {
+  try {
+    const raw =
+      typeof window !== 'undefined'
+        ? window.localStorage.getItem(STORAGE_KEY)
+        : null;
+    return isTheme(raw) ? raw : DEFAULT;
+  } catch {
+    return DEFAULT;
+  }
+}
+
+/** Russian/Latin label rendered in picker swatches + Settings row preview. */
+export function themeLabel(t: Theme): string {
+  switch (t) {
+    case 'maximal_poster':
+      return 'MAXIMAL POSTER';
+    case 'liquid_glass':
+      return 'LIQUID GLASS';
+    case 'ios_default':
+      return 'iOS DEFAULT';
+  }
+}
+
+/** Long-form description rendered under the label in the theme picker. */
+export function themeDescription(t: Theme): string {
+  switch (t) {
+    case 'maximal_poster':
+      return 'Кораллово-кобальтовая палитра, Archivo Black + DM Serif Italic';
+    case 'liquid_glass':
+      return 'Apple iOS 26 Liquid Glass: прозрачные слои, SF Pro, system materials';
+    case 'ios_default':
+      return 'Минималистичный iOS: SF Pro, system gray/blue, без glass';
+  }
+}
+
+/**
+ * Reactive hook: returns `[value, setter]`.
+ *
+ * Initial value reads `localStorage`; invalid/missing → `'maximal_poster'`.
+ * Setter writes localStorage + broadcasts CustomEvent so all mounted
+ * hook instances re-render in the same frame.
+ *
+ * Applies `data-theme` attribute on `<html>` on mount and on every change
+ * so per-theme CSS variables (Phase 50-01) take effect.
+ *
+ * Subscribes to both `theme-changed` (same-tab) and `storage` (cross-tab)
+ * — picker tap in one tab updates UI in another.
+ */
+export function useTheme(): [Theme, (next: Theme) => void] {
+  const [value, setValue] = useState<Theme>(readStored);
+
+  useEffect(() => {
+    // Apply theme to <html data-theme="..."> on mount + each change.
+    document.documentElement.setAttribute('data-theme', value);
+  }, [value]);
+
+  useEffect(() => {
+    const onCustom = (e: Event) => {
+      const detail = (e as CustomEvent<Theme>).detail;
+      if (isTheme(detail)) setValue(detail);
+    };
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === STORAGE_KEY && isTheme(e.newValue)) {
+        setValue(e.newValue);
+      }
+    };
+    window.addEventListener(EVENT, onCustom);
+    window.addEventListener('storage', onStorage);
+    return () => {
+      window.removeEventListener(EVENT, onCustom);
+      window.removeEventListener('storage', onStorage);
+    };
+  }, []);
+
+  const setter = useCallback((next: Theme) => {
+    try {
+      window.localStorage.setItem(STORAGE_KEY, next);
+    } catch {
+      // ignore quota / private-mode errors — state still updates in-memory.
+    }
+    window.dispatchEvent(new CustomEvent<Theme>(EVENT, { detail: next }));
+    setValue(next);
+  }, []);
+
+  return [value, setter];
+}
