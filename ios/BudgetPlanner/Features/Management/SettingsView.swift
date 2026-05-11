@@ -67,6 +67,12 @@ struct SettingsView: View {
     @State private var viewModel = SettingsViewModel()
     @Environment(AuthStore.self) private var authStore
 
+    // Phase 56 (v06 Native Rebuild): тумблер на новый V10 дизайн.
+    // Хранится в общем ключе `ui.theme`. `"v06"` (текущий MainShell) ↔
+    // `Theme.maximalPoster.rawValue` (V10MainShell). Запись инициирует
+    // переход к V10 через AppRouter (re-evaluate body).
+    @AppStorage("ui.theme") private var themeRaw: String = Theme.maximalPoster.rawValue
+
     private var user: UserDTO? {
         if case .authenticated(let user) = authStore.state { return user }
         return nil
@@ -79,6 +85,7 @@ struct SettingsView: View {
                 notifySection
                 aiSection
                 aiSpendSection
+                designSection
             } else if viewModel.isLoading {
                 Section { ProgressView() }
             }
@@ -182,5 +189,26 @@ struct SettingsView: View {
         let s = String(format: "%.2f", Double(spend) / 100.0)
         let c = String(format: "%.2f", Double(cap) / 100.0)
         return "$\(s) / $\(c)"
+    }
+
+    private var designSection: some View {
+        Section {
+            Button {
+                themeRaw = Theme.maximalPoster.rawValue
+            } label: {
+                LabeledContent {
+                    Text("MAXIMAL POSTER")
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(.secondary)
+                } label: {
+                    Label("Переключить на V10", systemImage: "paintpalette")
+                        .foregroundStyle(.primary)
+                }
+            }
+        } header: {
+            Text("Дизайн")
+        } footer: {
+            Text("Текущий стиль — нативный iOS. Переключение откроет V10-шелл с темами MAXIMAL POSTER / LIQUID GLASS / IOS DEFAULT. Вернуться можно из настроек V10.")
+        }
     }
 }

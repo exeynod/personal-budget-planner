@@ -24,6 +24,10 @@ struct ThemePickerSheet: View {
     private let themes: [Theme] = Theme.allCases
 
     var body: some View {
+        // Phase 56 (v06 Native Rebuild — Foundation): обёртка в ScrollView, чтобы
+        // четвёртая опция (СТАРЫЙ IOS) не отсекалась таб-баром на компактных
+        // экранах. Sheet всё равно фиксированной высоты, но контент скроллится.
+        ScrollView {
         VStack(alignment: .leading, spacing: PosterTokens.Space.s18) {
             Eyebrow("ТЕМА", opacity: 0.6, color: PosterTokens.Color.ink)
             VStack(spacing: 0) {
@@ -65,10 +69,67 @@ struct ThemePickerSheet: View {
                     .buttonStyle(.plain)
                     .accessibilityIdentifier("theme-\(theme.rawValue)")
                 }
+
+                // Phase 56 (v06 Native Rebuild — Foundation): legacy v06 shell.
+                // Special row: переключает на нативный iOS MainShell. `"v06"` —
+                // sentinel, не входит в Theme.allCases.
+                Button {
+                    themeRaw = legacyV06Value
+                    isPresented = false
+                } label: {
+                    HStack(spacing: 14) {
+                        legacySwatch
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("СТАРЫЙ IOS")
+                                .font(.custom(PosterTokens.Font.jetBrainsMono, size: 12).weight(.semibold))
+                                .kerning(12 * 0.14)
+                                .foregroundColor(PosterTokens.Color.ink)
+                            Text("Нативный SwiftUI: Form, TabView, system colors")
+                                .font(.custom(PosterTokens.Font.manrope, size: 12))
+                                .foregroundColor(PosterTokens.Color.ink.opacity(0.6))
+                                .multilineTextAlignment(.leading)
+                        }
+                        Spacer()
+                        if themeRaw == legacyV06Value {
+                            Text("✓")
+                                .font(.custom(PosterTokens.Font.archivoBlack, size: 18))
+                                .foregroundColor(PosterTokens.Color.coral)
+                        }
+                    }
+                    .padding(.vertical, 14)
+                    .padding(.horizontal, 4)
+                    .contentShape(Rectangle())
+                    .overlay(
+                        Rectangle()
+                            .frame(height: 1)
+                            .foregroundColor(.black.opacity(0.08)),
+                        alignment: .top
+                    )
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("theme-v06")
             }
         }
         .padding(.horizontal, PosterTokens.Space.s22)
         .padding(.vertical, PosterTokens.Space.s28)
+        }
+    }
+
+    private var legacyV06Value: String { "v06" }
+
+    private var legacySwatch: some View {
+        RoundedRectangle(cornerRadius: 8, style: .continuous)
+            .fill(Color(.systemGroupedBackground))
+            .frame(width: 36, height: 36)
+            .overlay(
+                Image(systemName: "house.fill")
+                    .font(.system(size: 14, weight: .regular))
+                    .foregroundColor(PosterTokens.Color.coral)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .strokeBorder(.black.opacity(0.1), lineWidth: 1)
+            )
     }
 
     @ViewBuilder

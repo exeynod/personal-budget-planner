@@ -1,18 +1,38 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.2
-milestone_name: Acquisition & Retention
-status: planned
-started_at: null
-stopped_at: v1.1.1 Liquid Glass Theme shipped 2026-05-11. v1.2 (Phases 39-44) запланирован — start gated на Month-3 mini-gate (см. PRODUCT-STRATEGY.md kill-metric).
-last_updated: "2026-05-11T20:00:00.000Z"
-last_activity: 2026-05-11 — v1.1.1 Liquid Glass Theme milestone closed
+milestone: v1.1.2
+milestone_name: iOS v06 Native Rebuild
+status: in_progress
+started_at: "2026-05-11T22:00:00+03:00"
+stopped_at: null
+last_updated: "2026-05-11T22:05:00+03:00"
+last_activity: 2026-05-11 — Phase 56 (Foundation — Theme Toggle) shipped; theme toggle v06 ↔ V10 рабочий в обе стороны
 progress:
-  total_phases: 6
-  completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
-  percent: 0
+  total_phases: 11
+  completed_phases: 1
+  total_plans: 1
+  completed_plans: 1
+  percent: 9
+---
+
+## Active Milestone: v1.1.2 — iOS v06 Native Rebuild
+
+User-direction 2026-05-11: вернуть нативный iOS UI (`MainShell`) как полноценную альтернативу `V10MainShell`. Оба шелла сосуществуют через `@AppStorage("ui.theme")` тумблер. Параллельная разработка в ветке `v1.0-maximal-poster`.
+
+**Current Phase:** 56 (Foundation) — SHIPPED 2026-05-11.
+
+**Next Phases (planned, see ROADMAP.md):**
+- 57: Onboarding 4-step (v06 native)
+- 58: Home & Period (v06 native)
+- 59: Transactions (миграция на ActualV10API)
+- 60: Accounts (новый домен)
+- 61: Plan Editor (новый домен)
+- 62: Savings & Goals (новый домен)
+- 63: Subscriptions расширенные
+- 64: AddSheet нативный
+- 65: CategoryDetail drill-down
+- 66: Settings + AI + Management polish
+
 ---
 
 # Project State

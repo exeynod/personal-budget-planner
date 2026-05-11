@@ -11,6 +11,7 @@
 - ✅ **v1.0.1 — UI Conformance & Tech Debt** (Phases 29-31) — shipped 2026-05-11 → [archive](milestones/v1.0.1-ROADMAP.md)
 - ✅ **v1.1 — Monetization Foundation** (Phases 32-38) — shipped 2026-05-11 → [archive](milestones/v1.1-ROADMAP.md)
 - ✅ **v1.1.1 — Liquid Glass Theme** (Phases 50-55) — shipped 2026-05-11 → [archive](milestones/v1.1.1-ROADMAP.md)
+- 🚧 **v1.1.2 — iOS v06 Native Rebuild** (Phases 56-66) — in progress, user-direction 2026-05-11. Параллельная разработка в ветке `v1.0-maximal-poster`. Цель: вернуть нативный iOS UI (`MainShell`) как полноценную альтернативу `V10MainShell`, нарастить новый функционал (Accounts / Plan / Savings / Goals / extended Subscriptions / Onboarding 4-step / CategoryDetail drill-down / AddSheet) в нативных iOS-паттернах (Form / List(.insetGrouped) / NavigationStack / .sheet / TabView). Оба шелла сосуществуют через `@AppStorage("ui.theme")` тумблер.
 - ⏳ **v1.2 — Acquisition & Retention** (Phases 39-44) — planned, depends on v1.1 ship + Month-3 mini-gate (≥2 paying-30d / ≥30 регистраций), target ship 2026-11-11 (мес 4-6)
 - ⏳ **v2.0 — Scale or Stop** (Phases 45-49) — bifurcated per Month-6 kill-metric (8 paying-30d): Branch A (≥15 paying / 10K+ ₽ MRR → Apple Dev + Family + Bank CSV + Stripe + B2B); Branch B (<5 paying → maintenance + knowledge transfer). Target decision 2026-11-11, ship 2027-05-11 (мес 7-12)
 
@@ -313,6 +314,53 @@
 3. VoiceOver / accessibility: WCAG AA contrast ratios на light + dark Liquid Glass surfaces; tested на iOS Simulator + Chrome DevTools accessibility audit.
 4. Performance: web theme switch < 100ms, iOS theme switch < 200ms first-paint после @AppStorage change (measured).
 5. `docs/THEMES.md` — token comparison table + screenshots всех 3 тем (cover каждого экрана) для new-contributor onboarding.
+
+---
+
+## Phase Details (v1.1.2 — iOS v06 Native Rebuild)
+
+User-direction 2026-05-11: gap-анализ показал что v06 (Features/) — неполный скелет, V10 (FeaturesV10/) — полнофункциональное приложение с кастомным UI. Пользователь явно отверг подход «переутемить V10 view'ы под нативный iOS» и попросил **новые экраны с нуля** в нативной iOS-парадигме под актуальные v1.0 API. Оба шелла сосуществуют через `@AppStorage("ui.theme")`.
+
+### Phase 56: Foundation (Theme Toggle) ✅
+**Status**: Shipped 2026-05-11.
+**Goal**: Сделать `ui.theme` тумблер рабочим в обе стороны. Из v06 Settings → V10 (default `maximal_poster`); из V10 Settings → ТЕМА → СТАРЫЙ IOS → v06. До этого AppRouter принудительно фолбэкал `"v06"` в `"v10"`, и в ThemePickerSheet не было опции v06.
+**Plans**: 56-01-PLAN.md.
+**Success Criteria**:
+1. ✅ v06 SettingsView имеет секцию «Дизайн» с кнопкой переключения на V10.
+2. ✅ V10 ThemePickerSheet имеет четвёртый ряд «СТАРЫЙ IOS» с pictogram + описанием.
+3. ✅ AppRouter условие переключения: `themeRaw == "v06"` → MainShell, иначе → V10MainShell.
+4. ✅ Manual smoke в симуляторе: v06 ↔ V10 переключение работает в обе стороны, persistence через `com.exeynod.BudgetPlanner.plist`.
+5. ✅ Build 0 errors, 0 new warnings.
+
+### Phase 57: Onboarding 4-step (v06 native) — planned
+**Goal**: Native iOS onboarding wizard — 4 шага (income / accounts / plan / goals) через NavigationStack drill-down или TabView page-style. Использует v1.0 API `/onboarding/complete` с расширенными полями. Заменяет минимальный v06 OnboardingView.
+
+### Phase 58: Home & Period (v06 native) — planned
+**Goal**: Native Home без empty-state «Завершите onboarding» когда user.is_onboarded=true. Интеграция с v1.0 `/periods/current` + `/periods/{id}/balance`. Карточки категорий через List(.insetGrouped).
+
+### Phase 59: Transactions (v06 native) — planned
+**Goal**: Миграция с legacy ActualAPI/PlannedAPI (2-valued kind) на v1.0 ActualV10API (4-valued kind). Фильтры по категории, history/planned subtabs через native Picker. Swipe-to-delete.
+
+### Phase 60: Accounts (v06 native, новый домен) — planned
+**Goal**: Мультиаккаунтность. AccountsView (List со счетами) + AccountDetailView (NavigationLink). API: AccountsAPI v1.0.
+
+### Phase 61: Plan Editor (v06 native, новый домен) — planned
+**Goal**: Редактор месячного плана. List категорий → каждая через NavigationLink на PlanRowEditor (Stepper / TextField rouble-amount). Rollover info inline. API: PlanMonthAPI.
+
+### Phase 62: Savings & Goals (v06 native, новый домен) — planned
+**Goal**: Копилка. Список целей (List с прогресс-баром), GoalDetailView, NewGoalSheet (Form), DepositSheet (Form). API: GoalsAPI.
+
+### Phase 63: Subscriptions расширенные (v06 native) — planned
+**Goal**: post/unpost action, day_of_month, account_id selection. Form-based редактор с DatePicker и Picker (счёт). Миграция на SubscriptionsV10API.
+
+### Phase 64: AddSheet нативный (v06) — planned
+**Goal**: Замена `TransactionEditor` modal на расширенный native Form sheet — без custom keypad, используем `keyboardType: .decimalPad`. Picker категории/счёта. Подсказка AI-категории inline.
+
+### Phase 65: CategoryDetail drill-down (v06 native) — planned
+**Goal**: NavigationLink с категории → CategoryDetailView со списком транзакций по этой категории, кнопкой «увеличить лимит» (вызов PlanMonthAPI).
+
+### Phase 66: Settings + AI + Management Polish (v06 native) — planned
+**Goal**: Settings parity с V10 (theme picker, AI cost cap display). AI-чат — оставить v06 AIChatView с подключением v1.0 ai/chat SSE. Management Hub — оставить List как есть, добавить ряды для новых доменов (Accounts, Savings, Plan).
 
 ---
 
