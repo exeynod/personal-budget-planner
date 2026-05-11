@@ -1,0 +1,74 @@
+/* GlassCard primitive — frosted translucent surface для Liquid Glass theme. */
+
+.root {
+  position: relative;
+  border-radius: var(--lg-radius-card, 14px);
+  background: var(--lg-glass-tint-light, rgba(255, 255, 255, 0.72));
+  color: var(--lg-text-primary, #1c1c1e);
+  isolation: isolate;
+  transition: transform var(--lg-motion-duration-fast, 200ms) var(--lg-motion-spring-default, cubic-bezier(0.32, 0.72, 0, 1));
+}
+
+[data-theme="liquid_glass"] .root {
+  background: var(--lg-glass-tint-light, rgba(255, 255, 255, 0.72));
+}
+
+/* Material levels — backdrop-filter blur intensities. */
+.material-ultra-thin   { backdrop-filter: var(--lg-material-ultra-thin, blur(20px) saturate(180%)); -webkit-backdrop-filter: var(--lg-material-ultra-thin, blur(20px) saturate(180%)); }
+.material-thin         { backdrop-filter: var(--lg-material-thin, blur(40px) saturate(180%));      -webkit-backdrop-filter: var(--lg-material-thin, blur(40px) saturate(180%)); }
+.material-regular      { backdrop-filter: var(--lg-material-regular, blur(60px) saturate(180%));   -webkit-backdrop-filter: var(--lg-material-regular, blur(60px) saturate(180%)); }
+.material-thick        { backdrop-filter: var(--lg-material-thick, blur(80px) saturate(180%));     -webkit-backdrop-filter: var(--lg-material-thick, blur(80px) saturate(180%)); }
+
+/* Inner top-edge highlight — light catching the glass surface. */
+.withBorder::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent 0%, var(--lg-glass-border, rgba(255, 255, 255, 0.18)) 40%, var(--lg-glass-border, rgba(255, 255, 255, 0.18)) 60%, transparent 100%);
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Elevation levels. */
+.elevation-flat {}
+.elevation-elevated         { box-shadow: var(--lg-shadow-elevated, 0 2px 8px rgba(0, 0, 0, 0.08)); }
+.elevation-floating         { box-shadow: var(--lg-shadow-floating, 0 8px 24px rgba(0, 0, 0, 0.12)); }
+.elevation-floating-strong  { box-shadow: var(--lg-shadow-floating-strong, 0 16px 48px rgba(0, 0, 0, 0.18)); }
+
+/* Interactive (clickable) feedback. */
+.interactive {
+  cursor: pointer;
+  user-select: none;
+}
+.interactive:active {
+  transform: scale(0.98);
+}
+
+/* Outside Liquid Glass theme — fall back to solid surface, no backdrop-filter. */
+:root:not([data-theme="liquid_glass"]) .root {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  background: var(--poster-paper, #FFF6E8);
+}
+
+/* prefers-reduced-motion — neutralize hover/press transform. */
+@media (prefers-reduced-motion: reduce) {
+  .root {
+    transition: none;
+  }
+  .interactive:active {
+    transform: none;
+  }
+}
+
+/* Dark mode adapt (Liquid Glass theme honors system color scheme). */
+@media (prefers-color-scheme: dark) {
+  [data-theme="liquid_glass"] .root {
+    background: var(--lg-glass-tint-dark, rgba(28, 28, 30, 0.72));
+    color: var(--lg-text-primary, #ffffff);
+  }
+}

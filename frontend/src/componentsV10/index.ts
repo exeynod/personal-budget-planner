@@ -21,3 +21,5 @@ export { FAB } from './FAB';
 export type { FABProps } from './FAB';
 export { Toast } from './Toast';
 export type { ToastProps } from './Toast';
+export { GlassCard } from './GlassCard';
+export type { GlassCardProps } from './GlassCard';
