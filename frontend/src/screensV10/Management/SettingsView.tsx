@@ -14,7 +14,9 @@ import {
   homeColorLabel,
   type HomeColor,
 } from '../Home/useHomeColor';
+import { themeLabel, type Theme } from '../common';
 import { HomeColorPickerSheet } from './HomeColorPickerSheet';
+import { ThemePickerSheet } from './ThemePickerSheet';
 import styles from './SettingsView.module.css';
 
 export interface SettingsViewProps {
@@ -34,6 +36,11 @@ export interface SettingsViewProps {
   pickerOpen: boolean;
   onSelectHomeColor: (c: HomeColor) => void;
   onTogglePicker: (open: boolean) => void;
+  // Phase 54-01 (LG-SW-02 web): Theme picker.
+  theme: Theme;
+  themePickerOpen: boolean;
+  onSelectTheme: (t: Theme) => void;
+  onToggleThemePicker: (open: boolean) => void;
 }
 
 const CYCLE_MIN = 1;
@@ -212,6 +219,24 @@ export function SettingsView(props: SettingsViewProps) {
             </span>
           </div>
         </button>
+
+        {/* Row 6: Phase 54-01 (LG-SW-02) — Theme picker. */}
+        <button
+          type="button"
+          className={`${styles.row} ${styles.rowButton}`}
+          onClick={() => props.onToggleThemePicker(true)}
+          data-testid="theme-row"
+        >
+          <Eyebrow color="var(--poster-ink, #0E0E0E)">Тема</Eyebrow>
+          <div className={styles.homeColorPreview}>
+            <span className={styles.homeColorLabel}>
+              {themeLabel(props.theme)}
+            </span>
+            <span className={styles.chevron} aria-hidden>
+              →
+            </span>
+          </div>
+        </button>
       </div>
 
       <HomeColorPickerSheet
@@ -219,6 +244,13 @@ export function SettingsView(props: SettingsViewProps) {
         current={props.homeColor}
         onSelect={props.onSelectHomeColor}
         onClose={() => props.onTogglePicker(false)}
+      />
+
+      <ThemePickerSheet
+        isOpen={props.themePickerOpen}
+        current={props.theme}
+        onSelect={props.onSelectTheme}
+        onClose={() => props.onToggleThemePicker(false)}
       />
     </div>
   );

@@ -14,7 +14,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { getSettings, updateSettings } from '../../api/settings';
 import { getMeV10 } from '../../api/me';
 import type { SettingsRead, SettingsUpdatePayload } from '../../api/types';
-import { usePosterRouter } from '../common';
+import { usePosterRouter, useTheme } from '../common';
 import { useHomeColor } from '../Home/useHomeColor';
 import { SettingsView } from './SettingsView';
 
@@ -32,6 +32,9 @@ export function SettingsMount() {
   // so HomeMount instantly re-renders when user picks a new color.
   const [homeColor, setHomeColor] = useHomeColor();
   const [homeColorPickerOpen, setHomeColorPickerOpen] = useState(false);
+  // Phase 54-01 (LG-SW-02, LG-SW-05 web): Theme + picker sheet state.
+  const [theme, setTheme] = useTheme();
+  const [themePickerOpen, setThemePickerOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -112,6 +115,10 @@ export function SettingsMount() {
       pickerOpen={homeColorPickerOpen}
       onSelectHomeColor={setHomeColor}
       onTogglePicker={setHomeColorPickerOpen}
+      theme={theme}
+      themePickerOpen={themePickerOpen}
+      onSelectTheme={setTheme}
+      onToggleThemePicker={setThemePickerOpen}
     />
   );
 }
