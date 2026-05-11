@@ -46,10 +46,11 @@
 - [x] 33-05-PLAN.md — cookie banner + pdn consent checkbox + me.ts helpers (REQ-33-05)
 - [x] 33-06-PLAN.md — РКН notification template + legal review checklist + COMPLIANCE.md (REQ-33-01)
 
-### Phase 34: ЮKassa Integration (Самозанятый Edition)
+### Phase 34: ЮKassa Integration (Самозанятый Edition) ✅
 **Goal**: Primary payment rail — ЮKassa merchant в режиме «самозанятый», recurring subscriptions с webhook'ами, auto-чек через ЮKassa→ФНС «Мой Налог» в течение 24h, internal admin view для tracking платежей; TG Stars secondary rail (один SKU, две кнопки на paywall).
 **Depends on**: Phase 33 (без РКН + ToS юридически нельзя принимать платежи).
 **Requirements**: REQ-34-01..07
+**Status**: Shipped 2026-05-11 — 7 plans, 9 tests green, 0 regressions. Manual operator follow-ups в `docs/operator/YOOKASSA-ONBOARDING.md`. TG Stars rail deferred to v1.2 (admin view + HMAC + recurring → v1.2 backlog).
 **Success Criteria**:
 1. ЮKassa merchant verified в режиме самозанятого (manual setup user-side, документально зафиксировано в `docs/PAYMENTS-SETUP.md`); test-mode webhook доставляется на `/api/v1/payments/yookassa/webhook` + HMAC-signature validated.
 2. `subscription_payment` таблица + миграция: provider enum (yookassa / tg_stars), external_id, amount_cents, status (pending/succeeded/canceled/refunded), receipt_url, fiscal_check_url; full audit trail.

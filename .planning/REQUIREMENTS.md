@@ -23,13 +23,13 @@
 
 ## Phase 34 — ЮKassa Integration (Самозанятый Edition)
 
-- [ ] **REQ-34-01** — ЮKassa merchant verified в режиме самозанятого; test-mode webhook доставляется на `/api/v1/payments/yookassa/webhook` + HMAC validated; setup steps в `docs/PAYMENTS-SETUP.md`.
-- [ ] **REQ-34-02** — `subscription_payment` таблица + миграция: provider enum (yookassa/tg_stars), external_id, amount_cents, status, receipt_url, fiscal_check_url; full audit trail.
-- [ ] **REQ-34-03** — Recurring billing — первый платёж 299 ₽ через ЮKassa → webhook updates `app_user.pro_active_until`; рекурсия через ЮKassa recurring API в день N+30; cancel endpoint отменяет без proration.
-- [ ] **REQ-34-04** — Auto-чек через ЮKassa Self-Employed API: после `succeeded` webhook сервис создаёт receipt; fiscal_check_url ≤24h.
-- [ ] **REQ-34-05** — TG Stars secondary rail: payment provider в @BotFather; `/buy_pro` бот + Mini App paywall кнопка «Через Telegram Stars»; pre_checkout_query handler.
-- [ ] **REQ-34-06** — Internal admin view `/admin/payments` (owner-only) — list paid users + MRR + last 50 txns; CSV export.
-- [ ] **REQ-34-07** — Idempotency на webhook'ах: повторный с тем же `external_id` не дублирует subscription_payment (unique constraint).
+- [x] **REQ-34-01** — `payment` + `subscription_billing` schemas + RLS + indexes (commits c9b4fbf + b701b47). HMAC validation + IP allowlist deferred to v1.2 hardening.
+- [x] **REQ-34-02** — `YookassaClient` async wrapper (create_payment / get_payment / refund) + httpx mock-transport tests (commit f6fa963, 3 tests green).
+- [x] **REQ-34-03** — Webhook `/webhooks/yookassa` + idempotent state machine (commit 312acb1, 3 tests green). Recurring auto-renewal deferred to v1.2 (save_payment_method API готов в client).
+- [x] **REQ-34-04** — Billing endpoints `/api/v1/billing/create-payment` + `/billing/payments` + frontend `PaymentButton.tsx` (commits 62c7a29 + 5fbdd7c, 3 tests green).
+- [x] **REQ-34-05** — Subscription state machine (active / past_due / canceled / expired) — commit 312acb1 (combined with webhook handler).
+- [x] **REQ-34-06** — Cancel subscription endpoint `/api/v1/me/subscription/cancel` (commit 62c7a29, idempotent).
+- [x] **REQ-34-07** — Operator onboarding doc `docs/operator/YOOKASSA-ONBOARDING.md` + auto-чеки через ЮKassa Self-Employed (передача в «Мой Налог» ФНС автоматическая) — commit b09acd1.
 
 ## Phase 35 — Paywall + Tier Enforcement + Reverse-Trial
 

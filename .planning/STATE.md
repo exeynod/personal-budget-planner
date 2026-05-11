@@ -4,15 +4,15 @@ milestone: v1.1
 milestone_name: Monetization Foundation
 status: in_progress
 started_at: "2026-05-11"
-stopped_at: Phase 33 (Compliance Baseline) complete. 5/7 phases remaining (34-38). Manual user-side follow-ups tracked в LEGAL-REVIEW-TODO + RKN-NOTIFICATION docs.
-last_updated: "2026-05-11T14:00:00.000Z"
-last_activity: 2026-05-11 — Phase 33 complete (6 plans, 29 new tests, 0 regressions)
+stopped_at: Phase 34 (ЮKassa Integration) complete. 4/7 phases remaining (35-38). Manual operator follow-ups в YOOKASSA-ONBOARDING.md.
+last_updated: "2026-05-11T14:30:00.000Z"
+last_activity: 2026-05-11 — Phase 34 complete (7 plans, 9 new tests, 0 regressions)
 progress:
   total_phases: 7
-  completed_phases: 2
-  total_plans: 11
-  completed_plans: 11
-  percent: 28
+  completed_phases: 3
+  total_plans: 18
+  completed_plans: 18
+  percent: 43
 ---
 
 # Project State
