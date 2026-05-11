@@ -60,10 +60,11 @@
 6. Internal admin view `/admin/payments` (owner-only) — list paid users + MRR-расчёт + last 50 транзакций; CSV-export для bookkeeping.
 7. Idempotency на webhook'ах: повторный webhook с тем же `external_id` не дублирует subscription_payment.
 
-### Phase 35: Paywall + Tier Enforcement + Reverse-Trial
+### Phase 35: Paywall + Tier Enforcement + Reverse-Trial ✅
 **Goal**: Backend-enforcement tier (Free / Pro) на критических endpoint'ах; UI PaywallSheet (web + iOS) с двумя rail-кнопками; reverse-trial mechanic — новый user стартует с 14-дневным full Pro trial без введения карты, после — auto-downgrade к Free; cancellation flow с retention prompt.
 **Depends on**: Phase 34 (без активной payment-rail tier-flip некуда писать).
 **Requirements**: REQ-35-01..07
+**Status**: Shipped 2026-05-11 — 4 plans, 17 tests green, 0 regressions. Commits: `f7a8b73` (tier schema + resolution) + `e161686` (require_pro + AI gate + /me/tier) + `698d3e7` (PaywallSheet UI + 402 error class) + `0637ab6` (14d reverse-trial grant). Deferred to v1.2: REQ-35-06 (cancellation retention prompt + reason-select), REQ-35-07 (full E2E), iOS PaywallSheet, TG Stars secondary CTA, period detection в webhook (annual vs monthly), trial expiration push (day 12 + 14), formal `docs/TIERS.md`.
 **Success Criteria**:
 1. Feature-matrix в `docs/TIERS.md`: Free = 30 actual_tx/мес hard cap + 5 active категорий (over → archive prompt) + manual entry only (AI tools блокированы) + бот-команды `/add /balance /today` (без `/tax /csv`); Pro = unlimited + AI chat + AI auto-cat + push + бизнес-теги + tax reserve + CSV.
 2. Backend tier-check decorator `@require_pro` на 8 endpoints: AI chat SSE + AI categorize + tax-reserve + CSV export + business-tag + push subscribe + `>30 tx/month` + `>5 active categories` → returns 402 Payment Required с JSON `{error: "pro_required", upgrade_url}`.

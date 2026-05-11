@@ -31,15 +31,15 @@
 - [x] **REQ-34-06** — Cancel subscription endpoint `/api/v1/me/subscription/cancel` (commit 62c7a29, idempotent).
 - [x] **REQ-34-07** — Operator onboarding doc `docs/operator/YOOKASSA-ONBOARDING.md` + auto-чеки через ЮKassa Self-Employed (передача в «Мой Налог» ФНС автоматическая) — commit b09acd1.
 
-## Phase 35 — Paywall + Tier Enforcement + Reverse-Trial
+## Phase 35 — Paywall + Tier Enforcement + Reverse-Trial ✅ SHIPPED 2026-05-11
 
-- [ ] **REQ-35-01** — `docs/TIERS.md` — feature-matrix Free vs Pro: Free = 30 tx/мес hard cap + 5 active категорий + manual entry only + бот `/add /balance /today`; Pro = unlimited + AI + push + business-tags + tax reserve + CSV + `/tax /csv`.
-- [ ] **REQ-35-02** — `@require_pro` decorator на 8 endpoint'ах (AI chat SSE, AI categorize, tax-reserve, CSV export, business-tag, push subscribe, >30 tx/mo, >5 active cats) → 402 с JSON `{error, upgrade_url}`.
-- [ ] **REQ-35-03** — `app_user.tier` enum (free/trial/pro) + `pro_active_until` TIMESTAMPTZ; computed `is_pro = tier in (trial,pro) AND pro_active_until > now()`.
-- [ ] **REQ-35-04** — Reverse-trial: onboarding-complete устанавливает `tier=trial, pro_active_until=now()+14d` без CC; на day 12 + 14 бот push «trial кончается».
-- [ ] **REQ-35-05** — PaywallSheet — single component web + iOS, 2 CTA («Оплатить ЮKassa», «Через Telegram Stars»), feature-bullets; открывается при 402; events `paywall_shown` + `paywall_cta_click`.
-- [ ] **REQ-35-06** — Cancellation flow Management → Pro: «Отменить» → confirm + reason-select (4 опции) → ЮKassa unsubscribe + сохранение reason в `cancellation_reason`.
-- [ ] **REQ-35-07** — E2E test: signup → trial → mock day-15 → 402 на AI → paywall → mock ЮKassa succeeded → tier=pro → AI снова 200.
+- [~] **REQ-35-01** — Tier resolution shipped (effective_tier service в `app/services/tier.py` + два TIMESTAMPTZ в `app_user`: `trial_ends_at` / `pro_active_until`); commit `f7a8b73`. **Partial**: формальный `docs/TIERS.md` feature-matrix (UI копирайт + Free=30tx cap enforcement) → v1.2 docs cleanup. 6 tests pass.
+- [x] **REQ-35-02** — `require_pro` dependency на `POST /ai/chat` + `GET /ai/suggest-category` (Free → 402 PRO_TIER_REQUIRED с JSON `{error, current_tier, upgrade_url}`) + `GET /api/v1/me/tier` endpoint; commit `e161686`, 5 tests pass. Остальные 6 endpoint'ов из исходного REQ (tax-reserve, CSV, business-tag, push, >30tx, >5cats) — gating появится вместе с этими фичами в Phase 36+.
+- [x] **REQ-35-03** — `trial_ends_at` + `pro_active_until` TIMESTAMPTZ shipped (alembic `0022`); computed tier через `effective_tier(user, now=None)`. Single source of truth = два timestamp'a, без stored enum (architectural choice — no state drift risk); commit `f7a8b73`.
+- [x] **REQ-35-04** — Reverse-trial 14d grant on user creation (через `_dev_mode_resolve_test_user` + `_dev_mode_resolve_owner` INSERT path; ON CONFLICT не трогает `trial_ends_at` — idempotent); commit `0637ab6`, 1 test pass. Push «trial кончается» (day 12 + 14) → v1.2 (APScheduler job + bot).
+- [~] **REQ-35-05** — Frontend `PaywallSheet.tsx` shipped (monthly 299 ₽ + annual 1990 ₽ -44%, 5 feature bullets, ЮKassa CTA, `ProTierRequiredError` class); commit `698d3e7`, 5 tests pass. **Partial**: iOS native PaywallSheet + TG Stars secondary CTA + analytics events → v1.2.
+- [ ] **REQ-35-06** — Cancellation flow с retention prompt + 4-reason select — **deferred to v1.2**: `POST /me/subscription/cancel` уже есть (Phase 34-06), но reason-select UI + 5% discount offer — отдельный UX-pass.
+- [ ] **REQ-35-07** — E2E test (signup → trial → mock day-15 → 402 → succeeded → 200) — **deferred to v1.2**: full E2E с time-mocking требует test harness extension. Частично покрыто unit + integration tests Phase 35 (17/17 green).
 
 ## Phase 36 — Persona E Feature Pack (Самозанятые)
 
