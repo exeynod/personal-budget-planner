@@ -5,10 +5,10 @@
 
 ## Phase 50 — Theme Registry Foundation
 
-- [ ] **THEME-01** — `frontend/src/stylesV10/themes/registry.ts` экспортирует `Theme = 'maximal_poster' | 'liquid_glass' | 'ios_default'`; `THEMES: readonly Theme[]`; `themeLabel(t)`, `themeDescription(t)` helpers.
-- [ ] **THEME-02** — `useTheme()` React hook (расширение pattern от `useHomeColor`): читает `localStorage['ui.theme']`, validate whitelist, default = `maximal_poster` (current); setter dispatches CustomEvent `theme-changed` + storage event listener.
-- [ ] **THEME-03** — `tokens.json` расширен с per-theme секцией: `themes.maximal_poster.{colors,typography,materials,shadows}`, `themes.liquid_glass.{...}`, `themes.ios_default.{...}`; codegen `scripts/gen-css.ts` генерирует CSS-vars с `[data-theme="liquid_glass"]` селекторами; `scripts/gen-swift.ts` генерирует `enum Theme { case maximalPoster, liquidGlass, iosDefault }` + per-case token resolver.
-- [ ] **THEME-04** — iOS `Theme` enum в `PosterTokens.swift`: `@AppStorage("ui.theme")` binding в `BudgetPlannerApp.swift`, `PosterTokens.currentTheme` static accessor для component-level access.
+- [x] **THEME-01** — `frontend/src/stylesV10/themes/registry.ts` экспортирует `Theme = 'maximal_poster' | 'liquid_glass' | 'ios_default'`; `THEMES: readonly Theme[]`; `themeLabel(t)`, `themeDescription(t)` helpers.
+- [x] **THEME-02** — `useTheme()` React hook (расширение pattern от `useHomeColor`): читает `localStorage['ui.theme']`, validate whitelist, default = `maximal_poster` (current); setter dispatches CustomEvent `theme-changed` + storage event listener.
+- [x] **THEME-03** — `tokens.json` расширен с per-theme секцией: `themes.maximal_poster.{colors,typography,materials,shadows}`, `themes.liquid_glass.{...}`, `themes.ios_default.{...}`; codegen `scripts/gen-css.ts` генерирует CSS-vars с `[data-theme="liquid_glass"]` селекторами; `scripts/gen-swift.ts` генерирует `enum Theme { case maximalPoster, liquidGlass, iosDefault }` + per-case token resolver.
+- [x] **THEME-04** — iOS `Theme` enum в `PosterTokens.swift`: `@AppStorage("ui.theme")` binding в `BudgetPlannerApp.swift`, `PosterTokens.currentTheme` static accessor для component-level access.
 
 ## Phase 51 — Liquid Glass Design System
 

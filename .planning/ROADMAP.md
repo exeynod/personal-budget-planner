@@ -245,7 +245,8 @@
 
 ## Phase Details (v1.1.1 — Liquid Glass Theme)
 
-### Phase 50: Theme Registry Foundation
+### Phase 50: Theme Registry Foundation ✅
+**Status**: Shipped 2026-05-11 — 2 plans, 6 tests green, iOS build clean. Foundation для Phase 51-54.
 **Goal**: Multi-theme tokens.json + codegen (CSS-vars + Swift enum) + `useTheme()` hook (web) + `@AppStorage("ui.theme")` (iOS); 3 темы: `maximal_poster` (current default), `liquid_glass` (new), `ios_default` (v0.6 wise-tide baseline).
 **Depends on**: v1.1 shipped (DEBT-08 home color picker — reusable pattern для theme switcher).
 **Requirements**: THEME-01..04
