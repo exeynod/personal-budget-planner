@@ -5,8 +5,8 @@ milestone_name: iOS v06 Native Rebuild
 status: in_progress
 started_at: "2026-05-11T22:00:00+03:00"
 stopped_at: null
-last_updated: "2026-05-11T22:40:00+03:00"
-last_activity: 2026-05-11 — Phase 65 (CategoryDetail drill-down) shipped — tap по категории открывает экран с hero + историей; rename/archive в toolbar Menu
+last_updated: "2026-05-11T23:50:00+03:00"
+last_activity: 2026-05-11 — Backfill SUMMARYs + VERIFICATIONs для shipped phases 56/58/65 (формальное закрытие до autonomous loop по incomplete phases 39-66)
 progress:
   total_phases: 11
   completed_phases: 3
