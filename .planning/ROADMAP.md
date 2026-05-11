@@ -9,6 +9,280 @@
 - ✅ **v0.6 — iOS App** (Phases 17-21) — shipped 2026-05-09 → [archive](milestones/v0.6-ROADMAP.md) (TestFlight distribution deferred — paid Apple Developer Account out of scope)
 - ✅ **v1.0 — Maximal Poster Full** (Phases 22-28) — shipped 2026-05-10 → [archive](milestones/v1.0-ROADMAP.md)
 - ✅ **v1.0.1 — UI Conformance & Tech Debt** (Phases 29-31) — shipped 2026-05-11 → [archive](milestones/v1.0.1-ROADMAP.md)
+- 🚧 **v1.1 — Monetization Foundation** (Phases 32-38) — started 2026-05-11, target ship 2026-08-11 (mes 1-3)
+- ⏳ **v1.2 — Acquisition & Retention** (Phases 39-44) — planned, depends on v1.1 ship + Month-3 mini-gate (≥2 paying-30d / ≥30 регистраций), target ship 2026-11-11 (мес 4-6)
+- ⏳ **v2.0 — Scale or Stop** (Phases 45-49) — bifurcated per Month-6 kill-metric (8 paying-30d): Branch A (≥15 paying / 10K+ ₽ MRR → Apple Dev + Family + Bank CSV + Stripe + B2B); Branch B (<5 paying → maintenance + knowledge transfer). Target decision 2026-11-11, ship 2027-05-11 (мес 7-12)
+
+## Phase Details (v1.1)
+
+### Phase 32: Multi-tenant Production Enablement
+**Goal**: Активировать shipped-в-v0.4 multi-tenant инфраструктуру (RLS на 9 доменных таблицах + 4 v1.0 таблицах, role-based deps, AccessScreen) на live production data; миграция legacy single-tenant config OWNER_TG_ID → role-based; load test и rollback runbook; AI cost cap default ON для всех новых пользователей.
+**Depends on**: v1.0.1 ship (закрытые UI/tech debt блокеры).
+**Requirements**: REQ-32-01..06
+**Success Criteria**:
+1. RLS активна на всех 13 доменных таблицах (9 v0.4 + account/goal/savings_config + расширенная subscription) и подтверждена интеграционным тестом `test_multitenancy_live.py` (user A не читает данные user B даже через прямой SQL).
+2. OWNER_TG_ID legacy fallback удалён из `get_current_user`; auth полностью role-based (owner / member / revoked); миграция владельца к role=owner подтверждена SQL-снапшотом до и после.
+3. AI cost cap default `5_USD_cents` активирован при invite-flow без admin action; `GET /ai/usage` показывает remaining для каждого нового user.
+4. Load test (k6 или locust) — 50 concurrent users × 100 actual_tx create + 20 AI chats без 5xx, p95 < 800ms.
+5. Rollback runbook в `docs/RUNBOOK-multitenant.md` (alembic downgrade -1 проверена на копии prod, dump/restore сценарий).
+
+### Phase 33: Compliance Baseline (152-ФЗ + ПДн + ToS + Privacy)
+**Goal**: Юридический baseline для публичного launch в РФ — РКН-уведомление как оператор ПДн, явный consent на обработку ПДн при /start (бот + Mini App), Terms of Service, Privacy Policy, право на удаление аккаунта + endpoint полной деперсонализации.
+**Depends on**: Phase 32 (role-based auth — иначе не можем правильно deactivate user).
+**Requirements**: REQ-33-01..06
+**Success Criteria**:
+1. РКН-уведомление подано (онлайн через pd.rkn.gov.ru), reg-номер сохранён в `docs/COMPLIANCE.md`.
+2. `/start` бот-команда + first-touch Mini App показывают consent-screen с явным «Я согласен на обработку ПДн в целях X» и записывают `app_user.pdn_consent_at` (TIMESTAMPTZ); без согласия дальше не пускают.
+3. ToS + Privacy Policy опубликованы по статическим URL (`/tos`, `/privacy`) на main домене + в Mini App Management → Настройки; на консент-экране ссылки кликабельны.
+4. `DELETE /api/v1/me/account` endpoint — каскадное удаление user + transactions + ai_conversation + ai_message + embedding_cache; результат — 204; повторный вызов 404; audit log в `data_deletion_log` (user_id_hash, deleted_at, requester_ip_hash).
+5. Cookie-banner на landing page (только если Phase 38 уже shipped) с opt-in для analytics.
+6. Privacy Policy явно перечисляет: OpenAI как sub-processor (data → API → OpenAI servers EU), retention 1 год, право на экспорт + удаление, контакт DPO (email автора).
+
+### Phase 34: ЮKassa Integration (Самозанятый Edition)
+**Goal**: Primary payment rail — ЮKassa merchant в режиме «самозанятый», recurring subscriptions с webhook'ами, auto-чек через ЮKassa→ФНС «Мой Налог» в течение 24h, internal admin view для tracking платежей; TG Stars secondary rail (один SKU, две кнопки на paywall).
+**Depends on**: Phase 33 (без РКН + ToS юридически нельзя принимать платежи).
+**Requirements**: REQ-34-01..07
+**Success Criteria**:
+1. ЮKassa merchant verified в режиме самозанятого (manual setup user-side, документально зафиксировано в `docs/PAYMENTS-SETUP.md`); test-mode webhook доставляется на `/api/v1/payments/yookassa/webhook` + HMAC-signature validated.
+2. `subscription_payment` таблица + миграция: provider enum (yookassa / tg_stars), external_id, amount_cents, status (pending/succeeded/canceled/refunded), receipt_url, fiscal_check_url; full audit trail.
+3. Recurring billing работает: первый платёж 299 ₽ через ЮKassa → webhook updates `app_user.pro_active_until = now() + 30d`; повторное списание через ЮKassa recurring API в день N+30; cancel endpoint отменяет recurring без proration.
+4. Auto-чек через ЮKassa Self-Employed API: после `succeeded` webhook'a сервис вызывает receipt-create, fiscal_check_url возвращён ≤24h; URL сохранён в `subscription_payment.fiscal_check_url`.
+5. TG Stars secondary rail: payment provider в @BotFather подключён, `/buy_pro` бот-команда + Mini App paywall кнопка «Через Telegram (Stars)»; pre_checkout_query + successful_payment handler пишет в `subscription_payment` с provider=tg_stars.
+6. Internal admin view `/admin/payments` (owner-only) — list paid users + MRR-расчёт + last 50 транзакций; CSV-export для bookkeeping.
+7. Idempotency на webhook'ах: повторный webhook с тем же `external_id` не дублирует subscription_payment.
+
+### Phase 35: Paywall + Tier Enforcement + Reverse-Trial
+**Goal**: Backend-enforcement tier (Free / Pro) на критических endpoint'ах; UI PaywallSheet (web + iOS) с двумя rail-кнопками; reverse-trial mechanic — новый user стартует с 14-дневным full Pro trial без введения карты, после — auto-downgrade к Free; cancellation flow с retention prompt.
+**Depends on**: Phase 34 (без активной payment-rail tier-flip некуда писать).
+**Requirements**: REQ-35-01..07
+**Success Criteria**:
+1. Feature-matrix в `docs/TIERS.md`: Free = 30 actual_tx/мес hard cap + 5 active категорий (over → archive prompt) + manual entry only (AI tools блокированы) + бот-команды `/add /balance /today` (без `/tax /csv`); Pro = unlimited + AI chat + AI auto-cat + push + бизнес-теги + tax reserve + CSV.
+2. Backend tier-check decorator `@require_pro` на 8 endpoints: AI chat SSE + AI categorize + tax-reserve + CSV export + business-tag + push subscribe + `>30 tx/month` + `>5 active categories` → returns 402 Payment Required с JSON `{error: "pro_required", upgrade_url}`.
+3. `app_user.tier` enum (free/trial/pro) + `pro_active_until` TIMESTAMPTZ; computed property `is_pro = tier in (trial, pro) AND pro_active_until > now()`.
+4. Reverse-trial: на onboarding-complete сервис ставит `tier=trial, pro_active_until=now()+14d` без payment requirement; на day 12 + day 14 бот отправляет push «trial кончается, продли за 299 ₽».
+5. PaywallSheet web + iOS — single component, два CTA («Оплатить через ЮKassa», «Через Telegram Stars»), показывает price + feature-bullets + «отменить в любой момент»; открывается при 402 от backend; analytics events `paywall_shown` / `paywall_cta_click`.
+6. Cancellation flow в Management → Pro: «Отменить подписку» → confirm dialog с reason-select (4 опции) → ЮKassa unsubscribe + сохранение reason в `cancellation_reason` для retrospective.
+7. E2E test: новый user signup → trial → mock day-15 → API 402 на AI endpoint → paywall → mock ЮKassa webhook succeeded → tier=pro → AI endpoint снова 200.
+
+### Phase 36: Persona E Feature Pack (Самозанятые)
+**Goal**: Целевые фичи для primary persona (самозанятый/микро-ИП РФ) — business/personal теги на категории и транзакции, tax reserve calculator (4% НПД с авто-deposit в копилку при кешировании income), CSV export + auto-чек reminder; AI tools расширены `tag_business_vs_personal` и `record_tax_reserve`.
+**Depends on**: Phase 35 (tier-gating нужен — это Pro-only features).
+**Requirements**: REQ-36-01..06
+**Success Criteria**:
+1. `category.kind ∈ {expense, income, mixed}` + `category.scope ∈ {business, personal, both}` миграция; UI toggle на CategoryDetail; default — `personal/expense` для existing rows.
+2. Каждый `actual_transaction` получает inherited scope от category; user может override через AddSheet «Бизнес / Личное» chip; backfill для existing rows → scope=personal.
+3. Tax reserve config в Management → Настройки: «Я самозанятый» toggle + ставка 4% (физлица) / 6% (юрлица); при создании `actual_transaction` с kind=income + scope=business сервис автоматически создаёт `kind=deposit` child txn на `amount * rate` в копилку (или в отдельный sub-account «Налоговый резерв» если включён). Audit в `tax_reserve_log`.
+4. `GET /api/v1/export/csv?period=YYYY-MM` (Pro-only) возвращает 2 файла в ZIP: `operations.csv` (date, kind, scope, category, amount, description) + `summary.csv` (category, plan, fact, delta + tax_reserve total) — CP1251 + UTF-8 BOM варианты в archive.
+5. AI tools расширены: `tag_business_vs_personal(tx_ids, scope)` + `record_tax_reserve(amount_cents, period)` + `propose_csv_export(period)`. Используют existing propose-and-approve flow.
+6. Bot-команды `/tax` (показывает «Резерв на налог за май: X ₽ из ожидаемых Y ₽») + `/csv` (отправляет ZIP в личку через bot send_document).
+
+### Phase 37: Open-Core Split + GitHub Public Repo
+**Goal**: Выделение ядра в публичный GitHub-репозиторий под PolyForm Shield 1.0.0; closed-source части (AI client, embeddings cache, iOS native UI, Maximal Poster components, multi-tenant cloud-config) выделены behind compile-flag или в отдельную приватную submodule; public README + demo + docker-compose for self-host.
+**Depends on**: Phase 32 (multi-tenant активна — open-core должен работать в single-tenant fallback для self-host).
+**Requirements**: REQ-37-01..06
+**Success Criteria**:
+1. Файл `LICENSE` (PolyForm Shield 1.0.0) в корне публичного репо; `NOTICE.md` с разъяснением «что open / что closed»; `LICENSING.md` для contributors (CLA-light с DCO sign-off).
+2. Public-eligible модули (schema + Alembic migrations 0001-NNNN до cutoff + period engine + bot commands `/add /income /balance /today` + docker-compose minimal stack) живут в публичной репе `tg-budget-planner` (github.com/<owner>/tg-budget-planner); closed-source модули в private submodule `tg-budget-planner-pro` (AI client + embeddings cache + Maximal Poster + iOS sources) — connected через git-submodule или build-time conditional import.
+3. Public README с (a) feature-list open vs Pro, (b) screenshot/GIF, (c) `docker-compose -f docker-compose.public.yml up` demo за < 3 минуты на чистой machine, (d) ссылка на hosted версию `t.me/<bot>`.
+4. CI публичной репы: GitHub Actions — pytest + alembic upgrade head smoke + docker build + LICENSE check (deny GPL deps).
+5. Demo TG-бот с публичной schema без AI работает; `/start` пишет «это open-core demo, full features в hosted».
+6. Maximal Poster CSS tokens + 11 keyframe animations explicitly **closed-source** — не выложены в public репе (только tokens.json schema без значений); iOS source — `.gitignore` в публичной репе.
+
+### Phase 38: Landing Page + Onboarding Funnel + Analytics Instrumentation
+**Goal**: Public-facing landing page на главном домене (`budgetbot.<domain>`); explainer GIF/video; conversion-optimized signup flow (one-click через Telegram OAuth); welcome-survey для user-research; baseline analytics на funnel (registrations → onboarded → trial-active → paying) через PostHog self-host или Plausible.
+**Depends on**: Phase 33 (Privacy Policy для cookie consent на landing), Phase 35 (paywall-conversion events нужны).
+**Requirements**: REQ-38-01..07
+**Success Criteria**:
+1. Static landing на `https://<domain>` — single page с hero ("Бюджет в Telegram. Без таблиц.") + 3 feature blocks + pricing card (Free / Pro 299 ₽) + CTA «Открыть в Telegram» (deeplink в бота); Lighthouse mobile > 90.
+2. Explainer GIF 30-60s (loop) — Add Sheet → Home → AI chat → CSV export; bundled webp/mp4 < 1MB.
+3. Telegram OAuth one-click signup — landing CTA сразу открывает `t.me/<bot>?start=ref_landing`; bot стартует onboarding immediately; UTM-params (`?utm_source=landing&utm_medium=hero`) сохраняются в `app_user.acquisition_source`.
+4. Welcome-survey (1 экран после onboarding-complete, optional): 3 вопроса (как нашли / профессия / главная боль с бюджетом); ответы в `user_survey` таблице; skip-button.
+5. Analytics instrumentation — PostHog self-host (docker container) или Plausible; events: `signup_started`, `onboarding_complete`, `trial_started`, `paywall_shown`, `paywall_cta_click`, `payment_success`, `payment_failed`, `pro_cancelled`, `ai_message_sent`, `tx_created`.
+6. Funnel dashboard в PostHog: registrations → onboarded (24h window) → first-tx (7d) → AI-used (14d) → trial-active-day-14 → paying-30d.
+7. Cookie banner на landing с opt-in для analytics (минимальный — Plausible не требует, PostHog требует).
+
+## Phase Details (v1.2)
+
+### Phase 39: Habr Longread #1 + ProductHunt + Show HN Launch
+**Goal**: Launch-bundle публичной фазы — технический Habr longread («Архитектура AI-бюджет-приложения с propose-and-approve и open-core ядром»), ProductHunt launch с reusable artefacts, Show HN неделей позже, post-launch retention через TG-канал автора (build-in-public).
+**Depends on**: v1.1 ship (Phase 38 landing + Phase 37 open-core repo обязательны).
+**Requirements**: REQ-39-01..05
+**Success Criteria**:
+1. Habr статья опубликована в hub «Финансы в IT» + «Open source» (≥3000 знаков + 4-6 архитектурных диаграмм + GitHub-link); ≥50 закладок / ≥5 комментариев / ≥10K просмотров за 7d.
+2. ProductHunt launch ($40 PRO для hunter outreach): demo video 60s + 5 gallery images + tagline + first-comment-template; ≥30 upvotes / ≥3 review comments.
+3. Show HN неделей позже («Show HN: Open-core budget app for Telegram, AI categorization, propose-and-approve»): ≥20 points / front-page < 12h target.
+4. TG-канал автора (`@<owner>_dev` или `@<project>_log`) — 3 поста/нед × 6 нед минимум (build-in-public metrics: registrations / paying / churn).
+5. Post-launch attribution dashboard (extending Phase 38 PostHog): split sources Habr / PH / HN / TG-channel / organic.
+
+### Phase 40: Referral Mechanics
+**Goal**: Viral acquisition — «Пригласи друга, оба получают 30 дней Pro» (или -50% от месячной подписки на 2 мес); attribution через `tg_user_id` referrer-параметр в deeplink; anti-abuse cap (1 reward per referrer per 30d, max 5/мес).
+**Depends on**: Phase 35 (tier-flip — основа reward), Phase 38 (UTM/source tracking).
+**Requirements**: REQ-40-01..05
+**Success Criteria**:
+1. `referral_code` per user (auto-generated short hash 8-char base32); deeplink `t.me/<bot>?start=ref_<code>`; landing page «Поделиться» button копирует ссылку.
+2. На onboarding-complete если `referrer_user_id` resolved (валидный code → existing user) — сохраняется в `referrer_id` FK; не self-referral.
+3. Reward-trigger: при первом payment_success у referee — оба user (referrer + referee) получают `pro_active_until += 30d`; audit в `referral_reward_log`.
+4. Anti-abuse: max 5 rewards per referrer в 30d (защита от spam); >5 → reward не начисляется, referee всё равно получает 30d.
+5. Management → Pro показывает «Приглашено: N друзей · бонус: X дней»; конверсия referral → paid trackается в PostHog dashboard.
+
+### Phase 41: Onboarding Optimization (A/B Reverse-Trial vs Hard Paywall)
+**Goal**: Data-driven optimization воронки — A/B test 3 вариантов onboarding paywall: reverse-trial 14d (default из Phase 35) vs hard paywall day-1 vs free-without-AI; metric — paying-30d conversion; «aha-moment» tracking (первая tx, первая AI-катогоризация).
+**Depends on**: Phase 38 (instrumentation), Phase 35 (paywall framework).
+**Requirements**: REQ-41-01..05
+**Success Criteria**:
+1. A/B framework — random assignment user'у `experiment_arm` enum (trial_14d / hard_paywall / free_no_ai) при signup; sticky cookie + DB-persistent.
+2. Variant 1 (control): текущий reverse-trial 14d.
+3. Variant 2 (hard_paywall): после onboarding-complete показать paywall immediately, 1 tx allowed in Free тогда блок на AI.
+4. Variant 3 (free_no_ai): Free tier без AI вообще + unlimited tx; AI только Pro.
+5. После 200 users в каждом arm (~600 total) — Bayesian analysis в PostHog (или скрипт sql), winner deploy as new default; full report в `.planning/experiments/E-01-paywall-funnel.md`.
+
+### Phase 42: AI Feature Expansion (Pro Anchor Strengthening)
+**Goal**: Расширение conversational AI с 6 до 12-15 tools для углубления Pro-value-prop; scheduled-actions через worker (agentic в полноценном смысле); `tag_business_vs_personal` + `forecast_period_end` + `propose_subscription` (auto-detect recurring) + `schedule_action` + `what_if_scenario` + `record_tax_reserve` (re-use из Phase 36).
+**Depends on**: Phase 36 (tax reserve и business-tag tools уже добавлены — extend остальное).
+**Requirements**: REQ-42-01..05
+**Success Criteria**:
+1. 12-15 AI tools в `app/ai/tools.py`: 6 v0.3 baseline + Phase 36 (`tag_business_vs_personal`, `record_tax_reserve`) + 4-6 новых (`forecast_period_end`, `propose_subscription` distinguishes recurring patterns from tx history, `schedule_action`, `what_if_scenario` simulates plan changes, `propose_csv_export`).
+2. Scheduled actions: `scheduled_ai_action` таблица + worker джоба `run_scheduled_ai_actions` (cron-driven); AI proposes-and-user-approves «завтра 09:00 — резерв 4% от вчерашнего income» → запись в таблицу → worker triggers через 24h → notification.
+3. `forecast_period_end` использует existing analytics endpoint + LLM context для текстовой персонализированной формулировки.
+4. AI usage 50%+ Pro-users используют ≥1 AI message в неделю (tracked через PostHog `ai_message_sent`).
+5. AI cost per Pro-user не превышает 50 ₽/мес (controlled через existing AI cost cap + prompt-caching).
+
+### Phase 43: TG Cross-Promo Network + Paid Channel Experiments
+**Goal**: Distribution boost через TG-каналы — 5-10 партнёрств с нефинансовыми (Persona E adjacent: фрилансер-сообщества, дизайн-каналы, SMM) для cross-promo (взаимные mentions); тестовое paid placement за 30-50К₽ в 1-2 каналах как experiment с tracking.
+**Depends on**: Phase 39 (нужны post-launch ranks для outreach), Phase 38 (UTM-attribution).
+**Requirements**: REQ-43-01..04
+**Success Criteria**:
+1. 5-10 cross-promo партнёрств зафиксированы (название канала, audience size, дата поста, attribution-UTM); cumulative reach ≥50K (sum of audience sizes).
+2. 2 paid placement experiments (бюджет $80-100 каждый) в каналах «Самозанятый.PRO», «Финансы фрилансера» или равно-релевантных; UTM + landing-attribution; conversion targets — ≥30 регистраций / ≥3 paying-trial per experiment (decision rule: <2 = stop spending на этом канале).
+3. Build-in-public TG-канал автора достигает 200 подписчиков (organic).
+4. Cross-promo retro в `.planning/marketing/cross-promo-retro.md` — что работало, что нет, какие каналы повторить.
+
+### Phase 44: English MVP (Telegram-Diaspora Segment)
+**Goal**: i18n toggle web + бот (без отдельного app, single binary); EN strings для onboarding/paywall/AI prompts/bot-commands; target — TG-сегмент русскоязычной диаспоры (Persona D modified); Stripe disabled (no entity), TG Stars only payment rail для intl; без multi-currency (RUB display, manual «эквивалент»).
+**Depends on**: Phase 35 (paywall + TG Stars), Phase 38 (analytics для tracking intl signups).
+**Requirements**: REQ-44-01..05
+**Success Criteria**:
+1. i18n framework — `i18next` web + Swift `Localizable.strings` (already exists для v0.6 baseline) + бот через `aiogram-i18n` plugin; RU + EN locales.
+2. EN strings для: onboarding 4 шагов, paywall, AI prompts (system + tool descriptions переведены), bot-команды (`/add /balance /tax`), error messages.
+3. Locale-toggle в Management → Настройки (`ui.locale = ru|en`); auto-detect через TG `WebApp.initDataUnsafe.user.language_code` при first signup.
+4. Payment rail rule: если `app_user.locale == 'en'` или `tg_user.language_code != 'ru'` — paywall показывает только TG Stars кнопку (без ЮKassa); RU-users по-прежнему видят обе.
+5. AI prompts в EN-mode возвращают responses на EN (LLM-side instruction); `ai_observation` rule-engine generates EN copy для EN-locale users.
+
+## Phase Details (v2.0)
+
+### Phase 45: Apple Dev Account + TestFlight + App Store Submission (Branch A)
+**Goal**: Branch A trigger — после Month-6 gate ≥15 paying / 10K+ ₽ MRR. Apple Developer Program $99/yr оплачен, App Store Connect setup, iOS unfreeze (v1.0.1 baseline → активный roadmap); App Store submission для РФ (если доступно к 2027) или alternative install path для эмигрантов.
+**Depends on**: Month-6 gate decision (BRANCH A); все v1.2 phases shipped.
+**Requirements**: REQ-45-01..06
+**Success Criteria**:
+1. Apple Developer Program enrollment complete, $99 оплачен; team-ID + signing certificates сохранены в bitwarden.
+2. App Store Connect: app record создан, bundle-ID matches Xcode project, app icons + screenshots (5 devices × 3 languages — RU/EN) uploaded.
+3. TestFlight internal + external (до 100 тестеров) — текущие paying users mass-invited; crash-free rate ≥99% за 14d test period.
+4. App Store submission: review-notes на EN, demo-account credentials, privacy nutrition labels, in-app purchase setup (TG Stars NOT applicable для iOS — IAP через StoreKit2 для intl Pro subscriptions; RU-users continue через ЮKassa external-web checkout).
+5. iOS pixel-perfect baseline (v1.0.1 freeze) промотан до active — Phase 17-21 + wise-tide + v1.0.1 fixes объединены в shipping v1.0 для App Store.
+6. Decision-log в `docs/IOS-LAUNCH.md`: RU App Store availability (если Apple suspends — alternative install via signed IPA + AltStore), Apple Pay недоступность в РФ — workaround через web-checkout deeplink.
+
+### Phase 46: Family/Shared Budget (Branch A)
+**Goal**: Multi-user shared budget — invite-link для добавления partner/family в один бюджет; permissions (owner / member-readonly / member-edit); split-transaction (50/50 или custom %); удалённый из v1.0 OOS list `Семейный учёт`.
+**Depends on**: Phase 45 (Branch A continue); existing multi-tenant + role-based auth.
+**Requirements**: REQ-46-01..05
+**Success Criteria**:
+1. `budget_membership` таблица (user_id, budget_id, role enum: owner/admin/member/viewer); existing budget = user's personal budget с user_id=owner_id.
+2. Invite-flow: owner generates one-time link `t.me/<bot>?start=invite_<token>` (TTL 7d, one-use); invitee accepts → budget_membership row created → онбординг bypassed, sees owner's data.
+3. Permissions enforced в RLS + app-level: viewer = read-only on transactions; member = create/edit own transactions; admin = manage categories + plan; owner = billing + delete-budget.
+4. Split-transaction: при create actual_transaction member может tag «split with @X 50/50» — child txn auto-created для другого member с negative-mirror amount; UI badge «↔ split».
+5. Pricing: shared budget — feature Pro+; Pro owner с N members = N × 99 ₽ surcharge (или flat Pro Family 599 ₽); decision в discuss-phase.
+
+### Phase 47: Bank CSV Import (Manual, Not Plaid) (Branch A)
+**Goal**: Не Plaid (отвергнуто per S1), но: CSV-импорт банковских выписок (Т-Банк / Сбер / Тинькофф / ВТБ форматы); auto-mapping транзакций в категории через existing embeddings; preview-and-approve UX (никаких silent inserts).
+**Depends on**: Phase 36 (CSV export infrastructure — reuse parsing utils), existing AI categorization.
+**Requirements**: REQ-47-01..05
+**Success Criteria**:
+1. `POST /api/v1/import/bank-csv` принимает multipart-file + bank-type enum (tbank/sber/tinkoff/vtb/other) + period (YYYY-MM); response: parsed-preview JSON list ≤500 rows с `proposed_category_id` через embeddings, без коммита.
+2. Bank-specific parsers в `app/imports/bank/<bank>.py` — каждый умеет читать CSV/XLSX format (encoding CP1251 + UTF-8 fallback); known columns date, amount, description, mcc.
+3. Mini App ImportPreview screen — list parsed rows с editable category dropdown; CTA «Импортировать N транзакций»; backend commits в batch с idempotency key (hash file + period).
+4. Dedup: если existing actual_transaction matches (same date, ±5 ₽, similar description через embeddings cosine > 0.9) — preview shows «duplicate?» flag; user может skip или force-insert.
+5. Audit log в `import_log` (user_id, file_hash, bank_type, rows_imported, rows_skipped); idempotency через file_hash unique constraint.
+
+### Phase 48: Full English + Stripe + Multi-Currency (Branch A)
+**Goal**: Полная EN-локализация (без compromise); Stripe integration для intl users (требует юр.лицо — Estonia e-Residency или KZ LLC, decision в discuss); multi-currency support (USD/EUR display + rate snapshots при ввода); App Store IAP для iOS intl.
+**Depends on**: Phase 45 (App Store), Phase 44 (i18n baseline); Branch A continue.
+**Requirements**: REQ-48-01..06
+**Success Criteria**:
+1. Юр.лицо зарегистрировано (Estonia OÜ via e-Residency или KZ LLC); registration cost ~$300 amortized, license + Stripe Atlas alternative considered.
+2. Stripe integration — `subscription_payment.provider` extended с `stripe`; webhook handler + recurring; pricing $4.99/mo USD ($49/yr) для EN-locale users.
+3. Multi-currency: `currency_code` enum (RUB/USD/EUR) на actual_transaction + `rate_at_tx` BIGINT (rate × 1e6 в RUB); UI Settings — display currency choice; storage всегда в копейках RUB через rate-snapshot.
+4. App Store IAP via StoreKit2 для iOS intl users; RU iOS users — continue через external ЮKassa web checkout (Apple ToS-compliant since they don't market external pricing inside app).
+5. Full EN — onboarding, settings, paywall, error messages, push-notifications, bot-команды, AI system prompts; native-speaker proofread (paid Fiverr ~$50).
+6. Region-router: app_user.locale + tg user language_code + Stripe-vs-ЮKassa rail-selection logic в `app/services/payment_router.py`.
+
+### Phase 49: Maintenance Mode + Knowledge Transfer (Branch B)
+**Goal**: Branch B trigger — Month-6 gate <5 paying. Code freeze; перевод в open-source-only режим (donations only через Boosty / GH Sponsors); портфолио-piece formalization; написание публичной ретроспективы; documentation для self-host users; archive marketing/paid efforts.
+**Depends on**: Month-6 gate decision (BRANCH B); все v1.2 phases shipped (или partial — это уже не критично).
+**Requirements**: REQ-49-01..05
+**Success Criteria**:
+1. Public retrospective Habr post — «Что я узнал, запустив open-source TG-app: 6 месяцев, 5 платящих, $200 в маркетинг» — honest numbers, lessons, что бы сделал иначе.
+2. README обновлён: «Maintenance mode — bugfix only, no new features. Self-host welcome.»; pricing card на landing убран; ЮKassa отключена (existing paying users grandfather до конца subscription period).
+3. Boosty или GitHub Sponsors page — passive donations; minimal effort.
+4. Hosted version продолжает работать для existing users (≥3 paying) — но не маркетится; SaaS-billing stop, free для всех.
+5. Portfolio piece — case study `docs/CASE-STUDY.md`: architecture, scale, tech choices, business outcome, what's reusable; CV-ready.
+
+## Dependency Graph (v1.1 / v1.2 / v2.0)
+
+```
+                v1.0.1 (shipped 2026-05-11)
+                          │
+                          ▼
+              Phase 32 (Multi-tenant Prod Enable)
+                          │
+                          ▼
+              Phase 33 (Compliance Baseline)
+                          │
+                          ▼
+              Phase 34 (ЮKassa + Самозанятый)
+                          │
+                          ▼
+              Phase 35 (Paywall + Tier + Reverse-Trial)
+                          │
+            ┌─────────────┼─────────────┐
+            ▼             ▼             ▼
+       Phase 36       Phase 37      Phase 38
+       Persona E      Open-core     Landing +
+       Pack           GitHub        Analytics
+            │             │             │
+            └─────────────┴─────────────┘
+                          │
+                          ▼
+                  v1.1 ship → Month-3 mini-gate
+                  (<2 paying / <30 reg = STOP)
+                          │
+                          ▼
+              Phase 39 (Habr + PH + Show HN)
+                          │
+            ┌─────────────┼─────────────┐
+            ▼             ▼             ▼
+       Phase 40       Phase 41      Phase 42
+       Referral       A/B paywall   AI 12-15 tools
+            │             │             │
+            └─────────────┴─────────────┘
+                          │
+                          ▼
+              Phase 43 (TG Cross-Promo)
+                          │
+                          ▼
+              Phase 44 (English MVP — TG Stars only)
+                          │
+                          ▼
+                  v1.2 ship → Month-6 KILL-METRIC GATE
+                          │
+              ┌───────────┴───────────┐
+              ▼                       ▼
+       BRANCH A (≥15 paying)   BRANCH B (<5 paying)
+       Phase 45 Apple Dev      Phase 49 Maintenance
+       Phase 46 Family               + Knowledge Transfer
+       Phase 47 Bank CSV
+       Phase 48 EN + Stripe
+```
 
 ## Phase Details (v1.0.1)
 

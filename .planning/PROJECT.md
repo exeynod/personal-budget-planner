@@ -259,6 +259,19 @@ Telegram Mini App для планирования и ведения месячн
 | **v0.6 Branded orange как Color.accentColor** | Сохраняем brand identity в Apple-native shell (Robinhood-style); один accent + system grays, без custom palette | ✓ Good |
 | **v0.6 Free Apple ID для install** | Личный pet, $99/год Apple Developer Program не оправдан пока friend не востребует TestFlight | ⚠️ Revisit — 7-day profile cycle требует переподписи через Mac |
 
+### v1.1 Monetization Strategy (2026-05-11) — per PRODUCT-STRATEGY.md
+
+- **v1.1 (2026-05-11): Monetization strategy зафиксирована per PRODUCT-STRATEGY.md (commit 4a1f405).**
+  - **Pricing:** 2-tier Free / Pro 299 ₽/мес (1990 ₽/год); AI conversational в Pro. Rationale Q1=b: solo-dev capacity (3-tier UX overhead), anchor «чуть дороже Дзен-мани 269 ₽ + AI inside», forward-compatible на Business 999 ₽ в v1.2 при WTP signal.
+  - **Payment rail:** ЮKassa самозанятый primary (~10% take, маржа 270₽/299₽ in-pocket) + TG Stars secondary (~30% take, marginal channel). Rationale Q2=b: единственный RU-rail без обязательной ИП-регистрации, legal recurring + чек ФНС через ЮKassa Self-Employed API.
+  - **License:** open-core под PolyForm Shield 1.0.0. Public: schema + Alembic + period engine + бот-команды baseline + docker-compose. Closed: AI client + embeddings cache + Maximal Poster + iOS + multi-tenant cloud. Rationale Q3=c: Habr/Show HN amplifier требует actual GitHub-repo, anti-Cleo trust-anchor, sохраняет AI moat.
+  - **iOS:** заморожена в v1.0.1 baseline до v1.2; Apple Dev $99/yr не оплачивается до MRR ≥5K ₽. Rationale Q4=b: Persona E android-heavy, App Store payments РФ-broken, iOS-design проигрывает Copilot.
+  - **Kill-metric (Month-6, 2026-11-11):** 8 paying-30d. <8 → close-to-public, repo архивируется. <5 → Branch B maintenance.
+  - **Month-3 mini-gate (2026-08-11):** 2 paying-30d / 30 регистраций. <2 paying OR <30 regs → stop v1.2.
+  - **Target persona:** Primary E (самозанятые/микро-ИП РФ, 60% усилий), secondary C (cash-heavy РФ, 30%), spillover D (эмигранты-релоканты, 10%). Forced choice: НЕ обслуживаем Persona A/B/F (YNAB-tribe / Cleo / FIRE).
+  - **Defensible moats:** (1) TG-native distribution (никто из 28 intl-конкурентов не в TG); (2) Conversational AI с tool-use + propose-and-approve (никто не делает agentic AI с записью в БД).
+  - **Investment frame:** pet + portfolio + side-income. NE замена зарплате (реалистично 1/15 от dev-медианы РФ). $215/мес OPEX ≈ 20K₽/мес.
+
 ## Evolution
 
 This document evolves at phase transitions and milestone boundaries.
