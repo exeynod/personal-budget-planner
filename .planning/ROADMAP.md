@@ -335,8 +335,16 @@ User-direction 2026-05-11: gap-анализ показал что v06 (Features/
 ### Phase 57: Onboarding 4-step (v06 native) — planned
 **Goal**: Native iOS onboarding wizard — 4 шага (income / accounts / plan / goals) через NavigationStack drill-down или TabView page-style. Использует v1.0 API `/onboarding/complete` с расширенными полями. Заменяет минимальный v06 OnboardingView.
 
-### Phase 58: Home & Period (v06 native) — planned
+### Phase 58: Home & Period (v06 native) ✅
+**Status**: Shipped 2026-05-11 (minimal correction). Полная интеграция с v1.0 `/periods/current` уже была. Скорректирован только empty state.
 **Goal**: Native Home без empty-state «Завершите onboarding» когда user.is_onboarded=true. Интеграция с v1.0 `/periods/current` + `/periods/{id}/balance`. Карточки категорий через List(.insetGrouped).
+**Plans**: 58-01-PLAN.md.
+**Success Criteria**:
+1. ✅ `.noActivePeriod` ContentUnavailableView не упоминает onboarding (AppRouter уже гарантирует is_onboarded=true).
+2. ✅ Primary action «Добавить трату» открывает existing TransactionEditor — backend `POST /actual` D-52 auto-create создаст период.
+3. ✅ Secondary action «Обновить» re-fetch периода.
+4. ✅ Иконка нейтральная (`calendar.badge.clock`).
+5. ❌ DEFERRED: миграция HomeView с 2-valued CategoryKind на 4-valued (savings/other) — в Phase 59.
 
 ### Phase 59: Transactions (v06 native) — planned
 **Goal**: Миграция с legacy ActualAPI/PlannedAPI (2-valued kind) на v1.0 ActualV10API (4-valued kind). Фильтры по категории, history/planned subtabs через native Picker. Swipe-to-delete.

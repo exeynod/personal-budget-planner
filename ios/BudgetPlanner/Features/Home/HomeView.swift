@@ -94,11 +94,22 @@ struct HomeView: View {
             )
 
         case .noActivePeriod:
-            ContentUnavailableView(
-                "Нет активного периода",
-                systemImage: "calendar.badge.exclamationmark",
-                description: Text("Завершите onboarding, чтобы создать первый период.")
-            )
+            // Phase 58: AppRouter гарантирует is_onboarded=true до этой ветки,
+            // поэтому «Завершите onboarding» некорректно. Реальная причина —
+            // worker close_period_job ещё не создал следующий период (или его
+            // выкосил dev_seed). Backend `POST /actual` с lazy auto-create
+            // (actual.py D-52) создаст период при первой трате, так что
+            // подсказываем пользователю «+» как primary path.
+            ContentUnavailableView {
+                Label("Период ещё не открыт", systemImage: "calendar.badge.clock")
+            } description: {
+                Text("Новый месячный период создаётся автоматически после закрытия предыдущего или при первой трате. Добавьте операцию через «+» вверху или обновите экран.")
+            } actions: {
+                Button("Добавить трату") { showingEditor = true }
+                    .buttonStyle(.borderedProminent)
+                Button("Обновить") { Task { await viewModel.load() } }
+                    .buttonStyle(.bordered)
+            }
 
         case .error(let message):
             ContentUnavailableView {

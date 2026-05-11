@@ -5,25 +5,24 @@ milestone_name: iOS v06 Native Rebuild
 status: in_progress
 started_at: "2026-05-11T22:00:00+03:00"
 stopped_at: null
-last_updated: "2026-05-11T22:05:00+03:00"
-last_activity: 2026-05-11 — Phase 56 (Foundation — Theme Toggle) shipped; theme toggle v06 ↔ V10 рабочий в обе стороны
+last_updated: "2026-05-11T22:15:00+03:00"
+last_activity: 2026-05-11 — Phase 58 (Home empty state) shipped — нейтральный «Период ещё не открыт» вместо неточного «Завершите onboarding»
 progress:
   total_phases: 11
-  completed_phases: 1
-  total_plans: 1
-  completed_plans: 1
-  percent: 9
+  completed_phases: 2
+  total_plans: 2
+  completed_plans: 2
+  percent: 18
 ---
 
 ## Active Milestone: v1.1.2 — iOS v06 Native Rebuild
 
 User-direction 2026-05-11: вернуть нативный iOS UI (`MainShell`) как полноценную альтернативу `V10MainShell`. Оба шелла сосуществуют через `@AppStorage("ui.theme")` тумблер. Параллельная разработка в ветке `v1.0-maximal-poster`.
 
-**Current Phase:** 56 (Foundation) — SHIPPED 2026-05-11.
+**Current Phase:** 58 (Home & Period) — SHIPPED 2026-05-11.
 
 **Next Phases (planned, see ROADMAP.md):**
 - 57: Onboarding 4-step (v06 native)
-- 58: Home & Period (v06 native)
 - 59: Transactions (миграция на ActualV10API)
 - 60: Accounts (новый домен)
 - 61: Plan Editor (новый домен)
