@@ -163,3 +163,9 @@ app.include_router(legal_router, tags=["legal"])
 # через UNIQUE(yookassa_payment_id) + state-transition guard в обработчике.
 from app.api.routes.webhooks.yookassa import router as yookassa_webhook_router  # noqa: E402
 app.include_router(yookassa_webhook_router, tags=["webhooks"])
+
+# Phase 34-05 (REQ-34-04, REQ-34-06) — user-facing billing + subscription routes.
+# Router declares its own ``/api/v1`` prefix (mirrors legal_router / yookassa
+# webhook patterns), so we include it WITHOUT an additional prefix here.
+from app.api.routes.billing import router as billing_router  # noqa: E402
+app.include_router(billing_router)
