@@ -31,6 +31,7 @@ from app.db.session import AsyncSessionLocal
 from app.worker.jobs.charge_subscriptions import charge_subscriptions_job
 from app.worker.jobs.close_period import close_period_job
 from app.worker.jobs.notify_subscriptions import notify_subscriptions_job
+from app.worker.jobs.purge_deleted_users import purge_deleted_users_job
 
 configure_logging(settings.LOG_LEVEL, settings.LOG_FORMAT)
 logger = structlog.get_logger(__name__)
@@ -108,6 +109,18 @@ async def main() -> None:
         hour=0,
         minute=5,
         id="charge_subscriptions",
+        replace_existing=True,
+        timezone=MOSCOW_TZ,
+    )
+
+    # Phase 33 CMP-33-02: purge_deleted_users — daily at 02:00 Europe/Moscow.
+    # Finds users with deleted_at < now() - 30d and cascade-deletes their data.
+    scheduler.add_job(
+        purge_deleted_users_job,
+        "cron",
+        hour=2,
+        minute=0,
+        id="purge_deleted_users",
         replace_existing=True,
         timezone=MOSCOW_TZ,
     )

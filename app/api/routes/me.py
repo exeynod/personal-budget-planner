@@ -162,12 +162,19 @@ async def revoke_consent(
 async def export_my_data(
     request: Request,
     current_user: Annotated[AppUser, Depends(get_current_user)],
-    db: Annotated[AsyncSession, Depends(get_db_with_tenant_scope)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ) -> dict:
-    """Phase 33 CMP-33-06: data export (right of access)."""
+    """Phase 33 CMP-33-06: data export (right of access).
+
+    Uses the same DB session as ``get_current_user`` so any pending
+    AppUser upsert (DEV_MODE X-Test-User path) is already visible to
+    SELECT. Tenant GUC is set manually before reading RLS-scoped tables.
+    """
     # Import here to keep router import graph small.
+    from app.db.session import set_tenant_scope
     from app.services.data_export import build_export
 
+    await set_tenant_scope(db, current_user.id)
     data = await build_export(db, user_id=current_user.id)
     await record_audit(
         db,
