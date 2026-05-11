@@ -229,6 +229,18 @@ async def get_current_user(
     # NOTE: OWNER_TG_ID is referenced from _dev_mode_resolve_owner (dev-only helper).
     # The production path below does NOT use OWNER_TG_ID — auth is role-based.
     #
+    # ⇩ Phase 32 REQ-32-02 audit:
+    #   - Production path (DEV_MODE=false) reads ONLY:
+    #       initData → tg_user_id → SELECT FROM app_user → role check.
+    #   - `OWNER_TG_ID` env var is ONLY a seed for `_dev_mode_resolve_owner`
+    #     (DEV_MODE branch) and `dev_seed.py` / pytest fixtures. NO production
+    #     branch (HMAC-validated init data) compares tg_user_id с OWNER_TG_ID
+    #     directly — auth полностью основан на app_user.role (`owner` /
+    #     `member` / `revoked`).
+    #   - If a row with tg_user_id == OWNER_TG_ID does NOT exist в app_user,
+    #     production path returns 403 — НЕТ implicit owner-bypass. See
+    #     tests/test_no_owner_tg_id_in_prod.py for explicit regression cover.
+    #
     # DEV_MODE behaviour:
     #   - No initData → bypass HMAC, return upserted OWNER (legacy convenience).
     #   - initData present → try HMAC validation; if it succeeds and the user
