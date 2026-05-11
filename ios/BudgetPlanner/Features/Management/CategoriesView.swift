@@ -85,7 +85,6 @@ struct CategoryGroup: Identifiable {
 struct CategoriesView: View {
     @State private var viewModel = CategoriesViewModel()
     @State private var showingNewSheet = false
-    @State private var renamingCategory: CategoryDTO?
     @State private var archiveCandidate: CategoryDTO?
 
     var body: some View {
@@ -112,27 +111,33 @@ struct CategoriesView: View {
             ForEach(viewModel.groups) { group in
                 Section(group.title) {
                     ForEach(group.rows) { cat in
-                        CategoryListRow(category: cat)
-                            .contentShape(Rectangle())
-                            .onTapGesture {
-                                renamingCategory = cat
-                            }
-                            .swipeActions(edge: .trailing) {
-                                if cat.isArchived {
-                                    Button {
-                                        Task { await viewModel.unarchive(id: cat.id) }
-                                    } label: {
-                                        Label("Восстановить", systemImage: "tray.and.arrow.up")
-                                    }
-                                    .tint(Tokens.Accent.primary)
-                                } else {
-                                    Button(role: .destructive) {
-                                        archiveCandidate = cat
-                                    } label: {
-                                        Label("Архив", systemImage: "archivebox")
-                                    }
+                        // Phase 65 (v06 Native Rebuild): tap → drill-down на
+                        // CategoryDetailView с историей транзакций. Rename
+                        // переехал в toolbar Detail-экрана.
+                        NavigationLink {
+                            CategoryDetailScreen(
+                                category: cat,
+                                parentViewModel: viewModel
+                            )
+                        } label: {
+                            CategoryListRow(category: cat)
+                        }
+                        .swipeActions(edge: .trailing) {
+                            if cat.isArchived {
+                                Button {
+                                    Task { await viewModel.unarchive(id: cat.id) }
+                                } label: {
+                                    Label("Восстановить", systemImage: "tray.and.arrow.up")
+                                }
+                                .tint(Tokens.Accent.primary)
+                            } else {
+                                Button(role: .destructive) {
+                                    archiveCandidate = cat
+                                } label: {
+                                    Label("Архив", systemImage: "archivebox")
                                 }
                             }
+                        }
                     }
                 }
             }
@@ -157,11 +162,6 @@ struct CategoriesView: View {
         .sheet(isPresented: $showingNewSheet) {
             NewCategorySheet { name, kind in
                 await viewModel.create(name: name, kind: kind)
-            }
-        }
-        .sheet(item: $renamingCategory) { cat in
-            RenameCategorySheet(initialName: cat.name) { newName in
-                await viewModel.rename(id: cat.id, newName: newName)
             }
         }
         .confirmationDialog(
@@ -264,51 +264,3 @@ private struct NewCategorySheet: View {
     }
 }
 
-private struct RenameCategorySheet: View {
-    @Environment(\.dismiss) private var dismiss
-    let initialName: String
-    let onRename: (String) async -> Void
-
-    @State private var name: String
-    @State private var isSubmitting = false
-
-    init(initialName: String, onRename: @escaping (String) async -> Void) {
-        self.initialName = initialName
-        self.onRename = onRename
-        self._name = State(initialValue: initialName)
-    }
-
-    private var canSave: Bool {
-        let trimmed = name.trimmingCharacters(in: .whitespaces)
-        return !trimmed.isEmpty && trimmed != initialName && !isSubmitting
-    }
-
-    var body: some View {
-        NavigationStack {
-            Form {
-                Section("Название") {
-                    TextField("Название", text: $name)
-                }
-            }
-            .navigationTitle("Переименовать")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Отмена") { dismiss() }
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Сохранить") {
-                        Task {
-                            isSubmitting = true
-                            await onRename(name.trimmingCharacters(in: .whitespaces))
-                            isSubmitting = false
-                            dismiss()
-                        }
-                    }
-                    .disabled(!canSave)
-                }
-            }
-        }
-        .presentationDetents([.medium])
-    }
-}

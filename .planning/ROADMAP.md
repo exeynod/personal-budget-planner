@@ -364,8 +364,18 @@ User-direction 2026-05-11: gap-анализ показал что v06 (Features/
 ### Phase 64: AddSheet нативный (v06) — planned
 **Goal**: Замена `TransactionEditor` modal на расширенный native Form sheet — без custom keypad, используем `keyboardType: .decimalPad`. Picker категории/счёта. Подсказка AI-категории inline.
 
-### Phase 65: CategoryDetail drill-down (v06 native) — planned
-**Goal**: NavigationLink с категории → CategoryDetailView со списком транзакций по этой категории, кнопкой «увеличить лимит» (вызов PlanMonthAPI).
+### Phase 65: CategoryDetail drill-down (v06 native) ✅
+**Status**: Shipped 2026-05-11.
+**Goal**: NavigationLink с категории → CategoryDetailScreen со списком транзакций по этой категории. Кнопка «увеличить лимит» (PlanMonthAPI) deferred до Phase 61.
+**Plans**: 65-01-PLAN.md.
+**Success Criteria**:
+1. ✅ Tap по категории в v06 CategoriesView → push в CategoryDetailScreen (NavigationLink).
+2. ✅ Hero section: icon + kind label + total cents за активный период + count операций.
+3. ✅ History section: ForEach транзакций отсортирован date desc (через `ActualAPI.list(periodId:, categoryId:)`).
+4. ✅ Toolbar Menu: Переименовать / Архивировать (destructive) / Восстановить (если archived) — перенесены из inline-sheet.
+5. ❌ DEFERRED: «Увеличить лимит» — Phase 61.
+6. ❌ DEFERRED: Migration на v1.0 ActualV10API — Phase 59.
+7. ⚠ DISCOVERED: CategoriesView creation падает 500 на v1.0 backend (NOT-NULL `code`) — hotfix-кандидат для Phase 59 или separate.
 
 ### Phase 66: Settings + AI + Management Polish (v06 native) — planned
 **Goal**: Settings parity с V10 (theme picker, AI cost cap display). AI-чат — оставить v06 AIChatView с подключением v1.0 ai/chat SSE. Management Hub — оставить List как есть, добавить ряды для новых доменов (Accounts, Savings, Plan).
