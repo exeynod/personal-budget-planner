@@ -56,6 +56,7 @@ onboarding_v10_router = APIRouter(
     response_model=OnboardingV10Response,
     status_code=status.HTTP_200_OK,
     responses={
+        403: {"description": "PDN consent required (Phase 33 CMP-33-04)."},
         409: {"description": "User already onboarded (T-22-11-01)."},
         422: {"description": "Validation error (T-22-11-02..04)."},
     },
@@ -93,6 +94,17 @@ async def complete_v10(
                 body.savings_config.model_dump() if body.savings_config else None
             ),
         )
+    except onboarding_v10_svc.PdnConsentRequiredError as exc:
+        # Phase 33 CMP-33-04: ПДн consent gate.
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "error": "pdn_consent_required",
+                "privacy_url": "/legal/privacy",
+                "consent_endpoint": "/api/v1/me/consent",
+                "message": "ПДн consent required before onboarding (152-ФЗ)",
+            },
+        ) from exc
     except onboarding_v10_svc.OnboardingConflictError as exc:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,

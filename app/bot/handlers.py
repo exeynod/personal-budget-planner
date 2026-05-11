@@ -60,8 +60,9 @@ async def cmd_start(message: Message, command: CommandObject) -> None:
 
     user_id = message.from_user.id
 
-    # Phase 12 ROLE-02/03 + Phase 14 MTONB-01: resolve (role, onboarded_at)
-    role, onboarded_at = await bot_resolve_user_status(user_id)
+    # Phase 12 ROLE-02/03 + Phase 14 MTONB-01 + Phase 33 CMP-33-04:
+    # resolve (role, onboarded_at, pdn_consent_at).
+    role, onboarded_at, pdn_consent_at = await bot_resolve_user_status(user_id)
     if role not in (UserRole.owner, UserRole.member):
         # revoked, unknown, or DB unreachable → silent reject (carry-over UX)
         await message.answer("Бот приватный.")
@@ -85,6 +86,26 @@ async def cmd_start(message: Message, command: CommandObject) -> None:
 
     # Step 2: parse deep-link payload (Pattern 1 from RESEARCH.md)
     payload = command.args  # str | None — "onboard" if launched via deep link
+
+    # Phase 33 CMP-33-04: ПДн consent gate.
+    # Без явного согласия в Mini App user не может пользоваться сервисом —
+    # шлём prompt с приглашением открыть приложение и принять политику.
+    if pdn_consent_at is None:
+        greeting = (
+            "Добро пожаловать!\n\n"
+            "Прежде чем начать, прочитайте нашу политику обработки "
+            "персональных данных и подтвердите согласие в приложении.\n\n"
+            "Откройте Mini App — на первом экране будет чекбокс."
+        )
+        await message.answer(greeting, reply_markup=_open_app_keyboard())
+        logger.info(
+            "bot.start.consent_required",
+            tg_user_id=user_id,
+            tg_chat_id=chat_id,
+            chat_bound=chat_bound,
+            role=role.value,
+        )
+        return
 
     # Phase 14 MTONB-01: invited member with onboarded_at IS NULL → invite copy.
     # Owner is always considered onboarded (backfilled in Phase 11 migration);

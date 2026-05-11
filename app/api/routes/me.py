@@ -20,17 +20,20 @@ Auth model:
       onboarding-complete path covers the common case; PATCH /me is here
       for SettingsScreen edits AFTER onboarding.
 """
+from datetime import datetime, timezone
 from typing import Annotated
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import (
     get_current_user,
+    get_db,
     get_db_with_tenant_scope,
 )
 from app.api.schemas.me_v10 import MePatchV10, MeV10Response
-from app.db.models import AppUser
+from app.db.models import AppUser, PdnAuditEvent
+from app.services.pdn_audit import record_audit
 
 
 me_router = APIRouter(
@@ -83,3 +86,138 @@ async def patch_me(
         ai_spending_cap_cents=int(current_user.spending_cap_cents or 0),
         income_cents=current_user.income_cents,
     )
+
+
+# ---------- Phase 33 — Compliance endpoints ----------
+
+
+@me_router.post(
+    "/me/consent",
+    status_code=status.HTTP_200_OK,
+    responses={200: {"description": "Consent granted (idempotent)."}},
+)
+async def grant_consent(
+    request: Request,
+    current_user: Annotated[AppUser, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict:
+    """Phase 33 CMP-33-04: idempotent ПДн consent grant.
+
+    Sets ``app_user.pdn_consent_at = now()`` if not already set; writes an
+    audit-event ``granted``. Idempotent — повторный вызов с уже-granted
+    consent: timestamp не перезаписывается, но audit event фиксируется.
+    """
+    now = datetime.now(timezone.utc)
+    was_null = current_user.pdn_consent_at is None
+    if was_null:
+        current_user.pdn_consent_at = now
+        await db.flush()
+    await record_audit(
+        db,
+        user_id=current_user.id,
+        event=PdnAuditEvent.granted,
+        ip=request.client.host if request.client else None,
+        metadata={"policy_version": "v0.1", "was_null": was_null},
+    )
+    await db.commit()
+    return {
+        "pdn_consent_at": current_user.pdn_consent_at.isoformat(),
+        "policy_version": "v0.1",
+    }
+
+
+@me_router.delete(
+    "/me/consent",
+    status_code=status.HTTP_200_OK,
+)
+async def revoke_consent(
+    request: Request,
+    current_user: Annotated[AppUser, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict:
+    """Phase 33 CMP-33-04: revoke consent.
+
+    Nulls ``app_user.pdn_consent_at`` + writes audit event ``revoked``.
+    После этого user не сможет пройти ``/onboarding/complete`` без
+    нового grant.
+    """
+    was_set = current_user.pdn_consent_at is not None
+    current_user.pdn_consent_at = None
+    await db.flush()
+    await record_audit(
+        db,
+        user_id=current_user.id,
+        event=PdnAuditEvent.revoked,
+        ip=request.client.host if request.client else None,
+        metadata={"was_set": was_set},
+    )
+    await db.commit()
+    return {"pdn_consent_at": None, "revoked": was_set}
+
+
+@me_router.get(
+    "/me/export",
+    status_code=status.HTTP_200_OK,
+)
+async def export_my_data(
+    request: Request,
+    current_user: Annotated[AppUser, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db_with_tenant_scope)],
+) -> dict:
+    """Phase 33 CMP-33-06: data export (right of access)."""
+    # Import here to keep router import graph small.
+    from app.services.data_export import build_export
+
+    data = await build_export(db, user_id=current_user.id)
+    await record_audit(
+        db,
+        user_id=current_user.id,
+        event=PdnAuditEvent.data_export,
+        ip=request.client.host if request.client else None,
+        metadata={"format_version": "1.0"},
+    )
+    await db.commit()
+    return data
+
+
+@me_router.delete(
+    "/me/account",
+    status_code=status.HTTP_200_OK,
+    responses={
+        200: {"description": "Soft-delete scheduled; hard-delete in 30 days."},
+        410: {"description": "Already deleted."},
+    },
+)
+async def delete_my_account(
+    request: Request,
+    current_user: Annotated[AppUser, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict:
+    """Phase 33 CMP-33-02: account soft-delete (30-day cooling)."""
+    from app.services.account_deletion import soft_delete_account
+
+    if current_user.deleted_at is not None:
+        raise HTTPException(
+            status_code=status.HTTP_410_GONE,
+            detail={
+                "error": "already_deleted",
+                "deleted_at": current_user.deleted_at.isoformat(),
+            },
+        )
+    user = await soft_delete_account(db, user_id=current_user.id)
+    await record_audit(
+        db,
+        user_id=current_user.id,
+        event=PdnAuditEvent.deletion_requested,
+        ip=request.client.host if request.client else None,
+        metadata={"cooling_days": 30},
+    )
+    await db.commit()
+    return {
+        "deleted_at": user.deleted_at.isoformat(),
+        "purge_after_days": 30,
+        "message": (
+            "Account scheduled for deletion. Data will be permanently "
+            "removed in 30 days. To cancel, re-grant consent before then."
+        ),
+    }

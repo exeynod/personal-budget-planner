@@ -56,34 +56,37 @@ async def bot_resolve_user_role(tg_user_id: int) -> UserRole | None:
 
 async def bot_resolve_user_status(
     tg_user_id: int,
-) -> tuple[UserRole | None, datetime | None]:
-    """Return (role, onboarded_at) for a Telegram user (Phase 14 MTONB-01).
+) -> tuple[UserRole | None, datetime | None, datetime | None]:
+    """Return (role, onboarded_at, pdn_consent_at) for a Telegram user.
 
-    Single SELECT — same DB pattern as bot_resolve_user_role. Used by
-    ``cmd_start`` to distinguish "already onboarded" (regular greeting)
-    from "invited but pending onboarding" (D-14-02 invite-flow copy).
+    Phase 14 MTONB-01 + Phase 33 CMP-33-04 extension: now also returns
+    ``pdn_consent_at`` so ``cmd_start`` can branch when consent is missing.
+
+    Single SELECT — same DB pattern as bot_resolve_user_role.
 
     Args:
         tg_user_id: Telegram user id from the incoming message.
 
     Returns:
-        (role, onboarded_at) tuple. Either or both elements can be None:
-        - (None, None) when the AppUser row doesn't exist (revoked /
-          non-whitelisted Telegram account — handler replies "Бот приватный").
-        - (UserRole.<x>, None) when whitelisted but pre-onboarding
-          (Phase 14 invite scenario).
-        - (UserRole.<x>, <datetime>) when fully onboarded.
+        ``(role, onboarded_at, pdn_consent_at)`` tuple. Any element can be None:
+        - ``(None, None, None)`` when the AppUser row doesn't exist (revoked /
+          non-whitelisted — handler replies "Бот приватный").
+        - ``(UserRole.<x>, None, None)`` whitelisted, no consent, pre-onboarding.
+        - ``(UserRole.<x>, None, <datetime>)`` whitelisted + consent, pre-onboarding.
+        - ``(UserRole.<x>, <datetime>, <datetime>)`` fully onboarded with consent.
 
-    Threat note: same fresh-SELECT-per-command guarantee as
-    bot_resolve_user_role — revoked status and onboarded transitions
-    propagate within one command turnaround (no caching).
+    Threat note: fresh-SELECT-per-command — revoked/consent-revoked
+    propagates within one command turnaround (no caching).
     """
     async with AsyncSessionLocal() as session:
         result = await session.execute(
-            select(AppUser.role, AppUser.onboarded_at)
-            .where(AppUser.tg_user_id == tg_user_id)
+            select(
+                AppUser.role,
+                AppUser.onboarded_at,
+                AppUser.pdn_consent_at,
+            ).where(AppUser.tg_user_id == tg_user_id)
         )
         row = result.first()
         if row is None:
-            return (None, None)
-        return (row.role, row.onboarded_at)
+            return (None, None, None)
+        return (row.role, row.onboarded_at, row.pdn_consent_at)

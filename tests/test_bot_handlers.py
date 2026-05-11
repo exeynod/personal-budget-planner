@@ -81,7 +81,7 @@ async def test_cmd_start_rejects_non_owner() -> None:
     command = _make_command(None)
 
     with patch("app.bot.handlers.bind_chat_id", new=AsyncMock()) as mock_bind, \
-         patch("app.bot.handlers.bot_resolve_user_status", new=AsyncMock(return_value=(UserRole.revoked, None))):
+         patch("app.bot.handlers.bot_resolve_user_status", new=AsyncMock(return_value=(UserRole.revoked, None, None))):
         await handlers.cmd_start(message, command)
 
     message.answer.assert_awaited_once()
@@ -108,7 +108,7 @@ async def test_cmd_start_owner_calls_bind_and_replies_with_webapp_button() -> No
         "app.bot.handlers.bind_chat_id", new=AsyncMock(return_value=None)
     ) as mock_bind, patch(
         "app.bot.handlers.bot_resolve_user_status",
-        new=AsyncMock(return_value=(UserRole.owner, datetime(2026, 1, 1, tzinfo=timezone.utc))),
+        new=AsyncMock(return_value=(UserRole.owner, datetime(2026, 1, 1, tzinfo=timezone.utc), datetime(2026, 1, 1, tzinfo=timezone.utc))),
     ):
         await handlers.cmd_start(message, command)
 
@@ -145,7 +145,7 @@ async def test_cmd_start_handles_internal_api_error_gracefully() -> None:
         new=AsyncMock(side_effect=InternalApiError("boom")),
     ), patch(
         "app.bot.handlers.bot_resolve_user_status",
-        new=AsyncMock(return_value=(UserRole.owner, datetime(2026, 1, 1, tzinfo=timezone.utc))),
+        new=AsyncMock(return_value=(UserRole.owner, datetime(2026, 1, 1, tzinfo=timezone.utc), datetime(2026, 1, 1, tzinfo=timezone.utc))),
     ):
         # Must NOT propagate the exception
         await handlers.cmd_start(message, command)
@@ -171,7 +171,7 @@ async def test_cmd_start_parses_onboard_payload() -> None:
     with patch("app.bot.handlers.bind_chat_id", new=AsyncMock(return_value=None)), \
          patch(
              "app.bot.handlers.bot_resolve_user_status",
-             new=AsyncMock(return_value=(UserRole.owner, datetime(2026, 1, 1, tzinfo=timezone.utc))),
+             new=AsyncMock(return_value=(UserRole.owner, datetime(2026, 1, 1, tzinfo=timezone.utc), datetime(2026, 1, 1, tzinfo=timezone.utc))),
          ):
         await handlers.cmd_start(message, command)
 
@@ -264,10 +264,14 @@ async def test_cmd_start_member_not_onboarded_uses_invite_copy() -> None:
     msg = _make_message(user_id=555, chat_id=777)
     cmd = _make_command(args=None)
 
+    # Phase 33 CMP-33-04: 3-tuple — pdn_consent_at must be set so the
+    # invite-copy branch is reachable (consent check has priority over onboarded).
+    from datetime import datetime as _dt, timezone as _tz
+    _now = _dt.now(_tz.utc)
     with patch.object(
         handlers,
         "bot_resolve_user_status",
-        new=AsyncMock(return_value=(UserRole.member, None)),
+        new=AsyncMock(return_value=(UserRole.member, None, _now)),
     ), patch.object(
         handlers,
         "bind_chat_id",

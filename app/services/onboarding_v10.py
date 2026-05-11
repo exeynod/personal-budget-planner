@@ -158,6 +158,22 @@ class PlanExceedsIncomeError(ValueError):
         )
 
 
+class PdnConsentRequiredError(Exception):
+    """Phase 33 CMP-33-04: raised when user attempts onboarding-complete
+    without having granted ПДн consent first.
+
+    Route layer (app/api/routes/onboarding_v10.py) maps to
+    ``HTTPException(403)`` with body ``{"error": "pdn_consent_required",
+    "privacy_url": "/legal/privacy"}``.
+    """
+
+    def __init__(self) -> None:
+        super().__init__(
+            "ПДн consent (app_user.pdn_consent_at) is required before "
+            "onboarding-complete (152-ФЗ Phase 33 gate)."
+        )
+
+
 # ---------- Validators ----------
 
 
@@ -432,10 +448,21 @@ async def complete_v10(
             }
 
     Raises:
+        PdnConsentRequiredError → 403 (Phase 33 CMP-33-04 gate).
         OnboardingConflictError → 409 (T-22-11-01).
         ValueError → 422 (validators T-22-11-02/03).
         PlanExceedsIncomeError (subclass of ValueError) → 422 (T-22-11-04).
     """
+    # ---- 0. Phase 33 CMP-33-04: ПДн consent gate. ----
+    # Read app_user.pdn_consent_at; without explicit grant we refuse to
+    # onboard (152-ФЗ §6 — обработка ПДн без явного согласия запрещена).
+    from app.db.models import AppUser as _AppUser
+    user_row = await db.scalar(
+        select(_AppUser).where(_AppUser.id == user_id)
+    )
+    if user_row is not None and user_row.pdn_consent_at is None:
+        raise PdnConsentRequiredError()
+
     # ---- 1. Validators (run BEFORE any DB write — fail fast). ----
     income_cents = _validate_income(income_cents)
     _validate_category_plans(category_plans, income_cents)
@@ -671,6 +698,7 @@ __all__ = [
     "INCOME_MAX_CENTS",
     "OnboardingConflictError",
     "PlanExceedsIncomeError",
+    "PdnConsentRequiredError",
     "complete_v10",
     "reset_v10",
 ]
