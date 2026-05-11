@@ -68,7 +68,11 @@ async def dev_exchange(
         )
 
     # Timing-safe compare защищает от timing-side-channel.
-    if not hmac.compare_digest(body.secret, settings.DEV_AUTH_SECRET):
+    # Encode to bytes — hmac.compare_digest требует ASCII-only str ИЛИ bytes.
+    if not hmac.compare_digest(
+        body.secret.encode("utf-8"),
+        settings.DEV_AUTH_SECRET.encode("utf-8"),
+    ):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Invalid secret",
