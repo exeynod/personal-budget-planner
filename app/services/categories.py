@@ -10,6 +10,8 @@ keyword-only and scopes its queries / inserts by ``Category.user_id``. RLS
 (``SET LOCAL app.current_user_id``) acts as defense-in-depth backstop, but
 app-side filtering is the primary defense.
 """
+import uuid
+
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -85,12 +87,23 @@ async def create_category(
 
     Phase 11: assigns ``user_id`` so the row belongs to the current tenant.
     """
+    # Phase 65 follow-up hotfix: ``Category.code`` (String(40)) and ``ord``
+    # (String(2)) are NOT NULL (alembic 0013/14 v1.0 schema), but Phase 11
+    # ``CategoryCreate`` schema doesn't expose either — POST /categories
+    # raised IntegrityError 500 on every call. Auto-generate placeholders:
+    # ``code`` = uuid4 short hex (12 chars, fits 40), ``ord`` = "99" (lowest
+    # display priority — каталогизация через sort_order остаётся primary
+    # mechanism). Legacy v0.6 client surface keeps working; v1.0 clients
+    # which pass meaningful ``code`` / ``ord`` will go through CategoryUpdate
+    # after creation, or через onboarding-v10 (which sets both explicitly).
     cat = Category(
         user_id=user_id,
         name=name,
         kind=CategoryKind(kind),
         sort_order=sort_order,
         is_archived=False,
+        code=f"u{uuid.uuid4().hex[:12]}",
+        ord="99",
     )
     db.add(cat)
     await db.flush()
