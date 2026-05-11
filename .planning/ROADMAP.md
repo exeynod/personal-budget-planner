@@ -267,7 +267,8 @@
 3. Reduce-motion fallback: `prefers-reduced-motion: reduce` отключает blur transitions (web); `accessibilityReduceMotion` на iOS — opacity-only.
 4. Visual smoke: GlassCard rendered standalone в storybook-equivalent (или Playwright pixel-snapshot для primitive).
 
-### Phase 52: Web Liquid Glass Port
+### Phase 52: Web Liquid Glass Port ✅
+**Status**: Shipped 2026-05-11 — 1 plan (52-01), vitest 719/719 pass, vite build clean. LG + iOS Default override stylesheets bundled. LG-WEB-04 / LG-WEB-05 deferred к Phase 55.
 **Goal**: 9 V10 screens рендерятся под `[data-theme="liquid_glass"]` с LG tokens; Maximal Poster baselines не сломаны.
 **Depends on**: Phase 51 (tokens готовы).
 **Requirements**: LG-WEB-01..05

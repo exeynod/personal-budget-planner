@@ -20,11 +20,11 @@
 
 ## Phase 52 — Web Liquid Glass Port
 
-- [ ] **LG-WEB-01** — Все 9 V10 screens (Home, Transactions, AddSheet, CategoryDetail, Plan, Subscriptions, Savings, AI, Management) рендерятся под `[data-theme="liquid_glass"]` без визуальных регрессий: background = system adaptive, surfaces = glass-tinted, text = SF Pro.
-- [ ] **LG-WEB-02** — Хero/headlines в Maximal Poster (DM Serif Italic / Archivo Black) под Liquid Glass переключаются на SF Pro Display (largeTitle weight 700) — `font-family` через CSS-var `--lg-font-display`.
-- [ ] **LG-WEB-03** — Existing Maximal Poster screens НЕ сломаны (theme=maximal_poster — default retention path); Playwright pixel-snapshots для Maximal Poster baselines re-run green (zero diff vs v1.1 baselines).
-- [ ] **LG-WEB-04** — Playwright pixel-snapshots для Liquid Glass baselines созданы (9 PNGs) под `frontend/tests/e2e/v10-pixel-snapshots-liquid-glass.spec.ts-snapshots/`.
-- [ ] **LG-WEB-05** — Theme switch performance: < 100ms perceived delay от tap → full re-render (через CSS-var swap, без full page reload). `data-testid="theme-applied"` обновляется когда switch завершён.
+- [x] **LG-WEB-01** — Все 9 V10 screens (Home, Transactions, AddSheet, CategoryDetail, Plan, Subscriptions, Savings, AI, Management) рендерятся под `[data-theme="liquid_glass"]` без визуальных регрессий: background = system adaptive, surfaces = glass-tinted, text = SF Pro.
+- [x] **LG-WEB-02** — Хero/headlines в Maximal Poster (DM Serif Italic / Archivo Black) под Liquid Glass переключаются на SF Pro Display (largeTitle weight 700) — `font-family` через CSS-var `--lg-font-display`.
+- [x] **LG-WEB-03** — Existing Maximal Poster screens НЕ сломаны (theme=maximal_poster — default retention path); Playwright pixel-snapshots для Maximal Poster baselines re-run green (zero diff vs v1.1 baselines).
+- [~] **LG-WEB-04** — Playwright pixel-snapshots для Liquid Glass baselines созданы (9 PNGs) под `frontend/tests/e2e/v10-pixel-snapshots-liquid-glass.spec.ts-snapshots/`. **Deferred to Phase 55** (manual side-by-side acceptance; browser blur-shader determinism brittle для Playwright).
+- [~] **LG-WEB-05** — Theme switch performance: < 100ms perceived delay от tap → full re-render (через CSS-var swap, без full page reload). `data-testid="theme-applied"` обновляется когда switch завершён. **Deferred to Phase 55** (manual measurement after Phase 54 ThemePickerSheet ships).
 
 ## Phase 53 — iOS Liquid Glass Native
 
