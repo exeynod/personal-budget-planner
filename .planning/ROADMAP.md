@@ -290,7 +290,8 @@
 4. Manual XcodeBuildMCP screenshots: 9 screens × 3 themes = 27 PNGs committed в `.planning/phases/53-ios-liquid-glass/screenshots/`.
 5. Q4=b spirit preserved: iOS modifications ограничены только theme abstraction layer (no v0.6 wise-tide regression, no Apple Dev requirement).
 
-### Phase 54: Theme Switcher UI
+### Phase 54: Theme Switcher UI ✅
+**Status**: Shipped 2026-05-11 — 2 plans (54-01 web commit a61fce9, 54-02 iOS commit 2115167). Vitest 4/4 new tests + 12/12 SettingsView regression pass. iOS build clean.
 **Goal**: Settings → row «Тема» (web + iOS) → opens picker sheet с 3 swatches + preview text + ✓ marker; instant apply.
 **Depends on**: Phase 52 + Phase 53 (target themes уже работают).
 **Requirements**: LG-SW-01..05

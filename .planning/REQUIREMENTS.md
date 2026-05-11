@@ -35,11 +35,11 @@
 
 ## Phase 54 — Theme Switcher UI
 
-- [ ] **LG-SW-01** — Web `frontend/src/screensV10/Management/ThemePickerSheet.tsx` — PosterSheet с 3 swatches (Maximal Poster / Liquid Glass / iOS Default), каждый показывает mini-preview (BigFig + headline под theme tokens) + label + ✓ на текущем.
-- [ ] **LG-SW-02** — Web `SettingsView.tsx` добавляет row «Тема» (после «Цвет Home» row) с current swatch preview + chevron; tap → opens ThemePickerSheet.
-- [ ] **LG-SW-03** — iOS `ThemePickerSheet.swift` (SwiftUI) — `.posterSheet` с теми же 3 options + mini-preview cards.
-- [ ] **LG-SW-04** — iOS `SettingsV10View.swift` добавляет row «Тема» (после «Цвет Home») с binding к `@AppStorage("ui.theme")`.
-- [ ] **LG-SW-05** — Instant apply без full reload: web через `theme-changed` CustomEvent + React state re-render; iOS через `@AppStorage` SwiftUI binding observer.
+- [x] **LG-SW-01** — Web `ThemePickerSheet.tsx` — PosterSheet с 3 options (Maximal Poster / Liquid Glass / iOS Default); swatch + label + description + ✓ marker на текущем. (Phase 54-01, commit a61fce9)
+- [x] **LG-SW-02** — Web `SettingsView.tsx` добавляет row «Тема» (после «Цвет Home» row) с current theme label + chevron; tap → opens ThemePickerSheet. (Phase 54-01, commit a61fce9)
+- [x] **LG-SW-03** — iOS `ThemePickerSheet.swift` (SwiftUI) — `.posterSheet` с теми же 3 options + swatch + label + description + ✓. (Phase 54-02, commit 2115167)
+- [x] **LG-SW-04** — iOS `SettingsV10View.swift` добавляет row «Тема» (после `homeColorRow`) с binding к `@AppStorage("ui.theme")`. (Phase 54-02, commit 2115167)
+- [x] **LG-SW-05** — Instant apply: web через `theme-changed` CustomEvent + React state re-render; iOS через `@AppStorage` SwiftUI binding observer. (Phases 54-01 + 54-02)
 
 ## Phase 55 — Polish + Acceptance
 
