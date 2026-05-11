@@ -25,6 +25,10 @@ struct SettingsV10View: View {
     @AppStorage("ui.home-color") private var homeColorRaw: String = HomeColor.coral.rawValue
     @State private var homeColorPickerOpen = false
 
+    // Phase 54-02 (LG-SW-03, LG-SW-04, LG-SW-05 ios): Theme + picker sheet state.
+    @AppStorage("ui.theme") private var themeRaw: String = Theme.maximalPoster.rawValue
+    @State private var themePickerOpen = false
+
     /// Two-way binding bridging the raw string in @AppStorage with the
     /// enum type that HomeColorPickerSheet operates on. Whitelist-resolve
     /// on read; write back the rawValue.
@@ -46,6 +50,9 @@ struct SettingsV10View: View {
                 selection: homeColorBinding,
                 isPresented: $homeColorPickerOpen
             )
+        }
+        .posterSheet(isPresented: $themePickerOpen) {
+            ThemePickerSheet(isPresented: $themePickerOpen)
         }
     }
 
@@ -103,6 +110,8 @@ struct SettingsV10View: View {
                 aiCapRow
                 divider
                 homeColorRow
+                divider
+                themeRow
 
                 if let err = model.saveError {
                     Text(err)
@@ -260,6 +269,34 @@ struct SettingsV10View: View {
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("home-color-row")
+    }
+
+    // MARK: - Phase 54-02 (LG-SW-04): Theme row
+
+    /// Tappable row in Settings: shows current theme label + chevron.
+    /// Tap opens `ThemePickerSheet` via `.posterSheet(isPresented:)` modifier
+    /// attached on `body`.
+    private var themeRow: some View {
+        let current = Theme.resolve(themeRaw)
+        return Button {
+            themePickerOpen = true
+        } label: {
+            HStack(alignment: .center, spacing: 8) {
+                Eyebrow("ТЕМА", color: PosterTokens.Color.ink)
+                Spacer()
+                Text(current.ruLabel)
+                    .font(.posterMono(size: 11, weight: .semibold))
+                    .tracking(0.14 * 11)
+                    .foregroundColor(PosterTokens.Color.ink)
+                Text("→")
+                    .font(.posterMono(size: 14))
+                    .foregroundColor(PosterTokens.Color.ink.opacity(0.4))
+            }
+            .padding(.vertical, 12)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("theme-row")
     }
 }
 
