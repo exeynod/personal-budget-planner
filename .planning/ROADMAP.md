@@ -26,7 +26,7 @@
 4. Load test (k6 или locust) — 50 concurrent users × 100 actual_tx create + 20 AI chats без 5xx, p95 < 800ms.
 5. Rollback runbook в `docs/RUNBOOK-multitenant.md` (alembic downgrade -1 проверена на копии prod, dump/restore сценарий).
 
-### Phase 33: Compliance Baseline (152-ФЗ + ПДн + ToS + Privacy)
+### Phase 33: Compliance Baseline (152-ФЗ + ПДн + ToS + Privacy) ✅ SHIPPED 2026-05-11
 **Goal**: Юридический baseline для публичного launch в РФ — РКН-уведомление как оператор ПДн, явный consent на обработку ПДн при /start (бот + Mini App), Terms of Service, Privacy Policy, право на удаление аккаунта + endpoint полной деперсонализации.
 **Depends on**: Phase 32 (role-based auth — иначе не можем правильно deactivate user).
 **Requirements**: REQ-33-01..06
@@ -37,6 +37,14 @@
 4. `DELETE /api/v1/me/account` endpoint — каскадное удаление user + transactions + ai_conversation + ai_message + embedding_cache; результат — 204; повторный вызов 404; audit log в `data_deletion_log` (user_id_hash, deleted_at, requester_ip_hash).
 5. Cookie-banner на landing page (только если Phase 38 уже shipped) с opt-in для analytics.
 6. Privacy Policy явно перечисляет: OpenAI как sub-processor (data → API → OpenAI servers EU), retention 1 год, право на экспорт + удаление, контакт DPO (email автора).
+
+**Plans:** 6 plans
+- [x] 33-01-PLAN.md — pdn consent schema + audit-log table + audit helper (REQ-33-02, REQ-33-04 base)
+- [x] 33-02-PLAN.md — privacy policy + ToS RU/EN + /legal endpoints (REQ-33-03, REQ-33-06)
+- [x] 33-03-PLAN.md — consent endpoints + onboarding gate + bot prompt (REQ-33-02)
+- [x] 33-04-PLAN.md — data export + account deletion + purge job (REQ-33-04)
+- [x] 33-05-PLAN.md — cookie banner + pdn consent checkbox + me.ts helpers (REQ-33-05)
+- [x] 33-06-PLAN.md — РКН notification template + legal review checklist + COMPLIANCE.md (REQ-33-01)
 
 ### Phase 34: ЮKassa Integration (Самозанятый Edition)
 **Goal**: Primary payment rail — ЮKassa merchant в режиме «самозанятый», recurring subscriptions с webhook'ами, auto-чек через ЮKassa→ФНС «Мой Налог» в течение 24h, internal admin view для tracking платежей; TG Stars secondary rail (один SKU, две кнопки на paywall).

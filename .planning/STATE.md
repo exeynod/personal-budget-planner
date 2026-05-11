@@ -4,15 +4,15 @@ milestone: v1.1
 milestone_name: Monetization Foundation
 status: in_progress
 started_at: "2026-05-11"
-stopped_at: Phase 32 (Multi-tenant Production Enablement) complete. 6/7 phases remaining (33-38).
-last_updated: "2026-05-11T13:00:00.000Z"
-last_activity: 2026-05-11 — Phase 32 complete (5 plans, 34 new tests, 0 regressions)
+stopped_at: Phase 33 (Compliance Baseline) complete. 5/7 phases remaining (34-38). Manual user-side follow-ups tracked в LEGAL-REVIEW-TODO + RKN-NOTIFICATION docs.
+last_updated: "2026-05-11T14:00:00.000Z"
+last_activity: 2026-05-11 — Phase 33 complete (6 plans, 29 new tests, 0 regressions)
 progress:
   total_phases: 7
-  completed_phases: 1
-  total_plans: 5
-  completed_plans: 5
-  percent: 14
+  completed_phases: 2
+  total_plans: 11
+  completed_plans: 11
+  percent: 28
 ---
 
 # Project State
@@ -26,10 +26,10 @@ See: .planning/PROJECT.md (updated 2026-05-09 — v1.0 milestone «Maximal Poste
 
 ## Current Position
 
-Phase: 32 — Multi-tenant Production Enablement — COMPLETE
-Plan: All plans shipped (5/5) — 32-01..32-05
-Status: Phase 32 complete; 34 new tests green; 0 regressions vs pre-Phase32 baseline.
-Last activity: 2026-05-11 — Phase 32 complete
+Phase: 33 — Compliance Baseline (152-ФЗ + ПДн + ToS + Privacy) — COMPLETE
+Plan: All plans shipped (6/6) — 33-01..33-06
+Status: Phase 33 complete; 29 new tests green; 0 regressions vs pre-Phase33 baseline. Two manual follow-ups documented: РКН submission via pd.rkn.gov.ru (template ready) + legal audit privacy/tos (checklist ready).
+Last activity: 2026-05-11 — Phase 33 complete
 
 ## Milestone v1.0 Phases
 

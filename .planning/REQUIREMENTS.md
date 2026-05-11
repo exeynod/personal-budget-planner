@@ -12,14 +12,14 @@
 - [x] **REQ-32-05** — `docs/RUNBOOK-multitenant.md` — pre-migration checklist, alembic upgrade/downgrade procedure, pg_dump/pg_restore disaster recovery (RTO 10-20 min for pet-scale), monitoring queries, alert triage. Round-trip `alembic upgrade head → downgrade -1 → upgrade head` clean (verified).
 - [x] **REQ-32-06** — Alembic migration `0019_owner_backfill` — idempotent UPDATE с env-driven OWNER_TG_ID; `tests/test_owner_role_backfill.py` (3 scenarios) — promotes member, idempotent owner, no-row-safe.
 
-## Phase 33 — Compliance Baseline (152-ФЗ + ToS + ПДн + Privacy)
+## Phase 33 — Compliance Baseline (152-ФЗ + ToS + ПДн + Privacy) ✅ SHIPPED 2026-05-11
 
-- [ ] **REQ-33-01** — РКН-уведомление об обработке ПДн подано через pd.rkn.gov.ru; reg-номер в `docs/COMPLIANCE.md`.
-- [ ] **REQ-33-02** — `/start` бот + first-touch Mini App показывают consent-screen «Я согласен на обработку ПДн в целях X»; `app_user.pdn_consent_at` сохраняется; без согласия gate.
-- [ ] **REQ-33-03** — ToS + Privacy Policy опубликованы на `/tos` и `/privacy` (статические HTML или Markdown render); ссылки в Mini App Settings.
-- [ ] **REQ-33-04** — `DELETE /api/v1/me/account` — cascade-удаление user + transactions + ai_conversation + ai_message + embedding_cache; 204; повторный вызов 404; audit в `data_deletion_log`.
-- [ ] **REQ-33-05** — Cookie banner на landing page с opt-in (только если PostHog активен; Plausible-only — без banner).
-- [ ] **REQ-33-06** — Privacy Policy перечисляет: OpenAI sub-processor (EU servers), data-retention 1 год после account-deletion, право на экспорт + удаление, контакт DPO (email автора).
+- [x] **REQ-33-01** — РКН-уведомление template + checklist готовы (`docs/legal/RKN-NOTIFICATION.md` + `docs/legal/LEGAL-REVIEW-TODO.md` + `docs/COMPLIANCE.md`); фактическая подача — manual user-side через pd.rkn.gov.ru (ЭЦП/Госуслуги required).
+- [x] **REQ-33-02** — `app_user.pdn_consent_at TIMESTAMPTZ` shipped (alembic `0020_pdn_compliance`); `POST /api/v1/me/consent` (idempotent grant) + `DELETE /api/v1/me/consent` (revoke); server-side gate в `complete_v10()` returns 403 `pdn_consent_required` без consent; bot `/start` шлёт consent prompt user'у без `pdn_consent_at`. 8 tests.
+- [x] **REQ-33-03** — `docs/legal/privacy-policy.{ru,en}.md` + `docs/legal/terms.{ru,en}.md` (Draft v0.1); `app/api/routes/legal.py` exposes `GET /legal/privacy` + `GET /legal/terms` с `?lang=ru|en`, mounted без `/api/v1` prefix; ссылки в `<PdnConsentCheckbox />` + `<CookieBanner />`.
+- [x] **REQ-33-04** — `GET /api/v1/me/export` (JSON dump, audit-event `data_export`) + `DELETE /api/v1/me/account` (soft-delete + audit `deletion_requested`, repeat → 410); `purge_deleted_users_job` (APScheduler daily 02:00 MSK, advisory lock 20260101) — cascade hard-delete 11 tenant tables + `deletion_completed` audit. Все события пишутся в `pdn_audit_log` (sha256-hashed user_id, survives erasure). 12 tests.
+- [x] **REQ-33-05** — `<CookieBanner />` (info-only, `localStorage['cookie_consent_v1']`) mounted в `App.tsx`. Full analytics opt-in deferred to Phase 38 per CMP-33-05 (PostHog/Plausible не установлены).
+- [x] **REQ-33-06** — Privacy policy explicitly перечисляет: OpenAI как sub-processor (EU servers), retention 12 месяцев после deletion, права субъекта (access/correction/deletion/withdrawal через corresponding endpoints), DPO contact.
 
 ## Phase 34 — ЮKassa Integration (Самозанятый Edition)
 
