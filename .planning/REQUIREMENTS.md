@@ -43,11 +43,11 @@
 
 ## Phase 55 — Polish + Acceptance
 
-- [ ] **LG-POL-01** — Side-by-side acceptance: каждый из 9 V10 screens × 3 темы = 27 screenshots для web (Playwright) + 27 для iOS (XcodeBuildMCP). Visual diff approval — manual user-side.
-- [ ] **LG-POL-02** — `prefers-reduced-motion` honored для Liquid Glass: blur/material — static (без mid-scroll animation); iOS native respects `accessibilityReduceMotion`.
-- [ ] **LG-POL-03** — VoiceOver / accessibility audit Liquid Glass: contrast ratios ≥ WCAG AA на light + dark adaptive surfaces; glass tint не блокирует screen-reader element identification.
-- [ ] **LG-POL-04** — Performance: web theme switch < 100ms (LG-WEB-05); iOS theme switch < 200ms first paint после @AppStorage change.
-- [ ] **LG-POL-05** — Documentation: `docs/THEMES.md` — table tokens × 3 themes + screenshots каждой темы для onboarding новых contributors.
+- [~] **LG-POL-01** — Side-by-side acceptance: каждый из 9 V10 screens × 3 темы = 27 screenshots для web (Playwright) + 27 для iOS (XcodeBuildMCP). **Deferred к manual user QA** — designer-eye approval; не выполняется в autonomous mode.
+- [x] **LG-POL-02** — `prefers-reduced-motion` honored для Liquid Glass: `frontend/src/stylesV10/liquid-glass.css` lines 95-103 — `[data-theme="liquid_glass"] *` под `@media (prefers-reduced-motion: reduce)` имеет `animation-duration: 0.01ms !important`, `transition-duration: 0.01ms !important`, `scroll-behavior: auto !important`. iOS native respects `accessibilityReduceMotion` env через `ThemedBackground` (Phase 53-01). (Phase 55-01)
+- [~] **LG-POL-03** — VoiceOver / accessibility audit Liquid Glass: contrast ratios ≥ WCAG AA. **Deferred к manual user QA** — automated tooling limited; full a11y audit manual.
+- [~] **LG-POL-04** — Performance: web theme switch < 100ms / iOS < 200ms. **Deferred к real-user analytics instrumentation** (Phase 38 events embed) — awaits actual users.
+- [x] **LG-POL-05** — `docs/THEMES.md` — architecture overview + token comparison table + file map + accessibility notes + adding-a-new-theme recipe + known limitations. (Phase 55-01, commit 8b050c2)
 
 ---
 

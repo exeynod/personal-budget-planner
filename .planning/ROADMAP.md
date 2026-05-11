@@ -302,7 +302,8 @@
 4. Instant apply: web — full re-render через `theme-changed` CustomEvent observer; iOS — automatic via `@AppStorage` SwiftUI binding.
 5. Tests: `ThemePickerSheet.test.tsx` (5 cases) — render, select, persist, switch back, default fallback.
 
-### Phase 55: Polish + Acceptance
+### Phase 55: Polish + Acceptance ✅
+**Status**: Shipped 2026-05-11 — docs + reduce-motion implementation; 3 acceptance items defer к manual user QA.
 **Goal**: Side-by-side acceptance каждой темы; reduce-motion + VoiceOver compatibility; performance + documentation.
 **Depends on**: Phases 50-54.
 **Requirements**: LG-POL-01..05
