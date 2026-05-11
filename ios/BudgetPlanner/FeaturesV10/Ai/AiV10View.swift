@@ -56,7 +56,7 @@ struct AiV10View: View {
         VStack(spacing: 0) {
             headerRow
                 .padding(.horizontal, PosterTokens.Space.s22)
-                .padding(.top, PosterTokens.Space.s24)
+                .padding(.top, PosterTokens.Space.s56)
                 .padding(.bottom, PosterTokens.Space.s12)
 
             if isInitial {
