@@ -96,6 +96,25 @@ export class OnboardingRequiredError extends ApiError {
   }
 }
 
+/**
+ * Phase 35-03 (REQ-35-03): apiFetch throws this when backend returns 402 with
+ * body shape `{"detail": {"error": "PRO_TIER_REQUIRED", "current_tier": "free",
+ * "trial_ends_at": "..."}}` from AI endpoints.
+ *
+ * Caught by feature-level handlers (AI chat, tools) to open the PaywallSheet.
+ * Other 402 shapes remain plain ApiError so existing handlers keep working.
+ */
+export class ProTierRequiredError extends ApiError {
+  readonly currentTier: string;
+  readonly trialEndsAt: string | null;
+  constructor(body: string, currentTier: string, trialEndsAt: string | null) {
+    super('PRO_TIER_REQUIRED', 402, body);
+    this.name = 'ProTierRequiredError';
+    this.currentTier = currentTier;
+    this.trialEndsAt = trialEndsAt;
+  }
+}
+
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const headers = new Headers(init?.headers);
   headers.set('Content-Type', 'application/json');
@@ -121,6 +140,28 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
       }
       if (parsed?.detail?.error === 'onboarding_required') {
         throw new OnboardingRequiredError(text);
+      }
+    }
+    // Phase 35-03 (REQ-35-03): detect 402 PRO_TIER_REQUIRED sub-shape from AI endpoints.
+    if (response.status === 402) {
+      let parsed: {
+        detail?: {
+          error?: string;
+          current_tier?: string;
+          trial_ends_at?: string | null;
+        };
+      } | null = null;
+      try {
+        parsed = JSON.parse(text);
+      } catch {
+        parsed = null;
+      }
+      if (parsed?.detail?.error === 'PRO_TIER_REQUIRED') {
+        throw new ProTierRequiredError(
+          text,
+          parsed.detail.current_tier ?? 'free',
+          parsed.detail.trial_ends_at ?? null,
+        );
       }
     }
     throw new ApiError(`API ${path} → ${response.status}`, response.status, text);
