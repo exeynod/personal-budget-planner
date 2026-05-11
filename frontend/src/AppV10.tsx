@@ -1,5 +1,7 @@
 import { lazy, Suspense, useMemo } from 'react';
 import './stylesV10/tokens.css';
+import './stylesV10/liquid-glass.css';
+import './stylesV10/ios-default.css';
 import './stylesV10/fonts.css';
 import './stylesV10/animations.css';
 import styles from './AppV10.module.css';

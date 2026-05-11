@@ -1,0 +1,33 @@
+/* iOS Default theme overrides for V10 screens.
+ * Activates when `<html data-theme="ios_default">`.
+ *
+ * Strategy: same approach as liquid-glass.css but produces solid iOS surfaces
+ * (no frosting), system grey background. Screens themselves remain unchanged.
+ */
+
+[data-theme="ios_default"] {
+  --poster-coral:  var(--ios-bg-primary, #f2f2f7);
+  --poster-cobalt: var(--ios-bg-primary, #f2f2f7);
+  --poster-cream:  var(--ios-bg-primary, #f2f2f7);
+  --poster-paper:  #ffffff;
+  --poster-noir:   var(--ios-bg-primary, #f2f2f7);
+  --poster-red:    var(--ios-bg-primary, #f2f2f7);
+  --poster-ink:    var(--ios-text-primary, #000000);
+
+  --poster-font-archivo-black:  var(--ios-font-display, -apple-system, sans-serif);
+  --poster-font-dm-serif:       var(--ios-font-display, -apple-system, sans-serif);
+  --poster-font-manrope:        var(--ios-font-text, -apple-system, sans-serif);
+}
+
+[data-theme="ios_default"] body {
+  background: var(--ios-bg-primary, #f2f2f7);
+}
+
+[data-theme="ios_default"] [class*="plate"],
+[data-theme="ios_default"] [class*="Plate"],
+[data-theme="ios_default"] [class*="card"],
+[data-theme="ios_default"] [class*="Card"]:not([class*="GlassCard"]) {
+  background: #ffffff !important;
+  color: #000000;
+  border-radius: var(--ios-radius-card, 10px);
+}

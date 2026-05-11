@@ -1,0 +1,103 @@
+/* Liquid Glass theme overrides for V10 screens.
+ * Activates when `<html data-theme="liquid_glass">`.
+ *
+ * Strategy: override `--poster-*` CSS-vars + apply backdrop-filter к surface
+ * classes globally. Screens сами unchanged.
+ */
+
+/* Light mode adaptive (default Liquid Glass). */
+[data-theme="liquid_glass"] {
+  /* Background palette → system Light grey-tinted. */
+  --poster-coral:   var(--lg-bg-primary, #f2f2f7);
+  --poster-cobalt:  var(--lg-bg-primary, #f2f2f7);
+  --poster-cream:   var(--lg-bg-primary, #f2f2f7);
+  --poster-paper:   var(--lg-glass-tint-light, rgba(255, 255, 255, 0.72));
+  --poster-noir:    var(--lg-bg-primary, #f2f2f7);
+  --poster-red:     var(--lg-bg-primary, #f2f2f7);
+
+  /* Text → ink. */
+  --poster-ink:     var(--lg-text-primary, #1c1c1e);
+
+  /* Typography → SF Pro across the board. */
+  --poster-font-archivo-black:  var(--lg-font-display, -apple-system, BlinkMacSystemFont, sans-serif);
+  --poster-font-dm-serif:       var(--lg-font-display, -apple-system, BlinkMacSystemFont, sans-serif);
+  --poster-font-pt-serif:       var(--lg-font-display, -apple-system, BlinkMacSystemFont, sans-serif);
+  --poster-font-manrope:        var(--lg-font-text, -apple-system, BlinkMacSystemFont, sans-serif);
+  --poster-font-jet-brains-mono: var(--lg-font-mono, ui-monospace, SF Mono, monospace);
+
+  /* Yellow accent остаётся (system-yellow approx). */
+  --poster-yellow: #ffcc00;
+
+  /* Override font-style: italic — SF Pro NOT italic для display headings. */
+}
+
+[data-theme="liquid_glass"] body {
+  background: var(--lg-bg-primary, #f2f2f7);
+}
+
+/* Disable italic font-style on display headings (Maximal Poster uses DM Serif Italic — under LG just SF Pro regular). */
+[data-theme="liquid_glass"] .root[class*="Hero"],
+[data-theme="liquid_glass"] [class*="Mass"],
+[data-theme="liquid_glass"] [class*="italic"]:not([class*="not-italic"]) {
+  font-style: normal !important;
+  font-weight: 700;
+}
+
+/* Surface frosting: V10 plates / cards / sheets get backdrop-filter. */
+[data-theme="liquid_glass"] [class*="plate"],
+[data-theme="liquid_glass"] [class*="Plate"],
+[data-theme="liquid_glass"] [class*="card"],
+[data-theme="liquid_glass"] [class*="Card"]:not([class*="GlassCard"]),
+[data-theme="liquid_glass"] [class*="sheet"],
+[data-theme="liquid_glass"] [class*="Sheet"] {
+  backdrop-filter: var(--lg-material-thin, blur(40px) saturate(180%));
+  -webkit-backdrop-filter: var(--lg-material-thin, blur(40px) saturate(180%));
+  background: var(--lg-glass-tint-light, rgba(255, 255, 255, 0.72)) !important;
+  color: var(--lg-text-primary, #1c1c1e);
+}
+
+/* Bottom nav под LG — frosted bar. */
+[data-theme="liquid_glass"] [class*="bottomNav"],
+[data-theme="liquid_glass"] [class*="BottomNav"] {
+  backdrop-filter: var(--lg-material-regular, blur(60px) saturate(180%));
+  -webkit-backdrop-filter: var(--lg-material-regular, blur(60px) saturate(180%));
+  background: var(--lg-glass-tint-light, rgba(255, 255, 255, 0.72)) !important;
+  border-top: 0.5px solid var(--lg-glass-border, rgba(255, 255, 255, 0.18));
+}
+
+/* Dark mode adaptive. */
+@media (prefers-color-scheme: dark) {
+  [data-theme="liquid_glass"] {
+    --lg-bg-primary: #000000;
+    --poster-coral:   #000000;
+    --poster-cobalt:  #000000;
+    --poster-cream:   #1c1c1e;
+    --poster-paper:   var(--lg-glass-tint-dark, rgba(28, 28, 30, 0.72));
+    --poster-noir:    #000000;
+    --poster-red:     #000000;
+    --poster-ink:     #ffffff;
+  }
+  [data-theme="liquid_glass"] body {
+    background: #000000;
+  }
+  [data-theme="liquid_glass"] [class*="plate"],
+  [data-theme="liquid_glass"] [class*="Plate"],
+  [data-theme="liquid_glass"] [class*="card"],
+  [data-theme="liquid_glass"] [class*="Card"]:not([class*="GlassCard"]),
+  [data-theme="liquid_glass"] [class*="sheet"],
+  [data-theme="liquid_glass"] [class*="Sheet"],
+  [data-theme="liquid_glass"] [class*="bottomNav"] {
+    background: var(--lg-glass-tint-dark, rgba(28, 28, 30, 0.72)) !important;
+    color: #ffffff;
+  }
+}
+
+/* prefers-reduced-motion — no animations under LG theme. */
+@media (prefers-reduced-motion: reduce) {
+  [data-theme="liquid_glass"] * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
