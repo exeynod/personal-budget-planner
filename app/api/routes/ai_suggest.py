@@ -20,6 +20,7 @@ from app.api.dependencies import (
     get_current_user_id,
     get_db_with_tenant_scope,
     require_onboarded,
+    require_pro,                 # Phase 35 REQ-35-02 (Pro-gate AI suggest)
 )
 from app.api.schemas.ai import SuggestCategoryResponse
 from app.ai.embedding_service import get_embedding_service
@@ -30,6 +31,7 @@ router = APIRouter(
     dependencies=[
         Depends(get_current_user),
         Depends(require_onboarded),
+        Depends(require_pro),            # Phase 35 REQ-35-02
         Depends(enforce_spending_cap),   # Plan 15-03 AICAP-02
     ],
 )

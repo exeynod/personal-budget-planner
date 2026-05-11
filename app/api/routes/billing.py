@@ -18,6 +18,7 @@ RLS: каждый запрос фильтруется ``user_id == current_user.
 from __future__ import annotations
 
 import uuid
+from datetime import datetime, timezone
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -33,6 +34,7 @@ from app.api.schemas.billing import (
 )
 from app.db.models import AppUser, Payment, SubscriptionBilling
 from app.db.session import get_db
+from app.services.tier import effective_tier
 from app.services.yookassa_client import YookassaClient
 
 router = APIRouter(prefix="/api/v1", tags=["billing"])
@@ -124,6 +126,37 @@ async def my_subscription(
     if row is None:
         return None  # implicit free tier
     return SubscriptionRead.model_validate(row)
+
+
+@router.get("/me/tier", response_model=dict)
+async def my_tier(
+    user: AppUser = Depends(get_current_user),
+) -> dict:
+    """Return current effective tier + trial/pro window info for paywall UI.
+
+    Phase 35 REQ-35-02. Mirrors the resolution logic in
+    :func:`app.services.tier.effective_tier` so frontend never needs to
+    duplicate the trial-vs-paid precedence. ``is_trial_active`` is True
+    iff the reverse-trial is in-window AND there is no paid subscription
+    overriding it (paid window takes precedence in the UI copy).
+    """
+    now = datetime.now(timezone.utc)
+    tier = effective_tier(user, now=now)
+    is_trial_active = (
+        user.trial_ends_at is not None
+        and user.trial_ends_at > now
+        and (user.pro_active_until is None or user.pro_active_until <= now)
+    )
+    return {
+        "tier": tier,
+        "trial_ends_at": (
+            user.trial_ends_at.isoformat() if user.trial_ends_at else None
+        ),
+        "pro_active_until": (
+            user.pro_active_until.isoformat() if user.pro_active_until else None
+        ),
+        "is_trial_active": is_trial_active,
+    }
 
 
 @router.post("/me/subscription/cancel", status_code=status.HTTP_200_OK)

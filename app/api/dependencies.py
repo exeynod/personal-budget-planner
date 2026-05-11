@@ -387,6 +387,39 @@ async def require_onboarded(
     return current_user
 
 
+async def require_pro(
+    user: Annotated[AppUser, Depends(get_current_user)],
+) -> AppUser:
+    """Gate endpoint behind Pro tier (Phase 35 REQ-35-02).
+
+    Returns the user if they resolve to effective tier == ``pro`` (active
+    subscription OR active reverse-trial), else raises HTTPException(402)
+    with a structured detail so the frontend paywall UI can read the
+    current tier and trial deadline.
+
+    Pro evaluation delegated to :mod:`app.services.tier` so trial-vs-paid
+    precedence stays in one place. Both ``trial_ends_at > now`` and
+    ``pro_active_until > now`` evaluate as Pro.
+    """
+    from app.services.tier import effective_tier, is_pro
+
+    if not is_pro(user):
+        raise HTTPException(
+            status_code=402,
+            detail={
+                "error": "PRO_TIER_REQUIRED",
+                "message": "Эта функция доступна только в Pro-тарифе.",
+                "current_tier": effective_tier(user),
+                "trial_ends_at": (
+                    user.trial_ends_at.isoformat()
+                    if user.trial_ends_at
+                    else None
+                ),
+            },
+        )
+    return user
+
+
 async def enforce_spending_cap(
     current_user: Annotated[AppUser, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],

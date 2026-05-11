@@ -43,6 +43,7 @@ from app.api.dependencies import (
     get_current_user_id,
     get_db_with_tenant_scope,
     require_onboarded,
+    require_pro,                    # Phase 35 REQ-35-02 (Pro-gate AI chat)
 )
 from app.api.schemas.ai import (
     ChatHistoryResponse,
@@ -578,7 +579,7 @@ async def _event_stream(
         yield f"data: {json.dumps({'type': 'error', 'data': safe_msg})}\n\n"
 
 
-@router.post("/chat")
+@router.post("/chat", dependencies=[Depends(require_pro)])
 async def chat(
     body: ChatRequest,
     db: Annotated[AsyncSession, Depends(get_db_with_tenant_scope)],
