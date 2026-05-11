@@ -987,3 +987,95 @@ class SavingsConfig(Base):
             name="ck_savings_config_base_enum",
         ),
     )
+
+
+# ---- Phase 34 (REQ-34-01): YooKassa payment + subscription_billing ----
+
+
+class Payment(Base):
+    """YooKassa payment record (Phase 34 REQ-34-01, alembic 0021).
+
+    Идемпотентность через UNIQUE ``yookassa_payment_id`` — webhook не создаёт
+    дубликаты при retry. Status lifecycle: pending → succeeded/canceled →
+    (optional) refunded. CHECK constraints на DB-level (см. 0021).
+
+    Multi-tenant via user_id FK ON DELETE CASCADE (telemetry/billing data
+    дропается с user — отличается от доменных таблиц с RESTRICT). RLS-policy
+    ``tenant_isolation_payment`` на DB-level (alembic 0021); GUC
+    ``app.current_user_id`` маппится на ``app_user.id`` (PK), не ``tg_user_id``.
+
+    ``metadata_json`` хранится как JSONB (миграция 0021 использует JSONB —
+    fast indexable storage для webhook payload идемпотентности).
+    """
+
+    __tablename__ = "payment"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("app_user.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    yookassa_payment_id: Mapped[str] = mapped_column(
+        String(64), nullable=False, unique=True
+    )
+    amount_cents: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    status: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="pending", server_default="pending"
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), server_default=func.now(), nullable=False
+    )
+    paid_at: Mapped[Optional[datetime]] = mapped_column(
+        TIMESTAMP(timezone=True), nullable=True
+    )
+    refunded_at: Mapped[Optional[datetime]] = mapped_column(
+        TIMESTAMP(timezone=True), nullable=True
+    )
+    metadata_json: Mapped[dict] = mapped_column(
+        JSONB, nullable=False, default=dict, server_default=text("'{}'::jsonb")
+    )
+
+
+class SubscriptionBilling(Base):
+    """Per-period billing interval (Phase 34 REQ-34-01, alembic 0021).
+
+    Связывает пользователя с опциональным ``payment`` на period [start, end).
+    Tier {free, pro}, status {active, past_due, canceled, expired} — CHECK
+    constraints на DB-level (см. 0021).
+
+    Partial unique index ``subscription_billing_one_active`` гарантирует
+    ≤1 active billing на пользователя одновременно. ``payment_id``
+    ON DELETE SET NULL — при ручном purge payment'а billing-row остаётся
+    как audit trail, но без linked payment.
+
+    Multi-tenant via user_id FK ON DELETE CASCADE. RLS-policy
+    ``tenant_isolation_subscription_billing`` на DB-level (alembic 0021).
+    """
+
+    __tablename__ = "subscription_billing"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("app_user.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    tier: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="free", server_default="free"
+    )
+    period_start: Mapped[date] = mapped_column(Date, nullable=False)
+    period_end: Mapped[date] = mapped_column(Date, nullable=False)
+    payment_id: Mapped[Optional[int]] = mapped_column(
+        BigInteger,
+        ForeignKey("payment.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    status: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="active", server_default="active"
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), server_default=func.now(), nullable=False
+    )
