@@ -1,18 +1,18 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.1
-milestone_name: Monetization Foundation
-status: complete
-started_at: "2026-05-11"
-stopped_at: v1.1 milestone shipped. All 7 phases (32-38) complete.
-last_updated: "2026-05-11T17:00:00.000Z"
-last_activity: 2026-05-11 — Phase 38 landing + analytics complete
+milestone: v1.2
+milestone_name: Acquisition & Retention
+status: planned
+started_at: null
+stopped_at: v1.1 shipped 2026-05-11. v1.2 (Phases 39-44) готов к старту.
+last_updated: "2026-05-11T17:15:00.000Z"
+last_activity: 2026-05-11 — v1.1 Monetization Foundation milestone closed
 progress:
-  total_phases: 7
-  completed_phases: 7
-  total_plans: 29
-  completed_plans: 29
-  percent: 100
+  total_phases: 6
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
