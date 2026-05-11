@@ -1,21 +1,23 @@
-"""Tax reserve API (Phase 36-02, REQ-36-02).
+"""Tax API (Phase 36-02 REQ-36-02 + Phase 36-03 REQ-36-03).
 
-GET /api/v1/tax/reserve — Pro-gated endpoint для Persona E (самозанятые НПД).
-Возвращает рекомендуемый резерв под налог за указанный период.
+- ``GET /api/v1/tax/reserve`` — Pro-gated calc резерва под НПД 4/6% за период.
+- ``GET /api/v1/tax/export.csv`` — Pro-gated CSV выгрузка факт-транзакций
+  за период (UTF-8 BOM; Excel-совместимый).
 
-Auth: ``require_pro`` — reverse-trial (14 days) или paid Pro tier.
+Auth (оба endpoint'a): ``require_pro`` — reverse-trial (14 days) или paid Pro.
 """
 from __future__ import annotations
 
 from datetime import date
 from typing import Literal
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Response
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_db, require_pro
 from app.db.models import AppUser
+from app.services.csv_export import export_user_transactions_csv
 from app.services.tax_reserve import calculate_tax_reserve
 
 router = APIRouter(prefix="/api/v1", tags=["tax"])
@@ -56,4 +58,31 @@ async def get_tax_reserve(
         regime=result.regime,
         tax_owed_cents=result.tax_owed_cents,
         reserve_recommended_cents=result.reserve_recommended_cents,
+    )
+
+
+@router.get("/tax/export.csv")
+async def export_tax_csv(
+    period_start: date = Query(..., description="Period start date (inclusive)"),
+    period_end: date = Query(..., description="Period end date (inclusive)"),
+    user: AppUser = Depends(require_pro),
+    db: AsyncSession = Depends(get_db),
+) -> Response:
+    """Export user's actual_transaction в CSV (UTF-8 BOM, Excel-совместимый).
+
+    Содержит per-transaction поля + денорм category code/name/tag для
+    self-contained spreadsheet (Persona E archival / налоговая отчётность).
+    """
+    csv_data = await export_user_transactions_csv(
+        db, user.id, period_start, period_end
+    )
+    filename = (
+        f"transactions_{period_start.isoformat()}_{period_end.isoformat()}.csv"
+    )
+    return Response(
+        content=csv_data,
+        media_type="text/csv; charset=utf-8",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+        },
     )
