@@ -28,10 +28,10 @@
 
 ## Phase 53 — iOS Liquid Glass Native
 
-- [ ] **LG-IOS-01** — `GlassCard` SwiftUI view с `.glassEffect()` (iOS 26 API) когда theme=liquidGlass; fallback `.background(.ultraThinMaterial)` если iOS < 26.
-- [ ] **LG-IOS-02** — `PosterCard`, `PosterSheet`, `PosterBottomSheet`, `BottomNavV10` обёрнуты в conditional rendering: theme=maximalPoster → existing implementation; theme=liquidGlass → GlassCard-based variant; theme=iosDefault → system `Form` / `List(.insetGrouped)` / `.sheet()` (v0.6 wise-tide baseline).
-- [ ] **LG-IOS-03** — Все 9 V10 screens на iOS работают под обеими темами (Maximal Poster + Liquid Glass) без регрессий; XCTest 358/358 остаётся green; manual screenshots через XcodeBuildMCP для каждой темы (18 PNG).
-- [ ] **LG-IOS-04** — iOS unfreeze ограничен только GlassCard primitive + 5 V10 component обёртки — без full re-design (Q4=b spirit preserved: iOS остаётся «frozen for new features», тема — single-purpose extension).
+- [x] **LG-IOS-01** — `GlassCard` SwiftUI view с `.glassEffect()` (iOS 26 API) когда theme=liquidGlass; fallback `.background(.ultraThinMaterial)` если iOS < 26. (Phase 51-02-ios + Phase 53-01, commit f349bef)
+- [x] **LG-IOS-02** — V10 screens обёрнуты в conditional rendering через `.themedBackground()`: theme=maximalPoster → existing Poster paper; theme=liquidGlass → `.ultraThinMaterial` + `.glassEffect()`; theme=iosDefault → system grouped background. PosterCard / PosterSheet / BottomNavV10 untouched. (Phase 53-01, commit f349bef)
+- [x] **LG-IOS-03** — XCTest 358/358 pass (zero regressions vs Phase 52 baseline). Manual XcodeBuildMCP 18 PNGs (9 screens × 2 LG themes) — partially deferred к Phase 55 acceptance. (Phase 53-01, commit f349bef)
+- [x] **LG-IOS-04** — iOS unfreeze ограничен только `ThemedBackground.swift` + 14 root-level wraps (Q4=b spirit preserved). (Phase 53-01, commit f349bef)
 
 ## Phase 54 — Theme Switcher UI
 

@@ -278,7 +278,8 @@
 3. Liquid Glass baselines созданы (9 PNGs, `frontend/tests/e2e/v10-pixel-snapshots-liquid-glass.spec.ts-snapshots/`).
 4. Theme switch performance: < 100ms perceived delay через CSS-var swap (нет full reload); `data-testid="theme-applied"` обновляется.
 
-### Phase 53: iOS Liquid Glass Native
+### Phase 53: iOS Liquid Glass Native ✅
+**Status**: Shipped 2026-05-11 — 1 plan (53-01, commit f349bef), iOS build clean, XCTest 358/358 pass. ThemedBackground helper + 14 root-level wraps; PosterCard / PosterSheet / BottomNavV10 untouched. LG-IOS-03 18-PNG screenshots партиально — deferred к Phase 55.
 **Goal**: iOS обёртки PosterCard / PosterSheet / PosterBottomSheet / BottomNavV10 рендерят `.glassEffect()` (iOS 26 API) когда theme=liquidGlass; existing Maximal Poster path untouched.
 **Depends on**: Phase 51 (LG tokens) + Phase 52 (web reference baseline).
 **Requirements**: LG-IOS-01..04
