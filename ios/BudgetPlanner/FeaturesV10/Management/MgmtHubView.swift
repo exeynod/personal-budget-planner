@@ -51,7 +51,7 @@ struct MgmtHubView: View {
 
     var body: some View {
         ZStack {
-            PosterTokens.Color.black.ignoresSafeArea()
+            ThemedBackground(maximal: PosterTokens.Color.black).ignoresSafeArea()
             ScrollView {
                 VStack(alignment: .leading, spacing: PosterTokens.Space.s24) {
                     headerRow

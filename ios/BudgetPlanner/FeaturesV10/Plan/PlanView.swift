@@ -38,7 +38,7 @@ struct PlanView: View {
 
     var body: some View {
         ZStack(alignment: .top) {
-            PosterTokens.Color.cobalt.ignoresSafeArea()
+            ThemedBackground(maximal: PosterTokens.Color.cobalt).ignoresSafeArea()
             content
             // Toast overlay — renders only while `toastVisible == true`.
             Toast(message: model.toastMessage ?? "", visible: $toastVisible)

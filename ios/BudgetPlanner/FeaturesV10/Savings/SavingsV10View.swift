@@ -33,7 +33,7 @@ struct SavingsV10View: View {
 
     var body: some View {
         ZStack {
-            PosterTokens.Color.black.ignoresSafeArea()
+            ThemedBackground(maximal: PosterTokens.Color.black).ignoresSafeArea()
             content
         }
         .task { await model.load() }

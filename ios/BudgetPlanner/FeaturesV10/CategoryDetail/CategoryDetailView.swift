@@ -40,7 +40,7 @@ struct CategoryDetailView: View {
 
     var body: some View {
         ZStack {
-            backgroundColor.ignoresSafeArea()
+            ThemedBackground(maximal: backgroundColor).ignoresSafeArea()
             content
         }
         .task { await model.load() }

@@ -41,7 +41,7 @@ struct AiV10View: View {
         // foreground tokens paper → ink across the view. Matches the web
         // equivalent fix in AiView.module.css.
         ZStack {
-            PosterTokens.Color.cream.ignoresSafeArea()
+            ThemedBackground(maximal: PosterTokens.Color.cream).ignoresSafeArea()
             content
         }
         .task { await model.loadObservation() }

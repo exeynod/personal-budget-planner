@@ -24,7 +24,7 @@ struct AnalyticsV10View: View {
 
     var body: some View {
         ZStack {
-            PosterTokens.Color.cream.ignoresSafeArea()
+            ThemedBackground(maximal: PosterTokens.Color.cream).ignoresSafeArea()
             content
         }
         .task { await model.load() }

@@ -37,7 +37,7 @@ struct SettingsV10View: View {
 
     var body: some View {
         ZStack {
-            PosterTokens.Color.paper.ignoresSafeArea()
+            ThemedBackground(maximal: PosterTokens.Color.paper).ignoresSafeArea()
             content
         }
         .task { await model.load() }

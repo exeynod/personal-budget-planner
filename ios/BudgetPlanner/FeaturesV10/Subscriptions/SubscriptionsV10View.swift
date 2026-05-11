@@ -35,7 +35,7 @@ struct SubscriptionsV10View: View {
 
     var body: some View {
         ZStack(alignment: .top) {
-            PosterTokens.Color.coral.ignoresSafeArea()
+            ThemedBackground(maximal: PosterTokens.Color.coral).ignoresSafeArea()
             content
             // Error toast overlay — DEBT-04. Renders only while
             // `toastVisible == true`; auto-dismisses after Toast's 1.7s life,

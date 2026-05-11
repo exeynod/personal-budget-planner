@@ -40,7 +40,7 @@ struct HomeV10View: View {
 
     var body: some View {
         ZStack {
-            resolvedHomeColor.ignoresSafeArea()
+            ThemedBackground(maximal: resolvedHomeColor).ignoresSafeArea()
             content
         }
         .task { await model.load() }

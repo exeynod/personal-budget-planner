@@ -29,7 +29,7 @@ struct TransactionsV10View: View {
 
     var body: some View {
         ZStack {
-            PosterTokens.Color.cobalt.ignoresSafeArea()
+            ThemedBackground(maximal: PosterTokens.Color.cobalt).ignoresSafeArea()
             content
             // WR-25-09 (review fix): overlay banner for transient delete
             // failures. Anchored to bottom so the list keeps focus; tap
@@ -375,7 +375,7 @@ private struct EditPlaceholderSheet: View {
 
     var body: some View {
         ZStack {
-            PosterTokens.Color.paper.ignoresSafeArea()
+            ThemedBackground(maximal: PosterTokens.Color.paper).ignoresSafeArea()
             VStack(alignment: .leading, spacing: PosterTokens.Space.s14) {
                 HStack {
                     Eyebrow("РЕДАКТИРОВАТЬ · #\(tx?.id ?? 0)", opacity: 0.7, color: PosterTokens.Color.ink)
