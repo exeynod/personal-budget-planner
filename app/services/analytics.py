@@ -5,12 +5,19 @@ All functions are read-only (no db.commit). Period resolution is done internally
 Phase 11 (Plan 11-06, MUL-03): each public function takes ``user_id: int``
 keyword-only and scopes BudgetPeriod / PlannedTransaction / ActualTransaction /
 Category queries по user_id. RLS — defense-in-depth.
+
+Phase 38-02 (REQ-38-02): добавлен ``track_event`` — fire-and-forget event log
+для funnel + kill-metric instrumentation. Запись в ``analytics_event`` table
+(см. alembic 0024). НЕ tenant-scoped (anonymized internal analytics).
 """
 from __future__ import annotations
 
+import json
+import logging
 from datetime import date, timedelta
+from typing import Optional
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import (
@@ -21,6 +28,57 @@ from app.db.models import (
     PeriodStatus,
     PlannedTransaction,
 )
+
+logger = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# Phase 38-02 (REQ-38-02) — event log for funnel / kill-metric tracking.
+# ---------------------------------------------------------------------------
+
+
+async def track_event(
+    db: AsyncSession,
+    event_name: str,
+    user_id: Optional[int] = None,
+    props: Optional[dict] = None,
+) -> None:
+    """Log an analytics event. Fire-and-forget — never блокирует caller.
+
+    Schema: ``analytics_event(id, user_id, event_name, event_props, created_at)``
+    (alembic 0024). No RLS — internal anonymized analytics, не tenant-scoped.
+
+    Errors caught + logged at WARNING; product flow никогда не падает из-за
+    analytics. ``event_name`` обрезается до 64 символов (column type).
+    """
+    try:
+        await db.execute(
+            text(
+                "INSERT INTO analytics_event (user_id, event_name, event_props) "
+                "VALUES (:u, :n, CAST(:p AS jsonb))"
+            ),
+            {"u": user_id, "n": event_name[:64], "p": json.dumps(props or {})},
+        )
+        await db.commit()
+    except Exception as e:  # noqa: BLE001
+        logger.warning("analytics track_event failed: %s", e)
+        # Don't reraise — analytics shouldn't break product.
+
+
+# Event names — keep stable, used for funnel analysis.
+# Frontend mirrors через ``frontend/src/api/analytics.ts EVENT``.
+EVENT_LANDING_HIT = "landing.hit"
+EVENT_TG_OAUTH_START = "tg.oauth.start"
+EVENT_ONBOARDING_STARTED = "onboarding.started"
+EVENT_ONBOARDING_COMPLETED = "onboarding.completed"
+EVENT_FIRST_TXN = "txn.first_created"
+EVENT_AI_CHAT_USED = "ai.chat.used"
+EVENT_PAYWALL_SHOWN = "paywall.shown"
+EVENT_PAYMENT_INITIATED = "payment.initiated"
+EVENT_PAYMENT_SUCCEEDED = "payment.succeeded"
+EVENT_TRIAL_STARTED = "trial.started"
+EVENT_TRIAL_EXPIRED = "trial.expired"
+EVENT_SUBSCRIPTION_CANCELED = "subscription.canceled"
 
 
 async def get_recent_periods(

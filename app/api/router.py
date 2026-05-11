@@ -70,6 +70,7 @@ from app.api.routes.settings import settings_router
 from app.api.routes.ai import observation_router as ai_observation_router
 from app.api.routes.ai import router as ai_router
 from app.api.routes.ai_suggest import router as ai_suggest_router
+from app.api.routes.analytics import event_router as analytics_event_router
 from app.api.routes.analytics import router as analytics_router
 from app.api.routes.subscriptions import router as subscriptions_router
 from app.api.routes.templates import templates_router
@@ -154,6 +155,11 @@ public_router.include_router(subscriptions_router)
 
 # Phase 8 sub-router — Analytics aggregates (ANL-07).
 public_router.include_router(analytics_router)
+
+# Phase 38-02 (REQ-38-02) — event-tracking endpoint (POST /analytics/event).
+# Отдельный sub-router без ``require_onboarded`` — logger пишет события ещё
+# до завершения onboarding'a (landing.hit, onboarding.started).
+public_router.include_router(analytics_event_router)
 
 # Phase 9 sub-router — AI chat endpoint (AI-03, AI-06, AI-10).
 public_router.include_router(ai_router)
