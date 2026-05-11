@@ -256,7 +256,8 @@
 3. iOS `@AppStorage("ui.theme")` binding доступен через `PosterTokens.currentTheme` accessor; `BudgetPlannerApp.swift` инжектирует value в environment.
 4. tsc clean + iOS build clean; tokens.check CI gate passes (generated CSS = committed).
 
-### Phase 51: Liquid Glass Design System
+### Phase 51: Liquid Glass Design System ✅
+**Status**: Shipped 2026-05-11 — 2 plans, 6 web vitest pass, iOS build clean. LG tokens (palette/material/typography/motion/radius) + GlassCard primitive (web + iOS) готовы.
 **Goal**: LG-specific design tokens (palette, materials, typography SF Pro, motion springs, glass card primitive) — foundational set, applied в Phase 52-53.
 **Depends on**: Phase 50.
 **Requirements**: LG-SYS-01..05
