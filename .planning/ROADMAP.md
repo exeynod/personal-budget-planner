@@ -335,6 +335,10 @@ User-direction 2026-05-11: gap-анализ показал что v06 (Features/
 ### Phase 57: Onboarding 4-step (v06 native) — planned
 **Goal**: Native iOS onboarding wizard — 4 шага (income / accounts / plan / goals) через NavigationStack drill-down или TabView page-style. Использует v1.0 API `/onboarding/complete` с расширенными полями. Заменяет минимальный v06 OnboardingView.
 
+**Plans:** 2 plans
+- [ ] 57-01-PLAN.md — Native wizard root (NavigationStack) + 4 step views (Income/Accounts/Plan/Goals) reusing OnboardingFlow data model
+- [ ] 57-02-PLAN.md — AppRouter conditional mount (v06 → native wizard) + xcodegen regen + simulator build + manual smoke
+
 ### Phase 58: Home & Period (v06 native) ✅
 **Status**: Shipped 2026-05-11 (minimal correction). Полная интеграция с v1.0 `/periods/current` уже была. Скорректирован только empty state.
 **Goal**: Native Home без empty-state «Завершите onboarding» когда user.is_onboarded=true. Интеграция с v1.0 `/periods/current` + `/periods/{id}/balance`. Карточки категорий через List(.insetGrouped).
