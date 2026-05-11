@@ -96,6 +96,37 @@ enum LiquidGlassTokens {
     static let shadowElevatedRadius: CGFloat = 8
     static let shadowFloatingRadius: CGFloat = 24
     static let shadowFloatingStrongRadius: CGFloat = 48
+
+    enum FontSize {
+        static let largeTitle: CGFloat = 34
+        static let title1:     CGFloat = 28
+        static let title2:     CGFloat = 22
+        static let title3:     CGFloat = 20
+        static let headline:   CGFloat = 17
+        static let body:       CGFloat = 17
+        static let callout:    CGFloat = 16
+        static let subhead:    CGFloat = 15
+        static let footnote:   CGFloat = 13
+        static let caption1:   CGFloat = 12
+        static let caption2:   CGFloat = 11
+    }
+
+    enum Radius {
+        static let card:   CGFloat = 14
+        static let sheet:  CGFloat = 16
+        static let button: CGFloat = 12
+        static let pill:   CGFloat = 999
+    }
+
+    enum Motion {
+        // iOS native: SwiftUI .smooth, .snappy, .bouncy
+        // Mapping: springDefault → .smooth(duration: 0.32)
+        //          springBouncy  → .bouncy(duration: 0.5)
+        //          easeDecel     → .smooth(extraBounce: 0)
+        static let fastDuration:   Double = 0.2
+        static let mediumDuration: Double = 0.32
+        static let slowDuration:   Double = 0.5
+    }
 }
 
 enum IOSDefaultTokens {

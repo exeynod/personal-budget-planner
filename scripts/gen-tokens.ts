@@ -17,6 +17,9 @@ type ThemeOverride = {
   font?: Record<string, string>;
   shadow?: Record<string, string>;
   material?: Record<string, string>;
+  fontSize?: Record<string, number>;
+  motion?: Record<string, string>;
+  radius?: Record<string, number>;
 };
 
 type Tokens = {
@@ -70,6 +73,9 @@ const emitThemeBlock = (themeKey: 'maximal_poster' | 'liquid_glass' | 'ios_defau
   for (const [k, v] of entries(theme.font ?? {}))     lines.push(`  --${prefix}-font-${kebab(k)}: ${v};`);
   for (const [k, v] of entries(theme.shadow ?? {}))   lines.push(`  --${prefix}-shadow-${kebab(k)}: ${v};`);
   for (const [k, v] of entries(theme.material ?? {})) lines.push(`  --${prefix}-material-${kebab(k)}: ${v};`);
+  for (const [k, v] of entries(theme.fontSize ?? {})) lines.push(`  --${prefix}-font-size-${kebab(k)}: ${v}px;`);
+  for (const [k, v] of entries(theme.motion ?? {}))   lines.push(`  --${prefix}-motion-${kebab(k)}: ${v};`);
+  for (const [k, v] of entries(theme.radius ?? {}))   lines.push(`  --${prefix}-radius-${kebab(k)}: ${v}px;`);
   if (lines.length === 0) return;
   cssLines.push(`[data-theme="${themeKey}"] {`);
   cssLines.push(...lines);
@@ -163,6 +169,37 @@ const swiftLines: string[] = [
   '    static let shadowElevatedRadius: CGFloat = 8',
   '    static let shadowFloatingRadius: CGFloat = 24',
   '    static let shadowFloatingStrongRadius: CGFloat = 48',
+  '',
+  '    enum FontSize {',
+  '        static let largeTitle: CGFloat = 34',
+  '        static let title1:     CGFloat = 28',
+  '        static let title2:     CGFloat = 22',
+  '        static let title3:     CGFloat = 20',
+  '        static let headline:   CGFloat = 17',
+  '        static let body:       CGFloat = 17',
+  '        static let callout:    CGFloat = 16',
+  '        static let subhead:    CGFloat = 15',
+  '        static let footnote:   CGFloat = 13',
+  '        static let caption1:   CGFloat = 12',
+  '        static let caption2:   CGFloat = 11',
+  '    }',
+  '',
+  '    enum Radius {',
+  '        static let card:   CGFloat = 14',
+  '        static let sheet:  CGFloat = 16',
+  '        static let button: CGFloat = 12',
+  '        static let pill:   CGFloat = 999',
+  '    }',
+  '',
+  '    enum Motion {',
+  '        // iOS native: SwiftUI .smooth, .snappy, .bouncy',
+  '        // Mapping: springDefault → .smooth(duration: 0.32)',
+  '        //          springBouncy  → .bouncy(duration: 0.5)',
+  '        //          easeDecel     → .smooth(extraBounce: 0)',
+  '        static let fastDuration:   Double = 0.2',
+  '        static let mediumDuration: Double = 0.32',
+  '        static let slowDuration:   Double = 0.5',
+  '    }',
   '}',
   '',
   'enum IOSDefaultTokens {',

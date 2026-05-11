@@ -68,6 +68,27 @@
   --lg-material-thin: blur(40px) saturate(180%);
   --lg-material-regular: blur(60px) saturate(180%);
   --lg-material-thick: blur(80px) saturate(180%);
+  --lg-font-size-large-title: 34px;
+  --lg-font-size-title1: 28px;
+  --lg-font-size-title2: 22px;
+  --lg-font-size-title3: 20px;
+  --lg-font-size-headline: 17px;
+  --lg-font-size-body: 17px;
+  --lg-font-size-callout: 16px;
+  --lg-font-size-subhead: 15px;
+  --lg-font-size-footnote: 13px;
+  --lg-font-size-caption1: 12px;
+  --lg-font-size-caption2: 11px;
+  --lg-motion-spring-default: cubic-bezier(0.32, 0.72, 0, 1);
+  --lg-motion-spring-bouncy: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --lg-motion-ease-decel: cubic-bezier(0.16, 1, 0.3, 1);
+  --lg-motion-duration-fast: 200ms;
+  --lg-motion-duration-medium: 320ms;
+  --lg-motion-duration-slow: 500ms;
+  --lg-radius-card: 14px;
+  --lg-radius-sheet: 16px;
+  --lg-radius-button: 12px;
+  --lg-radius-pill: 999px;
 }
 
 [data-theme="ios_default"] {
@@ -76,4 +97,12 @@
   --ios-tint: #007AFF;
   --ios-font-display: -apple-system, BlinkMacSystemFont, sans-serif;
   --ios-font-text: -apple-system, BlinkMacSystemFont, sans-serif;
+  --ios-font-size-large-title: 34px;
+  --ios-font-size-title1: 28px;
+  --ios-font-size-body: 17px;
+  --ios-font-size-footnote: 13px;
+  --ios-font-size-caption1: 12px;
+  --ios-radius-card: 10px;
+  --ios-radius-sheet: 10px;
+  --ios-radius-button: 8px;
 }
