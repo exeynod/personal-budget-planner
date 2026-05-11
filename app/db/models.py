@@ -43,6 +43,7 @@ from sqlalchemy import (
     text,
 )
 from sqlalchemy.dialects.postgresql import ENUM as PgEnum
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 from sqlalchemy.types import TIMESTAMP
@@ -142,6 +143,19 @@ class UserRole(str, enum.Enum):
     revoked = "revoked"
 
 
+class PdnAuditEvent(str, enum.Enum):
+    """Phase 33 CMP-33-01: ПДн audit event types.
+
+    Используется в `pdn_audit_log.event_type` (PG enum `pdn_audit_event`).
+    """
+
+    granted = "granted"
+    revoked = "revoked"
+    data_export = "data_export"
+    deletion_requested = "deletion_requested"
+    deletion_completed = "deletion_completed"
+
+
 # ---------- Models ----------
 
 
@@ -189,6 +203,47 @@ class AppUser(Base):
     )
     created_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True), server_default=func.now(), nullable=False
+    )
+    # Phase 33 CMP-33-01: ПДн consent + soft-delete (30-day cooling).
+    pdn_consent_at: Mapped[Optional[datetime]] = mapped_column(
+        TIMESTAMP(timezone=True), nullable=True
+    )
+    deleted_at: Mapped[Optional[datetime]] = mapped_column(
+        TIMESTAMP(timezone=True), nullable=True
+    )
+
+
+class PdnAuditLog(Base):
+    """Phase 33 CMP-33-01: ПДн audit log.
+
+    Single-tenant audit table (owner-only read). RLS deliberately NOT
+    enabled — entries reference users by sha256 hash, no domain
+    tenant-scope to enforce. Reads happen under `budget_admin` role.
+
+    Stores только захэшированные user_id + ip (sha256 hex). Raw identifiers
+    в таблице отсутствуют — audit trail outlives the subject's right-to-erasure.
+    """
+
+    __tablename__ = "pdn_audit_log"
+
+    id: Mapped[int] = mapped_column(
+        BigInteger, primary_key=True, autoincrement=True
+    )
+    user_id_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    event_type: Mapped[PdnAuditEvent] = mapped_column(
+        PgEnum(PdnAuditEvent, name="pdn_audit_event", create_type=False),
+        nullable=False,
+    )
+    occurred_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+    ip_hash: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    # `metadata` reserved on SQLAlchemy DeclarativeBase — rename Python attr,
+    # keep PG column name = "metadata".
+    event_metadata: Mapped[Optional[dict]] = mapped_column(
+        "metadata", JSONB, nullable=True
     )
 
 
