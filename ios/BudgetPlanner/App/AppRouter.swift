@@ -22,7 +22,16 @@ struct AppRouter: View {
             case .unauthenticated, .error:
                 DevTokenSetupView()
             case .onboardingRequired(let user):
-                OnboardingView(initialUser: user)
+                if isLegacyV06Shell {
+                    // Phase 57 (v06 Native Rebuild): native 4-step wizard for the
+                    // v06 shell. Legacy OnboardingView (`Features/Onboarding/OnboardingView.swift`)
+                    // remains in tree but is no longer reachable from this router.
+                    NativeOnboardingWizardView(initialUser: user)
+                } else {
+                    // V10 path: existing onboarding mount (legacy view here while
+                    // V10MainShell owns its own routing). Untouched in Phase 57.
+                    OnboardingView(initialUser: user)
+                }
             case .authenticated:
                 if isLegacyV06Shell {
                     MainShell()
