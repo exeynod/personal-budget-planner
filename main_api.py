@@ -156,3 +156,10 @@ app.include_router(internal_router, prefix="/api/v1", tags=["internal"])
 # Telegram auth occurs. No auth dependency.
 from app.api.routes.legal import legal_router  # noqa: E402
 app.include_router(legal_router, tags=["legal"])
+
+# Phase 34 (REQ-34-03, REQ-34-05) — YooKassa webhook endpoint.
+# Mounted WITHOUT /api/v1 prefix (clean URL для регистрации в YooKassa
+# admin panel). Auth: YooKassa IP allowlist (edge-level), идемпотентность
+# через UNIQUE(yookassa_payment_id) + state-transition guard в обработчике.
+from app.api.routes.webhooks.yookassa import router as yookassa_webhook_router  # noqa: E402
+app.include_router(yookassa_webhook_router, tags=["webhooks"])
