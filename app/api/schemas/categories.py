@@ -17,6 +17,8 @@ from pydantic import BaseModel, ConfigDict, Field
 
 CategoryKindStr = Literal["expense", "income"]
 RolloverPolicyStr = Literal["misc", "savings"]
+# Phase 36 (REQ-36-01): business/personal tag для Persona E (самозанятые).
+CategoryTagStr = Literal["personal", "business", "mixed"]
 
 
 class CategoryCreate(BaseModel):
@@ -25,6 +27,9 @@ class CategoryCreate(BaseModel):
     name: str = Field(min_length=1, max_length=200)
     kind: CategoryKindStr
     sort_order: int = Field(default=0, ge=0)
+    # Phase 36: default 'personal' — categories created до Persona E flow
+    # автоматически получают personal-tag (mirror DB DEFAULT).
+    tag: CategoryTagStr = "personal"
 
 
 class CategoryUpdate(BaseModel):
@@ -53,6 +58,8 @@ class CategoryUpdate(BaseModel):
     rollover: Optional[RolloverPolicyStr] = None
     paused: Optional[bool] = None
     parent_id: Optional[int] = None
+    # Phase 36 (REQ-36-01): business/personal tag для Persona E.
+    tag: Optional[CategoryTagStr] = None
 
 
 class CategoryRead(BaseModel):
@@ -74,3 +81,5 @@ class CategoryRead(BaseModel):
     rollover: RolloverPolicyStr = "misc"
     paused: bool = False
     parent_id: Optional[int] = None
+    # Phase 36 (REQ-36-01): business/personal tag.
+    tag: CategoryTagStr = "personal"

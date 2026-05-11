@@ -320,6 +320,13 @@ class Category(Base):
     # на non-PK target нельзя декларировать чисто. ON DELETE SET NULL.
     parent_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True)
 
+    # ---- Phase 36 (REQ-36-01): business/personal tag для Persona E (самозанятые) ----
+    # Значения: 'personal' (default) | 'business' | 'mixed'. CHECK на DB-уровне
+    # (migration 0023). NULL запрещён — категория всегда имеет tag.
+    tag: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="personal", server_default="personal"
+    )
+
     # Self-referencing relationship (R3 future subcategories).
     # Использует foreign_keys+remote_side для self-FK без declared FK constraint
     # (composite FK живёт на DB-level).
@@ -685,6 +692,13 @@ class ActualTransaction(Base):
         ForeignKey("account.id", ondelete="RESTRICT"),
         nullable=True,
     )
+
+    # ---- Phase 36 (REQ-36-01): per-transaction business/personal tag override ----
+    # NULL = наследовать tag от category (default). Не-NULL = явный override
+    # ('personal' | 'business' | 'mixed') для смешанных трат на бизнес-категории.
+    # CHECK constraint на DB (migration 0023). Partial index
+    # ``ix_actual_transaction_tag`` WHERE tag='business' для tax-deductible queries.
+    tag: Mapped[Optional[str]] = mapped_column(String(16), nullable=True)
 
     period: Mapped["BudgetPeriod"] = relationship(back_populates="actual_transactions")
     category: Mapped["Category"] = relationship()

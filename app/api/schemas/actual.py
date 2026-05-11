@@ -27,6 +27,9 @@ from pydantic import BaseModel, ConfigDict, Field
 ActualKindStr = Literal["expense", "income", "roundup", "deposit"]
 KindStr = ActualKindStr  # backward-compat alias
 ActualSourceStr = Literal["mini_app", "bot"]
+# Phase 36 (REQ-36-01): per-transaction business/personal tag для Persona E.
+# NULL/None = наследовать tag от category. Явное значение = override.
+ActualTagStr = Literal["personal", "business", "mixed"]
 
 # Per-category balance aggregation only ever sees expense/income kinds —
 # preserved as a separate alias to keep BalanceCategoryRow strict.
@@ -49,6 +52,8 @@ class ActualCreate(BaseModel):
     # Service-level checks tenant ownership (T-25-01-01) — cross-tenant
     # account_id raises ``AccountNotFoundError`` → 404.
     account_id: Optional[int] = Field(default=None, gt=0)
+    # Phase 36 (REQ-36-01): optional override; None = inherit from category.tag.
+    tag: Optional[ActualTagStr] = None
 
 
 class ActualUpdate(BaseModel):
@@ -69,6 +74,8 @@ class ActualUpdate(BaseModel):
     description: Optional[str] = Field(default=None, max_length=500)
     category_id: Optional[int] = Field(default=None, gt=0)
     tx_date: Optional[date] = None
+    # Phase 36 (REQ-36-01): override category.tag для этой txn.
+    tag: Optional[ActualTagStr] = None
 
 
 class ActualRead(BaseModel):
@@ -88,6 +95,9 @@ class ActualRead(BaseModel):
     # parent_txn_id NULL) serialize cleanly.
     account_id: Optional[int] = None
     parent_txn_id: Optional[int] = None
+    # Phase 36 (REQ-36-01): None = inherit from category.tag (default behaviour
+    # для legacy rows и большинства personal-категорий).
+    tag: Optional[ActualTagStr] = None
 
 
 class BalanceCategoryRow(BaseModel):
