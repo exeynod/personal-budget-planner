@@ -3,18 +3,21 @@ import Observation
 
 /// Phase 61: PlanEditorViewModel — master view ViewModel.
 ///
-/// `load()`:
-///   - parallel fetch CategoriesV10API.list() + MeV10API.fetchMeV10() (incomeCents);
-///   - PeriodsAPI.current() с graceful 404 → period = nil, actuals = [];
-///   - if period есть — ActualV10API.list(periodId: per.id) для fact compute.
+/// `load()` (61-02):
+///   - parallel fetch `CategoriesV10API.list()` + `MeV10API.shared.fetchMeV10()`
+///     (incomeCents — nil-tolerant via `?? 0` для mid-onboarding).
+///   - PeriodsAPI.current() с graceful 404 → period = nil, actuals = [].
+///   - if period есть — ActualV10API.list(periodId: per.id) для fact compute;
+///     actuals fetch failure → silent fallback ([]) — Aggregates collapse до 0
+///     trailing без leak (T-61-03).
 ///
-/// Pattern parallel AccountsViewModel + PlanViewModel:
+/// Pattern parallel AccountsViewModel + AccountDetailViewModel + PlanViewModel:
 ///   - @Observable + private(set) properties + status enum
 ///   - inFlight guard для re-entrancy (T-61-02)
 ///   - Europe/Moscow Calendar для day-based context (если потребуется)
-///   - filtered Russian copy на failure (T-61-03)
-///
-/// Scaffold (61-01): load() — empty. Реализация в 61-02 Task 1.
+///   - T-61-03: filtered Russian copy на failure, raw error → `print(...)` only;
+///     raw localized description НИКОГДА не присваивается ни к status ни к
+///     user-visible state.
 @MainActor
 @Observable
 final class PlanEditorViewModel {
@@ -47,16 +50,61 @@ final class PlanEditorViewModel {
 
     // MARK: - Load
 
-    /// 61-02: реализация parallel fetch + period-404 grace + filtered copy.
+    /// Parallel fetch categories + me (incomeCents). Period 404 tolerated.
+    /// On any other failure → status = .error("Не удалось загрузить план месяца")
+    /// (T-61-03 filtered copy; raw error → print() для Xcode console).
     func load() async {
-        // 61-02: заполняем
+        if inFlight { return }
+        inFlight = true
+        defer { inFlight = false }
+
+        status = .loading
+
+        do {
+            async let catsTask = CategoriesV10API.list()
+            async let meTask = MeV10API.shared.fetchMeV10()
+            let cats = try await catsTask
+            let me = try await meTask
+
+            self.categories = cats
+            self.incomeCents = me.incomeCents ?? 0
+
+            // Period 404 mid-onboarding tolerated → period=nil, actuals=[].
+            let per: PeriodDTO?
+            do { per = try await PeriodsAPI.current() } catch { per = nil }
+            self.period = per
+
+            if let pid = per?.id {
+                do {
+                    self.actuals = try await ActualV10API.list(periodId: pid)
+                } catch {
+                    // T-61-03: actuals fetch failure — silent fallback.
+                    // Aggregates collapse до 0; raw error только в print.
+                    print("[PlanEditorViewModel] actuals fetch failed: \(error)")
+                    self.actuals = []
+                }
+            } else {
+                self.actuals = []
+            }
+
+            status = .ready
+        } catch {
+            print("[PlanEditorViewModel] load failed: \(error)")
+            // T-61-03: filtered Russian copy; raw error → print only.
+            status = .error("Не удалось загрузить план месяца")
+        }
     }
 
-    // MARK: - Optimistic update (called from PlanRowEditorViewModel.onSaved)
+    // MARK: - Optimistic update
 
-    /// 61-02: реализация — replace category в self.categories по id.
+    /// Called by PlanRowEditorView.onSaved closure после successful PATCH
+    /// в child editor. Делегирует в `PlanEditorData.applyOptimisticUpdate`
+    /// (pure helper) — replace category по id в self.categories.
     func applyOptimisticUpdate(_ updated: CategoryV10DTO) {
-        // 61-02: заполняем
+        self.categories = PlanEditorData.applyOptimisticUpdate(
+            self.categories,
+            updated: updated
+        )
     }
 
     // MARK: - DEBUG test backdoor
