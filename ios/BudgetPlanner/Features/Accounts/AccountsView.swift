@@ -1,6 +1,7 @@
 import SwiftUI
 
-/// Phase 60 (v06 Native Rebuild) — Plan 60-02: AccountsView body.
+/// Phase 60 (v06 Native Rebuild) — Plan 60-03 update: AccountsView body
+/// + scroll-to-new + createError banner.
 ///
 /// Native iOS-26 List(.insetGrouped) с 4 рендер-состояниями (loading /
 /// error / empty / ready) + Hero summary section (без header) + Section
@@ -9,62 +10,81 @@ import SwiftUI
 /// через `NavigationLink(value: account.id)` + `.navigationDestination(for:
 /// Int.self) { id in AccountDetailView(accountId: id) }`.
 ///
+/// **Plan 60-03 additions**:
+///   - Scroll-reader wraps List; on lastCreatedAccountId change →
+///     withAnimation easeInOut 0.3s → scrollTo(newId, anchor: center) →
+///     clearLastCreatedAccountId(). Каждая row ForEach помечена `.id`
+///     (scroll target).
+///   - createErrorBanner Section показывается в .ready branch перед
+///     empty/hero когда `viewModel.createError != nil`. Inline red icon +
+///     filtered Russian copy + xmark dismiss button.
+///
 /// NavigationStack принадлежит родителю (ManagementView) — здесь только
 /// `.navigationTitle("Счета")` + destination dispatch для Int (account id).
-/// Sheet content — AccountsNewSheet (60-01 stub; 60-03 заполнит реальный
-/// Form). `viewModel.createAccount(...)` пока возвращает false (60-03).
 struct AccountsView: View {
     @State private var viewModel = AccountsViewModel()
 
     var body: some View {
-        List {
-            switch viewModel.status {
-            case .idle, .loading:
-                loadingSection
-            case .error(let msg):
-                errorSection(msg)
-            case .ready:
-                if viewModel.accounts.isEmpty {
-                    emptySection
-                } else {
-                    heroSection
-                    accountsSection
+        ScrollViewReader { proxy in
+            List {
+                switch viewModel.status {
+                case .idle, .loading:
+                    loadingSection
+                case .error(let msg):
+                    errorSection(msg)
+                case .ready:
+                    if let createMsg = viewModel.createError {
+                        createErrorBanner(createMsg)
+                    }
+                    if viewModel.accounts.isEmpty {
+                        emptySection
+                    } else {
+                        heroSection
+                        accountsSection
+                    }
                 }
             }
-        }
-        .listStyle(.insetGrouped)
-        .navigationTitle("Счета")
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    viewModel.sheet = .newAccount
-                } label: {
-                    Image(systemName: "plus.circle.fill")
+            .listStyle(.insetGrouped)
+            .navigationTitle("Счета")
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        viewModel.sheet = .newAccount
+                    } label: {
+                        Image(systemName: "plus.circle.fill")
+                    }
+                    .accessibilityLabel("Добавить счёт")
                 }
-                .accessibilityLabel("Добавить счёт")
             }
-        }
-        .navigationDestination(for: Int.self) { id in
-            AccountDetailView(accountId: id)
-        }
-        .task { await viewModel.load() }
-        .refreshable { await viewModel.load() }
-        .sheet(isPresented: sheetBinding) {
-            AccountsNewSheet(
-                submitting: viewModel.submitting,
-                onCreate: { bank, kind, mask, balanceCents, primary in
-                    await viewModel.createAccount(
-                        bank: bank,
-                        kind: kind,
-                        mask: mask,
-                        balanceCents: balanceCents,
-                        primary: primary
-                    )
-                },
-                onCancel: {
-                    viewModel.sheet = .none
+            .navigationDestination(for: Int.self) { id in
+                AccountDetailView(accountId: id)
+            }
+            .task { await viewModel.load() }
+            .refreshable { await viewModel.load() }
+            .sheet(isPresented: sheetBinding) {
+                AccountsNewSheet(
+                    submitting: viewModel.submitting,
+                    onCreate: { bank, kind, mask, balanceCents, primary in
+                        await viewModel.createAccount(
+                            bank: bank,
+                            kind: kind,
+                            mask: mask,
+                            balanceCents: balanceCents,
+                            primary: primary
+                        )
+                    },
+                    onCancel: {
+                        viewModel.sheet = .none
+                    }
+                )
+            }
+            .onChange(of: viewModel.lastCreatedAccountId) { _, newValue in
+                guard let newId = newValue else { return }
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    proxy.scrollTo(newId, anchor: .center)
                 }
-            )
+                viewModel.clearLastCreatedAccountId()
+            }
         }
     }
 
@@ -101,6 +121,32 @@ struct AccountsView: View {
                 description: Text("Добавьте первый счёт через «+»")
             )
             .listRowBackground(Color.clear)
+        }
+    }
+
+    // MARK: - Create-error banner (Plan 60-03)
+
+    /// Inline Section с filtered Russian copy на create failure.
+    /// T-60-03: copy фиксированная (no raw Swift error); xmark dismiss
+    /// очищает banner через VM hook.
+    private func createErrorBanner(_ msg: String) -> some View {
+        Section {
+            HStack(spacing: 12) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(.red)
+                Text(msg)
+                    .font(.callout)
+                    .foregroundStyle(.primary)
+                Spacer(minLength: 8)
+                Button {
+                    viewModel.clearCreateError()
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.borderless)
+                .accessibilityLabel("Скрыть ошибку")
+            }
         }
     }
 
@@ -153,6 +199,7 @@ struct AccountsView: View {
                 NavigationLink(value: acct.id) {
                     AccountRow(account: acct)
                 }
+                .id(acct.id) // Scroll target for new-row animation.
             }
         }
     }
