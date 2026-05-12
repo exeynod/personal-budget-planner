@@ -110,6 +110,7 @@ struct ManagementView: View {
         case .analytics: AnalyticsView()
         case .subscriptions: SubscriptionsView()
         case .template: TemplateView()
+        case .accounts: AccountsView()
         case .categories: CategoriesView()
         case .settings: SettingsView()
         case .access: AccessView()
@@ -130,7 +131,7 @@ struct ManagementView: View {
 
 struct ManagementItem: Identifiable, Hashable {
     enum ID: String, Hashable {
-        case analytics, subscriptions, template, categories, settings, access
+        case analytics, subscriptions, template, accounts, categories, settings, access
     }
 
     let id: ID
@@ -149,6 +150,9 @@ struct ManagementItem: Identifiable, Hashable {
         .init(id: .template, label: "Шаблон бюджета",
               description: "Повторяющийся план для нового периода",
               icon: "list.bullet.rectangle", ownerOnly: false),
+        .init(id: .accounts, label: "Счета",
+              description: "Карты и наличные, основной счёт",
+              icon: "creditcard.fill", ownerOnly: false),
         .init(id: .categories, label: "Категории",
               description: "Структура расходов и доходов",
               icon: "bag.fill", ownerOnly: false),
