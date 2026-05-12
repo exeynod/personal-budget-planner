@@ -295,19 +295,31 @@ struct TransactionsView: View {
     @State private var viewModel = TransactionsViewModel()
     @State private var legacyEditingActual: ActualDTO?
     @State private var editingPlanned: PlannedDTO?
+    /// Plan 59-03 (T-59-01 mitigation): two-step delete flow. Swipe-left
+    /// button only STAGES the candidate row; the actual DELETE call fires
+    /// from the destructive button of `.confirmationDialog`. nil = no
+    /// pending confirmation. Reset by both confirm and cancel paths.
+    @State private var pendingDeleteActual: ActualV10DTO? = nil
 
     var body: some View {
         NavigationStack {
-            content
-                .navigationTitle("Транзакции")
-                .toolbar {
-                    ToolbarItem(placement: .principal) {
-                        subTabPicker
+            ZStack(alignment: .top) {
+                content
+                    .navigationTitle("Транзакции")
+                    .toolbar {
+                        ToolbarItem(placement: .principal) {
+                            subTabPicker
+                        }
+                        ToolbarItem(placement: .topBarTrailing) {
+                            categoryFilterMenu
+                        }
                     }
-                    ToolbarItem(placement: .topBarTrailing) {
-                        categoryFilterMenu
-                    }
+                if let msg = viewModel.deleteError {
+                    deleteErrorBanner(msg)
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                        .zIndex(1)
                 }
+            }
         }
         .task { await viewModel.load() }
         .sheet(item: $legacyEditingActual) { legacyActual in
@@ -323,6 +335,24 @@ struct TransactionsView: View {
                 categories: legacyCategories,
                 onSaved: { await viewModel.load() }
             )
+        }
+        // T-59-01 (Repudiation) — the swipe button only stages the row.
+        // The actual DELETE call is gated by this confirmation dialog.
+        .confirmationDialog(
+            "Удалить операцию?",
+            isPresented: Binding(
+                get: { pendingDeleteActual != nil },
+                set: { if !$0 { pendingDeleteActual = nil } }
+            ),
+            titleVisibility: .visible
+        ) {
+            Button("Удалить", role: .destructive) {
+                if let tx = pendingDeleteActual {
+                    Task { await viewModel.deleteActual(id: tx.id) }
+                }
+                pendingDeleteActual = nil
+            }
+            Button("Отмена", role: .cancel) { pendingDeleteActual = nil }
         }
     }
 
@@ -514,21 +544,11 @@ struct TransactionsView: View {
 
     private var loadedList: some View {
         List {
-            // Banner для transient delete-ошибок (T-59-02 / WR-25-09 pattern).
-            // Live даже в minimal-stub после 59-01 — оставляем как ready
-            // surface для swipe-to-delete в 59-03.
-            if let err = viewModel.deleteError {
-                Section {
-                    HStack {
-                        Image(systemName: "exclamationmark.triangle.fill")
-                            .foregroundStyle(.red)
-                        Text(err).font(.callout)
-                        Spacer()
-                        Button("Скрыть") { viewModel.clearDeleteError() }
-                            .buttonStyle(.borderless)
-                    }
-                }
-            }
+            // Plan 59-03: deleteError banner moved out of List into a ZStack
+            // overlay anchored at top of body (see `body` ZStack alignment:
+            // .top + deleteErrorBanner overlay). Rationale: List section
+            // would shift content + collide with insetGrouped style; an
+            // overlay banner keeps the list intact, mirrors V10 pattern.
 
             Section {
                 kindPicker
@@ -569,7 +589,22 @@ struct TransactionsView: View {
                                 legacyEditingActual = bridged
                             }
                         }
-                        // swipeActions добавит 59-03 (delete + confirmDialog).
+                        // T-59-01 (Repudiation): swipe-left → destructive
+                        // «Удалить» stages `pendingDeleteActual`; the actual
+                        // DELETE call fires from the .confirmationDialog
+                        // destructive button on body. Applies to ALL kinds
+                        // (expense / income / roundup / deposit) — D-04 limits
+                        // by subtab (.history only), not by kind. Backend
+                        // DELETE /actual/{id} works uniformly for any kind.
+                        // T-59-02 concurrency: inFlight guard is on the
+                        // ViewModel — view doesn't need to disable swipe.
+                        .swipeActions(edge: .trailing) {
+                            Button(role: .destructive) {
+                                pendingDeleteActual = actual
+                            } label: {
+                                Label("Удалить", systemImage: "trash")
+                            }
+                        }
                     }
                 } header: {
                     HStack {
@@ -610,7 +645,8 @@ struct TransactionsView: View {
                         PlannedRow(plan: plan, category: group.category)
                             .contentShape(Rectangle())
                             .onTapGesture { editingPlanned = plan }
-                        // swipeActions для planned delete — out of scope (59-03 / deferred).
+                        // No swipe-to-delete on planned rows (D-04 — Plan
+                        // subtab is tap-only; planned delete deferred).
                     }
                 } header: {
                     HStack {
@@ -659,6 +695,43 @@ struct TransactionsView: View {
             )
             .listRowBackground(Color.clear)
         }
+    }
+
+    // MARK: - Delete error banner (Plan 59-03 — T-59-03 mitigation)
+
+    /// Inline banner для transient delete failures (WR-25-09 native pattern).
+    /// Анкор — top of NavigationStack ZStack. List под ним остаётся целым
+    /// (banner НЕ заменяет содержимое — только перекрывает сверху). Copy
+    /// приходит из `viewModel.deleteError` (фиксированная Russian строка
+    /// из 59-01); raw localized-description text сюда никогда не попадает.
+    private func deleteErrorBanner(_ msg: String) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundStyle(.white)
+            Text(msg)
+                .font(.callout.weight(.medium))
+                .foregroundStyle(.white)
+                .lineLimit(2)
+            Spacer()
+            Button {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    viewModel.clearDeleteError()
+                }
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .foregroundStyle(.white.opacity(0.85))
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Скрыть сообщение об ошибке")
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background(
+            Color.red.opacity(0.92),
+            in: RoundedRectangle(cornerRadius: 10, style: .continuous)
+        )
+        .padding(.horizontal, 16)
+        .padding(.top, 8)
     }
 }
 
