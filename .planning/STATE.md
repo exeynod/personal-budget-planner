@@ -1,27 +1,28 @@
 ---
 gsd_state_version: 1.0
 milestone: v1.1.2
-milestone_name: iOS v06 Native Rebuild
-status: in_progress
-started_at: "2026-05-11T22:00:00+03:00"
-stopped_at: null
-last_updated: "2026-05-11T23:50:00+03:00"
-last_activity: 2026-05-11 — Backfill SUMMARYs + VERIFICATIONs для shipped phases 56/58/65 (формальное закрытие до autonomous loop по incomplete phases 39-66)
+milestone_name: — iOS v06 Native Rebuild)
+current_phase: 59
+status: completed
+stopped_at: Roadmap для v1.0 (Phases 22-28) создан, REQUIREMENTS.md traceability заполнен (92/92 REQs). Awaiting `/gsd-plan-phase 22`.
+last_updated: "2026-05-12T08:23:58.573Z"
+last_activity: 2026-05-12 -- Phase 59 marked complete
 progress:
-  total_phases: 11
-  completed_phases: 3
-  total_plans: 3
-  completed_plans: 3
-  percent: 27
+  total_phases: 35
+  completed_phases: 18
+  total_plans: 46
+  completed_plans: 46
+  percent: 100
 ---
 
 ## Active Milestone: v1.1.2 — iOS v06 Native Rebuild
 
 User-direction 2026-05-11: вернуть нативный iOS UI (`MainShell`) как полноценную альтернативу `V10MainShell`. Оба шелла сосуществуют через `@AppStorage("ui.theme")` тумблер. Параллельная разработка в ветке `v1.0-maximal-poster`.
 
-**Current Phase:** 65 (CategoryDetail drill-down) — SHIPPED 2026-05-11.
+**Current Phase:** 59
 
 **Next Phases (planned, see ROADMAP.md):**
+
 - 57: Onboarding 4-step (v06 native)
 - 59: Transactions (миграция на ActualV10API + hotfix CategoryCreateRequest code)
 - 60: Accounts (новый домен)
@@ -41,14 +42,14 @@ User-direction 2026-05-11: вернуть нативный iOS UI (`MainShell`) 
 See: .planning/PROJECT.md (updated 2026-05-09 — v1.0 milestone «Maximal Poster Full» started)
 
 **Core value:** В один тап записать факт-трату и видеть актуальную дельту план/факт по категориям бюджета — быстрее, чем открывать Google-таблицу. После v0.3 — conversational AI-помощник + аналитика; после v0.4 — multi-tenant whitelist + AI cost cap; v0.6 — native iOS-клиент. v1.0 — pixel-perfect Maximal Poster дизайн-система + Account/Goal/Recurrent/SavingsConfig + auto-roundup + rollover.
-**Current focus:** Phase 23 — Design System Foundation
+**Current focus:** Phase 59 — Transactions (v06 native)
 
 ## Current Position
 
-Phase: 33 — Compliance Baseline (152-ФЗ + ПДн + ToS + Privacy) — COMPLETE
-Plan: All plans shipped (6/6) — 33-01..33-06
-Status: Phase 33 complete; 29 new tests green; 0 regressions vs pre-Phase33 baseline. Two manual follow-ups documented: РКН submission via pd.rkn.gov.ru (template ready) + legal audit privacy/tos (checklist ready).
-Last activity: 2026-05-11 — Phase 33 complete
+Phase: 59 — COMPLETE
+Plan: 1 of 3
+Status: Phase 59 complete
+Last activity: 2026-05-12 -- Phase 59 marked complete
 
 ## Milestone v1.0 Phases
 

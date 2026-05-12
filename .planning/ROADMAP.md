@@ -350,13 +350,17 @@ User-direction 2026-05-11: gap-анализ показал что v06 (Features/
 4. ✅ Иконка нейтральная (`calendar.badge.clock`).
 5. ❌ DEFERRED: миграция HomeView с 2-valued CategoryKind на 4-valued (savings/other) — в Phase 59.
 
-### Phase 59: Transactions (v06 native) — planned
+### Phase 59: Transactions (v06 native) ✅ SHIPPED 2026-05-12
 **Goal**: Миграция с legacy ActualAPI/PlannedAPI (2-valued kind) на v1.0 ActualV10API (4-valued kind). Фильтры по категории, history/planned subtabs через native Picker. Swipe-to-delete.
 
 **Plans:** 3 plans
-- [ ] 59-01-PLAN.md — TransactionsViewModel migration to ActualV10DTO + CategoriesV10DTO + unit tests
-- [ ] 59-02-PLAN.md — TransactionsView body rewrite (subtabs, 3-segment kind picker, filter Menu, V10 rows)
-- [ ] 59-03-PLAN.md — Swipe-to-delete + confirmationDialog + inline deleteError banner
+- [x] 59-01-PLAN.md — TransactionsViewModel migration to ActualV10DTO + CategoriesV10DTO + unit tests
+- [x] 59-02-PLAN.md — TransactionsView body rewrite (subtabs, 3-segment kind picker, filter Menu, V10 rows)
+- [x] 59-03-PLAN.md — Swipe-to-delete + confirmationDialog + inline deleteError banner
+
+**Outcome**: Native iOS Transactions screen на v1.0 backend. 3-segment kind picker (Расходы/Доходы/Сбережения), roundup mini-icon, deposit blue, Menu category filter, swipe+confirmationDialog+overlay banner. 15 ViewModel unit tests. Bridge ActualV10DTO→ActualDTO для tap-to-edit legacy TransactionEditor (Phase 64 заменит). Manual smoke approved 2026-05-12 11:25 MSK.
+
+**Discovered**: CategoryV10DTO.kind на самом деле 2-valued — не 4-valued, как утверждал CONTEXT.md. Только `ActualKindV10` 4-valued. PlannedV10API не существует, Planned остаётся legacy.
 
 ### Phase 60: Accounts (v06 native, новый домен) — planned
 **Goal**: Мультиаккаунтность. AccountsView (List со счетами) + AccountDetailView (NavigationLink). API: AccountsAPI v1.0.
