@@ -365,6 +365,12 @@ User-direction 2026-05-11: gap-анализ показал что v06 (Features/
 ### Phase 60: Accounts (v06 native, новый домен) — planned
 **Goal**: Мультиаккаунтность. AccountsView (List со счетами) + AccountDetailView (NavigationLink). API: AccountsAPI v1.0.
 
+**Plans:** 4 plans
+- [ ] 60-01-PLAN.md — ManagementItem.accounts registration + scaffold files for Features/Accounts
+- [ ] 60-02-PLAN.md — AccountsViewModel.load + AccountsView body (Hero + List + Empty + tap-to-detail) + ViewModel tests
+- [ ] 60-03-PLAN.md — NewAccountSheet (Form) + AccountsViewModel.createAccount + ScrollViewReader scroll-to-new + inline error banner
+- [ ] 60-04-PLAN.md — AccountDetailViewModel.load + AccountDetailView body (Hero + History per period grouped by day)
+
 ### Phase 61: Plan Editor (v06 native, новый домен) — planned
 **Goal**: Редактор месячного плана. List категорий → каждая через NavigationLink на PlanRowEditor (Stepper / TextField rouble-amount). Rollover info inline. API: PlanMonthAPI.
 
