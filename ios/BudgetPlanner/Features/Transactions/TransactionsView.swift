@@ -1,8 +1,11 @@
 // Phase 59-01 — ViewModel migrated to V10 surface (ActualV10DTO + CategoryV10DTO).
-// The View body below references the old types and will not compile until
-// Plan 59-02 rewrites the body. Build broken on `main` is acceptable WITHIN
-// this plan's commit boundary because plan 59-02 is the immediate next wave
-// and lands atomically (ROADMAP.md Phase 59 single-feature delivery).
+// Phase 59-02 — View body rewritten against the V10 ViewModel surface
+// (subtabs in toolbar(.principal), 3-segment kind picker in first Section,
+// category filter Menu in toolbar(.topBarTrailing), ActualV10DTO rows with
+// roundup mini-icon, tap-to-edit bridge to legacy TransactionEditor).
+// NOTE on field naming: 59-01 SUMMARY documents `state` is the kept name;
+// the field is renamed to `status` in 59-02 per Plan 59-02 <interfaces>
+// (line 86) to align with `TransactionsV10ViewModel.status`.
 //
 // Data layer:
 //   - Actuals: ActualV10API.list → [ActualV10DTO] (4-valued ActualKindV10).
@@ -38,7 +41,7 @@ final class TransactionsViewModel {
         case error(String)
     }
 
-    private(set) var state: LoadState = .idle
+    private(set) var status: LoadState = .idle
     var period: PeriodDTO?
     var actuals: [ActualV10DTO] = []
     var planned: [PlannedDTO] = []
@@ -56,8 +59,8 @@ final class TransactionsViewModel {
     var categoryFilter: Int?
 
     /// Banner-style transient error from a failed delete attempt (T-59-02).
-    /// Keep delete failures separate from the page-level `state` machine —
-    /// replacing `state` with `.error` after a failed delete would render a
+    /// Keep delete failures separate from the page-level `status` machine —
+    /// replacing `status` with `.error` after a failed delete would render a
     /// fullscreen error and lose the existing list. Pattern mirrors
     /// `TransactionsV10ViewModel.deleteError` (Phase 25-09 WR-25-09).
     var deleteError: String? = nil
@@ -110,7 +113,7 @@ final class TransactionsViewModel {
         inFlight = true
         defer { inFlight = false }
 
-        state = .loading
+        status = .loading
 
         do {
             // Period may legitimately 404 mid-onboarding; wrap inline since
@@ -147,13 +150,13 @@ final class TransactionsViewModel {
                 return l > r
             }
             self.planned = plans.sorted { $0.id < $1.id }
-            self.state = .loaded
+            self.status = .loaded
         } catch {
             // T-59-03 mitigation — fixed Russian copy, no raw error
             // description leak to user-visible state. Full error to Xcode
             // console only via print().
             print("[TransactionsViewModel] load failed: \(error)")
-            self.state = .error("не удалось загрузить транзакции")
+            self.status = .error("не удалось загрузить транзакции")
         }
     }
 
@@ -274,115 +277,533 @@ enum TxSubTab: String, CaseIterable, Identifiable {
     var id: String { rawValue }
 }
 
-/// Transactions screen — native iOS 26 layout.
-///   - NavigationStack + large title "Транзакции"
-///   - .toolbar Picker для подтаба История/План + Menu для фильтра категории
-///   - Расходы/Доходы — segmented Picker в Section
-///   - History → List(.insetGrouped) с Section per-day
-///   - Plans → List(.insetGrouped) с Section per-category
-///   - swipeActions для delete + tap row → editor sheet
+/// Transactions screen — native iOS 26 layout (Phase 59-02 rewrite).
+///   - NavigationStack + large title «Транзакции»
+///   - Subtabs (История / План) — segmented Picker в .toolbar(.principal)
+///   - Kind picker (Расходы / Доходы / Сбережения) — segmented Picker в
+///     header первой Section. В План — 2-segment (без «Сбережения»).
+///   - Category filter — Menu в .toolbar(.topBarTrailing) с иконкой
+///     `line.3.horizontal.decrease.circle` (filled при активном фильтре).
+///   - History → List(.insetGrouped) с Section per-day (день + сумма).
+///   - Plans → List(.insetGrouped) с Section per-category.
+///   - Tap row → editor sheet (bridge через `legacyActualDTO(from:)`
+///     для совместимости с TransactionEditor; roundup/deposit — display-only).
+///   - swipe-to-delete + confirmationDialog + banner — лендит в 59-03.
+///   - Persistence отсутствует (D-03): subTab=.history, kind=.expense,
+///     savingsSegmentSelected=false, categoryFilter=nil при cold start.
 struct TransactionsView: View {
     @State private var viewModel = TransactionsViewModel()
+    @State private var legacyEditingActual: ActualDTO?
+    @State private var editingPlanned: PlannedDTO?
 
     var body: some View {
-        // Phase 59-01 — UI rebuild handed off to Plan 59-02. The placeholder
-        // body below keeps the file parseable Swift against the new V10
-        // ViewModel surface (filteredActuals/visibleCategories/dayGroups +
-        // ActualV10DTO / CategoryV10DTO types) without re-wiring the full
-        // 3-segment kind picker, swipe-to-delete, confirmationDialog,
-        // editor sheets and per-day sections — those land in 59-02 as a
-        // single atomic UI rewrite.
         NavigationStack {
             content
                 .navigationTitle("Транзакции")
+                .toolbar {
+                    ToolbarItem(placement: .principal) {
+                        subTabPicker
+                    }
+                    ToolbarItem(placement: .topBarTrailing) {
+                        categoryFilterMenu
+                    }
+                }
         }
         .task { await viewModel.load() }
+        .sheet(item: $legacyEditingActual) { legacyActual in
+            TransactionEditor(
+                mode: .editActual(legacyActual),
+                categories: legacyCategories,
+                onSaved: { await viewModel.load() }
+            )
+        }
+        .sheet(item: $editingPlanned) { plan in
+            TransactionEditor(
+                mode: .editPlanned(plan),
+                categories: legacyCategories,
+                onSaved: { await viewModel.load() }
+            )
+        }
     }
+
+    // MARK: - Legacy DTO bridge (D-05)
+
+    /// Bridge `[CategoryV10DTO] → [CategoryDTO]` so the legacy
+    /// `TransactionEditor` (Phase 64 will rewrite it) keeps working
+    /// unchanged. Maps only the v0.x field subset CategoryDTO needs;
+    /// the v1.0 fields (planCents / rollover / paused / parentId / code /
+    /// ord) are dropped here intentionally.
+    private var legacyCategories: [CategoryDTO] {
+        viewModel.categories.map { v in
+            CategoryDTO(
+                id: v.id,
+                name: v.name,
+                kind: v.kind,
+                isArchived: v.isArchived,
+                sortOrder: v.sortOrder,
+                createdAt: v.createdAt
+            )
+        }
+    }
+
+    /// Bridge an `ActualV10DTO` to the legacy `ActualDTO` shape consumed by
+    /// TransactionEditor.editActual. Returns nil for `.roundup` / `.deposit`
+    /// because the legacy `CategoryKind` enum is 2-valued and the editor
+    /// doesn't understand the 4-valued kinds — rows for those kinds are
+    /// display-only this phase (D-02 + scope guard).
+    private func legacyActualDTO(from v: ActualV10DTO) -> ActualDTO? {
+        let legacyKind: CategoryKind
+        switch v.kind {
+        case .expense: legacyKind = .expense
+        case .income: legacyKind = .income
+        case .roundup, .deposit: return nil
+        }
+        return ActualDTO(
+            id: v.id,
+            periodId: v.periodId,
+            kind: legacyKind,
+            amountCents: v.amountCents,
+            description: v.description,
+            categoryId: v.categoryId,
+            txDate: v.txDate,
+            source: v.source,
+            createdAt: v.createdAt
+        )
+    }
+
+    // MARK: - Toolbar pieces
+
+    private var subTabPicker: some View {
+        Picker("Подтаб", selection: $viewModel.subTab) {
+            ForEach(TxSubTab.allCases) { t in
+                Text(t.rawValue).tag(t)
+            }
+        }
+        .pickerStyle(.segmented)
+        .frame(maxWidth: 280)
+        .onChange(of: viewModel.subTab) { _, newValue in
+            // D-02: Сбережения сегмент существует только в .history.
+            // Авто-сбрасываем при переключении в .plan, иначе kindPicker
+            // в .plan не имеет валидного 3-го сегмента (tag=2 не виден).
+            if newValue == .plan && viewModel.savingsSegmentSelected {
+                viewModel.savingsSegmentSelected = false
+                viewModel.categoryFilter = nil
+            }
+        }
+    }
+
+    private var categoryFilterMenu: some View {
+        Menu {
+            Button {
+                viewModel.categoryFilter = nil
+            } label: {
+                if viewModel.categoryFilter == nil {
+                    Label("Все категории", systemImage: "checkmark")
+                } else {
+                    Text("Все категории")
+                }
+            }
+            ForEach(viewModel.visibleCategories) { cat in
+                Button {
+                    viewModel.categoryFilter = cat.id
+                } label: {
+                    if viewModel.categoryFilter == cat.id {
+                        Label(cat.name, systemImage: "checkmark")
+                    } else {
+                        Text(cat.name)
+                    }
+                }
+            }
+        } label: {
+            let active = (viewModel.categoryFilter != nil)
+            Image(
+                systemName: active
+                    ? "line.3.horizontal.decrease.circle.fill"
+                    : "line.3.horizontal.decrease.circle"
+            )
+            .accessibilityLabel("Фильтр по категории")
+        }
+    }
+
+    // MARK: - Kind picker binding (3-segment в .history, 2-segment в .plan)
+
+    private var kindSegmentBinding: Binding<Int> {
+        Binding<Int>(
+            get: {
+                if viewModel.savingsSegmentSelected { return 2 }
+                return viewModel.kind == .expense ? 0 : 1
+            },
+            set: { idx in
+                switch idx {
+                case 0:
+                    viewModel.kind = .expense
+                    viewModel.savingsSegmentSelected = false
+                case 1:
+                    viewModel.kind = .income
+                    viewModel.savingsSegmentSelected = false
+                case 2:
+                    // Сбережения — synthetic segment. Сохраняем kind=.expense
+                    // в качестве visual fallback, чтобы categoryFilter и
+                    // visibleCategories логика оставалась консистентной
+                    // (visibleCategories смотрит на savingsSegmentSelected
+                    // первым).
+                    viewModel.savingsSegmentSelected = true
+                    viewModel.kind = .expense
+                default:
+                    break
+                }
+                // D-03 — sane defaults: reset filter при смене сегмента.
+                viewModel.categoryFilter = nil
+            }
+        )
+    }
+
+    @ViewBuilder
+    private var kindPicker: some View {
+        Picker("Тип", selection: kindSegmentBinding) {
+            Text("Расходы").tag(0)
+            Text("Доходы").tag(1)
+            if viewModel.subTab == .history {
+                Text("Сбережения").tag(2)
+            }
+        }
+        .pickerStyle(.segmented)
+    }
+
+    // MARK: - Content state machine
 
     @ViewBuilder
     private var content: some View {
-        switch viewModel.state {
+        switch viewModel.status {
         case .idle, .loading:
-            ProgressView().controlSize(.large)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-        case .error(let msg):
-            ContentUnavailableView {
-                Label("Не удалось загрузить", systemImage: "exclamationmark.triangle")
-            } description: {
-                Text(msg)
-            } actions: {
-                Button("Повторить") { Task { await viewModel.load() } }
-                    .buttonStyle(.borderedProminent)
-            }
+            loadingView
+        case .error:
+            errorView(currentStatusErrorMessage)
         case .loaded:
-            // Placeholder list — full 3-segment picker / per-day sections /
-            // swipe-to-delete / category filter Menu / editor sheets land
-            // in Plan 59-02.
-            List {
-                if let err = viewModel.deleteError {
-                    Section {
-                        HStack {
-                            Image(systemName: "exclamationmark.triangle.fill")
-                                .foregroundStyle(.red)
-                            Text(err).font(.callout)
-                            Spacer()
-                            Button("Скрыть") { viewModel.clearDeleteError() }
-                                .buttonStyle(.borderless)
+            loadedList
+        }
+    }
+
+    /// Pull the error message out of `viewModel.status` for the
+    /// errorView call. Centralising it here keeps the `case .error`
+    /// pattern free of nested let-binding and lets `errorView(_:)`
+    /// remain a plain `String -> some View` helper.
+    private var currentStatusErrorMessage: String {
+        if case .error(let msg) = viewModel.status { return msg }
+        return ""
+    }
+
+    private var loadingView: some View {
+        ProgressView()
+            .controlSize(.large)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private func errorView(_ msg: String) -> some View {
+        ContentUnavailableView {
+            Label("Не удалось загрузить", systemImage: "exclamationmark.triangle")
+        } description: {
+            Text(msg)
+        } actions: {
+            Button("Повторить") {
+                Task { await viewModel.load() }
+            }
+            .buttonStyle(.borderedProminent)
+        }
+    }
+
+    private var loadedList: some View {
+        List {
+            // Banner для transient delete-ошибок (T-59-02 / WR-25-09 pattern).
+            // Live даже в minimal-stub после 59-01 — оставляем как ready
+            // surface для swipe-to-delete в 59-03.
+            if let err = viewModel.deleteError {
+                Section {
+                    HStack {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundStyle(.red)
+                        Text(err).font(.callout)
+                        Spacer()
+                        Button("Скрыть") { viewModel.clearDeleteError() }
+                            .buttonStyle(.borderless)
+                    }
+                }
+            }
+
+            Section {
+                kindPicker
+                    .listRowBackground(Color.clear)
+                    .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 8, trailing: 16))
+                    .listRowSeparator(.hidden)
+            }
+
+            if viewModel.subTab == .history {
+                historySections
+            } else {
+                plannedSections
+            }
+        }
+        .listStyle(.insetGrouped)
+        .refreshable { await viewModel.load() }
+    }
+
+    // MARK: - History sections (day-grouped)
+
+    @ViewBuilder
+    private var historySections: some View {
+        if viewModel.dayGroups.isEmpty {
+            emptySection(message: emptyHistoryMessage)
+        } else {
+            ForEach(viewModel.dayGroups) { group in
+                Section {
+                    ForEach(group.rows) { actual in
+                        ActualRow(
+                            actual: actual,
+                            category: viewModel.category(actual.categoryId)
+                        )
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            // .expense / .income → bridge → editor sheet.
+                            // .roundup / .deposit → display-only no-op (D-02).
+                            if let bridged = legacyActualDTO(from: actual) {
+                                legacyEditingActual = bridged
+                            }
                         }
+                        // swipeActions добавит 59-03 (delete + confirmDialog).
                     }
-                }
-                if viewModel.subTab == .history {
-                    historyPlaceholder
-                } else {
-                    plannedPlaceholder
-                }
-            }
-            .listStyle(.insetGrouped)
-            .refreshable { await viewModel.load() }
-        }
-    }
-
-    @ViewBuilder
-    private var historyPlaceholder: some View {
-        let groups = viewModel.dayGroups
-        if groups.isEmpty {
-            Section {
-                ContentUnavailableView(
-                    "Пусто",
-                    systemImage: "tray",
-                    description: Text("UI rebuild in Plan 59-02")
-                )
-                .listRowBackground(Color.clear)
-            }
-        } else {
-            ForEach(groups) { group in
-                Section(header: Text(group.dateLabel)) {
-                    ForEach(group.rows) { row in
-                        Text(row.description ?? viewModel.category(row.categoryId)?.name ?? "—")
-                            .font(.callout)
+                } header: {
+                    HStack {
+                        Text(group.dateLabel)
+                        Spacer()
+                        Text(MoneyFormatter.formatWithSymbol(cents: group.sumCents))
+                            .monospacedDigit()
                     }
                 }
             }
         }
     }
 
+    private var emptyHistoryMessage: String {
+        if viewModel.savingsSegmentSelected {
+            return "Нет операций по копилке. Roundup и пополнения появятся здесь."
+        }
+        return "Нет операций. Добавьте трату или измените фильтры."
+    }
+
+    // MARK: - Plan sections (category-grouped)
+
     @ViewBuilder
-    private var plannedPlaceholder: some View {
+    private var plannedSections: some View {
         let plans = viewModel.filteredPlanned
-        if plans.isEmpty {
-            Section {
-                ContentUnavailableView(
-                    "Пусто",
-                    systemImage: "tray",
-                    description: Text("UI rebuild in Plan 59-02")
-                )
-                .listRowBackground(Color.clear)
-            }
+        if viewModel.savingsSegmentSelected {
+            // Этот ветвь нерeachable через UI (subTabPicker сбрасывает
+            // savingsSegmentSelected при переходе в .plan), но
+            // оставляем для state-safety если порядок setter'ов
+            // в kindSegmentBinding изменится в будущем.
+            emptySection(message: "Планирование сбережений — в разделе Копилка (Phase 62).")
+        } else if plans.isEmpty {
+            emptySection(message: "Нет планов. Создайте через + или примените шаблон.")
         } else {
-            ForEach(plans) { p in
-                Text(p.description ?? viewModel.category(p.categoryId)?.name ?? "—")
-                    .font(.callout)
+            ForEach(plannedGroups(plans: plans), id: \.id) { group in
+                Section {
+                    ForEach(group.items) { plan in
+                        PlannedRow(plan: plan, category: group.category)
+                            .contentShape(Rectangle())
+                            .onTapGesture { editingPlanned = plan }
+                        // swipeActions для planned delete — out of scope (59-03 / deferred).
+                    }
+                } header: {
+                    HStack {
+                        Text(group.category?.name ?? "—")
+                        Spacer()
+                        Text(MoneyFormatter.formatWithSymbol(cents: group.total))
+                            .monospacedDigit()
+                    }
+                }
             }
+        }
+    }
+
+    private struct PlannedGroup {
+        let id: Int
+        let category: CategoryV10DTO?
+        let items: [PlannedDTO]
+        let total: Int
+    }
+
+    private func plannedGroups(plans: [PlannedDTO]) -> [PlannedGroup] {
+        let grouped = Dictionary(grouping: plans) { $0.categoryId }
+        return
+            grouped
+            .map { key, rows -> PlannedGroup in
+                PlannedGroup(
+                    id: key,
+                    category: viewModel.category(key),
+                    items: rows.sorted { $0.id < $1.id },
+                    total: rows.reduce(0) { $0 + $1.amountCents }
+                )
+            }
+            .sorted {
+                ($0.category?.sortOrder ?? Int.max) < ($1.category?.sortOrder ?? Int.max)
+            }
+    }
+
+    // MARK: - Empty section helper
+
+    private func emptySection(message: String) -> some View {
+        Section {
+            ContentUnavailableView(
+                "Пусто",
+                systemImage: "tray",
+                description: Text(message)
+            )
+            .listRowBackground(Color.clear)
+        }
+    }
+}
+
+// MARK: - ActualRow (V10)
+
+/// Row для `ActualV10DTO`. Renders:
+///   - leading category icon (Tokens.Categories.visual)
+///   - title (description / category name) + meta line (category · source)
+///   - trailing amount (signed by kind, monospacedDigit, semibold)
+///   - mini-icon `arrow.up.forward` рядом с amount для .roundup (D-02).
+private struct ActualRow: View {
+    let actual: ActualV10DTO
+    let category: CategoryV10DTO?
+
+    private var visual: Tokens.Categories.Visual {
+        Tokens.Categories.visual(for: category?.name ?? "")
+    }
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: visual.icon)
+                .font(.body)
+                .foregroundStyle(visual.color)
+                .frame(width: 28, height: 28)
+                .background(
+                    visual.color.opacity(0.15),
+                    in: RoundedRectangle(cornerRadius: 8, style: .continuous)
+                )
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(titleText)
+                    .font(.body)
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                Text(metaLine)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+
+            Spacer(minLength: 8)
+
+            HStack(spacing: 4) {
+                if actual.kind == .roundup {
+                    Image(systemName: "arrow.up.forward")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .accessibilityLabel("Округление от родительской траты")
+                }
+                Text(amountText)
+                    .font(.body.monospacedDigit().weight(.semibold))
+                    .foregroundStyle(amountColor)
+                    .lineLimit(1)
+            }
+        }
+        .padding(.vertical, 2)
+    }
+
+    private var titleText: String {
+        if let d = actual.description, !d.isEmpty { return d }
+        return category?.name ?? "—"
+    }
+
+    private var metaLine: String {
+        let cat = category?.name ?? ""
+        let source: String? = actual.source == .bot ? "из бота" : nil
+        return [cat, source]
+            .compactMap { $0 }
+            .filter { !$0.isEmpty }
+            .joined(separator: " · ")
+    }
+
+    private var amountText: String {
+        let prefix: String
+        switch actual.kind {
+        case .income: prefix = "+"
+        case .expense, .roundup, .deposit: prefix = "−"
+        }
+        return "\(prefix)\(MoneyFormatter.formatWithSymbol(cents: actual.amountCents))"
+    }
+
+    private var amountColor: Color {
+        switch actual.kind {
+        case .income: return .green
+        case .expense: return .primary
+        case .roundup: return .orange
+        case .deposit: return .blue
+        }
+    }
+}
+
+// MARK: - PlannedRow (V10 — category bridges via CategoryV10DTO)
+
+private struct PlannedRow: View {
+    let plan: PlannedDTO
+    let category: CategoryV10DTO?
+
+    private var visual: Tokens.Categories.Visual {
+        Tokens.Categories.visual(for: category?.name ?? "")
+    }
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: visual.icon)
+                .font(.body)
+                .foregroundStyle(visual.color)
+                .frame(width: 28, height: 28)
+                .background(
+                    visual.color.opacity(0.15),
+                    in: RoundedRectangle(cornerRadius: 8, style: .continuous)
+                )
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(titleText)
+                    .font(.body)
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                if let meta = metaLine {
+                    Text(meta)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+            }
+
+            Spacer(minLength: 8)
+
+            Text(MoneyFormatter.formatWithSymbol(cents: plan.amountCents))
+                .font(.body.monospacedDigit().weight(.semibold))
+                .foregroundStyle(.primary)
+                .lineLimit(1)
+        }
+        .padding(.vertical, 2)
+    }
+
+    private var titleText: String {
+        if let d = plan.description, !d.isEmpty { return d }
+        return category?.name ?? "—"
+    }
+
+    private var metaLine: String? {
+        switch plan.source {
+        case .template: return "из шаблона"
+        case .subscriptionAuto: return "подписка"
+        case .manual: return nil
         }
     }
 }

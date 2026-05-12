@@ -9,7 +9,7 @@
 //   - dayGroups: delegation to TransactionsData.groupByDay with Europe/Moscow
 //     calendar; sum / sort invariants.
 //   - delete error surface: clearDeleteError() bookkeeping.
-//   - Notification observer: posting .txnCreated triggers load() (state
+//   - Notification observer: posting .txnCreated triggers load() (status
 //     transitions off .idle).
 //
 // Mirrors the JSON-decode fixture pattern from
@@ -152,7 +152,7 @@ final class TransactionsViewModelTests: XCTestCase {
 
     func test_initialState_idleLoadingEmpty() {
         let vm = TransactionsViewModel()
-        XCTAssertEqual(vm.state, .idle)
+        XCTAssertEqual(vm.status, .idle)
         XCTAssertTrue(vm.actuals.isEmpty)
         XCTAssertTrue(vm.categories.isEmpty)
         XCTAssertTrue(vm.planned.isEmpty)
@@ -247,7 +247,8 @@ final class TransactionsViewModelTests: XCTestCase {
         let vm = makeVM(planned: plans)
         vm.subTab = .plan
         vm.savingsSegmentSelected = true
-        XCTAssertTrue(vm.filteredPlanned.isEmpty,
+        XCTAssertTrue(
+            vm.filteredPlanned.isEmpty,
             "Savings segment in План subtab returns no planned rows per D-02")
     }
 
@@ -284,7 +285,8 @@ final class TransactionsViewModelTests: XCTestCase {
         vm.kind = .expense
         vm.savingsSegmentSelected = false
         let ids = Set(vm.visibleCategories.map(\.id))
-        XCTAssertEqual(ids, [1, 3],
+        XCTAssertEqual(
+            ids, [1, 3],
             "visibleCategories includes only categories used by expense actuals — unused/income categories excluded")
     }
 
@@ -302,7 +304,8 @@ final class TransactionsViewModelTests: XCTestCase {
         vm.subTab = .history
         vm.savingsSegmentSelected = true
         let ids = Set(vm.visibleCategories.map(\.id))
-        XCTAssertEqual(ids, [5],
+        XCTAssertEqual(
+            ids, [5],
             "Savings segment visibleCategories shows only categories used by roundup/deposit rows")
     }
 
@@ -323,7 +326,8 @@ final class TransactionsViewModelTests: XCTestCase {
         vm.kind = .income
         vm.savingsSegmentSelected = false
         let ids = Set(vm.visibleCategories.map(\.id))
-        XCTAssertEqual(ids, [2],
+        XCTAssertEqual(
+            ids, [2],
             "План subtab visibleCategories includes only income categories used in planned rows")
     }
 
@@ -340,7 +344,8 @@ final class TransactionsViewModelTests: XCTestCase {
         vm.savingsSegmentSelected = false
         let groups = vm.dayGroups
         XCTAssertEqual(groups.count, 3)
-        XCTAssertEqual(groups.map(\.rows).map { $0.first!.id }, [2, 3, 1],
+        XCTAssertEqual(
+            groups.map(\.rows).map { $0.first!.id }, [2, 3, 1],
             "Groups sorted by max txDate DESC: 2026-05-09 → 2026-05-08 → 2026-05-07")
     }
 
@@ -379,16 +384,17 @@ final class TransactionsViewModelTests: XCTestCase {
 
     func test_notificationTxnCreated_triggersLoad() async {
         let vm = TransactionsViewModel()
-        XCTAssertEqual(vm.state, .idle, "Initial state must be .idle before any load() call")
+        XCTAssertEqual(vm.status, .idle, "Initial status must be .idle before any load() call")
 
         NotificationCenter.default.post(name: .txnCreated, object: nil)
 
         // The observer posts a Task that calls load(); load() will fail
         // against no backend (no APIClient base URL in unit-test bundle),
         // landing in .error("не удалось загрузить транзакции"). Either way
-        // state MUST transition off .idle within ~300ms.
+        // status MUST transition off .idle within ~300ms.
         try? await Task.sleep(nanoseconds: 300_000_000)
-        XCTAssertNotEqual(vm.state, .idle,
-            "Notification observer should trigger load() and move state off .idle")
+        XCTAssertNotEqual(
+            vm.status, .idle,
+            "Notification observer should trigger load() and move status off .idle")
     }
 }
