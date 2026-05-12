@@ -20,11 +20,11 @@ import Observation
 /// Threat-model:
 ///   - T-61-01 (Tampering planCents): UI gate planCents ≥ 0; backend
 ///     CategoryV10UpdateRequest Pydantic validation; server overflow guard.
-///   - T-61-02 (Concurrency multiple saves): `inFlight` guard.
+///     Defensive VM-level clamp `Swift.max(0, planCents)` перед PATCH.
+///   - T-61-02 (Concurrency multiple saves): `submitting` flag guard +
+///     `inFlight` guard для load().
 ///   - T-61-03 (Info disclosure): filtered Russian copy banner; NO
-///     `error.localizedDescription` в UI.
-///
-/// Scaffold (61-01): load()/save() empty. Реализация в 61-03 Task 1.
+///     raw localized description в UI — raw error → `print()` only.
 @MainActor
 @Observable
 final class PlanRowEditorViewModel {
@@ -65,30 +65,95 @@ final class PlanRowEditorViewModel {
 
     // MARK: - Load
 
-    /// 61-03: реализация — fetch CategoriesV10API.list() + find + seed
-    /// editing state.
+    /// Fetch categories list + find by id. Seeds editing state (planCents,
+    /// rollover, paused) из найденной DTO. Cross-tenant / missing id —
+    /// single error message (T-61-03 — no existence leak).
+    ///
+    /// Используем list+find (нет GET /categories/{id} в API surface).
     func load() async {
-        // 61-03: заполняем
+        if inFlight { return }
+        inFlight = true
+        defer { inFlight = false }
+
+        status = .loading
+
+        do {
+            let cats = try await CategoriesV10API.list()
+            // T-61-03: cross-tenant / missing id → single message без leak.
+            guard let c = cats.first(where: { $0.id == categoryId }) else {
+                status = .error("Категория не найдена")
+                return
+            }
+            self.category = c
+            // Seed local editing state из загруженной DTO.
+            self.planCents = c.planCents
+            self.rollover = c.rollover
+            self.paused = c.paused
+            status = .ready
+        } catch {
+            // T-61-03: filtered Russian copy; raw error → print only.
+            print("[PlanRowEditorViewModel] load failed: \(error)")
+            status = .error("Не удалось загрузить категорию")
+        }
     }
 
     // MARK: - Save
 
-    /// 61-03: реализация — PATCH /categories/{id} → on success вызывает
-    /// onSaved closure + dismiss caller (через @Environment dismiss);
-    /// on failure — set saveError filtered Russian copy.
+    /// PATCH /categories/{id} — per-row immediate save (CONTEXT D-4).
+    /// On success: self.category = updated; onSaved?(updated); saveError = nil;
+    /// returns true.
+    /// On failure: saveError = "Не удалось сохранить категорию" (T-61-03 filtered);
+    /// returns false; raw error → print() only.
+    /// T-61-02 (inFlight guard): submitting flag set true до await, defer reset.
     func save() async -> Bool {
-        // 61-03: заполняем
-        return false
+        // Guard: nothing to save without loaded category.
+        guard category != nil else { return false }
+        if submitting { return false }
+        submitting = true
+        defer { submitting = false }
+
+        saveError = nil
+
+        // T-61-01: UI gate планируется во View (Stepper 0...10_000_000);
+        // на ViewModel уровне — defensive clamp до 0.
+        let safePlanCents = Swift.max(0, planCents)
+
+        let payload = CategoryV10UpdateRequest(
+            planCents: safePlanCents,
+            rollover: rollover,
+            paused: paused
+        )
+
+        do {
+            let updated = try await CategoriesV10API.update(
+                id: categoryId,
+                payload: payload
+            )
+            self.category = updated
+            self.planCents = updated.planCents
+            self.rollover = updated.rollover
+            self.paused = updated.paused
+            onSaved?(updated)
+            return true
+        } catch {
+            // T-61-03: filtered Russian copy; raw error → print only.
+            print("[PlanRowEditorViewModel] save failed: \(error)")
+            saveError = "Не удалось сохранить категорию"
+            return false
+        }
     }
 
     // MARK: - Dirty check
 
     /// True когда планируемое сохранение изменит хотя бы одно поле
     /// (planCents / rollover / paused). Disabled CTA когда !isDirty (D-3).
-    /// 61-03: реализация.
+    /// Returns false если category == nil (no anchor для diff — защита от
+    /// false-positive «грязного» state до загрузки).
     var isDirty: Bool {
-        // 61-03: заполняем
-        return false
+        guard let c = category else { return false }
+        return planCents != c.planCents
+            || rollover != c.rollover
+            || paused != c.paused
     }
 
     // MARK: - DEBUG test backdoor
