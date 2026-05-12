@@ -67,6 +67,7 @@ final class AccountsViewModelTests: XCTestCase {
         XCTAssertEqual(vm.sheet, .none)
         XCTAssertFalse(vm.submitting)
         XCTAssertNil(vm.lastCreatedAccountId)
+        XCTAssertNil(vm.createError)
     }
 
     // MARK: - Test 2: sumBalancesCents sums all (incl. negative)
@@ -133,21 +134,19 @@ final class AccountsViewModelTests: XCTestCase {
         XCTAssertEqual(vm.sheet, .none)
     }
 
-    // MARK: - Test 8: createAccount() stub returns false (Plan 60-03 заполнит)
+    // MARK: - Test 8: clearCreateError sets nil (Plan 60-03)
 
-    func test_createAccount_stubReturnsFalseUntil_60_03() async {
+    /// Заменяет старый `test_createAccount_stubReturnsFalseUntil_60_03` —
+    /// Plan 60-03 заменил stub-body реальной реализацией. Network success/
+    /// failure path не покрываем (нет APIClient mock), но lifecycle
+    /// `createError` setter/clearer проверяем напрямую.
+    func test_clearCreateError_setsNil() {
         let vm = AccountsViewModel()
-        let result = await vm.createAccount(
-            bank: "Test",
-            kind: .card,
-            mask: "1234",
-            balanceCents: 100_00,
-            primary: false
-        )
-        XCTAssertFalse(
-            result,
-            "createAccount stub must return false until Plan 60-03 wires AccountsAPI.create"
-        )
+        XCTAssertNil(vm.createError)
+        vm.createError = "Не удалось создать счёт. Проверьте подключение и попробуйте ещё раз."
+        XCTAssertEqual(vm.createError, "Не удалось создать счёт. Проверьте подключение и попробуйте ещё раз.")
+        vm.clearCreateError()
+        XCTAssertNil(vm.createError)
     }
 
     // MARK: - Test 9: sumBalancesCents — single primary account
