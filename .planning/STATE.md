@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1.2
 milestone_name: — iOS v06 Native Rebuild)
-current_phase: 59
+current_phase: 60
 status: completed
-stopped_at: Roadmap для v1.0 (Phases 22-28) создан, REQUIREMENTS.md traceability заполнен (92/92 REQs). Awaiting `/gsd-plan-phase 22`.
-last_updated: "2026-05-12T08:23:58.573Z"
-last_activity: 2026-05-12 -- Phase 59 marked complete
+stopped_at: Phase 60 (Accounts v06 native) SHIPPED 2026-05-12. 4 plans closed (60-01..60-04), 32/32 unit tests pass, T-60-01/02/03 mitigated, manual smoke auto-approved-deferred per user override. Next focus per ROADMAP — Phase 61 Plan Editor (new domain).
+last_updated: "2026-05-12T12:20:00.000Z"
+last_activity: 2026-05-12 -- Phase 60 marked complete (SHIPPED)
 progress:
   total_phases: 35
-  completed_phases: 18
-  total_plans: 46
-  completed_plans: 46
+  completed_phases: 20
+  total_plans: 54
+  completed_plans: 54
   percent: 100
 ---
 
@@ -19,18 +19,18 @@ progress:
 
 User-direction 2026-05-11: вернуть нативный iOS UI (`MainShell`) как полноценную альтернативу `V10MainShell`. Оба шелла сосуществуют через `@AppStorage("ui.theme")` тумблер. Параллельная разработка в ветке `v1.0-maximal-poster`.
 
-**Current Phase:** 59
+**Current Phase:** 60 — COMPLETE (SHIPPED 2026-05-12)
 
 **Next Phases (planned, see ROADMAP.md):**
 
-- 57: Onboarding 4-step (v06 native)
-- 59: Transactions (миграция на ActualV10API + hotfix CategoryCreateRequest code)
-- 60: Accounts (новый домен)
+- 57: ✅ Onboarding 4-step (v06 native)
+- 59: ✅ Transactions (миграция на ActualV10API + hotfix CategoryCreateRequest code)
+- 60: ✅ Accounts (новый домен) — SHIPPED 2026-05-12
 - 61: Plan Editor (новый домен)
 - 62: Savings & Goals (новый домен)
 - 63: Subscriptions расширенные
 - 64: AddSheet нативный
-- 65: CategoryDetail drill-down
+- 65: ✅ CategoryDetail drill-down
 - 66: Settings + AI + Management polish
 
 ---
@@ -42,14 +42,14 @@ User-direction 2026-05-11: вернуть нативный iOS UI (`MainShell`) 
 See: .planning/PROJECT.md (updated 2026-05-09 — v1.0 milestone «Maximal Poster Full» started)
 
 **Core value:** В один тап записать факт-трату и видеть актуальную дельту план/факт по категориям бюджета — быстрее, чем открывать Google-таблицу. После v0.3 — conversational AI-помощник + аналитика; после v0.4 — multi-tenant whitelist + AI cost cap; v0.6 — native iOS-клиент. v1.0 — pixel-perfect Maximal Poster дизайн-система + Account/Goal/Recurrent/SavingsConfig + auto-roundup + rollover.
-**Current focus:** Phase 59 — Transactions (v06 native)
+**Current focus:** Phase 60 — Accounts (v06 native) — SHIPPED 2026-05-12
 
 ## Current Position
 
-Phase: 59 — COMPLETE
-Plan: 1 of 3
-Status: Phase 59 complete
-Last activity: 2026-05-12 -- Phase 59 marked complete
+Phase: 60 — COMPLETE (SHIPPED)
+Plan: 4 of 4
+Status: Phase 60 complete; 32/32 unit tests pass; T-60-01/02/03 mitigated; manual smoke auto-approved-deferred per user override.
+Last activity: 2026-05-12 -- Phase 60 marked complete (SHIPPED)
 
 ## Milestone v1.0 Phases
 

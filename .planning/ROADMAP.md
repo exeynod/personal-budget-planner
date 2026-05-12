@@ -362,14 +362,19 @@ User-direction 2026-05-11: gap-анализ показал что v06 (Features/
 
 **Discovered**: CategoryV10DTO.kind на самом деле 2-valued — не 4-valued, как утверждал CONTEXT.md. Только `ActualKindV10` 4-valued. PlannedV10API не существует, Planned остаётся legacy.
 
-### Phase 60: Accounts (v06 native, новый домен) — planned
+### Phase 60: Accounts (v06 native, новый домен) ✅
+**Status**: SHIPPED 2026-05-12.
 **Goal**: Мультиаккаунтность. AccountsView (List со счетами) + AccountDetailView (NavigationLink). API: AccountsAPI v1.0.
 
 **Plans:** 4 plans
-- [ ] 60-01-PLAN.md — ManagementItem.accounts registration + scaffold files for Features/Accounts
-- [ ] 60-02-PLAN.md — AccountsViewModel.load + AccountsView body (Hero + List + Empty + tap-to-detail) + ViewModel tests
-- [ ] 60-03-PLAN.md — NewAccountSheet (Form) + AccountsViewModel.createAccount + ScrollViewReader scroll-to-new + inline error banner
-- [ ] 60-04-PLAN.md — AccountDetailViewModel.load + AccountDetailView body (Hero + History per period grouped by day)
+- [x] 60-01-PLAN.md — ManagementItem.accounts registration + scaffold files for Features/Accounts
+- [x] 60-02-PLAN.md — AccountsViewModel.load + AccountsView body (Hero + List + Empty + tap-to-detail) + ViewModel tests
+- [x] 60-03-PLAN.md — NewAccountSheet (Form) + AccountsViewModel.createAccount + ScrollViewReader scroll-to-new + inline error banner
+- [x] 60-04-PLAN.md — AccountDetailViewModel.load + AccountDetailView body (Hero + History per period grouped by day)
+
+**Outcome**: Native iOS Accounts domain в v06 shell на v1.0 backend. ManagementItem «Счета» → AccountsView (Hero summary + List rows + ContentUnavailableView empty + `+` toolbar) → AccountDetailView (Hero + day-grouped History) → AccountsNewSheet (Form с validation + MoneyParser + segmented Picker + conditional mask). 32 ViewModel + Validation unit tests pass. T-60-01/02/03 mitigated. Coexistence guards clean (FeaturesV10/* + MainShell.swift untouched). Manual smoke deferred per user override (auto-approved-deferred).
+
+**Deferred**: Update/Delete/SetPrimary endpoints (need backend), Transfer flow (DF-V11-01), multi-period history, HomeView v06 primary-account display.
 
 ### Phase 61: Plan Editor (v06 native, новый домен) — planned
 **Goal**: Редактор месячного плана. List категорий → каждая через NavigationLink на PlanRowEditor (Stepper / TextField rouble-amount). Rollover info inline. API: PlanMonthAPI.
