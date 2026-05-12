@@ -2,31 +2,31 @@
 gsd_state_version: 1.0
 milestone: v1.1.2
 milestone_name: — iOS v06 Native Rebuild)
-current_phase: 60 — COMPLETE (SHIPPED 2026-05-12)
-status: verifying
+current_phase: 61 — COMPLETE (SHIPPED 2026-05-12)
+status: completed
 stopped_at: Roadmap для v1.0 (Phases 22-28) создан, REQUIREMENTS.md traceability заполнен (92/92 REQs). Awaiting `/gsd-plan-phase 22`.
-last_updated: "2026-05-12T09:49:28.506Z"
-last_activity: 2026-05-12
+last_updated: "2026-05-12T09:55:50.419Z"
+last_activity: 2026-05-12 -- Phase 61 marked complete
 progress:
   total_phases: 35
-  completed_phases: 19
+  completed_phases: 20
   total_plans: 54
-  completed_plans: 53
-  percent: 98
+  completed_plans: 54
+  percent: 100
 ---
 
 ## Active Milestone: v1.1.2 — iOS v06 Native Rebuild
 
 User-direction 2026-05-11: вернуть нативный iOS UI (`MainShell`) как полноценную альтернативу `V10MainShell`. Оба шелла сосуществуют через `@AppStorage("ui.theme")` тумблер. Параллельная разработка в ветке `v1.0-maximal-poster`.
 
-**Current Phase:** 60 — COMPLETE (SHIPPED 2026-05-12)
+**Current Phase:** 61 — COMPLETE (SHIPPED 2026-05-12)
 
 **Next Phases (planned, see ROADMAP.md):**
 
 - 57: ✅ Onboarding 4-step (v06 native)
 - 59: ✅ Transactions (миграция на ActualV10API + hotfix CategoryCreateRequest code)
 - 60: ✅ Accounts (новый домен) — SHIPPED 2026-05-12
-- 61: Plan Editor (новый домен)
+- 61: ✅ Plan Editor (новый домен) — SHIPPED 2026-05-12
 - 62: Savings & Goals (новый домен)
 - 63: Subscriptions расширенные
 - 64: AddSheet нативный
@@ -42,14 +42,14 @@ User-direction 2026-05-11: вернуть нативный iOS UI (`MainShell`) 
 See: .planning/PROJECT.md (updated 2026-05-09 — v1.0 milestone «Maximal Poster Full» started)
 
 **Core value:** В один тап записать факт-трату и видеть актуальную дельту план/факт по категориям бюджета — быстрее, чем открывать Google-таблицу. После v0.3 — conversational AI-помощник + аналитика; после v0.4 — multi-tenant whitelist + AI cost cap; v0.6 — native iOS-клиент. v1.0 — pixel-perfect Maximal Poster дизайн-система + Account/Goal/Recurrent/SavingsConfig + auto-roundup + rollover.
-**Current focus:** Phase 60 — Accounts (v06 native) — SHIPPED 2026-05-12
+**Current focus:** Phase 61 — Plan Editor (v06 native) — SHIPPED 2026-05-12
 
 ## Current Position
 
-Phase: 60 — COMPLETE (SHIPPED)
+Phase: 61 — COMPLETE
 Plan: 4 of 4
-Status: Phase complete — ready for verification
-Last activity: 2026-05-12
+Status: Phase 61 complete
+Last activity: 2026-05-12 -- Phase 61 marked complete
 
 ## Milestone v1.0 Phases
 
@@ -93,6 +93,7 @@ Last activity: 2026-05-12
 | Phase 29 P02 | 6min | 1 tasks | 1 files |
 | Phase 29 P05 | 6min | 2 tasks | 9 files |
 | Phase 61 P02 | 25min | 3 tasks | 5 files |
+| Phase 61 P04 | 8min | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -123,6 +124,7 @@ Recent decisions from v0.6 (preserved for context):
 - [Phase ?]: PlanEditorData как distinct namespace; RolloverAggregates как nested struct устраняет name-collision с FeaturesV10/Plan/PlanData
 - [Phase ?]: PlanEditorView routes через typed PlanEditorRoute (enum case row(categoryId:)) — избегает collision с AccountsView Int.self destination в shared ManagementView NavigationStack
 - [Phase ?]: T-61-03 mitigation: load() catch блок → filtered RU copy 'Не удалось загрузить план месяца'; raw error через print() only; 0 occurrences of error.localizedDescription
+- [Phase 61]: PlanEditorIntegrationTests exercises closure chain end-to-end without network — onSaved closure → applyOptimisticUpdate replaces CategoryV10DTO by id; PlanEditorData helpers (computeSurplus, computeRolloverAggregates, sortCategoriesForDisplay) re-validated post-mutation; 7 integration tests добавлены к 18+7+13 unit tests = 45 combined Phase 61 tests pass.
 
 ### Pending Todos
 

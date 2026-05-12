@@ -376,14 +376,17 @@ User-direction 2026-05-11: gap-анализ показал что v06 (Features/
 
 **Deferred**: Update/Delete/SetPrimary endpoints (need backend), Transfer flow (DF-V11-01), multi-period history, HomeView v06 primary-account display.
 
-### Phase 61: Plan Editor (v06 native, новый домен) — planned
+### Phase 61: Plan Editor (v06 native, новый домен) ✅ SHIPPED 2026-05-12
+**Status**: SHIPPED 2026-05-12 (4 plans complete). Manual smoke deferred per user override (auto-approved-deferred).
 **Goal**: Редактор месячного плана. Master PlanEditorView (List категорий с Hero «Остаток к распределению» + Aggregates → Прочее/Накопления + Sections Расходы/Доходы) → tap row → push PlanRowEditorView (Form Stepper+TextField+Picker+Toggle). Per-row immediate save через `CategoriesV10API.update` (PlanMonthAPI.patch вне scope этой фазы). Coexistence: FeaturesV10/Plan/* untouched.
 
 **Plans**: 4 plans
 - [x] 61-01-PLAN.md — ManagementItem.planEditor registration + scaffold Features/PlanEditor/ (6 файлов: Route, Data, View×2, ViewModel×2) + PlanRowEditorViewModel.onSaved contract.
 - [x] 61-02-PLAN.md — PlanEditorData (5 pure helpers) + PlanEditorViewModel.load() (parallel cats+me, sequential period+actuals) + PlanEditorView body (Hero + Aggregates + Sections + navigationDestination для PlanEditorRoute) + tests.
 - [x] 61-03-PLAN.md — PlanRowEditorViewModel.load/save/isDirty + PlanRowEditorView body (Form Stepper+TextField+Picker+Toggle + Save toolbar + banner + cancel-confirmation) + tests.
-- [ ] 61-04-PLAN.md — PlanEditorIntegrationTests (closure-chain parent↔child + recompute helpers) + full test suite run (≥42 tests) + coexistence audit + build smoke.
+- [x] 61-04-PLAN.md — PlanEditorIntegrationTests (closure-chain parent↔child + recompute helpers) + full test suite run (45 tests pass) + coexistence audit + build smoke.
+
+**Outcome**: Master-detail редактор плана. PlanEditorView с Hero(surplus)/Aggregates/Categories Sections; PlanRowEditorView с Stepper+TextField+Picker+Toggle; per-row immediate save via CategoriesV10API.update. PlanEditorRoute typed enum (избегает Int.self collision с Phase 60 Accounts). 45 tests pass (18 Data + 7 PlanEditorVM + 13 RowEditorVM + 7 Integration). T-61-01/02/03 mitigated. Coexistence: FeaturesV10/Plan/* + Onboarding/* + Management non-ManagementView + Accounts/* untouched. Build clean.
 
 ### Phase 62: Savings & Goals (v06 native, новый домен) — planned
 **Goal**: Копилка. Список целей (List с прогресс-баром), GoalDetailView, NewGoalSheet (Form), DepositSheet (Form). API: GoalsAPI.
