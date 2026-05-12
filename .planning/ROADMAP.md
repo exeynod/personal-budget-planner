@@ -353,6 +353,11 @@ User-direction 2026-05-11: gap-анализ показал что v06 (Features/
 ### Phase 59: Transactions (v06 native) — planned
 **Goal**: Миграция с legacy ActualAPI/PlannedAPI (2-valued kind) на v1.0 ActualV10API (4-valued kind). Фильтры по категории, history/planned subtabs через native Picker. Swipe-to-delete.
 
+**Plans:** 3 plans
+- [ ] 59-01-PLAN.md — TransactionsViewModel migration to ActualV10DTO + CategoriesV10DTO + unit tests
+- [ ] 59-02-PLAN.md — TransactionsView body rewrite (subtabs, 3-segment kind picker, filter Menu, V10 rows)
+- [ ] 59-03-PLAN.md — Swipe-to-delete + confirmationDialog + inline deleteError banner
+
 ### Phase 60: Accounts (v06 native, новый домен) — planned
 **Goal**: Мультиаккаунтность. AccountsView (List со счетами) + AccountDetailView (NavigationLink). API: AccountsAPI v1.0.
 
