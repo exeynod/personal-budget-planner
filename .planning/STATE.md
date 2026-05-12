@@ -2,17 +2,17 @@
 gsd_state_version: 1.0
 milestone: v1.1.2
 milestone_name: — iOS v06 Native Rebuild)
-current_phase: 60
-status: completed
-stopped_at: Phase 60 (Accounts v06 native) SHIPPED 2026-05-12. 4 plans closed (60-01..60-04), 32/32 unit tests pass, T-60-01/02/03 mitigated, manual smoke auto-approved-deferred per user override. Next focus per ROADMAP — Phase 61 Plan Editor (new domain).
-last_updated: "2026-05-12T12:20:00.000Z"
-last_activity: 2026-05-12 -- Phase 60 marked complete (SHIPPED)
+current_phase: 60 — COMPLETE (SHIPPED 2026-05-12)
+status: verifying
+stopped_at: Roadmap для v1.0 (Phases 22-28) создан, REQUIREMENTS.md traceability заполнен (92/92 REQs). Awaiting `/gsd-plan-phase 22`.
+last_updated: "2026-05-12T09:49:28.506Z"
+last_activity: 2026-05-12
 progress:
   total_phases: 35
-  completed_phases: 20
+  completed_phases: 19
   total_plans: 54
-  completed_plans: 54
-  percent: 100
+  completed_plans: 53
+  percent: 98
 ---
 
 ## Active Milestone: v1.1.2 — iOS v06 Native Rebuild
@@ -48,8 +48,8 @@ See: .planning/PROJECT.md (updated 2026-05-09 — v1.0 milestone «Maximal Poste
 
 Phase: 60 — COMPLETE (SHIPPED)
 Plan: 4 of 4
-Status: Phase 60 complete; 32/32 unit tests pass; T-60-01/02/03 mitigated; manual smoke auto-approved-deferred per user override.
-Last activity: 2026-05-12 -- Phase 60 marked complete (SHIPPED)
+Status: Phase complete — ready for verification
+Last activity: 2026-05-12
 
 ## Milestone v1.0 Phases
 
@@ -92,6 +92,7 @@ Last activity: 2026-05-12 -- Phase 60 marked complete (SHIPPED)
 *Updated after each plan completion*
 | Phase 29 P02 | 6min | 1 tasks | 1 files |
 | Phase 29 P05 | 6min | 2 tasks | 9 files |
+| Phase 61 P02 | 25min | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -119,6 +120,9 @@ Recent decisions from v0.6 (preserved for context):
 - [Phase ?]: 29-02 audit complete
 - [Phase v1.0.1 Phase 29-02]: Web UI audit found 26 BLOCKERs concentrated in 7 screens; only Home passes. 3 setup-issue BLOCKERs (W-05 selector materialised, /savings + /ai/observation fixtures missing) gate 29-04. Cross-platform DS §1 palette violations between web and iOS (Subscriptions ink-on-coral, AI bg-black) coincide — single per-platform fix can close 4 BLOCKERs.
 - [Phase ?]: v1.0.1 Phase 29-05 (2026-05-11): DIVERGENCES.md numbering schema confirmed platform-based (W- web, I- iOS, X- cross-platform), not severity-based — WARNINGs and INFOs share same platform namespace. 15 audit findings migrated as W-06..W-17 + I-06..I-08; v1.1 backlog clustered by work-type tag.
+- [Phase ?]: PlanEditorData как distinct namespace; RolloverAggregates как nested struct устраняет name-collision с FeaturesV10/Plan/PlanData
+- [Phase ?]: PlanEditorView routes через typed PlanEditorRoute (enum case row(categoryId:)) — избегает collision с AccountsView Int.self destination в shared ManagementView NavigationStack
+- [Phase ?]: T-61-03 mitigation: load() catch блок → filtered RU copy 'Не удалось загрузить план месяца'; raw error через print() only; 0 occurrences of error.localizedDescription
 
 ### Pending Todos
 
@@ -203,7 +207,7 @@ v1.0 deferred (acknowledged at planning):
 
 ## Session Continuity
 
-Last session: 2026-05-10T23:09:58.677Z
+Last session: 2026-05-12T09:49:04.139Z
 Stopped at: Roadmap для v1.0 (Phases 22-28) создан, REQUIREMENTS.md traceability заполнен (92/92 REQs). Awaiting `/gsd-plan-phase 22`.
 Resume file: None
 

@@ -380,9 +380,9 @@ User-direction 2026-05-11: gap-анализ показал что v06 (Features/
 **Goal**: Редактор месячного плана. Master PlanEditorView (List категорий с Hero «Остаток к распределению» + Aggregates → Прочее/Накопления + Sections Расходы/Доходы) → tap row → push PlanRowEditorView (Form Stepper+TextField+Picker+Toggle). Per-row immediate save через `CategoriesV10API.update` (PlanMonthAPI.patch вне scope этой фазы). Coexistence: FeaturesV10/Plan/* untouched.
 
 **Plans**: 4 plans
-- [ ] 61-01-PLAN.md — ManagementItem.planEditor registration + scaffold Features/PlanEditor/ (6 файлов: Route, Data, View×2, ViewModel×2) + PlanRowEditorViewModel.onSaved contract.
-- [ ] 61-02-PLAN.md — PlanEditorData (5 pure helpers) + PlanEditorViewModel.load() (parallel cats+me, sequential period+actuals) + PlanEditorView body (Hero + Aggregates + Sections + navigationDestination для PlanEditorRoute) + tests.
-- [ ] 61-03-PLAN.md — PlanRowEditorViewModel.load/save/isDirty + PlanRowEditorView body (Form Stepper+TextField+Picker+Toggle + Save toolbar + banner + cancel-confirmation) + tests.
+- [x] 61-01-PLAN.md — ManagementItem.planEditor registration + scaffold Features/PlanEditor/ (6 файлов: Route, Data, View×2, ViewModel×2) + PlanRowEditorViewModel.onSaved contract.
+- [x] 61-02-PLAN.md — PlanEditorData (5 pure helpers) + PlanEditorViewModel.load() (parallel cats+me, sequential period+actuals) + PlanEditorView body (Hero + Aggregates + Sections + navigationDestination для PlanEditorRoute) + tests.
+- [x] 61-03-PLAN.md — PlanRowEditorViewModel.load/save/isDirty + PlanRowEditorView body (Form Stepper+TextField+Picker+Toggle + Save toolbar + banner + cancel-confirmation) + tests.
 - [ ] 61-04-PLAN.md — PlanEditorIntegrationTests (closure-chain parent↔child + recompute helpers) + full test suite run (≥42 tests) + coexistence audit + build smoke.
 
 ### Phase 62: Savings & Goals (v06 native, новый домен) — planned
