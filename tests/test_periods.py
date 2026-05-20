@@ -53,6 +53,15 @@ async def db_client(async_client, bot_token, owner_tg_id):
     init_data = make_init_data(owner_tg_id, bot_token)
     await async_client.get("/api/v1/me", headers={"X-Telegram-Init-Data": init_data})
 
+    # 68-05 (class B/C): grant ПДн consent so v1.0 onboarding passes the gate.
+    from datetime import datetime, timezone
+    async with SessionLocal() as _s:
+        await _s.execute(
+            text("UPDATE app_user SET pdn_consent_at = :ts WHERE tg_user_id = :tg"),
+            {"ts": datetime.now(timezone.utc), "tg": owner_tg_id},
+        )
+        await _s.commit()
+
     yield async_client
     await engine.dispose()
 
@@ -73,25 +82,43 @@ async def test_periods_current_before_onboarding_is_409(db_client, auth_headers)
 
 
 @pytest.mark.asyncio
-async def test_periods_current_after_onboarding_returns_period(
+async def test_periods_current_returns_active_period_after_first_actual(
     db_client, auth_headers
 ):
-    """После /onboarding/complete есть активный период с заданным balance."""
-    onboard = await db_client.post(
-        "/api/v1/onboarding/complete",
+    """v1.0 (68-05): a period is created lazily on the first actual transaction.
+
+    The legacy contract created a period at onboarding; v1.0 onboarding creates
+    no period (no starting_balance/seed flag). Intent preserved: once a period
+    exists (here via the first POST /actual, D-52 auto-create),
+    /periods/current returns the active period with a valid window.
+    """
+    from datetime import date
+
+    from tests.helpers.onboarding import complete_onboarding_v10
+
+    onboard = await complete_onboarding_v10(db_client, auth_headers)
+    assert onboard.status_code == 200, onboard.text
+    cat_id = onboard.json()["category_ids_by_code"]["food"]
+
+    # No period yet — created lazily on the first transaction.
+    pre = await db_client.get("/api/v1/periods/current", headers=auth_headers)
+    assert pre.status_code == 404
+
+    actual = await db_client.post(
+        "/api/v1/actual",
         json={
-            "starting_balance_cents": 1500000,  # 15 000 ₽
-            "cycle_start_day": 5,
-            "seed_default_categories": False,
+            "kind": "expense",
+            "amount_cents": 50_00,
+            "category_id": cat_id,
+            "tx_date": date.today().isoformat(),
         },
         headers=auth_headers,
     )
-    assert onboard.status_code == 200
+    assert actual.status_code == 200, actual.text
 
     response = await db_client.get("/api/v1/periods/current", headers=auth_headers)
     assert response.status_code == 200
     period = response.json()
-    assert period["starting_balance_cents"] == 1500000
     assert period["status"] == "active"
     assert "period_start" in period
     assert "period_end" in period

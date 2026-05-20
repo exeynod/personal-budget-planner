@@ -57,14 +57,18 @@ async def _hard_cleanup(tg_user_id: int) -> None:
         )
         ids = [row[0] for row in result.all()]
         if ids:
+            # 68-05 (class E): plan_template_item dropped (alembic 0013); v1.0
+            # account/goal/savings_config added — clean them up too.
             for tbl in (
                 "ai_message",
                 "ai_conversation",
                 "category_embedding",
                 "actual_transaction",
                 "planned_transaction",
+                "savings_config",
+                "goal",
                 "subscription",
-                "plan_template_item",
+                "account",
                 "budget_period",
                 "category",
             ):

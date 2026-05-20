@@ -88,10 +88,23 @@ def embed_mock(monkeypatch):
 
 
 async def _seed_member(SessionLocal, *, tg_user_id: int, tg_chat_id: int | None = None):
+    from datetime import datetime, timezone
+
+    from sqlalchemy import text
+
     from tests.helpers.seed import seed_member_not_onboarded
     async with SessionLocal() as session:
         user = await seed_member_not_onboarded(
             session, tg_user_id=tg_user_id, tg_chat_id=tg_chat_id,
+        )
+        # 68-05 (class B/C): grant ПДн consent so v1.0 /onboarding/complete
+        # passes the Phase 33 CMP-33-04 gate (NULL → 403). Member stays
+        # NOT onboarded (onboarded_at remains NULL) so the gate-matrix tests
+        # still exercise the require_onboarded 409 path.
+        await session.flush()
+        await session.execute(
+            text("UPDATE app_user SET pdn_consent_at = :ts WHERE id = :uid"),
+            {"ts": datetime.now(timezone.utc), "uid": user.id},
         )
         await session.commit()
         return user.id
@@ -145,15 +158,13 @@ async def test_member_pre_onboarding_can_reach_me_and_onboarding_endpoints(
     assert body["onboarded_at"] is None
     assert body["role"] == "member"
 
-    # /onboarding/complete must NOT return 409 onboarding_required
+    # /onboarding/complete must NOT return 409 onboarding_required (v1.0 body).
+    from tests.helpers.onboarding import v10_onboarding_body
+
     resp = await async_client.post(
         "/api/v1/onboarding/complete",
         headers=member_headers,
-        json={
-            "starting_balance_cents": 0,
-            "cycle_start_day": 5,
-            "seed_default_categories": False,
-        },
+        json=v10_onboarding_body(),
     )
     assert resp.status_code != 409 or (
         resp.json().get("detail", {}).get("error") != "onboarding_required"
@@ -204,30 +215,33 @@ async def test_full_member_onboarding_flow_creates_categories_periods_embeddings
     assert body["onboarded_at"] is None
     assert body["role"] == "member"
 
-    # 3. Run onboarding.
+    # 3. Run onboarding (v1.0 contract, 68-05).
+    from tests.helpers.onboarding import v10_onboarding_body
+
     resp = await async_client.post(
         "/api/v1/onboarding/complete",
         headers=member_headers,
-        json={
-            "starting_balance_cents": 50000,
-            "cycle_start_day": 5,
-            "seed_default_categories": True,
-        },
+        json=v10_onboarding_body(),
     )
     assert resp.status_code == 200, resp.text
     body = resp.json()
-    assert body["seeded_categories"] == 14
-    assert body["embeddings_created"] == 14
+    # v1.0 response shape: 8 default expense codes + savings_category_id.
+    assert set(body["category_ids_by_code"].keys()) == {
+        "food", "cafe", "home", "transit", "fun", "gifts", "health", "subs"
+    }
+    assert isinstance(body["savings_category_id"], int)
 
-    # 4. Post-onboarding /categories returns 14 rows.
+    # 4. Post-onboarding /categories returns the gate-unlocked rows (9 total:
+    #    8 default expense + 1 system savings).
     resp = await async_client.get("/api/v1/categories", headers=member_headers)
     assert resp.status_code == 200, (
         f"categories expected 200 post-onboarding, got {resp.status_code}: {resp.text}"
     )
     cats = resp.json()
-    assert len(cats) == 14, f"expected 14 categories, got {len(cats)}"
+    assert len(cats) == 9, f"expected 9 categories, got {len(cats)}"
 
-    # 5. CategoryEmbedding row count.
+    # 5. v1.0 (BE-15) decouples embedding backfill from onboarding — no
+    #    CategoryEmbedding rows are created here (covered by backfill tests).
     from sqlalchemy import func, select
 
     from app.db.models import AppUser, CategoryEmbedding
@@ -241,7 +255,7 @@ async def test_full_member_onboarding_flow_creates_categories_periods_embeddings
             .select_from(CategoryEmbedding)
             .where(CategoryEmbedding.user_id == user.id)
         )
-        assert count == 14, f"expected 14 embeddings, got {count}"
+        assert count == 0, f"v1.0 onboarding creates no embeddings, got {count}"
 
     # 6. /me reflects onboarded_at set.
     resp = await async_client.get("/api/v1/me", headers=member_headers)
@@ -267,15 +281,13 @@ async def test_two_members_onboarding_isolation(
     headers_a = {"X-Telegram-Init-Data": make_init_data(member_a_tg_id, bot_token)}
     headers_b = {"X-Telegram-Init-Data": make_init_data(member_b_tg_id, bot_token)}
 
-    # Member A completes onboarding.
+    # Member A completes onboarding (v1.0 contract, 68-05).
+    from tests.helpers.onboarding import v10_onboarding_body
+
     resp = await async_client.post(
         "/api/v1/onboarding/complete",
         headers=headers_a,
-        json={
-            "starting_balance_cents": 10000,
-            "cycle_start_day": 1,
-            "seed_default_categories": True,
-        },
+        json=v10_onboarding_body(),
     )
     assert resp.status_code == 200, f"member A onboarding failed: {resp.text}"
 
@@ -315,7 +327,10 @@ async def test_two_members_onboarding_isolation(
             .where(CategoryEmbedding.user_id == user_b.id)
         )
 
-        assert count_cats_a == 14, f"member A: expected 14 categories, got {count_cats_a}"
+        # v1.0 (68-05): onboarding seeds 8 default expense + 1 savings = 9 for
+        # member A; member B (un-onboarded) has none. Embedding backfill is
+        # decoupled from onboarding in v1.0, so neither has embeddings here.
+        assert count_cats_a == 9, f"member A: expected 9 categories, got {count_cats_a}"
         assert count_cats_b == 0, f"member B: expected 0 categories, got {count_cats_b}"
-        assert count_emb_a == 14, f"member A: expected 14 embeddings, got {count_emb_a}"
+        assert count_emb_a == 0, f"member A: v1.0 onboarding creates no embeddings, got {count_emb_a}"
         assert count_emb_b == 0, f"member B: expected 0 embeddings, got {count_emb_b}"

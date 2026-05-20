@@ -164,33 +164,53 @@ async def test_already_onboarded_member_repeating_onboarding_complete_returns_40
     existing happy-path treatment. The two 409s must NOT collide.
     """
     async_client, SessionLocal = db_client
-    await _seed_member(
+    member_id = await _seed_member(
         SessionLocal,
         tg_user_id=member_tg_user_id,
         onboarded_at=datetime.now(timezone.utc),
     )
+    # 68-05: v1.0 (BE-15) triggers the already-onboarded 409 on an EXISTING
+    # account (not on onboarded_at). Grant ПДн consent so the consent gate
+    # (403) does not pre-empt the conflict gate, and seed one account so
+    # complete_v10 raises OnboardingConflictError.
+    from datetime import datetime as _dt, timezone as _tz
+
+    from sqlalchemy import text as _text
+
+    from app.db.models import Account, AccountKind
+    async with SessionLocal() as session:
+        await session.execute(
+            _text("UPDATE app_user SET pdn_consent_at = :ts WHERE id = :uid"),
+            {"ts": _dt.now(_tz.utc), "uid": member_id},
+        )
+        session.add(Account(
+            user_id=member_id, bank="Т-Банк", kind=AccountKind.card,
+            balance_cents=0, is_primary=True,
+        ))
+        await session.commit()
+
+    from tests.helpers.onboarding import v10_onboarding_body
+
     resp = await async_client.post(
         "/api/v1/onboarding/complete",
         headers=member_headers,
-        json={
-            "starting_balance_cents": 0,
-            "cycle_start_day": 5,
-            "seed_default_categories": False,
-        },
+        json=v10_onboarding_body(),
     )
     assert resp.status_code == 409, (
-        f"already-onboarded member expected 409 AlreadyOnboardedError, "
+        f"already-onboarded member expected 409 already_onboarded, "
         f"got {resp.status_code}: {resp.text}"
     )
     body = resp.json()
-    # Crucial: body shape is "detail": "<string>", NOT "detail": {"error": "..."}.
-    # Frontend's OnboardingRequiredError detection (Plan 14-05) parses
-    # body.detail.error — for a string detail, that path returns undefined,
-    # so this 409 stays a plain ApiError per OnboardingScreen.handleSubmit's
-    # existing happy-path treatment.
-    assert isinstance(body.get("detail"), str), (
-        f"AlreadyOnboarded must use string detail to avoid frontend collision: {body}"
+    # v1.0 (68-05): the already_onboarded 409 carries a STRUCTURED dict detail
+    # (error key = 'already_onboarded'), distinct from the onboarding gate's
+    # {"error": "onboarding_required"}. The two 409s remain distinguishable by
+    # body.detail.error, preserving the original frontend-collision-avoidance
+    # intent (Plan 14-05) under the new contract.
+    detail = body.get("detail")
+    assert isinstance(detail, dict), (
+        f"v1.0 already_onboarded must use structured detail: {body}"
     )
-    assert "already onboarded" in body["detail"].lower(), (
-        f"AlreadyOnboarded detail must mention 'already onboarded': {body['detail']}"
+    assert detail.get("error") == "already_onboarded", (
+        f"already_onboarded 409 must be distinguishable from onboarding_required: {body}"
     )
+    assert detail.get("error") != "onboarding_required"

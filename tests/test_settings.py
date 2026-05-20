@@ -116,30 +116,43 @@ async def test_patch_does_not_recompute_existing_period(db_client, auth_headers,
     before calling complete_onboarding.
     """
     # Reset onboarded_at — undo db_client's pre-onboarding shortcut so that
-    # /onboarding/complete is allowed to run.
+    # /onboarding/complete is allowed to run. 68-05: also grant ПДн consent so
+    # the v1.0 onboarding gate (Phase 33 CMP-33-04) passes.
     import os
+    from datetime import date, datetime, timezone
+
     from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
     from sqlalchemy import text as _text
     _engine = create_async_engine(os.environ["DATABASE_URL"], echo=False)
     _SessionLocal = async_sessionmaker(_engine, expire_on_commit=False)
     async with _SessionLocal() as _s:
         await _s.execute(
-            _text("UPDATE app_user SET onboarded_at = NULL WHERE tg_user_id = :tg"),
-            {"tg": owner_tg_id},
+            _text(
+                "UPDATE app_user SET onboarded_at = NULL, pdn_consent_at = :ts "
+                "WHERE tg_user_id = :tg"
+            ),
+            {"ts": datetime.now(timezone.utc), "tg": owner_tg_id},
         )
         await _s.commit()
     await _engine.dispose()
 
-    # 1. Onboarding с cycle_start_day=5 — создаёт период
-    await db_client.post(
-        "/api/v1/onboarding/complete",
+    from tests.helpers.onboarding import complete_onboarding_v10
+
+    # 1. v1.0 onboarding (68-05). It does NOT create a period — the period is
+    #    created lazily on the first transaction (D-52). Onboard then post one
+    #    actual so a period exists to assert against.
+    onboard = await complete_onboarding_v10(db_client, auth_headers)
+    assert onboard.status_code == 200, onboard.text
+    cat_id = onboard.json()["category_ids_by_code"]["food"]
+    actual = await db_client.post(
+        "/api/v1/actual",
         json={
-            "starting_balance_cents": 0,
-            "cycle_start_day": 5,
-            "seed_default_categories": False,
+            "kind": "expense", "amount_cents": 10_00,
+            "category_id": cat_id, "tx_date": date.today().isoformat(),
         },
         headers=auth_headers,
     )
+    assert actual.status_code == 200, actual.text
     period_before = (
         await db_client.get("/api/v1/periods/current", headers=auth_headers)
     ).json()

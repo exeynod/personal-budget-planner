@@ -74,13 +74,21 @@ async def _truncate_v1_tables(session):
 
 
 async def _seed_user(session, *, tg_user_id: int):
-    """Seed AppUser with income=NULL, onboarded_at=NULL (pre-onboarding state)."""
+    """Seed AppUser with income=NULL, onboarded_at=NULL (pre-onboarding state).
+
+    68-05 (class B): grant ``pdn_consent_at`` so ``complete_onboarding_v10``
+    passes the Phase 33 CMP-33-04 consent gate (a NULL consent raises
+    ``PdnConsentRequiredError``). Consent precedes onboarding in the real flow.
+    """
+    from datetime import datetime, timezone
+
     from app.db.models import AppUser, UserRole
 
     user = AppUser(
         tg_user_id=tg_user_id,
         role=UserRole.owner,
         cycle_start_day=5,
+        pdn_consent_at=datetime.now(timezone.utc),
     )
     session.add(user)
     await session.flush()

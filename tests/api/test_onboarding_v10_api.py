@@ -49,12 +49,15 @@ async def db_setup(async_client, owner_tg_id):
 
     await truncate_db()
     async with SessionLocal() as session:
-        # Pre-onboarding: onboarded_at = NULL
+        # Pre-onboarding: onboarded_at = NULL. 68-05 (class B): grant
+        # pdn_consent_at so POST /onboarding/complete passes the Phase 33
+        # CMP-33-04 consent gate (NULL → 403 pdn_consent_required).
         session.add(AppUser(
             tg_user_id=owner_tg_id,
             role=UserRole.owner,
             cycle_start_day=5,
             onboarded_at=None,
+            pdn_consent_at=datetime.now(timezone.utc),
         ))
         await session.commit()
 
