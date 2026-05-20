@@ -9,6 +9,9 @@ struct UserDTO: Decodable, Identifiable, Equatable {
     let role: String
     let aiSpendCents: Int
     let aiSpendingCapCents: Int
+    /// BE-01 — monthly income in copecks; nil until onboarding completes
+    /// (genuinely optional on the wire — matches `Gen.MeV10Response.incomeCents`).
+    let incomeCents: Int?
 
     var id: Int { tgUserId }
     var isOnboarded: Bool { onboardedAt != nil }

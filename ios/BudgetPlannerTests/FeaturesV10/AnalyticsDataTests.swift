@@ -14,6 +14,7 @@
 //   - TopCategoryItemDTO      (2 cases — pctOfPlan computed / nil)
 
 import XCTest
+
 @testable import BudgetPlanner
 
 final class AnalyticsDataTests: XCTestCase {
@@ -39,27 +40,28 @@ final class AnalyticsDataTests: XCTestCase {
     private func makeCategory(
         id: Int,
         name: String = "Cat",
-        code: String? = nil,
+        code: String = "food",
         planCents: Int = 0,
         paused: Bool = false
     ) -> CategoryV10DTO {
-        let codeJSON = code.map { "\"\($0)\"" } ?? "null"
+        // code/ord/created_at are required on the wire (Phase 69 B4) — supply
+        // valid values so the now-non-optional decode does not throw.
         let json = """
-        {
-          "id": \(id),
-          "name": "\(name)",
-          "kind": "expense",
-          "is_archived": false,
-          "sort_order": 0,
-          "created_at": null,
-          "code": \(codeJSON),
-          "plan_cents": \(planCents),
-          "ord": null,
-          "rollover": "misc",
-          "paused": \(paused),
-          "parent_id": null
-        }
-        """.data(using: .utf8)!
+            {
+              "id": \(id),
+              "name": "\(name)",
+              "kind": "expense",
+              "is_archived": false,
+              "sort_order": 0,
+              "created_at": "2026-05-09",
+              "code": "\(code)",
+              "plan_cents": \(planCents),
+              "ord": "01",
+              "rollover": "misc",
+              "paused": \(paused),
+              "parent_id": null
+            }
+            """.data(using: .utf8)!
         return try! dec.decode(CategoryV10DTO.self, from: json)
     }
 
@@ -71,20 +73,20 @@ final class AnalyticsDataTests: XCTestCase {
         date: String = "2026-05-09"
     ) -> ActualV10DTO {
         let json = """
-        {
-          "id": \(id),
-          "period_id": 1,
-          "kind": "\(kind)",
-          "amount_cents": \(amountCents),
-          "description": null,
-          "category_id": \(categoryId),
-          "tx_date": "\(date)",
-          "source": "mini_app",
-          "created_at": null,
-          "account_id": null,
-          "parent_txn_id": null
-        }
-        """.data(using: .utf8)!
+            {
+              "id": \(id),
+              "period_id": 1,
+              "kind": "\(kind)",
+              "amount_cents": \(amountCents),
+              "description": null,
+              "category_id": \(categoryId),
+              "tx_date": "\(date)",
+              "source": "mini_app",
+              "created_at": null,
+              "account_id": null,
+              "parent_txn_id": null
+            }
+            """.data(using: .utf8)!
         return try! dec.decode(ActualV10DTO.self, from: json)
     }
 
@@ -157,12 +159,12 @@ final class AnalyticsDataTests: XCTestCase {
             makeActual(id: 2, categoryId: 1, amountCents: 200, date: "2026-05-07"),  // wk1
             makeActual(id: 3, categoryId: 1, amountCents: 400, date: "2026-05-08"),  // wk2
             makeActual(id: 4, categoryId: 1, amountCents: 800, date: "2026-05-15"),  // wk3
-            makeActual(id: 5, categoryId: 1, amountCents: 1600, date: "2026-05-22"), // wk4
-            makeActual(id: 6, categoryId: 1, amountCents: 3200, date: "2026-05-29"), // wk5
+            makeActual(id: 5, categoryId: 1, amountCents: 1600, date: "2026-05-22"),  // wk4
+            makeActual(id: 6, categoryId: 1, amountCents: 3200, date: "2026-05-29"),  // wk5
         ]
         let buckets = AnalyticsData.groupByWeek(actuals, calendar: utcCal)
         XCTAssertEqual(buckets.map(\.weekIdx), [1, 2, 3, 4, 5])
-        XCTAssertEqual(buckets[0].sumCents, 300)   // 100 + 200
+        XCTAssertEqual(buckets[0].sumCents, 300)  // 100 + 200
         XCTAssertEqual(buckets[4].sumCents, 3200)
     }
 
@@ -199,7 +201,7 @@ final class AnalyticsDataTests: XCTestCase {
 
     func test_groupByCategory_unknown_category_id_uses_fallback_name() {
         let actuals = [
-            makeActual(id: 1, categoryId: 99, amountCents: 1_000),
+            makeActual(id: 1, categoryId: 99, amountCents: 1_000)
         ]
         let buckets = AnalyticsData.groupByCategory(actuals, categories: [])
         XCTAssertEqual(buckets.count, 1)
@@ -243,7 +245,7 @@ final class AnalyticsDataTests: XCTestCase {
             makeCategory(id: 3, name: "Old", planCents: 5_000, paused: true),
         ]
         let actuals = [
-            makeActual(id: 1, categoryId: 1, amountCents: 4_000), // remainder 6_000
+            makeActual(id: 1, categoryId: 1, amountCents: 4_000)  // remainder 6_000
         ]
         let saved = AnalyticsData.computeKPISaved(actuals: actuals, categories: cats)
         XCTAssertEqual(saved, 6_000)
@@ -293,8 +295,8 @@ final class AnalyticsDataTests: XCTestCase {
 
     func test_topCategoryItem_decode_computes_pct_of_plan_clamped() {
         let json = """
-        {"category_id": 1, "name": "Food", "actual_cents": 4000, "planned_cents": 10000}
-        """.data(using: .utf8)!
+            {"category_id": 1, "name": "Food", "actual_cents": 4000, "planned_cents": 10000}
+            """.data(using: .utf8)!
         let item = try! dec.decode(TopCategoryItemDTO.self, from: json)
         XCTAssertEqual(item.categoryId, 1)
         XCTAssertEqual(item.categoryName, "Food")
@@ -305,8 +307,8 @@ final class AnalyticsDataTests: XCTestCase {
 
     func test_topCategoryItem_decode_pct_nil_when_plan_zero_T_27_10_03() {
         let json = """
-        {"category_id": 7, "name": "Misc", "actual_cents": 5000, "planned_cents": 0}
-        """.data(using: .utf8)!
+            {"category_id": 7, "name": "Misc", "actual_cents": 5000, "planned_cents": 0}
+            """.data(using: .utf8)!
         let item = try! dec.decode(TopCategoryItemDTO.self, from: json)
         XCTAssertNil(item.pctOfPlan)
         XCTAssertEqual(item.planCents, 0)

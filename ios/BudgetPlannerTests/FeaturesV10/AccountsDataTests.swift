@@ -14,6 +14,7 @@
 //   - AccountCreateRequest encode round-trip (primary nil omitted)
 
 import XCTest
+
 @testable import BudgetPlanner
 
 final class AccountsDataTests: XCTestCase {
@@ -40,19 +41,25 @@ final class AccountsDataTests: XCTestCase {
         primary: Bool = false
     ) -> AccountDTO {
         let maskJson = mask.map { "\"\($0)\"" } ?? "null"
+        // created_at is required on AccountRead (Phase 69 B4) — supply a valid
+        // value (+ date strategy) so the now-non-optional decode does not throw.
         let json = """
-        {
-          "id": \(id),
-          "bank": "\(bank)",
-          "mask": \(maskJson),
-          "kind": "\(kind)",
-          "balance_cents": \(balance),
-          "primary": \(primary),
-          "created_at": null
-        }
-        """.data(using: .utf8)!
+            {
+              "id": \(id),
+              "bank": "\(bank)",
+              "mask": \(maskJson),
+              "kind": "\(kind)",
+              "balance_cents": \(balance),
+              "primary": \(primary),
+              "created_at": "2026-05-09"
+            }
+            """.data(using: .utf8)!
         let dec = JSONDecoder()
         dec.keyDecodingStrategy = .convertFromSnakeCase
+        let fmt = DateFormatter()
+        fmt.dateFormat = "yyyy-MM-dd"
+        fmt.timeZone = TimeZone(identifier: "UTC")
+        dec.dateDecodingStrategy = .formatted(fmt)
         return try! dec.decode(AccountDTO.self, from: json)
     }
 
@@ -67,20 +74,20 @@ final class AccountsDataTests: XCTestCase {
         fmt.timeZone = TimeZone(identifier: "UTC")
         let aidJson = accountId.map { "\($0)" } ?? "null"
         let json = """
-        {
-          "id": \(id),
-          "period_id": 1,
-          "kind": "expense",
-          "amount_cents": \(amountCents),
-          "description": null,
-          "category_id": 1,
-          "tx_date": "\(fmt.string(from: txDate))",
-          "source": "mini_app",
-          "created_at": null,
-          "account_id": \(aidJson),
-          "parent_txn_id": null
-        }
-        """.data(using: .utf8)!
+            {
+              "id": \(id),
+              "period_id": 1,
+              "kind": "expense",
+              "amount_cents": \(amountCents),
+              "description": null,
+              "category_id": 1,
+              "tx_date": "\(fmt.string(from: txDate))",
+              "source": "mini_app",
+              "created_at": null,
+              "account_id": \(aidJson),
+              "parent_txn_id": null
+            }
+            """.data(using: .utf8)!
         let dec = JSONDecoder()
         dec.keyDecodingStrategy = .convertFromSnakeCase
         dec.dateDecodingStrategy = .formatted(fmt)

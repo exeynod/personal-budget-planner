@@ -9,6 +9,7 @@
 // `DateComponents().date` to avoid TZ-dependent constructions creeping in.
 
 import XCTest
+
 @testable import BudgetPlanner
 
 final class V10FormattersTests: XCTestCase {
@@ -32,8 +33,9 @@ final class V10FormattersTests: XCTestCase {
         XCTAssertEqual(V10Formatters.monthsEn[4], "MAY")
         XCTAssertEqual(V10Formatters.monthsEn[11], "DEC")
         for m in V10Formatters.monthsEn {
-            XCTAssertTrue(m.range(of: "^[A-Z]{3}$", options: .regularExpression) != nil,
-                          "expected /^[A-Z]{3}$/, got \(m)")
+            XCTAssertTrue(
+                m.range(of: "^[A-Z]{3}$", options: .regularExpression) != nil,
+                "expected /^[A-Z]{3}$/, got \(m)")
         }
     }
 
@@ -201,19 +203,25 @@ final class HomeDataTests: XCTestCase {
     private func makeAccount(id: Int, balance: Int, primary: Bool = false) -> AccountDTO {
         // Decode from JSON to bypass synthesized init (DTO fields are immutable
         // by design and have no public initializer).
+        // created_at is required on AccountRead (Phase 69 B4) — supply a valid
+        // value (+ date strategy) so the now-non-optional decode does not throw.
         let json = """
-        {
-          "id": \(id),
-          "bank": "Bank",
-          "mask": null,
-          "kind": "card",
-          "balance_cents": \(balance),
-          "primary": \(primary),
-          "created_at": null
-        }
-        """.data(using: .utf8)!
+            {
+              "id": \(id),
+              "bank": "Bank",
+              "mask": null,
+              "kind": "card",
+              "balance_cents": \(balance),
+              "primary": \(primary),
+              "created_at": "2026-05-09"
+            }
+            """.data(using: .utf8)!
         let dec = JSONDecoder()
         dec.keyDecodingStrategy = .convertFromSnakeCase
+        let fmt = DateFormatter()
+        fmt.dateFormat = "yyyy-MM-dd"
+        fmt.timeZone = TimeZone(identifier: "UTC")
+        dec.dateDecodingStrategy = .formatted(fmt)
         return try! dec.decode(AccountDTO.self, from: json)
     }
 
@@ -221,12 +229,14 @@ final class HomeDataTests: XCTestCase {
         id: Int,
         name: String = "Кафе",
         kind: String = "expense",
-        code: String? = nil,
+        code: String = "food",
         planCents: Int = 0,
-        ord: String? = nil,
+        ord: String = "01",
         paused: Bool = false
     ) -> CategoryV10DTO {
-        var fields: [String] = [
+        // code/ord/created_at are required on CategoryRead (Phase 69 B4) — always
+        // supply valid values so the now-non-optional decode does not throw.
+        let fields: [String] = [
             "\"id\": \(id)",
             "\"name\": \"\(name)\"",
             "\"kind\": \"\(kind)\"",
@@ -235,12 +245,17 @@ final class HomeDataTests: XCTestCase {
             "\"plan_cents\": \(planCents)",
             "\"paused\": \(paused)",
             "\"rollover\": \"misc\"",
+            "\"created_at\": \"2026-05-09\"",
+            "\"code\": \"\(code)\"",
+            "\"ord\": \"\(ord)\"",
         ]
-        if let code { fields.append("\"code\": \"\(code)\"") }
-        if let ord { fields.append("\"ord\": \"\(ord)\"") }
         let json = "{\(fields.joined(separator: ","))}".data(using: .utf8)!
         let dec = JSONDecoder()
         dec.keyDecodingStrategy = .convertFromSnakeCase
+        let fmt = DateFormatter()
+        fmt.dateFormat = "yyyy-MM-dd"
+        fmt.timeZone = TimeZone(identifier: "UTC")
+        dec.dateDecodingStrategy = .formatted(fmt)
         return try! dec.decode(CategoryV10DTO.self, from: json)
     }
 
@@ -251,20 +266,20 @@ final class HomeDataTests: XCTestCase {
         kind: String = "expense"
     ) -> ActualV10DTO {
         let json = """
-        {
-          "id": \(id),
-          "period_id": 1,
-          "kind": "\(kind)",
-          "amount_cents": \(amountCents),
-          "description": null,
-          "category_id": \(categoryId),
-          "tx_date": "2026-05-09",
-          "source": "mini_app",
-          "created_at": null,
-          "account_id": null,
-          "parent_txn_id": null
-        }
-        """.data(using: .utf8)!
+            {
+              "id": \(id),
+              "period_id": 1,
+              "kind": "\(kind)",
+              "amount_cents": \(amountCents),
+              "description": null,
+              "category_id": \(categoryId),
+              "tx_date": "2026-05-09",
+              "source": "mini_app",
+              "created_at": null,
+              "account_id": null,
+              "parent_txn_id": null
+            }
+            """.data(using: .utf8)!
         let dec = JSONDecoder()
         dec.keyDecodingStrategy = .convertFromSnakeCase
         let fmt = DateFormatter()
@@ -391,12 +406,13 @@ final class HomeDataTests: XCTestCase {
         let acts = [
             makeActual(id: 1, categoryId: 1, amountCents: 200_000, kind: "expense"),
             makeActual(id: 2, categoryId: 1, amountCents: 100_000, kind: "income"),
-            makeActual(id: 3, categoryId: 1, amountCents:  50_000, kind: "roundup"),
+            makeActual(id: 3, categoryId: 1, amountCents: 50_000, kind: "roundup"),
         ]
         let rows = HomeData.computeCategoryAggregates(categories: cats, actuals: acts)
         XCTAssertEqual(rows.count, 1)
-        XCTAssertEqual(rows.first?.factCents, 200_000,
-                       "only kind=expense actuals should aggregate into factCents")
+        XCTAssertEqual(
+            rows.first?.factCents, 200_000,
+            "only kind=expense actuals should aggregate into factCents")
     }
 
     func test_computeCategoryAggregates_isOver_when_fact_exceeds_plan() {
@@ -412,8 +428,9 @@ final class HomeDataTests: XCTestCase {
         let acts = [makeActual(id: 1, categoryId: 1, amountCents: 50_000)]
         let rows = HomeData.computeCategoryAggregates(categories: cats, actuals: acts)
         XCTAssertEqual(rows.count, 1)
-        XCTAssertTrue(rows[0].ratio.isInfinite,
-                      "ratio = fact / plan with plan=0 must be +Infinity")
+        XCTAssertTrue(
+            rows[0].ratio.isInfinite,
+            "ratio = fact / plan with plan=0 must be +Infinity")
         XCTAssertTrue(rows[0].isOver, "fact > 0 with plan = 0 → over")
     }
 
@@ -429,15 +446,18 @@ final class HomeDataTests: XCTestCase {
 
     func test_sortForHome_primary_by_ratio_descending() {
         let rows = [
-            CategoryAggregateRow(id: 1, name: "A", code: nil, ord: nil,
-                                 planCents: 1_000_000, factCents:   200_000,
-                                 ratio: 0.2, isOver: false),
-            CategoryAggregateRow(id: 2, name: "B", code: nil, ord: nil,
-                                 planCents: 1_000_000, factCents: 1_500_000,
-                                 ratio: 1.5, isOver: true),
-            CategoryAggregateRow(id: 3, name: "C", code: nil, ord: nil,
-                                 planCents: 1_000_000, factCents:   600_000,
-                                 ratio: 0.6, isOver: false),
+            CategoryAggregateRow(
+                id: 1, name: "A", code: nil, ord: nil,
+                planCents: 1_000_000, factCents: 200_000,
+                ratio: 0.2, isOver: false),
+            CategoryAggregateRow(
+                id: 2, name: "B", code: nil, ord: nil,
+                planCents: 1_000_000, factCents: 1_500_000,
+                ratio: 1.5, isOver: true),
+            CategoryAggregateRow(
+                id: 3, name: "C", code: nil, ord: nil,
+                planCents: 1_000_000, factCents: 600_000,
+                ratio: 0.6, isOver: false),
         ]
         let sorted = HomeData.sortForHome(rows)
         XCTAssertEqual(sorted.map(\.id), [2, 3, 1])
@@ -445,29 +465,35 @@ final class HomeDataTests: XCTestCase {
 
     func test_sortForHome_tie_break_by_planCents_descending() {
         let rows = [
-            CategoryAggregateRow(id: 1, name: "A", code: nil, ord: nil,
-                                 planCents:   500_000, factCents: 250_000,
-                                 ratio: 0.5, isOver: false),
-            CategoryAggregateRow(id: 2, name: "B", code: nil, ord: nil,
-                                 planCents: 1_000_000, factCents: 500_000,
-                                 ratio: 0.5, isOver: false),
-            CategoryAggregateRow(id: 3, name: "C", code: nil, ord: nil,
-                                 planCents:   200_000, factCents: 100_000,
-                                 ratio: 0.5, isOver: false),
+            CategoryAggregateRow(
+                id: 1, name: "A", code: nil, ord: nil,
+                planCents: 500_000, factCents: 250_000,
+                ratio: 0.5, isOver: false),
+            CategoryAggregateRow(
+                id: 2, name: "B", code: nil, ord: nil,
+                planCents: 1_000_000, factCents: 500_000,
+                ratio: 0.5, isOver: false),
+            CategoryAggregateRow(
+                id: 3, name: "C", code: nil, ord: nil,
+                planCents: 200_000, factCents: 100_000,
+                ratio: 0.5, isOver: false),
         ]
         let sorted = HomeData.sortForHome(rows)
-        XCTAssertEqual(sorted.map(\.id), [2, 1, 3],
-                       "rows with equal ratio should sort by planCents DESC")
+        XCTAssertEqual(
+            sorted.map(\.id), [2, 1, 3],
+            "rows with equal ratio should sort by planCents DESC")
     }
 
     func test_sortForHome_infinite_ratio_first() {
         let rows = [
-            CategoryAggregateRow(id: 1, name: "Normal", code: nil, ord: nil,
-                                 planCents: 1_000_000, factCents: 500_000,
-                                 ratio: 0.5, isOver: false),
-            CategoryAggregateRow(id: 2, name: "Unbudgeted", code: nil, ord: nil,
-                                 planCents: 0, factCents: 100_000,
-                                 ratio: .infinity, isOver: true),
+            CategoryAggregateRow(
+                id: 1, name: "Normal", code: nil, ord: nil,
+                planCents: 1_000_000, factCents: 500_000,
+                ratio: 0.5, isOver: false),
+            CategoryAggregateRow(
+                id: 2, name: "Unbudgeted", code: nil, ord: nil,
+                planCents: 0, factCents: 100_000,
+                ratio: .infinity, isOver: true),
         ]
         let sorted = HomeData.sortForHome(rows)
         XCTAssertEqual(sorted.map(\.id), [2, 1])
@@ -479,7 +505,7 @@ final class HomeDataTests: XCTestCase {
         let cats = [
             makeCategory(id: 1, name: "A", planCents: 1_000_000),
             makeCategory(id: 2, name: "B", planCents: 2_500_000),
-            makeCategory(id: 3, name: "C", planCents:   500_000),
+            makeCategory(id: 3, name: "C", planCents: 500_000),
         ]
         XCTAssertEqual(HomeData.planTotal(cats), 4_000_000)
     }

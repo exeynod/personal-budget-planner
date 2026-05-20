@@ -61,14 +61,20 @@ final class AccountDetailViewModelTests: XCTestCase {
         } else {
             fields.append("\"mask\": null")
         }
-        fields.append("\"created_at\": null")
+        // created_at required on AccountRead (Phase 69 B4).
+        fields.append("\"created_at\": \"2026-05-09\"")
         let json = "{\(fields.joined(separator: ","))}".data(using: .utf8)!
         let dec = JSONDecoder()
         dec.keyDecodingStrategy = .convertFromSnakeCase
+        let fmt = DateFormatter()
+        fmt.dateFormat = "yyyy-MM-dd"
+        fmt.timeZone = TimeZone(identifier: "UTC")
+        dec.dateDecodingStrategy = .formatted(fmt)
         return try! dec.decode(AccountDTO.self, from: json)
     }
 
     private func makeCategory(id: Int, name: String, kind: String = "expense") -> CategoryV10DTO {
+        // code/ord/created_at required on CategoryRead (Phase 69 B4).
         let json = """
             {
               "id": \(id),
@@ -76,6 +82,9 @@ final class AccountDetailViewModelTests: XCTestCase {
               "kind": "\(kind)",
               "is_archived": false,
               "sort_order": 0,
+              "created_at": "2026-05-09",
+              "code": "food",
+              "ord": "01",
               "plan_cents": 0,
               "paused": false,
               "rollover": "misc"
@@ -83,6 +92,10 @@ final class AccountDetailViewModelTests: XCTestCase {
             """.data(using: .utf8)!
         let dec = JSONDecoder()
         dec.keyDecodingStrategy = .convertFromSnakeCase
+        let fmt = DateFormatter()
+        fmt.dateFormat = "yyyy-MM-dd"
+        fmt.timeZone = TimeZone(identifier: "UTC")
+        dec.dateDecodingStrategy = .formatted(fmt)
         return try! dec.decode(CategoryV10DTO.self, from: json)
     }
 
@@ -196,8 +209,10 @@ final class AccountDetailViewModelTests: XCTestCase {
         let day = date(2026, 5, 12)
         vm._setStateForTesting(actuals: [
             makeActual(id: 1, categoryId: 1, amountCents: 1000, accountId: 1, txDate: day),
-            makeActual(id: 2, categoryId: 1, amountCents: 2500, accountId: 1, txDate: day, createdAt: date(2026, 5, 12, 10)),
-            makeActual(id: 3, categoryId: 1, amountCents: 500, accountId: 1, txDate: day, createdAt: date(2026, 5, 12, 9)),
+            makeActual(
+                id: 2, categoryId: 1, amountCents: 2500, accountId: 1, txDate: day, createdAt: date(2026, 5, 12, 10)),
+            makeActual(
+                id: 3, categoryId: 1, amountCents: 500, accountId: 1, txDate: day, createdAt: date(2026, 5, 12, 9)),
         ])
         let groups = vm.dayGroups
         XCTAssertEqual(groups.count, 1)
@@ -210,7 +225,7 @@ final class AccountDetailViewModelTests: XCTestCase {
         let vm = AccountDetailViewModel(accountId: 1)
         XCTAssertFalse(vm.hasActuals)
         vm._setStateForTesting(actuals: [
-            makeActual(id: 1, categoryId: 1, amountCents: 1000, accountId: 1, txDate: date(2026, 5, 12)),
+            makeActual(id: 1, categoryId: 1, amountCents: 1000, accountId: 1, txDate: date(2026, 5, 12))
         ])
         XCTAssertTrue(vm.hasActuals)
     }

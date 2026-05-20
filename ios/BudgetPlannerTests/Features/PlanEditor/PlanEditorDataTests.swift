@@ -23,28 +23,33 @@ final class PlanEditorDataTests: XCTestCase {
         name: String = "Test",
         kind: String = "expense",
         planCents: Int = 0,
-        ord: String? = nil,
+        ord: String = "01",
         rollover: String = "misc",
         paused: Bool = false,
-        code: String? = nil,
+        code: String = "food",
         isArchived: Bool = false
     ) -> CategoryV10DTO {
-        var fields: [String] = [
+        // code/ord/created_at required on CategoryRead (Phase 69 B4).
+        let fields: [String] = [
             "\"id\": \(id)",
             "\"name\": \"\(name)\"",
             "\"kind\": \"\(kind)\"",
             "\"is_archived\": \(isArchived ? "true" : "false")",
             "\"sort_order\": 0",
-            "\"created_at\": null",
+            "\"created_at\": \"2026-05-09\"",
             "\"plan_cents\": \(planCents)",
             "\"rollover\": \"\(rollover)\"",
             "\"paused\": \(paused ? "true" : "false")",
+            "\"code\": \"\(code)\"",
+            "\"ord\": \"\(ord)\"",
         ]
-        if let code { fields.append("\"code\": \"\(code)\"") }
-        if let ord { fields.append("\"ord\": \"\(ord)\"") }
         let json = "{\(fields.joined(separator: ","))}".data(using: .utf8)!
         let dec = JSONDecoder()
         dec.keyDecodingStrategy = .convertFromSnakeCase
+        let fmt = DateFormatter()
+        fmt.dateFormat = "yyyy-MM-dd"
+        fmt.timeZone = TimeZone(identifier: "UTC")
+        dec.dateDecodingStrategy = .formatted(fmt)
         return try! dec.decode(CategoryV10DTO.self, from: json)
     }
 
@@ -250,7 +255,7 @@ final class PlanEditorDataTests: XCTestCase {
 
     func test_rolloverAggregates_overBudgetClampedZero() {
         let cats = [
-            makeCategory(id: 1, kind: "expense", planCents: 10_000, rollover: "misc"),
+            makeCategory(id: 1, kind: "expense", planCents: 10_000, rollover: "misc")
         ]
         let acts = [makeActual(id: 10, categoryId: 1, amountCents: 15_000)]
         let r = PlanEditorData.computeRolloverAggregates(categories: cats, actuals: acts)

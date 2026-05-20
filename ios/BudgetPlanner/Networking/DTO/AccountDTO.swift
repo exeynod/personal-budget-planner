@@ -19,6 +19,9 @@ enum AccountKind: String, Decodable {
 ///
 /// Used by `AccountsAPI.list()` (Phase 25-03), Home wallet link
 /// (HOME-V10-04), AddSheet account picker (ADD-V10-04).
+/// Required vs optional follows the OpenAPI `required` set (Phase 69 B4):
+/// `created_at` is required on the wire (`accounts.py` `created_at: datetime`)
+/// → **non-optional**, matching the canonical generated `Gen.AccountRead`.
 struct AccountDTO: Decodable, Identifiable, Equatable {
     let id: Int
     let bank: String
@@ -26,5 +29,5 @@ struct AccountDTO: Decodable, Identifiable, Equatable {
     let kind: AccountKind
     let balanceCents: Int
     let primary: Bool
-    let createdAt: Date?
+    let createdAt: Date
 }

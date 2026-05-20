@@ -40,22 +40,29 @@ final class TransactionsViewModelTests: XCTestCase {
         id: Int,
         name: String = "Кафе",
         kind: String = "expense",
-        code: String? = nil
+        code: String = "food"
     ) -> CategoryV10DTO {
-        var fields: [String] = [
+        // code/ord/created_at required on CategoryRead (Phase 69 B4).
+        let fields: [String] = [
             "\"id\": \(id)",
             "\"name\": \"\(name)\"",
             "\"kind\": \"\(kind)\"",
             "\"is_archived\": false",
             "\"sort_order\": 0",
+            "\"created_at\": \"2026-05-09\"",
+            "\"ord\": \"01\"",
             "\"plan_cents\": 0",
             "\"paused\": false",
             "\"rollover\": \"misc\"",
+            "\"code\": \"\(code)\"",
         ]
-        if let code { fields.append("\"code\": \"\(code)\"") }
         let json = "{\(fields.joined(separator: ","))}".data(using: .utf8)!
         let dec = JSONDecoder()
         dec.keyDecodingStrategy = .convertFromSnakeCase
+        let fmt = DateFormatter()
+        fmt.dateFormat = "yyyy-MM-dd"
+        fmt.timeZone = TimeZone(identifier: "UTC")
+        dec.dateDecodingStrategy = .formatted(fmt)
         return try! dec.decode(CategoryV10DTO.self, from: json)
     }
 

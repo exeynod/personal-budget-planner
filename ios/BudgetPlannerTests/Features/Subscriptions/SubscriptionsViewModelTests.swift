@@ -71,7 +71,7 @@ final class SubscriptionsViewModelTests: XCTestCase {
     private func makeAccount(id: Int, primary: Bool = false) -> AccountDTO {
         AccountDTO(
             id: id, bank: "Bank-\(id)", mask: "00\(id)", kind: .card,
-            balanceCents: 0, primary: primary, createdAt: nil)
+            balanceCents: 0, primary: primary, createdAt: Date(timeIntervalSince1970: 0))
     }
 
     private struct StubError: Error {}

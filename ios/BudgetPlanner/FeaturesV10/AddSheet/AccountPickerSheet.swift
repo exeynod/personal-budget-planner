@@ -73,9 +73,11 @@ struct AccountPickerSheet: View {
             // baseline horizontal alignment doesn't jump when selection
             // toggles between rows.
             Rectangle()
-                .fill(isSelected
-                      ? PosterTokens.Color.yellow
-                      : Color.clear)
+                .fill(
+                    isSelected
+                        ? PosterTokens.Color.yellow
+                        : Color.clear
+                )
                 .frame(width: 3, height: 32)
 
             VStack(alignment: .leading, spacing: 4) {
@@ -144,8 +146,8 @@ struct AccountPickerSheet: View {
     /// onboarding step 02 (Card → КАРТА, Cash → НАЛИЧНЫЕ, Savings → КОПИЛКА).
     private func kindBadge(_ k: AccountKind) -> String {
         switch k {
-        case .card:    return "КАРТА"
-        case .cash:    return "НАЛИЧНЫЕ"
+        case .card: return "КАРТА"
+        case .cash: return "НАЛИЧНЫЕ"
         case .savings: return "КОПИЛКА"
         }
     }
@@ -180,7 +182,7 @@ struct AccountPickerSheet: View {
                                     kind: .card,
                                     balanceCents: 1_250_000,
                                     primary: true,
-                                    createdAt: nil
+                                    createdAt: Date(timeIntervalSince1970: 0)
                                 ),
                                 AccountDTO(
                                     id: 2,
@@ -189,7 +191,7 @@ struct AccountPickerSheet: View {
                                     kind: .cash,
                                     balanceCents: 35_000,
                                     primary: false,
-                                    createdAt: nil
+                                    createdAt: Date(timeIntervalSince1970: 0)
                                 ),
                                 AccountDTO(
                                     id: 3,
@@ -198,7 +200,7 @@ struct AccountPickerSheet: View {
                                     kind: .savings,
                                     balanceCents: 580_000,
                                     primary: false,
-                                    createdAt: nil
+                                    createdAt: Date(timeIntervalSince1970: 0)
                                 ),
                             ]
                         )

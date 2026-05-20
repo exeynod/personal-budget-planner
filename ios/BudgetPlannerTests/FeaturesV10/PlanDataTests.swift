@@ -19,6 +19,7 @@
 //   - plansFromCategories       (2 cases — savings filter, paused filter)
 
 import XCTest
+
 @testable import BudgetPlanner
 
 final class PlanDataTests: XCTestCase {
@@ -38,28 +39,29 @@ final class PlanDataTests: XCTestCase {
     private func makeCategory(
         id: Int,
         name: String = "Cat",
-        code: String? = nil,
+        code: String = "food",
         planCents: Int = 0,
         rollover: String = "misc",
         paused: Bool = false
     ) -> CategoryV10DTO {
-        let codeJSON = code.map { "\"\($0)\"" } ?? "null"
+        // code/ord/created_at are required on the wire (Phase 69 B4) — supply
+        // valid values so the now-non-optional decode does not throw.
         let json = """
-        {
-          "id": \(id),
-          "name": "\(name)",
-          "kind": "expense",
-          "is_archived": false,
-          "sort_order": 0,
-          "created_at": null,
-          "code": \(codeJSON),
-          "plan_cents": \(planCents),
-          "ord": null,
-          "rollover": "\(rollover)",
-          "paused": \(paused),
-          "parent_id": null
-        }
-        """.data(using: .utf8)!
+            {
+              "id": \(id),
+              "name": "\(name)",
+              "kind": "expense",
+              "is_archived": false,
+              "sort_order": 0,
+              "created_at": "2026-05-09",
+              "code": "\(code)",
+              "plan_cents": \(planCents),
+              "ord": "01",
+              "rollover": "\(rollover)",
+              "paused": \(paused),
+              "parent_id": null
+            }
+            """.data(using: .utf8)!
         return try! dec.decode(CategoryV10DTO.self, from: json)
     }
 
@@ -70,20 +72,20 @@ final class PlanDataTests: XCTestCase {
         kind: String = "expense"
     ) -> ActualV10DTO {
         let json = """
-        {
-          "id": \(id),
-          "period_id": 1,
-          "kind": "\(kind)",
-          "amount_cents": \(amountCents),
-          "description": null,
-          "category_id": \(categoryId),
-          "tx_date": "2026-05-09",
-          "source": "mini_app",
-          "created_at": null,
-          "account_id": null,
-          "parent_txn_id": null
-        }
-        """.data(using: .utf8)!
+            {
+              "id": \(id),
+              "period_id": 1,
+              "kind": "\(kind)",
+              "amount_cents": \(amountCents),
+              "description": null,
+              "category_id": \(categoryId),
+              "tx_date": "2026-05-09",
+              "source": "mini_app",
+              "created_at": null,
+              "account_id": null,
+              "parent_txn_id": null
+            }
+            """.data(using: .utf8)!
         return try! dec.decode(ActualV10DTO.self, from: json)
     }
 
@@ -99,20 +101,20 @@ final class PlanDataTests: XCTestCase {
         let dom = dayOfMonth.map(String.init) ?? "null"
         let posted = postedTxnId.map(String.init) ?? "null"
         let json = """
-        {
-          "id": \(id),
-          "name": "\(name)",
-          "amount_cents": \(amountCents),
-          "cycle": "\(cycle)",
-          "next_charge_date": "2026-05-15",
-          "category_id": \(categoryId),
-          "notify_days_before": 2,
-          "is_active": true,
-          "day_of_month": \(dom),
-          "account_id": null,
-          "posted_txn_id": \(posted)
-        }
-        """.data(using: .utf8)!
+            {
+              "id": \(id),
+              "name": "\(name)",
+              "amount_cents": \(amountCents),
+              "cycle": "\(cycle)",
+              "next_charge_date": "2026-05-15",
+              "category_id": \(categoryId),
+              "notify_days_before": 2,
+              "is_active": true,
+              "day_of_month": \(dom),
+              "account_id": null,
+              "posted_txn_id": \(posted)
+            }
+            """.data(using: .utf8)!
         return try! dec.decode(SubscriptionV10DTO.self, from: json)
     }
 
@@ -179,11 +181,11 @@ final class PlanDataTests: XCTestCase {
 
     func test_computeRolloverAggregates_savings_bucket_sums_savings_remainders() {
         let cats = [
-            makeCategory(id: 1, planCents: 10_000, rollover: "savings"),
+            makeCategory(id: 1, planCents: 10_000, rollover: "savings")
         ]
         let plans = PlanData.plansFromCategories(cats)
         let actuals = [
-            makeActual(id: 1, categoryId: 1, amountCents: 3_000),  // remainder = 7_000
+            makeActual(id: 1, categoryId: 1, amountCents: 3_000)  // remainder = 7_000
         ]
         let agg = PlanData.computeRolloverAggregates(
             categories: cats, plans: plans, actuals: actuals
@@ -194,7 +196,7 @@ final class PlanDataTests: XCTestCase {
 
     func test_computeRolloverAggregates_excludes_paused_categories() {
         let cats = [
-            makeCategory(id: 1, planCents: 10_000, rollover: "misc", paused: true),
+            makeCategory(id: 1, planCents: 10_000, rollover: "misc", paused: true)
         ]
         let plans = [PlanMonthItem(categoryId: 1, planCents: 10_000)]
         let agg = PlanData.computeRolloverAggregates(
@@ -205,7 +207,7 @@ final class PlanDataTests: XCTestCase {
 
     func test_computeRolloverAggregates_excludes_savings_code_category() {
         let cats = [
-            makeCategory(id: 1, code: "savings", planCents: 99_000, rollover: "savings"),
+            makeCategory(id: 1, code: "savings", planCents: 99_000, rollover: "savings")
         ]
         let plans = [PlanMonthItem(categoryId: 1, planCents: 99_000)]
         let agg = PlanData.computeRolloverAggregates(
@@ -217,11 +219,11 @@ final class PlanDataTests: XCTestCase {
     func test_computeRolloverAggregates_over_budget_contributes_zero_to_aggregate() {
         // Fact > plan: remainder clamped to 0 (no negative contribution).
         let cats = [
-            makeCategory(id: 1, planCents: 5_000, rollover: "misc"),
+            makeCategory(id: 1, planCents: 5_000, rollover: "misc")
         ]
         let plans = [PlanMonthItem(categoryId: 1, planCents: 5_000)]
         let actuals = [
-            makeActual(id: 1, categoryId: 1, amountCents: 8_000),  // over by 3_000
+            makeActual(id: 1, categoryId: 1, amountCents: 8_000)  // over by 3_000
         ]
         let agg = PlanData.computeRolloverAggregates(
             categories: cats, plans: plans, actuals: actuals
@@ -235,7 +237,7 @@ final class PlanDataTests: XCTestCase {
     func test_computeRegularsList_includes_monthly_with_day_of_month() {
         let cats = [makeCategory(id: 7, name: "Connectivity")]
         let subs = [
-            makeSub(id: 1, name: "Internet", amountCents: 80000, categoryId: 7, dayOfMonth: 5),
+            makeSub(id: 1, name: "Internet", amountCents: 80000, categoryId: 7, dayOfMonth: 5)
         ]
         let rows = PlanData.computeRegularsList(subs: subs, categories: cats)
         XCTAssertEqual(rows.count, 1)
@@ -300,7 +302,7 @@ final class PlanDataTests: XCTestCase {
 
     func test_plansFromCategories_filters_savings_code() {
         let cats = [
-            makeCategory(id: 1, code: nil, planCents: 1000),
+            makeCategory(id: 1, code: "misc1", planCents: 1000),
             makeCategory(id: 2, code: "savings", planCents: 9999),
             makeCategory(id: 3, code: "food", planCents: 2000),
         ]
@@ -321,20 +323,20 @@ final class PlanDataTests: XCTestCase {
 
     func test_subscription_v10_dto_decodes_with_full_v10_ext() {
         let json = """
-        {
-          "id": 42,
-          "name": "Netflix",
-          "amount_cents": 79900,
-          "cycle": "monthly",
-          "next_charge_date": "2026-05-20",
-          "category_id": 8,
-          "notify_days_before": 1,
-          "is_active": true,
-          "day_of_month": 20,
-          "account_id": 3,
-          "posted_txn_id": 1234
-        }
-        """.data(using: .utf8)!
+            {
+              "id": 42,
+              "name": "Netflix",
+              "amount_cents": 79900,
+              "cycle": "monthly",
+              "next_charge_date": "2026-05-20",
+              "category_id": 8,
+              "notify_days_before": 1,
+              "is_active": true,
+              "day_of_month": 20,
+              "account_id": 3,
+              "posted_txn_id": 1234
+            }
+            """.data(using: .utf8)!
         let s = try! dec.decode(SubscriptionV10DTO.self, from: json)
         XCTAssertEqual(s.id, 42)
         XCTAssertEqual(s.amountCents, 79900)
@@ -348,17 +350,17 @@ final class PlanDataTests: XCTestCase {
         // Older backend builds may not emit day_of_month / account_id /
         // posted_txn_id — defensive decode keeps them nil.
         let json = """
-        {
-          "id": 1,
-          "name": "Legacy",
-          "amount_cents": 10000,
-          "cycle": "yearly",
-          "next_charge_date": "2026-12-31",
-          "category_id": 4,
-          "notify_days_before": 7,
-          "is_active": true
-        }
-        """.data(using: .utf8)!
+            {
+              "id": 1,
+              "name": "Legacy",
+              "amount_cents": 10000,
+              "cycle": "yearly",
+              "next_charge_date": "2026-12-31",
+              "category_id": 4,
+              "notify_days_before": 7,
+              "is_active": true
+            }
+            """.data(using: .utf8)!
         let s = try! dec.decode(SubscriptionV10DTO.self, from: json)
         XCTAssertNil(s.dayOfMonth)
         XCTAssertNil(s.accountId)

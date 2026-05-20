@@ -61,11 +61,19 @@ struct ActualV10DTO: Decodable, Identifiable, Equatable {
     let categoryId: Int
     let txDate: Date
     let source: ActualSource
+    /// `ActualRead.created_at` is required on the wire, but kept Optional
+    /// here intentionally: every list/sort consumer falls back via
+    /// `createdAt ?? txDate`, and legacy v0.x rows may lack it. The
+    /// canonical wire shape is the generated `Gen.ActualRead` (createdAt
+    /// non-optional); this consumer-facing mirror stays defensive.
     let createdAt: Date?
     /// Phase 25-01 — nullable for legacy v0.x rows.
     let accountId: Int?
     /// Phase 25-01 — non-null only on roundup children.
     let parentTxnId: Int?
+    /// Transaction classification (Phase 36, optional on the wire). Reuses
+    /// `CategoryTag` (personal|business|mixed) — same enum as `Gen.ActualRead.Tag`.
+    let tag: CategoryTag?
 }
 
 struct PlannedDTO: Decodable, Identifiable, Equatable {

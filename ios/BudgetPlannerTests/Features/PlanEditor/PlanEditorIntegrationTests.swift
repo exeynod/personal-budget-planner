@@ -1,4 +1,5 @@
 import XCTest
+
 @testable import BudgetPlanner
 
 /// Phase 61 / Plan 04: Integration tests parent↔child VM wiring +
@@ -24,27 +25,32 @@ final class PlanEditorIntegrationTests: XCTestCase {
         name: String = "X",
         kind: String = "expense",
         planCents: Int = 0,
-        ord: String? = nil,
+        ord: String = "01",
         rollover: String = "misc",
         paused: Bool = false,
-        code: String? = nil
+        code: String = "food"
     ) -> CategoryV10DTO {
-        var fields: [String] = [
+        // code/ord/created_at required on CategoryRead (Phase 69 B4).
+        let fields: [String] = [
             "\"id\": \(id)",
             "\"name\": \"\(name)\"",
             "\"kind\": \"\(kind)\"",
             "\"is_archived\": false",
             "\"sort_order\": 0",
-            "\"created_at\": null",
+            "\"created_at\": \"2026-05-09\"",
             "\"plan_cents\": \(planCents)",
             "\"rollover\": \"\(rollover)\"",
-            "\"paused\": \(paused ? "true" : "false")"
+            "\"paused\": \(paused ? "true" : "false")",
+            "\"ord\": \"\(ord)\"",
+            "\"code\": \"\(code)\"",
         ]
-        if let ord { fields.append("\"ord\": \"\(ord)\"") }
-        if let code { fields.append("\"code\": \"\(code)\"") }
         let json = "{\(fields.joined(separator: ","))}".data(using: .utf8)!
         let dec = JSONDecoder()
         dec.keyDecodingStrategy = .convertFromSnakeCase
+        let fmt = DateFormatter()
+        fmt.dateFormat = "yyyy-MM-dd"
+        fmt.timeZone = TimeZone(identifier: "UTC")
+        dec.dateDecodingStrategy = .formatted(fmt)
         return try! dec.decode(CategoryV10DTO.self, from: json)
     }
 

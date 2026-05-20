@@ -22,7 +22,7 @@ final class TransactionEditorAccountTests: XCTestCase {
     ) -> AccountDTO {
         AccountDTO(
             id: id, bank: bank, mask: mask, kind: .card,
-            balanceCents: 0, primary: primary, createdAt: nil)
+            balanceCents: 0, primary: primary, createdAt: Date(timeIntervalSince1970: 0))
     }
 
     // MARK: - defaultAccountId

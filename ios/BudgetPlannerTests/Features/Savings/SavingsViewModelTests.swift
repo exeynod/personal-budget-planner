@@ -91,7 +91,7 @@ final class SavingsViewModelTests: XCTestCase {
         let vm = SavingsViewModel()
         let acct = AccountDTO(
             id: 1, bank: "Test", mask: nil, kind: .cash, balanceCents: 1000, primary: true,
-            createdAt: nil)
+            createdAt: Date(timeIntervalSince1970: 0))
         let snap = makeSnapshot(total: 100, monthIn: 0, roundupEnabled: false, base: 50, goals: [])
         vm._setStateForTesting(snapshot: snap, accounts: [acct])
         XCTAssertEqual(vm.snapshot, snap)

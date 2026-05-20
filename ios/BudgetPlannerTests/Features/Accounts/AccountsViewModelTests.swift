@@ -51,10 +51,15 @@ final class AccountsViewModelTests: XCTestCase {
         } else {
             fields.append("\"mask\": null")
         }
-        fields.append("\"created_at\": null")
+        // created_at required on AccountRead (Phase 69 B4).
+        fields.append("\"created_at\": \"2026-05-09\"")
         let json = "{\(fields.joined(separator: ","))}".data(using: .utf8)!
         let dec = JSONDecoder()
         dec.keyDecodingStrategy = .convertFromSnakeCase
+        let fmt = DateFormatter()
+        fmt.dateFormat = "yyyy-MM-dd"
+        fmt.timeZone = TimeZone(identifier: "UTC")
+        dec.dateDecodingStrategy = .formatted(fmt)
         return try! dec.decode(AccountDTO.self, from: json)
     }
 
@@ -154,7 +159,7 @@ final class AccountsViewModelTests: XCTestCase {
     func test_sumBalancesCents_singlePrimary() {
         let vm = AccountsViewModel()
         vm._setAccountsForTesting([
-            makeAccount(id: 1, bank: "Т-Банк", kind: "card", mask: "0420", balanceCents: 123_456, primary: true),
+            makeAccount(id: 1, bank: "Т-Банк", kind: "card", mask: "0420", balanceCents: 123_456, primary: true)
         ])
         XCTAssertEqual(vm.sumBalancesCents, 123_456)
         XCTAssertEqual(vm.accountCount, 1)

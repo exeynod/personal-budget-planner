@@ -31,6 +31,7 @@ final class PlanEditorViewModelTests: XCTestCase {
         kind: String = "expense",
         planCents: Int = 0
     ) -> CategoryV10DTO {
+        // code/ord/created_at required on CategoryRead (Phase 69 B4).
         let json = """
             {
               "id": \(id),
@@ -38,7 +39,9 @@ final class PlanEditorViewModelTests: XCTestCase {
               "kind": "\(kind)",
               "is_archived": false,
               "sort_order": 0,
-              "created_at": null,
+              "created_at": "2026-05-09",
+              "code": "food",
+              "ord": "01",
               "plan_cents": \(planCents),
               "rollover": "misc",
               "paused": false
@@ -46,6 +49,10 @@ final class PlanEditorViewModelTests: XCTestCase {
             """.data(using: .utf8)!
         let dec = JSONDecoder()
         dec.keyDecodingStrategy = .convertFromSnakeCase
+        let fmt = DateFormatter()
+        fmt.dateFormat = "yyyy-MM-dd"
+        fmt.timeZone = TimeZone(identifier: "UTC")
+        dec.dateDecodingStrategy = .formatted(fmt)
         return try! dec.decode(CategoryV10DTO.self, from: json)
     }
 
