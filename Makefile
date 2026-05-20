@@ -1,4 +1,4 @@
-.PHONY: tokens tokens-check perf-report hidden-unicode-grep migration-roundtrip contract
+.PHONY: tokens tokens-check perf-report hidden-unicode-grep migration-roundtrip contract contract-check
 
 # Phase 69 B1 — regenerate contract/openapi.json from the LIVE app inside the
 # docker api container (local .venv is broken). The api image bakes the code
@@ -11,6 +11,13 @@ contract:
 	@$(DC_TEST) exec -T api /app/.venv/bin/python - --stdout \
 	  < contract/dump_openapi.py > contract/openapi.json
 	@echo "Wrote contract/openapi.json ($$(wc -l < contract/openapi.json) lines)."
+
+# Phase 69 B5 — sync-guard: regenerate all 3 contract artifacts (openapi.json,
+# web schema.ts, iOS GeneratedDTO.swift) and fail if any drifted from the
+# committed version (git diff non-empty). Override the openapi dump strategy
+# with CONTRACT_DUMP=docker|python|skip (default docker). See contract/README.md.
+contract-check:
+	@CONTRACT_DUMP=$${CONTRACT_DUMP:-docker} bash contract/check_contract_sync.sh
 
 tokens:
 	npm run gen:tokens
