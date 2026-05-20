@@ -1,5 +1,5 @@
-### Phase 70: Convergence & Abstractions — R3/R6/R7 (v1.1.2 followup workstreams C/D/E) — planned
-**Plans:** 5 plans
+### Phase 70: Convergence & Abstractions — R3/R6/R7 (v1.1.2 followup workstreams C/D/E) ✅ SHIPPED 2026-05-21
+**Plans:** 5/5 plans complete
 **Goal**: Поверх стабильного codegen-контракта — свести legacy/V10 API (R3), извлечь общий доменный слой iOS чтобы два шелла не дрейфовали (R6), ввести инъектируемые cross-cutting абстракции (R7). Спецификация — `.planning/CONVERGENCE-AND-DEBT-PLAN.md` §ФАЗА 70 (workstreams C/D/E). **Решение владельца R6: ОСТАВИТЬ ОБА ШЕЛЛА навсегда** (iOS MainShell↔V10MainShell + web v06-shell НЕ удалять) — извлечь общий слой, схождение на уровне API/DTO, НЕ шеллов. Покрывает C/R3 (аудит legacy-enum vs V10API per route, V10=canonical; пометить legacy `@available(deprecated)`; мигрировать доказуемо-эквивалентные call-sites; debt-реестр), D/R6 (инвентарь дублированных экранов; извлечь общие ViewModels/Data/бизнес-логику в shared-слой, Views остаются per-shell; начать с домена наибольшего риска дрейфа — Subscriptions/Savings — по одному за раз с тестами), E/R7 (E1 error-policy injection: APIClient switch → инъектируемая ErrorHandling-стратегия, корневой фикс класса `suppressForbiddenHandler`; E2 BusinessDate тип отдельно от audit-времён, MSK как свойство типа, убирает MSK-decode band-aid).
 **Depends on**: Phase 69 (codegen — фундамент).
 **Success Criteria**:
