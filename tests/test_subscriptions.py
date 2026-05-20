@@ -103,6 +103,8 @@ async def seed_categories(db_setup, owner_tg_id):
             kind=CategoryKind.expense,
             is_archived=False,
             sort_order=10,
+            code="subs",
+            ord="10",
         )
         archived_cat = Category(
             user_id=user_id,
@@ -110,6 +112,8 @@ async def seed_categories(db_setup, owner_tg_id):
             kind=CategoryKind.expense,
             is_archived=True,
             sort_order=99,
+            code="archived",
+            ord="99",
         )
         session.add_all([expense_cat, archived_cat])
         await session.commit()
@@ -277,6 +281,135 @@ async def test_subscriptions_auth_403(db_client):
         pytest.skip("DEV_MODE bypasses initData — auth path tested elsewhere")
     response = await db_client.get("/api/v1/subscriptions")
     assert response.status_code == 403
+
+
+# ---------------------------------------------------------------------------
+# P0-1 (BE-F1): SubscriptionReadV10 round-trip — day_of_month/account_id/posted_txn_id
+#
+# The public /subscriptions GET/POST/PATCH routes must return the v1.0 read
+# shape so iOS phase 63 can read back what it wrote. The legacy request bodies
+# (SubscriptionCreate/Update) do NOT carry day_of_month/account_id, so this test
+# sets those columns directly on the ORM (mirroring the v1.0 PATCH path) and then
+# asserts the GET/POST responses echo them. posted_txn_id is exercised via the
+# /post endpoint.
+# ---------------------------------------------------------------------------
+
+
+@pytest_asyncio.fixture
+async def seed_account(db_setup, owner_tg_id):
+    """Seed one card account for the owner; returns its id."""
+    _, SessionLocal = db_setup
+    from sqlalchemy import text
+    from app.db.models import Account, AccountKind
+
+    async with SessionLocal() as session:
+        result = await session.execute(
+            text("SELECT id FROM app_user WHERE tg_user_id = :tg"),
+            {"tg": owner_tg_id},
+        )
+        user_id = result.scalar_one()
+
+        account = Account(
+            user_id=user_id,
+            bank="Тинькофф",
+            mask="1234",
+            kind=AccountKind.card,
+            balance_cents=500000,
+            is_primary=True,
+        )
+        session.add(account)
+        await session.commit()
+        await session.refresh(account)
+        return account.id
+
+
+@pytest.mark.asyncio
+async def test_create_subscription_v10_fields_present_and_null(
+    db_client, auth_headers, seed_categories
+):
+    """POST /subscriptions (no day/account) → V10 keys present, value null (not missing)."""
+    payload = _sub_payload(seed_categories["expense_cat"].id)
+    response = await db_client.post(
+        "/api/v1/subscriptions", json=payload, headers=auth_headers
+    )
+    assert response.status_code in (200, 201)
+    data = response.json()
+    # Keys MUST be present (V10 shape), values null for a plain create.
+    assert "day_of_month" in data and data["day_of_month"] is None
+    assert "account_id" in data and data["account_id"] is None
+    assert "posted_txn_id" in data and data["posted_txn_id"] is None
+
+
+@pytest.mark.asyncio
+async def test_get_subscriptions_v10_fields_round_trip(
+    db_setup, auth_headers, seed_categories, seed_account
+):
+    """day_of_month/account_id set on the row → GET echoes them back (not nil)."""
+    db_client, SessionLocal = db_setup
+    cat_id = seed_categories["expense_cat"].id
+
+    create = await db_client.post(
+        "/api/v1/subscriptions", json=_sub_payload(cat_id), headers=auth_headers
+    )
+    assert create.status_code in (200, 201)
+    sub_id = create.json()["id"]
+
+    # Legacy SubscriptionUpdate has no day_of_month/account_id (extra="forbid"),
+    # so set the v1.0 columns directly on the ORM — mirrors the v1.0 PATCH path.
+    from sqlalchemy import select
+    from app.db.models import Subscription
+
+    async with SessionLocal() as session:
+        sub = await session.scalar(
+            select(Subscription).where(Subscription.id == sub_id)
+        )
+        sub.day_of_month = 15
+        sub.account_id = seed_account
+        await session.commit()
+
+    listing = await db_client.get("/api/v1/subscriptions", headers=auth_headers)
+    assert listing.status_code == 200
+    item = next(s for s in listing.json() if s["id"] == sub_id)
+    assert item["day_of_month"] == 15
+    assert item["account_id"] == seed_account
+    assert "posted_txn_id" in item  # present (still null until posted)
+
+
+@pytest.mark.asyncio
+async def test_post_subscription_exposes_posted_txn_id(
+    db_setup, auth_headers, seed_categories, seed_account
+):
+    """After POST /{id}/post, GET exposes posted_txn_id as a non-null int."""
+    db_client, SessionLocal = db_setup
+    cat_id = seed_categories["expense_cat"].id
+
+    create = await db_client.post(
+        "/api/v1/subscriptions", json=_sub_payload(cat_id), headers=auth_headers
+    )
+    assert create.status_code in (200, 201)
+    sub_id = create.json()["id"]
+
+    # post() requires account_id on the subscription (T-22-09-06).
+    from sqlalchemy import select
+    from app.db.models import Subscription
+
+    async with SessionLocal() as session:
+        sub = await session.scalar(
+            select(Subscription).where(Subscription.id == sub_id)
+        )
+        sub.account_id = seed_account
+        await session.commit()
+
+    post = await db_client.post(
+        f"/api/v1/subscriptions/{sub_id}/post", headers=auth_headers
+    )
+    assert post.status_code == 200, post.text
+
+    listing = await db_client.get("/api/v1/subscriptions", headers=auth_headers)
+    assert listing.status_code == 200
+    item = next(s for s in listing.json() if s["id"] == sub_id)
+    assert isinstance(item["posted_txn_id"], int)
+    assert item["posted_txn_id"] > 0
 
 
 # ---------------------------------------------------------------------------
