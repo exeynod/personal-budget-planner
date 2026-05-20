@@ -435,7 +435,7 @@ Plans:
 **Plans:** 1 plan
 
 Plans:
-- [ ] 66-01-PLAN.md — Theme picker в v06 SettingsView: чистый ThemeOption helper (selected/rawValue/round-trip + unit-тесты) + designSection 4 selectable ряда (MAXIMAL POSTER / LIQUID GLASS / IOS DEFAULT / СТАРЫЙ IOS) с checkmark, пишущий @AppStorage('ui.theme'). AI cost cap / AI chat SSE / Management rows — verify-only (pre-existing).
+- [x] 66-01-PLAN.md — Theme picker в v06 SettingsView: чистый ThemeOption helper (selected/rawValue/round-trip + unit-тесты) + designSection 4 selectable ряда (MAXIMAL POSTER / LIQUID GLASS / IOS DEFAULT / СТАРЫЙ IOS) с checkmark, пишущий @AppStorage('ui.theme'). AI cost cap / AI chat SSE / Management rows — verify-only (pre-existing).
 
 ---
 

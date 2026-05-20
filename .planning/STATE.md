@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1.2
 milestone_name: — iOS v06 Native Rebuild)
-current_phase: 65
+current_phase: 66
 status: completed
-stopped_at: Completed 64-02-PLAN.md
-last_updated: "2026-05-20T14:46:04.143Z"
+stopped_at: Completed 66-01-PLAN.md
+last_updated: "2026-05-20T15:00:08.083Z"
 last_activity: 2026-05-20
 progress:
   total_phases: 35
-  completed_phases: 23
-  total_plans: 61
-  completed_plans: 61
+  completed_phases: 24
+  total_plans: 62
+  completed_plans: 62
   percent: 100
 ---
 
@@ -19,7 +19,7 @@ progress:
 
 User-direction 2026-05-11: вернуть нативный iOS UI (`MainShell`) как полноценную альтернативу `V10MainShell`. Оба шелла сосуществуют через `@AppStorage("ui.theme")` тумблер. Параллельная разработка в ветке `v1.0-maximal-poster`.
 
-**Current Phase:** 65
+**Current Phase:** 66
 
 **Next Phases (planned, see ROADMAP.md):**
 
@@ -46,9 +46,9 @@ See: .planning/PROJECT.md (updated 2026-05-09 — v1.0 milestone «Maximal Poste
 
 ## Current Position
 
-Phase: 64 (addsheet-v06) — COMPLETE (2/2 plans)
+Phase: 66 (settings-ai-polish-v06) — COMPLETE (1/1 plans)
 Plan: Not started
-Status: Plan 64-02 executed (Phase 64 complete); build + 11 tests GREEN
+Status: Plan 66-01 executed (v06 Settings theme picker); build + 568 tests GREEN
 Last activity: 2026-05-20
 
 ## Milestone v1.0 Phases
@@ -101,6 +101,7 @@ Last activity: 2026-05-20
 | Phase 63 P02 | 25min | 3 tasks | 3 files |
 | Phase 64 P01 | 4min | 3 tasks | 5 files |
 | Phase 64 P02 | 3min | 3 tasks | 5 files |
+| Phase 66 P01 | 2min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -140,6 +141,7 @@ Recent decisions from v0.6 (preserved for context):
 - [Phase ?]: 63-02: LocalNotifications.reschedule(subscriptionsV10:) overload restores 63-01 dropped rescheduling
 - [Phase ?]: [Phase 64-01]: account picker «Счёт списания» in-place в TransactionEditor (actual-режимы); accountId через encodeIfPresent в ActualCreate/UpdateRequest; default primary ?? first; AccountPickerLogic pure-helpers; 3 call-site неизменны; 11 тестов green
 - [Phase ?]: [Phase 64-02]: inline AI category hint — AISuggestCategoryAPI silent wrapper (suppressUnauthHandler:true → non-pro 403 не логаутит owner, T-64-02-02); @Observable AISuggestHint debounce/cancel (Task.isCancelled после await — stale-race T-64-02-03); tappable chip create-only, не авто-применять; 11 тестов green
+- [Phase 66-01]: ThemeOption pure helper зеркалит Theme.resolve (неизвестный raw → maximalPoster, sentinel "v06" → legacyV06); v06 Settings «Дизайн» native picker (4 Button-ряда + swatch + checkmark) пишет @AppStorage("ui.theme"), без PosterRouter/.posterSheet (v06 вне poster-контекста); 14 helper-тестов + полный прогон 568 tests green; AI cost cap / AI chat SSE / Management rows подтверждены verify-only (код не тронут)
 
 ### Pending Todos
 
@@ -224,8 +226,8 @@ v1.0 deferred (acknowledged at planning):
 
 ## Session Continuity
 
-Last session: 2026-05-20T14:33:27.280Z
-Stopped at: Completed 64-02-PLAN.md
+Last session: 2026-05-20T14:57:01.864Z
+Stopped at: Completed 66-01-PLAN.md
 Resume file: None
 
 ## Deferred Items
