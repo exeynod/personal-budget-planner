@@ -5,7 +5,7 @@ milestone_name: — iOS v06 Native Rebuild)
 current_phase: 67 (remediation-cleanup)
 status: completed
 stopped_at: Completed 67-05-PLAN.md
-last_updated: "2026-05-20T20:10:00.000Z"
+last_updated: "2026-05-20T17:12:51.793Z"
 last_activity: 2026-05-20
 progress:
   total_phases: 36
@@ -47,8 +47,8 @@ See: .planning/PROJECT.md (updated 2026-05-09 — v1.0 milestone «Maximal Poste
 ## Current Position
 
 Phase: 67 (remediation-cleanup) — IN PROGRESS
-Plan: 67-04 executed (Wave 2 backend P1-1 + P1-2 + P2-13)
-Status: P1-1/P1-2/P2-13 closed — _refresh_embedding threads user_id + set_tenant_scope (user-category embeddings persist; suggest no longer substring-only); post_subscription SELECT … FOR UPDATE + partial unique index uq_subscription_posted_txn_id (migration 0025) + IntegrityError→409; double-post + savepoint-rollback tests green; touched-module pytest green (one pre-existing onboarding/complete 422 deferred)
+Plan: 67-06 executed (Wave 2 web P1-6 ui.theme split + R5 dead-shell inventory)
+Status: P1-6/FE-F4 closed — main.tsx shell dispatch moved to localStorage 'ui.shell' (v06/v10) with one-time migration shim; useTheme.ts is now sole owner of 'ui.theme' (theme values); collision that made v06 shell unreachable removed; VITE_UI_THEME env still wins for shell. R5 inventory written (DEAD-SHELL-INVENTORY.md): v06 shell = KEEP (reachable, maintained), ~50-file deletion deferred to scoped follow-up pending R6/ARCH-A1 owner decision. npm run build green; useTheme tests 6/6.
 Last activity: 2026-05-20
 
 ## Milestone v1.0 Phases
@@ -106,6 +106,7 @@ Last activity: 2026-05-20
 | Phase 67 P02 | 2min | 1 tasks | 3 files |
 | Phase 67 P04 | 5min | 3 tasks | 5 files |
 | Phase 67 P05 | 12min | 3 tasks | 17 files |
+| Phase 67 P06 | 3min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -150,6 +151,7 @@ Recent decisions from v0.6 (preserved for context):
 - [Phase 66-01]: ThemeOption pure helper зеркалит Theme.resolve (неизвестный raw → maximalPoster, sentinel "v06" → legacyV06); v06 Settings «Дизайн» native picker (4 Button-ряда + swatch + checkmark) пишет @AppStorage("ui.theme"), без PosterRouter/.posterSheet (v06 вне poster-контекста); 14 helper-тестов + полный прогон 568 tests green; AI cost cap / AI chat SSE / Management rows подтверждены verify-only (код не тронут)
 - [Phase ?]: [Phase 67-01]: /subscriptions GET/POST/PATCH switched to SubscriptionReadV10 (P0-1/BE-F1 closed); read-only widening via SubscriptionRead+SubscriptionV10Extension mixin, request bodies keep extra=forbid; iOS phase 63 day_of_month/account_id/posted_txn_id now round-trip
 - [Phase ?]: [Phase 67-04]: backend P1-1/P1-2/P2-13 — _refresh_embedding threads user_id + set_tenant_scope (embeddings persist); post_subscription FOR UPDATE + partial unique index uq_subscription_posted_txn_id + IntegrityError->409; savepoint-rollback test proves no orphan; alembic revision ids must be <=32 chars (varchar32)
+- [Phase 67-06]: web P1-6/FE-F4 — split colliding localStorage 'ui.theme' into 'ui.shell' (dispatch v06/v10) + 'ui.theme' (theme); useTheme.ts sole owner of theme key; migration shim adopts legacy ui.theme shell value; VITE_UI_THEME env still wins for shell. R5: v06 web shell KEEP (reachable post-split, maintained); ~50 v06-only files (App.tsx+screens/13+hooks/16+api/6+components/38) deletion DEFERRED pending R6/ARCH-A1 owner decision (DEAD-SHELL-INVENTORY.md)
 
 ### Pending Todos
 
@@ -234,8 +236,8 @@ v1.0 deferred (acknowledged at planning):
 
 ## Session Continuity
 
-Last session: 2026-05-20T20:10:00.000Z
-Stopped at: Completed 67-05-PLAN.md
+Last session: 2026-05-20T17:13:00.000Z
+Stopped at: Completed 67-06-PLAN.md
 Resume file: None
 
 ## Deferred Items
