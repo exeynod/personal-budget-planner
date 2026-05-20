@@ -57,9 +57,15 @@ struct GoalCreateRequest: Encodable {
             // full ISO timestamp which `_coerce_iso_date` does NOT
             // accept (it only parses pure date strings). Encode the
             // wire-required shape explicitly.
+            //
+            // IN-04: timeZone MUST be Europe/Moscow, NOT UTC. A SwiftUI
+            // DatePicker in MSK produces midnight-MSK (= previous-day
+            // 21:00 UTC), so a UTC formatter would render the wire
+            // `yyyy-MM-dd` one calendar day EARLIER than the user picked.
+            // Formatting in MSK keeps the wire day == the picked day.
             let fmt = DateFormatter()
             fmt.locale = Locale(identifier: "en_US_POSIX")
-            fmt.timeZone = TimeZone(identifier: "UTC")
+            fmt.timeZone = TimeZone(identifier: "Europe/Moscow") ?? TimeZone(identifier: "UTC")!
             fmt.dateFormat = "yyyy-MM-dd"
             try c.encode(fmt.string(from: due), forKey: .due)
         } else {

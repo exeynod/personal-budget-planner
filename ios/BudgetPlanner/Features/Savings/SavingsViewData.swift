@@ -92,9 +92,12 @@ enum SavingsViewData {
 
     /// Validation gate для SavingsDepositSheet «Пополнить» button.
     ///
-    /// Mirrors V10 isValidDepositDraft — amount > 0 AND account selected.
-    /// Backend's `DepositCreate.account_id = Field(gt=0)` REQUIRED.
+    /// amount > 0 AND account selected с положительным id. Backend's
+    /// `DepositCreate.account_id = Field(gt=0)` REQUIRED — WR-05: UI gate
+    /// тоже enforces `accountId > 0` (раньше принимал 0 / любой не-nil),
+    /// чтобы не отправлять заведомо невалидный account_id на бэкенд.
     static func isValidDepositDraft(amountCents: Int, accountId: Int?) -> Bool {
-        return amountCents > 0 && accountId != nil
+        guard let accountId else { return false }
+        return amountCents > 0 && accountId > 0
     }
 }
