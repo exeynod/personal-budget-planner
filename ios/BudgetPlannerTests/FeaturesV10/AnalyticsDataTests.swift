@@ -130,8 +130,8 @@ final class AnalyticsDataTests: XCTestCase {
         ]
         let buckets = AnalyticsData.groupByDay(
             actuals,
-            periodStart: date("2026-05-01"),
-            periodEnd: date("2026-05-31")
+            periodStart: BusinessDate(date("2026-05-01")),
+            periodEnd: BusinessDate(date("2026-05-31"))
         )
         XCTAssertEqual(buckets.count, 2)
         XCTAssertEqual(buckets[0].sumCents, 5_000)  // May 1
@@ -145,8 +145,8 @@ final class AnalyticsDataTests: XCTestCase {
         ]
         let buckets = AnalyticsData.groupByDay(
             actuals,
-            periodStart: date("2026-05-01"),
-            periodEnd: date("2026-05-31")
+            periodStart: BusinessDate(date("2026-05-01")),
+            periodEnd: BusinessDate(date("2026-05-31"))
         )
         XCTAssertEqual(buckets.count, 0)
     }

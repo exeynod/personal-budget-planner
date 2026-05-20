@@ -76,7 +76,14 @@ final class TransactionsDataTests: XCTestCase {
     ) -> ActualV10DTO {
         let isoFmt = ISO8601DateFormatter()
         isoFmt.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        let txStr = isoFmt.string(from: txDate)
+        // E2/R7: tx_date is a wire DATE (Pydantic `date` → bare yyyy-MM-dd in
+        // MSK), NOT an ISO timestamp — format it as the real wire shape so it
+        // decodes through BusinessDate. created_at stays an ISO timestamp.
+        let dateFmt = DateFormatter()
+        dateFmt.locale = Locale(identifier: "en_US_POSIX")
+        dateFmt.timeZone = TimeZone(identifier: "Europe/Moscow")
+        dateFmt.dateFormat = "yyyy-MM-dd"
+        let txStr = dateFmt.string(from: txDate)
         let createdStr: String
         if let createdAt { createdStr = "\"\(isoFmt.string(from: createdAt))\"" } else { createdStr = "null" }
         let json = """
@@ -244,16 +251,25 @@ final class TransactionsDataTests: XCTestCase {
     }
 
     func test_groupByDay_falls_back_to_txDate_when_createdAt_nil() {
+        // E2/R7: tx_date is a wire DATE (no time component) — `createdAt ?? txDate`
+        // falls back to the txDate's MSK *day*. Two same-day rows with nil
+        // createdAt therefore have an identical sort key (a tie), unlike the old
+        // timestamp-capable decoder that smuggled an hour into tx_date. Use
+        // distinct days so the txDate fallback orders the groups DESC, which is
+        // the real, observable behavior of the fallback path.
         let acts = [
             makeActual(
                 id: 1, categoryId: 1, amountCents: -100,
-                txDate: date(2026, 5, 9, 8), createdAt: nil),
+                txDate: date(2026, 5, 8), createdAt: nil),
             makeActual(
                 id: 2, categoryId: 1, amountCents: -200,
-                txDate: date(2026, 5, 9, 18), createdAt: nil),
+                txDate: date(2026, 5, 9), createdAt: nil),
         ]
         let groups = TransactionsData.groupByDay(acts, today: date(2026, 5, 9), calendar: cal)
-        XCTAssertEqual(groups[0].rows.map(\.id), [2, 1])
+        // Groups ordered by representative txDate DESC: May 9 (id 2) before May 8 (id 1).
+        XCTAssertEqual(groups.count, 2)
+        XCTAssertEqual(groups[0].rows.map(\.id), [2])
+        XCTAssertEqual(groups[1].rows.map(\.id), [1])
     }
 
     // MARK: - computeHeaderSummary

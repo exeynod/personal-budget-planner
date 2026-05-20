@@ -160,7 +160,7 @@ final class SavingsViewDataTests: XCTestCase {
             name: "Goal \(id)",
             targetCents: 100_000,
             currentCents: 0,
-            due: due,
+            due: due.map(BusinessDate.init),
             createdAt: createdAt
         )
     }

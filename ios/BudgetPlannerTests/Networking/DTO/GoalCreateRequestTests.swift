@@ -33,7 +33,8 @@ final class GoalCreateRequestTests: XCTestCase {
     func test_encode_due_emitsMSKDateString_noTimestamp() throws {
         // 12 сентября 2026, midnight MSK.
         let date = mskCalendar().date(from: DateComponents(year: 2026, month: 9, day: 12))!
-        let req = GoalCreateRequest(name: "Отпуск", targetCents: 100_000, due: date)
+        let req = GoalCreateRequest(
+            name: "Отпуск", targetCents: 100_000, due: BusinessDate(date))
 
         let json = try encodeToJSON(req)
 
@@ -48,7 +49,8 @@ final class GoalCreateRequestTests: XCTestCase {
         // Midnight MSK = previous-day 21:00 UTC. A UTC formatter would
         // emit "2026-12-31"; the MSK formatter must emit "2027-01-01".
         let date = mskCalendar().date(from: DateComponents(year: 2027, month: 1, day: 1))!
-        let req = GoalCreateRequest(name: "Новый год", targetCents: 50_000, due: date)
+        let req = GoalCreateRequest(
+            name: "Новый год", targetCents: 50_000, due: BusinessDate(date))
 
         let json = try encodeToJSON(req)
 

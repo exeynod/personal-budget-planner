@@ -66,6 +66,9 @@ final class PlanEditorDataTests: XCTestCase {
         kind: String = "expense"
     ) -> ActualV10DTO {
         let dateStr = iso8601.string(from: Date())
+        // E2/R7: tx_date is a wire DATE (bare yyyy-MM-dd) decoded via
+        // BusinessDate; created_at stays an ISO timestamp.
+        let txDateStr = "2026-05-09"
         let json: [String: Any] = [
             "id": id,
             "period_id": 1,
@@ -73,7 +76,7 @@ final class PlanEditorDataTests: XCTestCase {
             "amount_cents": amountCents,
             "description": "x",
             "category_id": categoryId,
-            "tx_date": dateStr,
+            "tx_date": txDateStr,
             "source": "mini_app",
             "created_at": dateStr,
             "account_id": NSNull(),

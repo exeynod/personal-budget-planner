@@ -46,7 +46,11 @@ final class APIClientDateDecodeTests: XCTestCase {
             #"{"id":1,"name":"X","target_cents":100,"current_cents":0,"due":"2027-01-01","created_at":"2026-01-01T00:00:00Z"}"#
         let goal = try await decodeGoal(json)
 
-        let due = try XCTUnwrap(goal.due)
+        // E2/R7: `due` is now a `BusinessDate`; bridge to its MSK-midnight
+        // `.date` for the assertion. The MSK-midnight WR-05 contract is
+        // UNCHANGED — BusinessDate self-decodes the bare yyyy-MM-dd to the
+        // exact same instant the old decoder heuristic produced.
+        let due = try XCTUnwrap(goal.due).date
 
         // 2027-01-01 00:00 MSK == 2026-12-31 21:00 UTC.
         var mskCal = Calendar(identifier: .gregorian)

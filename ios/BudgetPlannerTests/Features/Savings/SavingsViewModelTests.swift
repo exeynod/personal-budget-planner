@@ -422,7 +422,7 @@ final class SavingsViewModelTests: XCTestCase {
             name: name,
             targetCents: 100_000,
             currentCents: 0,
-            due: due,
+            due: due.map(BusinessDate.init),
             createdAt: Date(timeIntervalSince1970: 0)
         )
     }

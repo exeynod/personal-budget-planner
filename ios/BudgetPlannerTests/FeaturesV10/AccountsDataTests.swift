@@ -170,7 +170,8 @@ final class AccountsDataTests: XCTestCase {
             makeActual(id: 3, accountId: 1, amountCents: 3_000, txDate: date(2026, 4, 30)),
             makeActual(id: 4, accountId: 1, amountCents: 4_000, txDate: date(2026, 6, 1)),
         ]
-        let result = AccountsData.sumPeriodOps(txs, periodStart: ps, periodEnd: pe)
+        let result = AccountsData.sumPeriodOps(
+            txs, periodStart: BusinessDate(ps), periodEnd: BusinessDate(pe))
         XCTAssertEqual(result.count, 2)
         XCTAssertEqual(result.sumCents, 3_000)
     }
@@ -182,13 +183,16 @@ final class AccountsDataTests: XCTestCase {
             makeActual(id: 1, accountId: 1, amountCents: -500, txDate: date(2026, 5, 10)),
             makeActual(id: 2, accountId: 1, amountCents: 700, txDate: date(2026, 5, 11)),
         ]
-        let result = AccountsData.sumPeriodOps(txs, periodStart: ps, periodEnd: pe)
+        let result = AccountsData.sumPeriodOps(
+            txs, periodStart: BusinessDate(ps), periodEnd: BusinessDate(pe))
         XCTAssertEqual(result.count, 2)
         XCTAssertEqual(result.sumCents, 1_200)
     }
 
     func test_sumPeriodOps_empty_returns_zero_zero() {
-        let result = AccountsData.sumPeriodOps([], periodStart: date(2026, 5, 1), periodEnd: date(2026, 5, 31))
+        let result = AccountsData.sumPeriodOps(
+            [], periodStart: BusinessDate(date(2026, 5, 1)),
+            periodEnd: BusinessDate(date(2026, 5, 31)))
         XCTAssertEqual(result.count, 0)
         XCTAssertEqual(result.sumCents, 0)
     }

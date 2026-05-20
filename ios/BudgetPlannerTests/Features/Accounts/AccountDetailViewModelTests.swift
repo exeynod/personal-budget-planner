@@ -110,7 +110,14 @@ final class AccountDetailViewModelTests: XCTestCase {
     ) -> ActualV10DTO {
         let isoFmt = ISO8601DateFormatter()
         isoFmt.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        let txStr = isoFmt.string(from: txDate)
+        // E2/R7: tx_date is a wire DATE (Pydantic `date` → bare yyyy-MM-dd in
+        // MSK), NOT an ISO timestamp — format it as the real wire shape so it
+        // decodes through BusinessDate. created_at stays an ISO timestamp.
+        let dateFmt = DateFormatter()
+        dateFmt.locale = Locale(identifier: "en_US_POSIX")
+        dateFmt.timeZone = TimeZone(identifier: "Europe/Moscow")
+        dateFmt.dateFormat = "yyyy-MM-dd"
+        let txStr = dateFmt.string(from: txDate)
         let createdStr: String
         if let createdAt {
             createdStr = "\"\(isoFmt.string(from: createdAt))\""
