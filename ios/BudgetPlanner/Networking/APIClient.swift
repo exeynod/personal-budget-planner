@@ -78,9 +78,12 @@ final class APIClient {
         _ path: String,
         query: [String: String]? = nil,
         body: Encodable? = nil,
-        skipAuth: Bool = false
+        skipAuth: Bool = false,
+        suppressUnauthHandler: Bool = false
     ) async throws -> T {
-        let data = try await rawRequest(method, path, query: query, body: body, skipAuth: skipAuth)
+        let data = try await rawRequest(
+            method, path, query: query, body: body,
+            skipAuth: skipAuth, suppressUnauthHandler: suppressUnauthHandler)
         if T.self == EmptyResponse.self {
             return EmptyResponse() as! T
         }
@@ -96,9 +99,12 @@ final class APIClient {
         _ path: String,
         query: [String: String]? = nil,
         body: Encodable? = nil,
-        skipAuth: Bool = false
+        skipAuth: Bool = false,
+        suppressUnauthHandler: Bool = false
     ) async throws {
-        _ = try await rawRequest(method, path, query: query, body: body, skipAuth: skipAuth)
+        _ = try await rawRequest(
+            method, path, query: query, body: body,
+            skipAuth: skipAuth, suppressUnauthHandler: suppressUnauthHandler)
     }
 
     private func rawRequest(
@@ -106,7 +112,8 @@ final class APIClient {
         _ path: String,
         query: [String: String]?,
         body: Encodable?,
-        skipAuth: Bool
+        skipAuth: Bool,
+        suppressUnauthHandler: Bool = false
     ) async throws -> Data {
         guard
             var components = URLComponents(
@@ -149,11 +156,16 @@ final class APIClient {
         case 200...299:
             return data
         case 401:
-            onUnauthenticated?()
+            // 64-02 (T-64-02-02): silent AI-suggest passes suppressUnauthHandler
+            // → a non-pro/expired token does NOT trigger the global logout path.
+            if !suppressUnauthHandler { onUnauthenticated?() }
             throw APIError.unauthorized
         case 403:
             let detail = decodeErrorDetail(data) ?? "Forbidden"
-            if !skipAuth { onUnauthenticated?() }
+            // 64-02 (T-64-02-02): require_pro 403 on /ai/suggest-category MUST
+            // NOT log the owner out — suppressUnauthHandler gates it (combined
+            // with the existing !skipAuth condition). Additive, default false.
+            if !skipAuth, !suppressUnauthHandler { onUnauthenticated?() }
             throw APIError.forbidden(detail)
         case 404:
             throw APIError.notFound
