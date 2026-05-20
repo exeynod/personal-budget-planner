@@ -4,11 +4,12 @@ SIM          := iPhone 17 Pro
 DESTINATION  := platform=iOS Simulator,name=$(SIM)
 BUNDLE_ID    := com.exeynod.BudgetPlanner
 
-.PHONY: help generate build run install boot launch logs format format-check clean sf
+.PHONY: help generate gen-dto build run install boot launch logs format format-check clean sf
 
 help:
 	@echo "iOS targets:"
 	@echo "  make generate     — xcodegen generate"
+	@echo "  make gen-dto      — regen Networking/Generated/GeneratedDTO.swift + xcodegen"
 	@echo "  make build        — build for $(SIM) (xcbeautify)"
 	@echo "  make boot         — boot $(SIM) simulator"
 	@echo "  make install      — build + install on booted simulator"
@@ -21,6 +22,13 @@ help:
 	@echo "  make sf Q=cart    — search SF Symbols by name/tag (iOS 17.0+ only)"
 
 generate:
+	xcodegen generate
+
+# Phase 69 B3: regenerate the vanilla-Codable DTOs from contract/openapi.json,
+# then re-run xcodegen so any newly added Generated/*.swift is picked up.
+# Run `make contract` (repo root) first if the contract itself changed.
+gen-dto:
+	python3 ../contract/gen_swift_dto.py
 	xcodegen generate
 
 build:
