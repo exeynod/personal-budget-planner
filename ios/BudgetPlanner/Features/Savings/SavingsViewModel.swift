@@ -103,6 +103,14 @@ final class SavingsViewModel {
     @ObservationIgnored
     private var reloadPending: Bool = false
 
+    /// T-67-10-01 (P2-3 / iOS-F10): сериализует config-PATCH (roundup
+    /// enabled/base). Без него быстрые тапы по тумблеру/базе шлют
+    /// конкурентные PATCH → last-write race (UI может «застрять» на
+    /// устаревшем значении). Отдельный от `submitting` флаг — чтобы config
+    /// не блокировал денежные мутации (deposit/createGoal) и наоборот.
+    @ObservationIgnored
+    private var configInFlight: Bool = false
+
     // MARK: - Load
 
     func load() async {
@@ -136,8 +144,12 @@ final class SavingsViewModel {
     // MARK: - Mutations
 
     /// Optimistic toggle. На failure → reload (T-62-05).
+    /// P2-3: config-inFlight guard сериализует конкурентные config-PATCH.
     func toggleRoundup(_ enabled: Bool) async {
+        guard !configInFlight else { return }
         guard let snap = snapshot else { return }
+        configInFlight = true
+        defer { configInFlight = false }
         snapshot = SavingsSummaryDTO(
             totalCents: snap.totalCents,
             monthInCents: snap.monthInCents,
@@ -159,8 +171,12 @@ final class SavingsViewModel {
     }
 
     /// Optimistic base selection. UI ограничивает {10,50,100} (CONTEXT T-62-01).
+    /// P2-3: config-inFlight guard сериализует конкурентные config-PATCH.
     func selectBase(_ base: Int) async {
+        guard !configInFlight else { return }
         guard let snap = snapshot else { return }
+        configInFlight = true
+        defer { configInFlight = false }
         snapshot = SavingsSummaryDTO(
             totalCents: snap.totalCents,
             monthInCents: snap.monthInCents,
