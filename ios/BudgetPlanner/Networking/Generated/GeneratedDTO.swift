@@ -3,7 +3,11 @@
 // Regenerate: python3 contract/gen_swift_dto.py  (after `make contract`).
 //
 // Vanilla `Codable` DTOs decoded through the EXISTING APIClient
-// JSONDecoder (.convertFromSnakeCase + MSK-pinned date strategy).
+// JSONDecoder (.convertFromSnakeCase + ISO-8601 date-time strategy).
+// Wire `date-time` audit instants decode as `Date`; wire `date`
+// business dates are typed `BusinessDate`, which self-decodes its
+// own MSK-pinned `yyyy-MM-dd` string and bypasses the decoder's
+// dateDecodingStrategy.
 // No transport / decoder change. Nullability follows the OpenAPI
 // `required` set: required -> non-optional; absent -> Swift optional.
 // Namespaced under `enum Gen` to avoid colliding with the
@@ -82,7 +86,7 @@ enum Gen {
         let description: String?
         let kind: Kind
         let tag: Tag?
-        let txDate: Date
+        let txDate: BusinessDate
     }
 
     struct ActualRead: Codable, Equatable {
@@ -115,7 +119,7 @@ enum Gen {
         let periodId: Int
         let source: Source
         let tag: Tag?
-        let txDate: Date
+        let txDate: BusinessDate
     }
 
     struct ActualUpdate: Codable, Equatable {
@@ -137,7 +141,7 @@ enum Gen {
         let description: String?
         let kind: Kind?
         let tag: Tag?
-        let txDate: Date?
+        let txDate: BusinessDate?
     }
 
     struct AdminAiUsageResponse: Codable, Equatable {
@@ -210,9 +214,9 @@ enum Gen {
         let balanceNowCents: Int
         let byCategory: [Gen.BalanceCategoryRow]
         let deltaTotalCents: Int
-        let periodEnd: Date
+        let periodEnd: BusinessDate
         let periodId: Int
-        let periodStart: Date
+        let periodStart: BusinessDate
         let plannedTotalExpenseCents: Int
         let plannedTotalIncomeCents: Int
         let startingBalanceCents: Int
@@ -232,7 +236,7 @@ enum Gen {
         let description: String?
         let kind: Kind
         let tgUserId: Int
-        let txDate: Date?
+        let txDate: BusinessDate?
     }
 
     struct BotActualResponse: Codable, Equatable {
@@ -259,9 +263,9 @@ enum Gen {
         let balanceNowCents: Int
         let byCategory: [Gen.BalanceCategoryRow]
         let deltaTotalCents: Int
-        let periodEnd: Date
+        let periodEnd: BusinessDate
         let periodId: Int
-        let periodStart: Date
+        let periodStart: BusinessDate
         let plannedTotalExpenseCents: Int
         let plannedTotalIncomeCents: Int
     }
@@ -382,7 +386,7 @@ enum Gen {
     }
 
     struct ChargeNowResponse: Codable, Equatable {
-        let nextChargeDate: Date
+        let nextChargeDate: BusinessDate
         let plannedId: Int
     }
 
@@ -429,7 +433,7 @@ enum Gen {
         let categoryId: Int
         let description: String?
         let id: Int
-        let txDate: Date
+        let txDate: BusinessDate
     }
 
     struct DevExchangeRequest: Codable, Equatable {
@@ -455,7 +459,7 @@ enum Gen {
     }
 
     struct GoalCreate: Codable, Equatable {
-        let due: Date?
+        let due: BusinessDate?
         let name: String
         let targetCents: Int
     }
@@ -463,14 +467,14 @@ enum Gen {
     struct GoalRead: Codable, Equatable {
         let createdAt: Date
         let currentCents: Int
-        let due: Date?
+        let due: BusinessDate?
         let id: Int
         let name: String
         let targetCents: Int
     }
 
     struct GoalUpdate: Codable, Equatable {
-        let due: Date?
+        let due: BusinessDate?
         let name: String?
         let targetCents: Int?
     }
@@ -511,7 +515,7 @@ enum Gen {
     }
 
     struct OnboardingGoalItem: Codable, Equatable {
-        let due: Date?
+        let due: BusinessDate?
         let name: String
         let targetCents: Int
     }
@@ -583,8 +587,8 @@ enum Gen {
         let closedAt: Date?
         let endingBalanceCents: Int?
         let id: Int
-        let periodEnd: Date
-        let periodStart: Date
+        let periodEnd: BusinessDate
+        let periodStart: BusinessDate
         let startingBalanceCents: Int
         let status: Status
     }
@@ -612,7 +616,7 @@ enum Gen {
         let categoryId: Int
         let description: String?
         let kind: Kind
-        let plannedDate: Date?
+        let plannedDate: BusinessDate?
     }
 
     struct PlannedRead: Codable, Equatable {
@@ -633,7 +637,7 @@ enum Gen {
         let id: Int
         let kind: Kind
         let periodId: Int
-        let plannedDate: Date?
+        let plannedDate: BusinessDate?
         let source: Source
         let subscriptionId: Int?
     }
@@ -648,7 +652,7 @@ enum Gen {
         let categoryId: Int?
         let description: String?
         let kind: Kind?
-        let plannedDate: Date?
+        let plannedDate: BusinessDate?
     }
 
     struct SavingsConfigPatch: Codable, Equatable {
@@ -696,7 +700,7 @@ enum Gen {
         let cycle: Gen.SubCycle
         let isActive: Bool?
         let name: String
-        let nextChargeDate: Date
+        let nextChargeDate: BusinessDate
         let notifyDaysBefore: Int?
     }
 
@@ -707,8 +711,8 @@ enum Gen {
     }
 
     struct SubscriptionRead: Codable, Equatable {
-        let periodEnd: Date
-        let periodStart: Date
+        let periodEnd: BusinessDate
+        let periodStart: BusinessDate
         let status: String
         let tier: String
     }
@@ -723,7 +727,7 @@ enum Gen {
         let id: Int
         let isActive: Bool
         let name: String
-        let nextChargeDate: Date
+        let nextChargeDate: BusinessDate
         let notifyDaysBefore: Int
         let postedTxnId: Int?
     }
@@ -734,7 +738,7 @@ enum Gen {
         let cycle: Gen.SubCycle?
         let isActive: Bool?
         let name: String?
-        let nextChargeDate: Date?
+        let nextChargeDate: BusinessDate?
         let notifyDaysBefore: Int?
     }
 
@@ -747,8 +751,8 @@ enum Gen {
     struct TaxReserveResponse: Codable, Equatable {
         let businessIncomeCents: Int
         let incomeCents: Int
-        let periodEnd: Date
-        let periodStart: Date
+        let periodEnd: BusinessDate
+        let periodStart: BusinessDate
         let regime: String
         let reserveRecommendedCents: Int
         let taxOwedCents: Int

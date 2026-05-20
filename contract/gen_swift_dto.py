@@ -157,7 +157,12 @@ def swift_base_type(
     jtype = pschema.get("type")
     if jtype == "string":
         fmt = pschema.get("format")
-        if fmt in ("date", "date-time"):
+        # A wire `DATE` (yyyy-MM-dd) is a *business date* (MSK calendar day) and
+        # is typed `BusinessDate` (self-decoding, MSK-pinned). A `date-time` is an
+        # audit-time instant, decoded as `Date` via the shared APIClient strategy.
+        if fmt == "date":
+            return "BusinessDate"
+        if fmt == "date-time":
             return "Date"
         return "String"
     if jtype == "integer":
@@ -312,7 +317,11 @@ def main() -> None:
     out.append(f"// Regenerate: {REGEN_CMD}  (after `make contract`).")
     out.append("//")
     out.append("// Vanilla `Codable` DTOs decoded through the EXISTING APIClient")
-    out.append("// JSONDecoder (.convertFromSnakeCase + MSK-pinned date strategy).")
+    out.append("// JSONDecoder (.convertFromSnakeCase + ISO-8601 date-time strategy).")
+    out.append("// Wire `date-time` audit instants decode as `Date`; wire `date`")
+    out.append("// business dates are typed `BusinessDate`, which self-decodes its")
+    out.append("// own MSK-pinned `yyyy-MM-dd` string and bypasses the decoder's")
+    out.append("// dateDecodingStrategy.")
     out.append("// No transport / decoder change. Nullability follows the OpenAPI")
     out.append("// `required` set: required -> non-optional; absent -> Swift optional.")
     out.append("// Namespaced under `enum Gen` to avoid colliding with the")
