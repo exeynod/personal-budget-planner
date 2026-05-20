@@ -1,5 +1,10 @@
 import Foundation
 
+@available(
+    *, deprecated,
+    message:
+        "Legacy v0.x — canonical is SubscriptionsV10API. Non-equivalent (V10API has no create — v06 editor needs legacy create then V10 patch); tracked DEBT-70-SUB. See .planning/LEGACY-V10-DEBT-REGISTRY.md"
+)
 @MainActor
 enum SubscriptionsAPI {
     static func list() async throws -> [SubscriptionDTO] {
@@ -10,8 +15,11 @@ enum SubscriptionsAPI {
         try await APIClient.shared.request("POST", "/subscriptions", body: request)
     }
 
-    static func update(id: Int, _ request: SubscriptionUpdateRequest) async throws
-    -> SubscriptionDTO {
+    static func update(
+        id: Int, _ request: SubscriptionUpdateRequest
+    ) async throws
+        -> SubscriptionDTO
+    {
         try await APIClient.shared.request("PATCH", "/subscriptions/\(id)", body: request)
     }
 

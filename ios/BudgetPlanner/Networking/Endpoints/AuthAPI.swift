@@ -12,6 +12,11 @@ enum AuthAPI {
     }
 }
 
+@available(
+    *, deprecated,
+    message:
+        "Legacy v0.x — canonical is MeV10API. Non-equivalent (UserDTO vs MeV10Response decoded shape; AuthStore depends on UserDTO); tracked DEBT-70-ME. See .planning/LEGACY-V10-DEBT-REGISTRY.md"
+)
 @MainActor
 enum MeAPI {
     static func current() async throws -> UserDTO {
@@ -19,6 +24,11 @@ enum MeAPI {
     }
 }
 
+@available(
+    *, deprecated,
+    message:
+        "Legacy v0.x — canonical is CategoriesV10API. Non-equivalent (CategoryDTO 2-valued CategoryKind vs CategoryV10DTO 4-valued; v06 screens decode the 2-valued shape); tracked DEBT-70-CAT. See .planning/LEGACY-V10-DEBT-REGISTRY.md"
+)
 @MainActor
 enum CategoriesAPI {
     static func list() async throws -> [CategoryDTO] {
@@ -43,8 +53,11 @@ enum PeriodsAPI {
 
 @MainActor
 enum OnboardingAPI {
-    static func complete(_ request: OnboardingCompleteRequest) async throws
-    -> OnboardingCompleteResponse {
+    static func complete(
+        _ request: OnboardingCompleteRequest
+    ) async throws
+        -> OnboardingCompleteResponse
+    {
         try await APIClient.shared.request(
             "POST",
             "/onboarding/complete",

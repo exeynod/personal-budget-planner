@@ -2,8 +2,11 @@ import Foundation
 
 @MainActor
 enum ActualAPI {
-    static func list(periodId: Int, kind: CategoryKind? = nil, categoryId: Int? = nil)
-    async throws -> [ActualDTO] {
+    static func list(
+        periodId: Int, kind: CategoryKind? = nil, categoryId: Int? = nil
+    )
+        async throws -> [ActualDTO]
+    {
         var query: [String: String] = [:]
         if let kind { query["kind"] = kind.rawValue }
         if let categoryId { query["category_id"] = "\(categoryId)" }
@@ -13,14 +16,27 @@ enum ActualAPI {
         )
     }
 
+    @available(
+        *, deprecated,
+        message:
+            "Legacy v0.x — canonical is ActualV10API.create (4-valued ActualV10DTO + delta-balance/roundup). Non-equivalent (ActualDTO 2-valued vs ActualV10DTO 4-valued); tracked DEBT-70-ACT. See .planning/LEGACY-V10-DEBT-REGISTRY.md"
+    )
     static func create(_ request: ActualCreateRequest) async throws -> ActualDTO {
         try await APIClient.shared.request("POST", "/actual", body: request)
     }
 
+    @available(
+        *, deprecated,
+        message:
+            "Legacy v0.x — ActualV10API has no update. Non-equivalent (no V10 counterpart; ActualDTO 2-valued vs ActualV10DTO 4-valued); tracked DEBT-70-ACT. See .planning/LEGACY-V10-DEBT-REGISTRY.md"
+    )
     static func update(id: Int, _ request: ActualUpdateRequest) async throws -> ActualDTO {
         try await APIClient.shared.request("PATCH", "/actual/\(id)", body: request)
     }
 
+    /// Canonical shared delete — used by v06 + V10 VMs (DEBT-70-ACT).
+    /// Intentionally NOT deprecated: `ActualV10API` has no delete, so both
+    /// shells route DELETE /actual/{id} through here. See registry.
     static func delete(id: Int) async throws {
         try await APIClient.shared.requestVoid("DELETE", "/actual/\(id)")
     }
@@ -73,8 +89,11 @@ enum ActualV10API {
 
 @MainActor
 enum PlannedAPI {
-    static func list(periodId: Int, kind: CategoryKind? = nil, categoryId: Int? = nil)
-    async throws -> [PlannedDTO] {
+    static func list(
+        periodId: Int, kind: CategoryKind? = nil, categoryId: Int? = nil
+    )
+        async throws -> [PlannedDTO]
+    {
         var query: [String: String] = [:]
         if let kind { query["kind"] = kind.rawValue }
         if let categoryId { query["category_id"] = "\(categoryId)" }
@@ -99,6 +118,11 @@ enum PlannedAPI {
     }
 }
 
+@available(
+    *, deprecated,
+    message:
+        "Legacy v0.x — canonical is CategoriesV10API (update only). Non-equivalent (V10API lacks create + delete; v06 management needs both); tracked DEBT-70-CATW. See .planning/LEGACY-V10-DEBT-REGISTRY.md"
+)
 @MainActor
 enum CategoriesWriteAPI {
     static func create(_ request: CategoryCreateRequest) async throws -> CategoryDTO {
@@ -113,4 +137,3 @@ enum CategoriesWriteAPI {
         try await APIClient.shared.requestVoid("DELETE", "/categories/\(id)")
     }
 }
-
