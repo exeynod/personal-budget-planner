@@ -2,17 +2,17 @@
 gsd_state_version: 1.0
 milestone: v1.1.2
 milestone_name: — iOS v06 Native Rebuild)
-current_phase: 69
-status: in_progress
-stopped_at: "Phase 69 (codegen R4) — 69-01 (B1) COMPLETE. response_model audit + deterministic contract/openapi.json dump + make contract + guard test. Full backend suite 778 green (0 regression). Next: 69-02 (B2 web openapi-typescript)."
-last_updated: "2026-05-21T10:30:00.000Z"
+current_phase: 67
+status: executing
+stopped_at: Completed 68-04-PLAN.md
+last_updated: "2026-05-20T21:35:27.722Z"
 last_activity: 2026-05-21
 progress:
   total_phases: 39
   completed_phases: 26
-  total_plans: 78
-  completed_plans: 78
-  percent: 100
+  total_plans: 83
+  completed_plans: 79
+  percent: 95
 ---
 
 ## Active Milestone: v1.1.2 — iOS v06 Native Rebuild
@@ -47,7 +47,8 @@ See: .planning/PROJECT.md (updated 2026-05-09 — v1.0 milestone «Maximal Poste
 ## Current Position
 
 Phase: 69 (contract-codegen, R4 workstream B) — in progress
-Plan: 69-01 (B1) complete. response_model audit + deterministic openapi.json dump + make contract + guard test; full backend suite 778 green (0 regression). Next: 69-02 (B2 web openapi-typescript).
+Plan: 69-02 (B2) complete. openapi-typescript@^7.13.0 + gen:api script (../contract/openapi.json -o src/api/generated/schema.ts); generated schema.ts (6640 lines, paths+components, idempotent — regen twice byte-identical) + README (generated-only) + drift-report.md. drift-report = the 69-04 migration checklist: (1) ADD `tag` (CategoryRead/V10 = "personal"|"business"|"mixed" default; ActualRead/V10 = string|null) — missing from ALL handwritten DTOs; (2) CategoryV10 code/ord now required (drop `?`/`|null` stubs), plan_cents/rollover/paused defaulted→non-optional-on-wire (drop "pending schema" comments), parent_id stays optional+nullable (matches); (3) name-collision flag: contract SubscriptionRead = tier/billing shape, CRUD wire DTO = SubscriptionReadV10; (4) v0.x ActualRead.kind too narrow (CategoryKind 2-val vs wire 4-val) + ActualV10Read.account_id/parent_txn_id generated optional vs handwritten required (keep optional). MeV10Response = exact match. NO consumer code changed (migration deferred to 69-04). 3 web gates green: build + typecheck:test + vitest 738 (Phase 68 baseline preserved). Commits 113104c + 4354d22. Next: 69-03.
+69-01 (B1) complete. response_model audit + deterministic openapi.json dump + make contract + guard test; full backend suite 778 green (0 regression).
 69-01 (B1): audited all 8 in-scope domains for response_model. subscriptions/categories/actual/accounts/savings/goals already fully typed (reads typed, deletes 204). ai.py covered (history/usage/observation typed; SSE /ai/chat exempt as StreamingResponse; _agg is a nested helper inside get_usage, not a route). The bare-dict gap was concentrated on the `me` domain: typed POST/DELETE /me/consent (ConsentGrantResponse/ConsentRevokeResponse) + DELETE /me/account (AccountDeleteResponse, fixed shape) in me.py; left GET /me/export response_model=None + EXEMPTED (arbitrary nested right-of-access dump — synthesising a model risks reshaping compliance keys). The new contract guard test surfaced 3 ADDITIONAL me-prefix bare-dict routes in billing.py (Phase 34, outside the literal 8-file list but inside the `me` domain by URL): typed GET /me/tier (TierResponse) + POST /me/subscription/cancel (SubscriptionCancelResponse); GET /me/subscription was already typed (Optional[SubscriptionRead]). All new models mirror exact existing wire bodies (byte-identical; no float; no migration). Created contract/dump_openapi.py (json.dumps indent=2 sort_keys=True ensure_ascii=False + trailing newline; --stdout mode because the api image bakes code and the repo is NOT bind-mounted — only ./tests + ./pyproject.toml), contract/openapi.json (regenerable, idempotent — regen twice = byte-identical; 8 domains present, actuals under /api/v1/actual), make contract (pipes the script via stdin into docker api, redirects --stdout to host file), tests/test_openapi_contract.py (8-domain + 2xx schema-ref coverage anyOf-aware with export/SSE exemption allowlist + CategoryRead required={code,ord,created_at} vs optional defaulted plan_cents/rollover/paused/parent_id/tag — the fact that kills the pending-schema stubs in 69-04/05). Guard runs against live app.openapi() so a future bare-dict regression fails CI. Full suite 778 passed / 34 skipped / 1 xpassed / 0 failed / 0 errors (Phase 68 baseline 774 + 4 new guard cases). Stack restored docker compose up -d. Commits f25a7f0 + 0f15007.
 68-05 (A2-suite): finished the 68-02 systemic seed/contract migration suite-wide — 126 pre-existing TEST-DEBT failures (62 failed + 64 errors) → 0 across 7 classes. seed_user gained optional pdn_consent_at; seed_category gained optional plan_cents/rollover/paused (model-default fallbacks, stays authoritative for code/ord); new tests/helpers/onboarding.py (complete_onboarding_v10 / v10_onboarding_body / grant_pdn_consent). Zero raw Category() outside seed.py. Classes: A (~70 raw Category→seed_category; conftest two_tenants fix cleared 10 errors alone), B (24 onboarding-v10 fixtures grant consent), C (13 legacy onboarding body→v1.0 contract; v1.0 creates NO period at onboarding — lazy on first txn D-52; already_onboarded 409 is structured dict on existing accounts; 2 embedding tests skipped — backfill decoupled in BE-15), D (4 roundup balance re-reads use select(...).execution_options(populate_existing=True) — expire_all() raised MissingGreenlet under async), E (3 drop plan_template_item from admin-purge + RLS table lists, nine→eight), F (1 migration head allow-list →0026_ai_usage_cost_cents), G (~17 template/snapshot WRITE assert 410 Gone per CR-05; apply-template asserts v1.0 no-op created=0 since plan_template_item materialisation removed D-02). FINAL: 774 passed, 34 skipped, 1 xpassed, 0 failed, 0 errors. TEST-ONLY (zero app/route/migration changes). Commits dc556f7 + 7b2a9dd + fcbc408 + 085f535.
 Status: v1.1.2 followup in progress (CONVERGENCE-AND-DEBT-PLAN.md). Sequence 68 tech-debt DONE -> 69 codegen R4 (B1 done) -> 70 convergence R3/R6/R7. plan-checker ON, worktrees OFF. Phase 67 + 68 complete. 68-03 (A3 web tsc test-gate): added @types/node@^22 + tsconfig.test.json + `typecheck:test` script (tsc -p tsconfig.test.json --noEmit) re-covering test files under type-check WITHOUT slowing the prod `tsc -b` (Phase 67 test-exclude in tsconfig.app.json untouched — two separate gates). Fixed prop-drift: AiView.test baseProps typed to AiViewProps (literal-narrowing was rejecting valid observation/observationError null<->string overrides); SettingsView.test makeProps gained 8 missing required props (homeColor/pickerOpen/onSelectHomeColor/onTogglePicker from Phase 30-07 + theme/themePickerOpen/onSelectTheme/onToggleThemePicker from Phase 54-01). TxV10TabDemote needed no fixture change (node:fs/path resolved by @types/node alone). No @ts-ignore, no production prop-type changes. Three gates green: npm run build (vite ~280ms) + npm run typecheck:test (0 err) + npx vitest run (55 files / 738 tests). Commits dbe8b47 + 1c8b3dd. 68-01: extended seed_user with optional pro_active_until/trial_ends_at (default free, backward-compatible); seeded Pro users (pro_active_until +30d) in all 6 AI spend-cap tests so require_pro (402) passes and enforce_spending_cap (429) fires — tests/test_ai_cap_integration.py (4) + tests/test_spend_cap_concurrent.py (2) all green; gate order require_pro→enforce_spending_cap confirmed intentional, dependencies.py untouched (fixture-fix). Commits eece9ae + 0287eda. 67-10: single-reload subscription create (patchAlreadyReloaded skips redundant onSaved, P2-1); nextChargeDate source-of-truth for monthly day_of_month clamped 1..28 with Stepper/DatePicker bidirectional sync (P2-2); toggleRoundup/selectBase serialized via separate configInFlight guard (P2-3); flaky test_notificationTxnCreated_triggersLoad de-flaked via injected onNotificationLoadComplete seam + withCheckedContinuation, no Task.sleep (P2-12); CLAUDE.md + docs/HLD.md reframed single-tenant -> multi-tenant-via-RLS reality (RLS alembic 0008, owner/member roles, set_tenant_scope per request) as a security asset (R9). 67-05 banner + 67-07 Savings seam preserved; APIClient/backend/web/FeaturesV10 untouched. Full iOS suite 609 green.
@@ -248,8 +249,8 @@ v1.0 deferred (acknowledged at planning):
 
 ## Session Continuity
 
-Last session: 2026-05-20T20:46:31.070Z
-Stopped at: Completed 68-04-PLAN.md
+Last session: 2026-05-21T00:35:00.000Z
+Stopped at: Completed 69-02-PLAN.md
 Resume file: None
 
 ## Deferred Items
