@@ -446,7 +446,7 @@ Plans:
 3. Cleanup R1/R2/R5/R8/R9 выполнены (дедуп account-label/banner/LocalNotifications, dead code удалён, мёртвый web v06-shell разрешён, backend float→cents/get_db/MeResponse-билдер, docs multi-tenant).
 4. iOS build + полный suite зелёные; backend pytest зелёный; web build зелёный.
 
-**Plans:** 10 plans in 5 waves
+**Plans:** 10/10 plans complete
 
 - [x] 67-01-PLAN.md — [W1] BE P0-1: SubscriptionReadV10 response_model on list/post/patch + round-trip test
 - [x] 67-02-PLAN.md — [W1] Web P0-2: fix tsc build (AnalyticsRange import + bottomRef type) — npm run build green

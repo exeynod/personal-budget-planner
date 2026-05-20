@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v1.1.2
 milestone_name: — iOS v06 Native Rebuild)
-current_phase: 67 (remediation-cleanup)
-status: Phase 67 (remediation-cleanup) COMPLETE — 67-10 (last plan) shipped iOS P2 minors + de-flake + R9 docs. Subscription create/edit reloads exactly once (patchAlreadyReloaded skips redundant onSaved); nextChargeDate is source-of-truth for monthly day_of_month (derived+clamped 1..28, Stepper/DatePicker bidirectional sync); toggleRoundup/selectBase serialized via separate configInFlight guard; flaky notification test de-flaked via injected onNotificationLoadComplete seam (no Task.sleep); CLAUDE.md+docs/HLD.md reframed single-tenant->multi-tenant-via-RLS reality (RLS alembic 0008, owner/member roles, set_tenant_scope per request) as a security asset. 67-05 banner + 67-07 Savings seam preserved; APIClient/backend/web/FeaturesV10 untouched. Full iOS suite 609 green.
-stopped_at: Completed 67-10-PLAN.md (Phase 67 complete)
-last_updated: "2026-05-20T17:54:46.693Z"
+current_phase: 67
+status: completed
+stopped_at: Completed 67-09-PLAN.md
+last_updated: "2026-05-20T18:02:19.327Z"
 last_activity: 2026-05-20
 progress:
   total_phases: 36
@@ -19,7 +19,7 @@ progress:
 
 User-direction 2026-05-11: вернуть нативный iOS UI (`MainShell`) как полноценную альтернативу `V10MainShell`. Оба шелла сосуществуют через `@AppStorage("ui.theme")` тумблер. Параллельная разработка в ветке `v1.0-maximal-poster`.
 
-**Current Phase:** 67 (remediation-cleanup)
+**Current Phase:** 67
 
 **Next Phases (planned, see ROADMAP.md):**
 
@@ -47,7 +47,7 @@ See: .planning/PROJECT.md (updated 2026-05-09 — v1.0 milestone «Maximal Poste
 ## Current Position
 
 Phase: 67 (remediation-cleanup) — COMPLETE (10/10 plans)
-Plan: 67-10 executed (Wave 5 — iOS P2-1/2/3 + P2-12 de-flake + R9 docs)
+Plan: Not started
 Status: Phase 67 complete. 67-10: single-reload subscription create (patchAlreadyReloaded skips redundant onSaved, P2-1); nextChargeDate source-of-truth for monthly day_of_month clamped 1..28 with Stepper/DatePicker bidirectional sync (P2-2); toggleRoundup/selectBase serialized via separate configInFlight guard (P2-3); flaky test_notificationTxnCreated_triggersLoad de-flaked via injected onNotificationLoadComplete seam + withCheckedContinuation, no Task.sleep (P2-12); CLAUDE.md + docs/HLD.md reframed single-tenant -> multi-tenant-via-RLS reality (RLS alembic 0008, owner/member roles, set_tenant_scope per request) as a security asset (R9). 67-05 banner + 67-07 Savings seam preserved; APIClient/backend/web/FeaturesV10 untouched. Full iOS suite 609 green.
 Last activity: 2026-05-20
 
