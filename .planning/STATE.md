@@ -4,15 +4,15 @@ milestone: v1.1.2
 milestone_name: — iOS v06 Native Rebuild)
 current_phase: 67
 status: completed
-stopped_at: Completed 68-04-PLAN.md
-last_updated: "2026-05-20T23:30:00.000Z"
+stopped_at: Completed 68-05-PLAN.md
+last_updated: "2026-05-20T20:46:31.074Z"
 last_activity: 2026-05-20
 progress:
   total_phases: 39
-  completed_phases: 25
+  completed_phases: 26
   total_plans: 77
-  completed_plans: 76
-  percent: 99
+  completed_plans: 77
+  percent: 100
 ---
 
 ## Active Milestone: v1.1.2 — iOS v06 Native Rebuild
@@ -47,7 +47,8 @@ See: .planning/PROJECT.md (updated 2026-05-09 — v1.0 milestone «Maximal Poste
 ## Current Position
 
 Phase: 68 (tech-debt-cleanup) — in progress
-Plan: 68-01 + 68-02 + 68-03 + 68-04 complete (A1 pro-gating; A2 seed_category + onboarding 422; A3 web tsc test-gate; A4 iOS stale-doc 0.5→0.35); Phase 68 workstream A done
+Plan: 68-01..68-05 complete (A1 pro-gating; A2 seed_category + onboarding 422; A3 web tsc test-gate; A4 iOS stale-doc 0.5→0.35; A2-suite FULL backend pytest green). Phase 68 workstream A done + backend baseline green for Phase 69.
+68-05 (A2-suite): finished the 68-02 systemic seed/contract migration suite-wide — 126 pre-existing TEST-DEBT failures (62 failed + 64 errors) → 0 across 7 classes. seed_user gained optional pdn_consent_at; seed_category gained optional plan_cents/rollover/paused (model-default fallbacks, stays authoritative for code/ord); new tests/helpers/onboarding.py (complete_onboarding_v10 / v10_onboarding_body / grant_pdn_consent). Zero raw Category() outside seed.py. Classes: A (~70 raw Category→seed_category; conftest two_tenants fix cleared 10 errors alone), B (24 onboarding-v10 fixtures grant consent), C (13 legacy onboarding body→v1.0 contract; v1.0 creates NO period at onboarding — lazy on first txn D-52; already_onboarded 409 is structured dict on existing accounts; 2 embedding tests skipped — backfill decoupled in BE-15), D (4 roundup balance re-reads use select(...).execution_options(populate_existing=True) — expire_all() raised MissingGreenlet under async), E (3 drop plan_template_item from admin-purge + RLS table lists, nine→eight), F (1 migration head allow-list →0026_ai_usage_cost_cents), G (~17 template/snapshot WRITE assert 410 Gone per CR-05; apply-template asserts v1.0 no-op created=0 since plan_template_item materialisation removed D-02). FINAL: 774 passed, 34 skipped, 1 xpassed, 0 failed, 0 errors. TEST-ONLY (zero app/route/migration changes). Commits dc556f7 + 7b2a9dd + fcbc408 + 085f535.
 Status: v1.1.2 followup started (CONVERGENCE-AND-DEBT-PLAN.md). Sequence 68 tech-debt -> 69 codegen R4 -> 70 convergence R3/R6/R7. plan-checker ON, worktrees OFF. Phase 67 complete. 68-03 (A3 web tsc test-gate): added @types/node@^22 + tsconfig.test.json + `typecheck:test` script (tsc -p tsconfig.test.json --noEmit) re-covering test files under type-check WITHOUT slowing the prod `tsc -b` (Phase 67 test-exclude in tsconfig.app.json untouched — two separate gates). Fixed prop-drift: AiView.test baseProps typed to AiViewProps (literal-narrowing was rejecting valid observation/observationError null<->string overrides); SettingsView.test makeProps gained 8 missing required props (homeColor/pickerOpen/onSelectHomeColor/onTogglePicker from Phase 30-07 + theme/themePickerOpen/onSelectTheme/onToggleThemePicker from Phase 54-01). TxV10TabDemote needed no fixture change (node:fs/path resolved by @types/node alone). No @ts-ignore, no production prop-type changes. Three gates green: npm run build (vite ~280ms) + npm run typecheck:test (0 err) + npx vitest run (55 files / 738 tests). Commits dbe8b47 + 1c8b3dd. 68-01: extended seed_user with optional pro_active_until/trial_ends_at (default free, backward-compatible); seeded Pro users (pro_active_until +30d) in all 6 AI spend-cap tests so require_pro (402) passes and enforce_spending_cap (429) fires — tests/test_ai_cap_integration.py (4) + tests/test_spend_cap_concurrent.py (2) all green; gate order require_pro→enforce_spending_cap confirmed intentional, dependencies.py untouched (fixture-fix). Commits eece9ae + 0287eda. 67-10: single-reload subscription create (patchAlreadyReloaded skips redundant onSaved, P2-1); nextChargeDate source-of-truth for monthly day_of_month clamped 1..28 with Stepper/DatePicker bidirectional sync (P2-2); toggleRoundup/selectBase serialized via separate configInFlight guard (P2-3); flaky test_notificationTxnCreated_triggersLoad de-flaked via injected onNotificationLoadComplete seam + withCheckedContinuation, no Task.sleep (P2-12); CLAUDE.md + docs/HLD.md reframed single-tenant -> multi-tenant-via-RLS reality (RLS alembic 0008, owner/member roles, set_tenant_scope per request) as a security asset (R9). 67-05 banner + 67-07 Savings seam preserved; APIClient/backend/web/FeaturesV10 untouched. Full iOS suite 609 green.
 Last activity: 2026-05-20
 
@@ -246,7 +247,7 @@ v1.0 deferred (acknowledged at planning):
 
 ## Session Continuity
 
-Last session: 2026-05-20T23:30:00.000Z
+Last session: 2026-05-20T20:46:31.070Z
 Stopped at: Completed 68-04-PLAN.md
 Resume file: None
 

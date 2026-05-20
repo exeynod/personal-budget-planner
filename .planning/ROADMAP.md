@@ -462,7 +462,7 @@ Plans:
 ---
 
 ### Phase 68: Tech-Debt Cleanup (v1.1.2 followup workstream A) — planned
-**Plans:** 4 plans
+**Plans:** 5 plans
 **Goal**: Устранить pre-existing tech-debt, залогированный в фазе 67 (`deferred-items.md`) + отложенные косметические находки ревью, чтобы получить полностью зелёный baseline всех трёх стеков перед архитектурными фазами 69/70. Спецификация — `.planning/CONVERGENCE-AND-DEBT-PLAN.md` §ФАЗА 68 (workstream A) + `.planning/v1.1.2-MULTILEAD-REVIEW.md`. Покрывает A1 (backend pro-gating 402-vs-429: `require_pro` срабатывает до `enforce_spending_cap` → 5 тестов ждут 429, получают 402), A2 (onboarding/complete 422 + `category.code`/`ord` seed-drift Phase 22 → системный фикс seed-helper, не inline), A3 (web tsc test-gate: `@types/node`, prop-дрейф в 3 `.test.tsx`, вернуть тесты под type-check), A4 (stale doc-комментарий 0.5→0.35 threshold в AISuggestCategoryAPI.swift).
 **Depends on**: — (независимо, можно сразу; baseline для 69).
 **Success Criteria**:
@@ -476,6 +476,7 @@ Plans:
 - [x] 68-02-PLAN.md — [W2] BE A2: systemic seed_category (code+ord, no inline hacks) + onboarding/complete 422 root-cause fix; test_categories.py (10) + e2e (6) green (SHIPPED 2026-05-20, commits 84b0656 + 81309e3; 422 root = legacy body vs v1.0 onboarding_v10 contract; Rule 1: removed dropped plan_template_item from admin purge)
 - [x] 68-03-PLAN.md — [W1] Web A3: @types/node + tsconfig.test.json + typecheck:test; fix prop-drift in 3 .test.tsx; build + test-typecheck + vitest green (SHIPPED 2026-05-20, commits dbe8b47 + 1c8b3dd; separate test project keeps prod tsc -b fast/test-free; AiView baseProps typed to AiViewProps, SettingsView fixture +8 drifted props from Phase 30-07/54-01; build + typecheck:test 0-err + vitest 738 all green)
 - [x] 68-04-PLAN.md — [W1] iOS A4: comment-only 0.5→0.35 threshold in AISuggestCategoryAPI.swift + swift-format (SHIPPED 2026-05-20, commit 6bd18b6; verified backend SUGGEST_THRESHOLD=0.35 in ai_suggest.py; fixed BOTH the SuggestCategoryDTO doc-comment + the file-header note, Rule 1; tree-wide make-format churn on ~80 unrelated files reverted — only target file committed)
+- [x] 68-05-PLAN.md — [W3] BE A2-suite: drive FULL backend pytest green — finishes the 68-02 seed/contract migration suite-wide (126 TEST-DEBT failures → 0). seed_user(pdn_consent_at) + seed_category(plan_cents/rollover/paused) + helpers/onboarding.py (complete_onboarding_v10); zero raw Category() outside seed.py; classes A(~70 raw seeds)/B(24 consent)/C(13 legacy onboarding→v1.0)/D(4 roundup populate_existing)/E(3 plan_template_item table-lists)/F(1 migration head→0026)/G(~17 template/snapshot 410 + apply-template no-op). FINAL: 774 passed, 34 skipped, 1 xpassed, 0 failed, 0 errors. TEST-ONLY (zero app/migration changes). (SHIPPED 2026-05-20, commits dc556f7 + 7b2a9dd + fcbc408 + 085f535)
 
 ---
 
