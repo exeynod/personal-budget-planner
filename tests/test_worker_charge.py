@@ -83,14 +83,15 @@ async def _seed_user_and_category(SessionLocal, *, tg_chat_id: int = 999):
         )
         session.add(user)
         await session.flush()
-        cat = Category(
+        from tests.helpers.seed import seed_category
+        cat = await seed_category(
+            session,
             user_id=user.id,
             name="Подписки",
             kind=CategoryKind.expense,
             is_archived=False,
             sort_order=1,
         )
-        session.add(cat)
         await session.commit()
         await session.refresh(user)
         await session.refresh(cat)
@@ -348,13 +349,13 @@ async def test_notify_no_chat_id_skip(db_setup, monkeypatch):
     monkeypatch.setattr("app.services.periods._today_in_app_tz", lambda: fake_today)
     monkeypatch.setattr("app.worker.jobs.notify_subscriptions._today_in_app_tz", lambda: fake_today, raising=False)
 
-    from app.db.models import AppUser, Category, CategoryKind
+    from app.db.models import AppUser, CategoryKind
+    from tests.helpers.seed import seed_category
     async with SessionLocal() as session:
         user = AppUser(tg_user_id=123456789, tg_chat_id=None, notify_days_before=2)
         session.add(user)
         await session.flush()
-        cat = Category(user_id=user.id, name="Сервисы", kind=CategoryKind.expense, is_archived=False, sort_order=1)
-        session.add(cat)
+        cat = await seed_category(session, user_id=user.id, name="Сервисы", kind=CategoryKind.expense, is_archived=False, sort_order=1)
         await session.commit()
         await session.refresh(user)
         await session.refresh(cat)
