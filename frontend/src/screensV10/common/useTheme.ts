@@ -10,11 +10,12 @@
 // `CustomEvent` dispatch + `storage` event listener), so any number of
 // mounted instances re-render in the same frame after the picker tap.
 //
-// Note: main.tsx historically used `ui.theme` for v06/v10 shell dispatch.
-// That legacy whitelist (`v06`/`v10`) falls through to default `v10` when
-// the new theme values (`maximal_poster` / `liquid_glass` / `ios_default`)
-// are stored — and this hook falls through to `maximal_poster` for the
-// legacy values — so both systems coexist during the transition.
+// Note (P1-6 / FE-F4, Phase 67-06): main.tsx historically also used `ui.theme`
+// for v06/v10 SHELL dispatch, sharing one key with two incompatible
+// vocabularies — picking a v10 theme made the v06 web shell unreachable. The
+// shell dispatcher now reads its own key `ui.shell` (`v06`/`v10`), so this hook
+// is the SOLE owner of `ui.theme` (theme values only). The two systems are
+// orthogonal; no shared vocabulary remains.
 //
 // User-request 2026-05-11 — Phase 50 multi-theme milestone (v1.1.1).
 
