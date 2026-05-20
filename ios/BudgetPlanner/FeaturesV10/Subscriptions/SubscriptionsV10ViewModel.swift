@@ -142,18 +142,18 @@ final class SubscriptionsV10ViewModel {
     // MARK: - Derived (consumed by View)
 
     var sortedSubs: [SubscriptionV10DTO] {
-        SubscriptionsData.sortForDisplay(subs)
+        SubscriptionsDomain.sortV10(subs)
     }
 
     var activeCount: Int {
-        SubscriptionsData.computeActiveCount(subs)
+        SubscriptionsDomain.activeCount(subs)
     }
 
     var monthlyTotal: Int {
-        SubscriptionsData.computeMonthlyTotal(subs)
+        SubscriptionsDomain.monthlyTotalV10(subs)
     }
 
     var yearlyTotalAnnualized: Int {
-        SubscriptionsData.computeYearlyTotalAnnualized(subs)
+        SubscriptionsDomain.yearlyTotalAnnualizedV10(subs)
     }
 }

@@ -41,7 +41,7 @@ struct SubscriptionMenuSheet: View {
                 Text(sub.name.uppercased())
                     .font(.custom(PosterTokens.Font.archivoBlack, size: 16))
                     .foregroundColor(PosterTokens.Color.ink)
-                Text(SubscriptionsData.formatCadenceRu(sub))
+                Text(SubscriptionsDomain.cadenceRuV10(sub))
                     .font(.posterMono(size: 11))
                     .foregroundColor(PosterTokens.Color.ink.opacity(0.6))
             }

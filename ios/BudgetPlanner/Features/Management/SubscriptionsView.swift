@@ -97,7 +97,7 @@ final class SubscriptionsViewModel {
             async let catsTask = api.listCategories()
             async let accsTask = api.listAccounts()
             let (subs, cats, accs) = try await (subsTask, catsTask, accsTask)
-            self.subscriptions = SubscriptionsViewData.sortForDisplay(subs)
+            self.subscriptions = SubscriptionsDomain.sortV06(subs)
             self.categories = cats.filter { !$0.isArchived }
             self.accounts = accs
             // Phase 63-02 — восстановлен rescheduling нотификаций через
@@ -203,8 +203,8 @@ final class SubscriptionsViewModel {
 
     // MARK: - Derived
 
-    var activeCount: Int { SubscriptionsViewData.computeActiveCount(subscriptions) }
-    var monthlyLoadCents: Int { SubscriptionsViewData.computeMonthlyLoadCents(subscriptions) }
+    var activeCount: Int { SubscriptionsDomain.activeCount(subscriptions) }
+    var monthlyLoadCents: Int { SubscriptionsDomain.monthlyLoadCentsV06(subscriptions) }
 
     // MARK: - DEBUG backdoor
 
@@ -381,7 +381,7 @@ struct SubscriptionsView: View {
                         .contentShape(Rectangle())
                         .onTapGesture { editingSub = sub }
                         .swipeActions(edge: .leading) {
-                            if SubscriptionsViewData.isPosted(sub) {
+                            if SubscriptionsDomain.isPosted(sub) {
                                 Button {
                                     postIsUnpost = true
                                     postSubject = sub
@@ -458,7 +458,7 @@ private struct SubscriptionRow: View {
                         .font(.body)
                         .foregroundStyle(.primary)
                         .lineLimit(1)
-                    if SubscriptionsViewData.isPosted(sub) {
+                    if SubscriptionsDomain.isPosted(sub) {
                         Image(systemName: "checkmark.circle.fill")
                             .font(.caption)
                             .foregroundStyle(.green)
@@ -482,7 +482,7 @@ private struct SubscriptionRow: View {
     }
 
     private var metaLine: String {
-        let cadence = SubscriptionsViewData.formatCadenceRu(cycle: sub.cycle, dayOfMonth: sub.dayOfMonth)
+        let cadence = SubscriptionsDomain.cadenceRuV06(cycle: sub.cycle, dayOfMonth: sub.dayOfMonth)
         return [cadence, categoryName, pillLabel].filter { !$0.isEmpty }.joined(separator: " · ")
     }
 }
@@ -564,7 +564,7 @@ struct SubscriptionEditor: View {
     }
 
     private var canSave: Bool {
-        SubscriptionsViewData.isValidDraft(
+        SubscriptionsDomain.isValidDraft(
             name: name,
             amountCents: amountCents ?? 0,
             categoryId: categoryId,

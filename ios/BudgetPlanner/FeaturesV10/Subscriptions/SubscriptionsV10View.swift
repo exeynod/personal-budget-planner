@@ -233,7 +233,7 @@ struct SubscriptionsV10View: View {
                             ? PosterTokens.Color.paper
                             : PosterTokens.Color.paper.opacity(0.4)
                     )
-                Text(SubscriptionsData.formatCadenceRu(sub))
+                Text(SubscriptionsDomain.cadenceRuV10(sub))
                     .font(.posterMono(size: 11))
                     .foregroundColor(PosterTokens.Color.paper.opacity(0.6))
             }

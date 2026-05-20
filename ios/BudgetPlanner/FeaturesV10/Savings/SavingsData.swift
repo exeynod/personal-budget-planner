@@ -18,7 +18,7 @@
 //
 // Calendar parameter on `formatDueRu` defaults to `.current` (production)
 // but tests inject Europe/Moscow for determinism (mirrors
-// `SubscriptionsData.formatCadenceRu` from Plan 26-07).
+// `SubscriptionsDomain.cadenceRuV10` — consolidated in Plan 70-04).
 //
 // MONTHS_RU_GEN reuses the same genitive list as V10Formatters but
 // kept here as a private constant to avoid coupling the Savings
