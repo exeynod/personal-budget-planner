@@ -2,11 +2,11 @@
 gsd_state_version: 1.0
 milestone: v1.1.2
 milestone_name: — iOS v06 Native Rebuild)
-current_phase: 67
-status: completed
-stopped_at: Completed 68-05-PLAN.md
-last_updated: "2026-05-20T20:46:31.074Z"
-last_activity: 2026-05-20
+current_phase: 69
+status: planning
+stopped_at: Phase 68 COMPLETE (5 plans + WR-01; full backend suite 774 green, web 3 gates green, A4 done). Starting phase 69 (codegen R4).
+last_updated: "2026-05-21T09:00:00.000Z"
+last_activity: 2026-05-21
 progress:
   total_phases: 39
   completed_phases: 26

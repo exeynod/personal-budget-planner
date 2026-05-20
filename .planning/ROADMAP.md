@@ -461,8 +461,8 @@ Plans:
 
 ---
 
-### Phase 68: Tech-Debt Cleanup (v1.1.2 followup workstream A) — planned
-**Plans:** 5 plans
+### Phase 68: Tech-Debt Cleanup (v1.1.2 followup workstream A) ✅ SHIPPED 2026-05-21
+**Plans:** 5/5 plans complete
 **Goal**: Устранить pre-existing tech-debt, залогированный в фазе 67 (`deferred-items.md`) + отложенные косметические находки ревью, чтобы получить полностью зелёный baseline всех трёх стеков перед архитектурными фазами 69/70. Спецификация — `.planning/CONVERGENCE-AND-DEBT-PLAN.md` §ФАЗА 68 (workstream A) + `.planning/v1.1.2-MULTILEAD-REVIEW.md`. Покрывает A1 (backend pro-gating 402-vs-429: `require_pro` срабатывает до `enforce_spending_cap` → 5 тестов ждут 429, получают 402), A2 (onboarding/complete 422 + `category.code`/`ord` seed-drift Phase 22 → системный фикс seed-helper, не inline), A3 (web tsc test-gate: `@types/node`, prop-дрейф в 3 `.test.tsx`, вернуть тесты под type-check), A4 (stale doc-комментарий 0.5→0.35 threshold в AISuggestCategoryAPI.swift).
 **Depends on**: — (независимо, можно сразу; baseline для 69).
 **Success Criteria**:
