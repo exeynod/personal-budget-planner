@@ -391,6 +391,13 @@ User-direction 2026-05-11: gap-анализ показал что v06 (Features/
 ### Phase 62: Savings & Goals (v06 native, новый домен) — planned
 **Goal**: Копилка. Список целей (List с прогресс-баром), GoalDetailView, NewGoalSheet (Form), DepositSheet (Form). API: GoalsAPI.
 
+**Plans:** 3 plans (62-03 = gap-closure)
+
+Plans:
+- [x] 62-01-PLAN.md — scaffold (ManagementItem.savings + Savings dir + SavingsRoute + stubs)
+- [x] 62-02-PLAN.md — SavingsView master list + VM + SavingsViewData helpers + tests
+- [ ] 62-03-PLAN.md — GAP: GoalDetailView/VM + NewGoalSheet + DepositSheet Form bodies + WR-05/IN-04 fixes + VM/validation tests
+
 ### Phase 63: Subscriptions расширенные (v06 native) — planned
 **Goal**: post/unpost action, day_of_month, account_id selection. Form-based редактор с DatePicker и Picker (счёт). Миграция на SubscriptionsV10API.
 
