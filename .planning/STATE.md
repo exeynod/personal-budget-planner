@@ -4,9 +4,9 @@ milestone: v1.1.2
 milestone_name: — iOS v06 Native Rebuild)
 current_phase: 70
 status: in_progress
-stopped_at: Phase 70-02 (E2/R7 BusinessDate) COMPLETE — distinct wire-DATE value type with MSK-midnight semantics as a property of the type. BusinessDate.swift: Codable/Equatable/Hashable/Comparable, stored instant = Europe/Moscow midnight; self-decodes via singleValueContainer (independent of JSONDecoder.dateDecodingStrategy), self-encodes MSK yyyy-MM-dd. Retyped 6 enumerated wire-DATE fields + DepositResponseDTO.txDate (Rule 2): GoalDTO.due, Subscription(V10)DTO.nextChargeDate, Actual(V10)DTO.txDate, PlannedDTO.plannedDate, Period/Balance/Trend periodStart/End. Audit Date timestamps untouched. APIClient decoder de-heuristified: bare yyyy-MM-dd MSK branch removed, 3 ISO-8601 timestamp branches kept. Reconciled ~98 refs / 27 files both shells: hotspot (a) TransactionsView createdAt ?? txDate.date (sort order preserved); hotspot (b) AnalyticsData groupByDay keyed on BusinessDate (1 MSK-day bucket, no fragmentation) + groupByWeek/barRows day-read switched UTC→MSK (Rule 1: latent skew that only surfaced once day became MSK-anchored); AccountsData.sumPeriodOps range BusinessDate-typed; LocalNotifications fire-date off nextChargeDate.date. tx_date test fixtures fixed to emit real wire shape (bare MSK yyyy-MM-dd, not ISO timestamp). Both shells BUILD SUCCEEDED; full iOS suite 615 green (609 baseline + 6 BusinessDateTests); WR-05 MSK-midnight contract preserved. Deferred: GeneratedDTO.swift header stale + ~26 Date wire-DATE fields (codegen output, no live decode, 69-05 migration scope). Commits 33fa2e6 + 0f671df + ec833e9. Next: 70-03.
-last_updated: "2026-05-21T23:15:00.000Z"
-last_activity: 2026-05-21
+stopped_at: Phase 70-03 (E1/R7 ErrorHandling injection) COMPLETE — extracted APIClient's hardcoded status->domain-error + logout switch into an injectable ErrorHandling strategy, killing the per-call auth-Bool (suppressForbiddenHandler) class of bug at the root. ErrorHandling.swift: ErrorDecision enum (.success / .fail(APIError, logout:Bool)) + struct ErrorHandling { var map: (status,data,skipAuth,decodeDetail)->ErrorDecision }; static .default reproduces the old switch byte-for-byte (401 always logout WR-02; 403 logout iff !skipAuth 67-03; 402 require_pro->serverError no-logout 67-05 silent-nil; 404/409/422 no-logout; 2xx success); composable tolerating(_:) example (illustrative, NOT wired). Policy is side-effect-free — returns logout:Bool, APIClient owns the onUnauthenticated callback. APIClient gained var errorPolicy: ErrorHandling = .default (init-injectable); 429 SPLIT — Retry-After handled INLINE first (needs the HTTPURLResponse header the policy signature omits), every other status delegates to errorPolicy.map; inline switch removed; no suppressForbidden reintroduced. REGRESSION GATE: APIClientForbiddenTests ran UNMODIFIED (git status 0 changes) + green (401 logout=1, 403 !skipAuth logout=1, 403 skipAuth logout=0, 200 logout=0) — byte-equivalence proven; NEW live-client 402-no-logout assertion in ErrorPolicyTests green (placed there to keep the 67-03 lock byte-identical). App shell Build Succeeded; full iOS suite 626 green (615 baseline + 10 ErrorPolicyTests + 1 live-402); zero auth-behavior regression. Commits 4adada6 + be7b172 + 01d092e. Next: 70-04 (or remaining W2 wave).
+last_updated: "2026-05-21T02:16:00.000Z"
+last_activity: 2026-05-21T02:16:00.000Z
 progress:
   total_phases: 39
   completed_phases: 27
@@ -117,6 +117,7 @@ Last activity: 2026-05-21
 | Phase 68 P02 | 25min | 2 tasks | 4 files |
 | Phase 68 P03 | ~12min | 2 tasks | 5 files |
 | Phase 68 P04 | ~5min | 1 tasks | 1 files |
+| Phase 70 P03 | 3min | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -250,8 +251,8 @@ v1.0 deferred (acknowledged at planning):
 
 ## Session Continuity
 
-Last session: 2026-05-21T01:15:00.000Z
-Stopped at: Completed 69-06-PLAN.md
+Last session: 2026-05-21T02:16:00.000Z
+Stopped at: Completed 70-03-PLAN.md (E1/R7 ErrorHandling injection — highest-risk auth-semantics refactor; APIClientForbiddenTests UNMODIFIED + green, 626 suite green)
 Resume file: None
 
 ## Deferred Items
