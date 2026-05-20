@@ -54,7 +54,20 @@ async def seed_user(
     role: UserRole = UserRole.owner,
     cycle_start_day: int = 5,
     onboarded_at=_ONBOARDED_DEFAULT,
+    pro_active_until: Optional[datetime] = None,
+    trial_ends_at: Optional[datetime] = None,
 ) -> AppUser:
+    """Seed an AppUser row.
+
+    Tier (Phase 35 / 68-01): the user defaults to **free** tier
+    (``pro_active_until`` / ``trial_ends_at`` both NULL) so existing callers
+    are unchanged. Pass a future ``pro_active_until`` (paid Pro) or
+    ``trial_ends_at`` (reverse-trial) to mint a **Pro** user — required by the
+    AI spend-cap tests, which gate behind ``require_pro`` (402) BEFORE
+    ``enforce_spending_cap`` (429). A free user trips the 402 before the cap is
+    ever evaluated; a Pro user reaches the 429 cap path. See
+    ``app/services/tier.py::is_pro``.
+    """
     if onboarded_at is _ONBOARDED_DEFAULT:
         onboarded_at = datetime.now(timezone.utc)
     user = AppUser(
@@ -63,6 +76,8 @@ async def seed_user(
         role=role,
         cycle_start_day=cycle_start_day,
         onboarded_at=onboarded_at,
+        pro_active_until=pro_active_until,
+        trial_ends_at=trial_ends_at,
     )
     session.add(user)
     await session.flush()
