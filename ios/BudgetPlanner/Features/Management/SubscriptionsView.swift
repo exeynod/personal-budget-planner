@@ -24,6 +24,39 @@ final class SubscriptionsViewModel {
         case error(String)
     }
 
+    /// Инъецируемый network-seam (WR-04). По умолчанию проксирует
+    /// `SubscriptionsV10API`/`Categories`/`Accounts` static-методы — прод
+    /// поведение не меняется. Тесты подменяют closures на стабы, чтобы
+    /// проверять submitting-guard / mutationError / reload-on-success без сети.
+    struct API {
+        var listSubs: () async throws -> [SubscriptionV10DTO]
+        var listCategories: () async throws -> [CategoryDTO]
+        var listAccounts: () async throws -> [AccountDTO]
+        var reschedule: ([SubscriptionV10DTO]) async -> Void
+        var post: (Int) async throws -> Void
+        var unpost: (Int) async throws -> Void
+        var delete: (Int) async throws -> Void
+        var patch: (Int, SubscriptionV10UpdateRequest) async throws -> Void
+
+        static let live = API(
+            listSubs: { try await SubscriptionsV10API.list() },
+            listCategories: { try await CategoriesAPI.list() },
+            listAccounts: { try await AccountsAPI.list() },
+            reschedule: { await LocalNotifications.reschedule(subscriptionsV10: $0) },
+            post: { _ = try await SubscriptionsV10API.post(id: $0) },
+            unpost: { try await SubscriptionsV10API.unpost(id: $0) },
+            delete: { try await SubscriptionsV10API.delete(id: $0) },
+            patch: { _ = try await SubscriptionsV10API.patch(id: $0, payload: $1) }
+        )
+    }
+
+    @ObservationIgnored
+    private let api: API
+
+    init(api: API = .live) {
+        self.api = api
+    }
+
     private(set) var subscriptions: [SubscriptionV10DTO] = []
     private(set) var categories: [CategoryDTO] = []
     private(set) var accounts: [AccountDTO] = []
@@ -36,25 +69,40 @@ final class SubscriptionsViewModel {
     @ObservationIgnored
     private var inFlight: Bool = false
 
+    /// WR-01: если mutation вызывает load() пока другой load() уже в полёте
+    /// (например .refreshable / .task), reload не должен молча теряться.
+    /// Флаг ставится при skip и перевызывает load() в defer текущего load().
+    @ObservationIgnored
+    private var reloadPending: Bool = false
+
     // MARK: - Load
 
     func load() async {
-        if inFlight { return }
+        if inFlight {
+            reloadPending = true
+            return
+        }
         inFlight = true
-        defer { inFlight = false }
+        defer {
+            inFlight = false
+            if reloadPending {
+                reloadPending = false
+                Task { await load() }
+            }
+        }
 
         status = .loading
         do {
-            async let subsTask = SubscriptionsV10API.list()
-            async let catsTask = CategoriesAPI.list()
-            async let accsTask = AccountsAPI.list()
+            async let subsTask = api.listSubs()
+            async let catsTask = api.listCategories()
+            async let accsTask = api.listAccounts()
             let (subs, cats, accs) = try await (subsTask, catsTask, accsTask)
             self.subscriptions = SubscriptionsViewData.sortForDisplay(subs)
             self.categories = cats.filter { !$0.isArchived }
             self.accounts = accs
             // Phase 63-02 — восстановлен rescheduling нотификаций через
             // V10DTO-overload (63-01 known-gap закрыт).
-            await LocalNotifications.reschedule(subscriptionsV10: self.subscriptions)
+            await api.reschedule(self.subscriptions)
             status = .ready
         } catch {
             print("[SubscriptionsViewModel] load failed: \(error)")
@@ -72,13 +120,16 @@ final class SubscriptionsViewModel {
         submitting = true
         defer { submitting = false }
         do {
-            _ = try await SubscriptionsV10API.post(id: sub.id)
+            try await api.post(sub.id)
             mutationError = nil
             await load()
             return true
         } catch {
             print("[SubscriptionsViewModel] post failed: \(error)")
             mutationError = "Не удалось провести подписку"
+            // WR-06: stale-state 4xx (e.g. уже проведена) мог оставить строку
+            // со старым posted-бейджем. Reload отражает реальное состояние.
+            await load()
             return false
         }
     }
@@ -90,13 +141,16 @@ final class SubscriptionsViewModel {
         submitting = true
         defer { submitting = false }
         do {
-            try await SubscriptionsV10API.unpost(id: sub.id)
+            try await api.unpost(sub.id)
             mutationError = nil
             await load()
             return true
         } catch {
             print("[SubscriptionsViewModel] unpost failed: \(error)")
             mutationError = "Не удалось отменить проведение"
+            // WR-06: stale-state 4xx (e.g. уже не проведена) мог оставить
+            // строку со старым posted-бейджем. Reload отражает реальность.
+            await load()
             return false
         }
     }
@@ -107,7 +161,7 @@ final class SubscriptionsViewModel {
         submitting = true
         defer { submitting = false }
         do {
-            try await SubscriptionsV10API.delete(id: sub.id)
+            try await api.delete(sub.id)
             mutationError = nil
             await load()
         } catch {
@@ -132,7 +186,7 @@ final class SubscriptionsViewModel {
         submitting = true
         defer { submitting = false }
         do {
-            _ = try await SubscriptionsV10API.patch(id: id, payload: payload)
+            try await api.patch(id, payload)
             mutationError = nil
             await load()
             return true

@@ -74,6 +74,98 @@ final class SubscriptionsViewModelTests: XCTestCase {
             balanceCents: 0, primary: primary, createdAt: nil)
     }
 
+    private struct StubError: Error {}
+
+    /// Mutable counters + behaviour для injectable API-seam (WR-04).
+    private final class APISpy: @unchecked Sendable {
+        var subs: [SubscriptionV10DTO] = []
+        var listCalls = 0
+        var postCalls = 0
+        var unpostCalls = 0
+        var deleteCalls = 0
+        var patchCalls = 0
+        var rescheduleCalls = 0
+
+        var postShouldThrow = false
+        var unpostShouldThrow = false
+        var deleteShouldThrow = false
+        var patchShouldThrow = false
+        var listShouldThrow = false
+
+        /// Когда true — первая мутация подвешивается на continuation, удерживая
+        /// `submitting == true`, чтобы тест мог проверить re-entrancy guard.
+        var blockMutations = false
+        private var gate: CheckedContinuation<Void, Never>?
+
+        /// Когда true — первый listSubs подвешивается (load в полёте), чтобы
+        /// тест мог проверить WR-01 coalesce пути reloadPending.
+        var blockList = false
+        private var listGate: CheckedContinuation<Void, Never>?
+
+        func makeAPI(
+            categories: [CategoryDTO] = [],
+            accounts: [AccountDTO] = []
+        ) -> SubscriptionsViewModel.API {
+            SubscriptionsViewModel.API(
+                listSubs: {
+                    self.listCalls += 1
+                    await self.blockListIfNeeded()
+                    if self.listShouldThrow { throw StubError() }
+                    return self.subs
+                },
+                listCategories: { categories },
+                listAccounts: { accounts },
+                reschedule: { _ in self.rescheduleCalls += 1 },
+                post: { _ in
+                    self.postCalls += 1
+                    await self.blockIfNeeded()
+                    if self.postShouldThrow { throw StubError() }
+                },
+                unpost: { _ in
+                    self.unpostCalls += 1
+                    await self.blockIfNeeded()
+                    if self.unpostShouldThrow { throw StubError() }
+                },
+                delete: { _ in
+                    self.deleteCalls += 1
+                    await self.blockIfNeeded()
+                    if self.deleteShouldThrow { throw StubError() }
+                },
+                patch: { _, _ in
+                    self.patchCalls += 1
+                    await self.blockIfNeeded()
+                    if self.patchShouldThrow { throw StubError() }
+                }
+            )
+        }
+
+        private func blockIfNeeded() async {
+            guard blockMutations else { return }
+            blockMutations = false
+            await withCheckedContinuation { (c: CheckedContinuation<Void, Never>) in
+                self.gate = c
+            }
+        }
+
+        private func blockListIfNeeded() async {
+            guard blockList else { return }
+            blockList = false
+            await withCheckedContinuation { (c: CheckedContinuation<Void, Never>) in
+                self.listGate = c
+            }
+        }
+
+        func releaseGate() {
+            gate?.resume()
+            gate = nil
+        }
+
+        func releaseListGate() {
+            listGate?.resume()
+            listGate = nil
+        }
+    }
+
     // MARK: - Initial state
 
     func test_initialState_idleEmpty() {
@@ -165,5 +257,158 @@ final class SubscriptionsViewModelTests: XCTestCase {
         ])
         XCTAssertFalse(SubscriptionsViewData.isPosted(vm.subscriptions[0]))
         XCTAssertTrue(SubscriptionsViewData.isPosted(vm.subscriptions[1]))
+    }
+
+    // MARK: - WR-04: mutation behaviour via injectable seam
+
+    func test_post_success_clearsErrorAndReloads() async {
+        let spy = APISpy()
+        spy.subs = [makeSub(id: 1, postedTxnId: 7)]
+        let vm = SubscriptionsViewModel(api: spy.makeAPI())
+        vm.mutationError = "stale"
+
+        let ok = await vm.post(makeSub(id: 1))
+
+        XCTAssertTrue(ok)
+        XCTAssertNil(vm.mutationError)
+        XCTAssertEqual(spy.postCalls, 1)
+        XCTAssertEqual(spy.listCalls, 1, "успех мутации перезагружает (T-63-04)")
+        XCTAssertFalse(vm.submitting)
+    }
+
+    func test_post_failure_setsFixedRuCopy_andReloads_WR06() async {
+        let spy = APISpy()
+        spy.postShouldThrow = true
+        let vm = SubscriptionsViewModel(api: spy.makeAPI())
+
+        let ok = await vm.post(makeSub(id: 1))
+
+        XCTAssertFalse(ok)
+        XCTAssertEqual(vm.mutationError, "Не удалось провести подписку")
+        // WR-06: failure-путь тоже перезагружает, чтобы убрать stale badge.
+        XCTAssertEqual(spy.listCalls, 1)
+        XCTAssertFalse(vm.submitting)
+    }
+
+    func test_unpost_failure_setsFixedRuCopy_andReloads_WR06() async {
+        let spy = APISpy()
+        spy.unpostShouldThrow = true
+        let vm = SubscriptionsViewModel(api: spy.makeAPI())
+
+        let ok = await vm.unpost(makeSub(id: 1, postedTxnId: 9))
+
+        XCTAssertFalse(ok)
+        XCTAssertEqual(vm.mutationError, "Не удалось отменить проведение")
+        XCTAssertEqual(spy.listCalls, 1)
+    }
+
+    func test_delete_success_clearsErrorAndReloads() async {
+        let spy = APISpy()
+        let vm = SubscriptionsViewModel(api: spy.makeAPI())
+        vm.mutationError = "stale"
+
+        await vm.delete(makeSub(id: 1))
+
+        XCTAssertNil(vm.mutationError)
+        XCTAssertEqual(spy.deleteCalls, 1)
+        XCTAssertEqual(spy.listCalls, 1)
+    }
+
+    func test_delete_failure_setsFixedRuCopy() async {
+        let spy = APISpy()
+        spy.deleteShouldThrow = true
+        let vm = SubscriptionsViewModel(api: spy.makeAPI())
+
+        await vm.delete(makeSub(id: 1))
+
+        XCTAssertEqual(vm.mutationError, "Не удалось удалить подписку")
+    }
+
+    func test_patchById_failure_setsFixedRuCopy_returnsFalse() async {
+        let spy = APISpy()
+        spy.patchShouldThrow = true
+        let vm = SubscriptionsViewModel(api: spy.makeAPI())
+
+        let ok = await vm.patchById(1, payload: SubscriptionV10UpdateRequest(dayOfMonth: 5))
+
+        XCTAssertFalse(ok)
+        XCTAssertEqual(vm.mutationError, "Не удалось сохранить подписку")
+    }
+
+    func test_patchById_success_returnsTrue_andReloads() async {
+        let spy = APISpy()
+        let vm = SubscriptionsViewModel(api: spy.makeAPI())
+
+        let ok = await vm.patchById(1, payload: SubscriptionV10UpdateRequest(accountId: 3))
+
+        XCTAssertTrue(ok)
+        XCTAssertEqual(spy.patchCalls, 1)
+        XCTAssertEqual(spy.listCalls, 1)
+    }
+
+    // MARK: - WR-04: submitting guard (T-63-01) blocks re-entrant mutation
+
+    func test_post_submittingGuard_blocksSecondCall() async {
+        let spy = APISpy()
+        spy.blockMutations = true
+        let vm = SubscriptionsViewModel(api: spy.makeAPI())
+
+        // Первый post подвисает внутри стаба (submitting == true).
+        let first = Task { await vm.post(self.makeSub(id: 1)) }
+        // Дать первому Task войти в стаб и установить submitting.
+        while spy.postCalls == 0 { await Task.yield() }
+
+        // Re-entrant post должен немедленно вернуть false без 2-го вызова сети.
+        let second = await vm.post(makeSub(id: 1))
+        XCTAssertFalse(second)
+        XCTAssertEqual(spy.postCalls, 1, "guard не пускает второй network-вызов")
+
+        spy.releaseGate()
+        _ = await first.value
+        XCTAssertFalse(vm.submitting)
+    }
+
+    func test_delete_submittingGuard_blocksSecondCall() async {
+        let spy = APISpy()
+        spy.blockMutations = true
+        let vm = SubscriptionsViewModel(api: spy.makeAPI())
+
+        let first = Task { await vm.delete(self.makeSub(id: 1)) }
+        while spy.deleteCalls == 0 { await Task.yield() }
+
+        await vm.delete(makeSub(id: 1))
+        XCTAssertEqual(spy.deleteCalls, 1)
+
+        spy.releaseGate()
+        await first.value
+    }
+
+    // MARK: - WR-01: pending reload coalesced when load() in flight
+
+    func test_load_coalescesPendingReload_whenInFlight() async {
+        let spy = APISpy()
+        spy.subs = [makeSub(id: 1)]
+        spy.blockList = true
+        let vm = SubscriptionsViewModel(api: spy.makeAPI())
+
+        // load #1 подвисает внутри listSubs (inFlight == true).
+        let first = Task { await vm.load() }
+        while spy.listCalls == 0 { await Task.yield() }
+
+        // load #2 во время первого: НЕ должен молча теряться (WR-01) —
+        // ставит reloadPending и возвращается немедленно (2-го list пока нет).
+        await vm.load()
+        XCTAssertEqual(spy.listCalls, 1, "второй load skip-нут, но запомнен")
+
+        // Отпускаем первый: его defer перевызывает load() из-за reloadPending,
+        // который снова дёрнет listSubs (blockList уже сброшен → не блокирует).
+        spy.releaseListGate()
+        await first.value
+
+        // Дать перевызванному reload (Task в defer load #1) полностью
+        // завершиться: ждём 2-го list-вызова И возврата в .ready.
+        while spy.listCalls < 2 || vm.status != .ready { await Task.yield() }
+        XCTAssertEqual(spy.listCalls, 2, "pending reload перевызван, не потерян")
+        XCTAssertEqual(vm.status, .ready)
     }
 }
