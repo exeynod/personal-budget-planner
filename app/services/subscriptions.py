@@ -387,11 +387,19 @@ async def post_subscription(
     from app.services.actual import create_actual_v10  # noqa: PLC0415
     from app.services.periods import _today_in_app_tz  # noqa: PLC0415
 
+    # P1-2 (BE-F4): SELECT ... FOR UPDATE serialises concurrent posts on the
+    # subscription row. The second concurrent transaction blocks here until the
+    # first commits, then reads the now-set posted_txn_id and short-circuits to
+    # SubscriptionAlreadyPostedError → 409. Without the row lock the in-memory
+    # `posted_txn_id is None` check is a check-then-act race → two
+    # ActualTransactions + double balance delta + orphan txn.
     sub = await db.scalar(
-        select(Subscription).where(
+        select(Subscription)
+        .where(
             Subscription.id == sub_id,
             Subscription.user_id == user_id,
         )
+        .with_for_update()
     )
     if sub is None:
         # Match existing module convention (delete_subscription / update_subscription):
@@ -427,7 +435,16 @@ async def post_subscription(
     )
 
     sub.posted_txn_id = parent.id
-    await db.flush()
+    try:
+        await db.flush()
+    except IntegrityError as exc:
+        # P1-2 belt-and-braces: the partial unique index
+        # uq_subscription_posted_txn_id (migration 0025) rejects a second
+        # posted_txn_id pointing at an already-linked transaction even if the
+        # FOR UPDATE lock were somehow bypassed (e.g. different connection
+        # ordering). Surface as the idempotency error → HTTP 409.
+        await db.rollback()
+        raise SubscriptionAlreadyPostedError(sub_id, parent.id) from exc
     return parent
 
 
