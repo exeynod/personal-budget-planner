@@ -15,6 +15,7 @@
 // Mirrors iOS SubscriptionsData.swift (Plan 26-07) — must produce identical numbers.
 
 import type { SubscriptionV10Read } from '../../api/v10';
+import { parseWireDate } from '../../utils/parseWireDate';
 import { MONTHS_RU_GENITIVE } from '../common';
 
 /** Number of subscriptions where `is_active === true`. */
@@ -57,8 +58,9 @@ export function formatCadenceRu(sub: SubscriptionV10Read): string {
     if (day != null) return `каждое ${day} число`;
     return 'ежемесячно';
   }
-  // yearly — parse next_charge_date «YYYY-MM-DD»
-  const d = new Date(sub.next_charge_date);
+  // yearly — parse next_charge_date «YYYY-MM-DD» as LOCAL (P2-9: avoid UTC
+  // off-by-one that would shift «15 мая» to «14 мая» in UTC+ zones).
+  const d = parseWireDate(sub.next_charge_date);
   if (Number.isNaN(d.getTime())) return 'ежегодно';
   return `${d.getDate()} ${MONTHS_RU_GENITIVE[d.getMonth()]}`;
 }

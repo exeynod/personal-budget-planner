@@ -29,21 +29,30 @@ export function useAiCategorize(
 
     setLoading(true);
 
+    // P2-8 (FE-F5): stale-guard — a slow in-flight response from a superseded
+    // query must not overwrite a newer result. The cleanup flips `cancelled`,
+    // so any resolution after re-run / unmount bails before calling setState.
+    let cancelled = false;
+
     const timerId = setTimeout(() => {
       suggestCategory(description)
         .then((result) => {
+          if (cancelled) return;
           setSuggestion(result);
         })
         .catch(() => {
+          if (cancelled) return;
           // Не показываем ошибку — AI-предложение опционально
           setSuggestion(null);
         })
         .finally(() => {
+          if (cancelled) return;
           setLoading(false);
         });
     }, 500);
 
     return () => {
+      cancelled = true;
       clearTimeout(timerId);
       setLoading(false);
     };
