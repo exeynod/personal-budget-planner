@@ -29,7 +29,10 @@ final class CategoriesViewModel {
         do {
             categories = try await CategoriesAPI.list()
         } catch {
-            errorMessage = error.localizedDescription
+            #if DEBUG
+            print("CategoriesView.load error: \(error)")
+            #endif
+            errorMessage = error.userFacingRu
         }
     }
 
@@ -38,7 +41,10 @@ final class CategoriesViewModel {
             _ = try await CategoriesWriteAPI.create(CategoryCreateRequest(name: name, kind: kind.rawValue))
             await load()
         } catch {
-            errorMessage = error.localizedDescription
+            #if DEBUG
+            print("CategoriesView.create error: \(error)")
+            #endif
+            errorMessage = error.userFacingRu
         }
     }
 
@@ -47,7 +53,10 @@ final class CategoriesViewModel {
             _ = try await CategoriesWriteAPI.update(id: id, CategoryUpdateRequest(name: newName, isArchived: nil))
             await load()
         } catch {
-            errorMessage = error.localizedDescription
+            #if DEBUG
+            print("CategoriesView.rename error: \(error)")
+            #endif
+            errorMessage = error.userFacingRu
         }
     }
 
@@ -56,7 +65,10 @@ final class CategoriesViewModel {
             _ = try await CategoriesWriteAPI.update(id: id, CategoryUpdateRequest(name: nil, isArchived: true))
             await load()
         } catch {
-            errorMessage = error.localizedDescription
+            #if DEBUG
+            print("CategoriesView.archive error: \(error)")
+            #endif
+            errorMessage = error.userFacingRu
         }
     }
 
@@ -65,7 +77,10 @@ final class CategoriesViewModel {
             _ = try await CategoriesWriteAPI.update(id: id, CategoryUpdateRequest(name: nil, isArchived: false))
             await load()
         } catch {
-            errorMessage = error.localizedDescription
+            #if DEBUG
+            print("CategoriesView.unarchive error: \(error)")
+            #endif
+            errorMessage = error.userFacingRu
         }
     }
 }
@@ -146,7 +161,9 @@ struct CategoriesView: View {
         .navigationTitle("Категории")
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                Button { showingNewSheet = true } label: {
+                Button {
+                    showingNewSheet = true
+                } label: {
                     Image(systemName: "plus")
                 }
             }
@@ -263,4 +280,3 @@ private struct NewCategorySheet: View {
         .presentationDetents([.medium])
     }
 }
-

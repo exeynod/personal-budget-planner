@@ -35,7 +35,10 @@ final class AIChatViewModel {
                 ChatBubble(role: $0.role, content: $0.content ?? "", toolName: $0.toolName)
             }
         } catch {
-            errorMessage = error.localizedDescription
+            #if DEBUG
+            print("AIChatView.loadInitial error: \(error)")
+            #endif
+            errorMessage = error.userFacingRu
         }
     }
 
@@ -61,7 +64,8 @@ final class AIChatViewModel {
                         bubbles[idx].isStreaming = false
                     }
                 case .toolCall(let name, _):
-                    bubbles.append(ChatBubble(role: "tool", content: "Использую: \(name)", toolName: name, isStreaming: true))
+                    bubbles.append(
+                        ChatBubble(role: "tool", content: "Использую: \(name)", toolName: name, isStreaming: true))
                 case .toolResult(let name, _):
                     if let idx = bubbles.lastIndex(where: { $0.toolName == name && $0.isStreaming }) {
                         bubbles[idx].isStreaming = false
@@ -84,11 +88,14 @@ final class AIChatViewModel {
                 }
             }
         } catch APIError.unauthorized {
-            errorMessage = "Сессия истекла"
+            errorMessage = APIError.unauthorized.userFacingRu
         } catch APIError.rateLimited(let retry) {
             errorMessage = "Лимит запросов. Повторите через \(retry ?? 60) сек."
         } catch {
-            errorMessage = error.localizedDescription
+            #if DEBUG
+            print("AIChatView.send error: \(error)")
+            #endif
+            errorMessage = error.userFacingRu
         }
 
         if let idx = bubbles.lastIndex(where: { $0.role == "assistant" && $0.isStreaming }) {
@@ -102,7 +109,10 @@ final class AIChatViewModel {
             try await AIHistoryAPI.clear()
             bubbles.removeAll()
         } catch {
-            errorMessage = error.localizedDescription
+            #if DEBUG
+            print("AIChatView.clearHistory error: \(error)")
+            #endif
+            errorMessage = error.userFacingRu
         }
     }
 
@@ -111,26 +121,32 @@ final class AIChatViewModel {
         do {
             switch p.kind {
             case .actual:
-                _ = try await ActualAPI.create(ActualCreateRequest(
-                    kind: "expense",
-                    amountCents: p.amountCents,
-                    categoryId: catId,
-                    txDate: DateFormatters.isoDate.string(from: p.txDate ?? Date()),
-                    description: p.description
-                ))
+                _ = try await ActualAPI.create(
+                    ActualCreateRequest(
+                        kind: "expense",
+                        amountCents: p.amountCents,
+                        categoryId: catId,
+                        txDate: DateFormatters.isoDate.string(from: p.txDate ?? Date()),
+                        description: p.description
+                    ))
             case .planned:
                 let period = try await PeriodsAPI.current()
-                _ = try await PlannedAPI.create(periodId: period.id, PlannedCreateRequest(
-                    kind: "expense",
-                    amountCents: p.amountCents,
-                    categoryId: catId,
-                    plannedDate: nil,
-                    description: p.description
-                ))
+                _ = try await PlannedAPI.create(
+                    periodId: period.id,
+                    PlannedCreateRequest(
+                        kind: "expense",
+                        amountCents: p.amountCents,
+                        categoryId: catId,
+                        plannedDate: nil,
+                        description: p.description
+                    ))
             }
             pendingProposal = nil
         } catch {
-            errorMessage = error.localizedDescription
+            #if DEBUG
+            print("AIChatView.confirmProposal error: \(error)")
+            #endif
+            errorMessage = error.userFacingRu
         }
     }
 }
@@ -184,10 +200,12 @@ struct AIChatView: View {
             }
         }
         .task { await viewModel.loadInitial() }
-        .sheet(item: Binding(
-            get: { viewModel.pendingProposal },
-            set: { viewModel.pendingProposal = $0 }
-        )) { proposal in
+        .sheet(
+            item: Binding(
+                get: { viewModel.pendingProposal },
+                set: { viewModel.pendingProposal = $0 }
+            )
+        ) { proposal in
             AIProposalSheet(
                 proposal: proposal,
                 categories: viewModel.categories,
@@ -299,8 +317,7 @@ struct AIChatView: View {
     }
 
     private var canSend: Bool {
-        !viewModel.isStreaming &&
-        !viewModel.input.trimmingCharacters(in: .whitespaces).isEmpty
+        !viewModel.isStreaming && !viewModel.input.trimmingCharacters(in: .whitespaces).isEmpty
     }
 }
 
@@ -322,8 +339,8 @@ private struct ChatMessageView: View {
                 .padding(.vertical, 10)
                 .background(
                     isUser
-                    ? AnyShapeStyle(Tokens.Accent.primary)
-                    : AnyShapeStyle(Material.regular),
+                        ? AnyShapeStyle(Tokens.Accent.primary)
+                        : AnyShapeStyle(Material.regular),
                     in: RoundedRectangle(cornerRadius: 18, style: .continuous)
                 )
                 .frame(maxWidth: 320, alignment: isUser ? .trailing : .leading)

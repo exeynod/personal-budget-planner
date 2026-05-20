@@ -3,8 +3,8 @@ import Foundation
 enum APIError: LocalizedError {
     case invalidURL
     case invalidResponse
-    case unauthorized              // 401/403 — Bearer rejected
-    case forbidden(String)         // 403 detail
+    case unauthorized  // 401/403 — Bearer rejected
+    case forbidden(String)  // 403 detail
     case notFound
     case conflict(String)
     case unprocessable(String)
@@ -30,6 +30,42 @@ enum APIError: LocalizedError {
         case .decoding: return "Не удалось разобрать ответ сервера"
         }
     }
+
+    /// Phase 67 Plan 05 (P1-3 / R1) — fixed Russian copy for user-facing
+    /// banners. Unlike `errorDescription`, this NEVER interpolates
+    /// server-supplied detail (`forbidden`/`conflict`/`unprocessable`/
+    /// `serverError`) or raw underlying-error text — that text is an
+    /// information leak (T-67-05-01 / IN-01) and a v06 fixed-copy violation.
+    /// Raw errors belong only in `#if DEBUG print()`.
+    var userFacingRu: String {
+        switch self {
+        case .unauthorized:
+            return "Сессия истекла, войдите снова"
+        case .network:
+            return "Нет связи с сервером"
+        case .notFound:
+            return "Не найдено"
+        case .rateLimited:
+            return "Слишком часто, попробуйте позже"
+        case .forbidden:
+            return "Доступ запрещён"
+        case .conflict:
+            return "Не удалось сохранить — конфликт данных"
+        case .unprocessable:
+            return "Проверьте введённые данные"
+        case .invalidURL, .invalidResponse, .serverError, .decoding:
+            return "Что-то пошло не так"
+        }
+    }
+}
+
+extension Error {
+    /// Phase 67 Plan 05 (P1-3 / R1) — map any `Error` to fixed Russian copy.
+    /// `APIError` routes through its `userFacingRu`; anything else collapses to
+    /// the generic message so raw/PII error text never reaches the UI.
+    var userFacingRu: String {
+        (self as? APIError)?.userFacingRu ?? "Что-то пошло не так"
+    }
 }
 
 struct APIErrorBody: Decodable {
@@ -43,10 +79,12 @@ enum APIErrorDetail: Decodable {
     init(from decoder: Decoder) throws {
         let container = try decoder.singleValueContainer()
         if let s = try? container.decode(String.self) {
-            self = .string(s); return
+            self = .string(s)
+            return
         }
         if let d = try? container.decode([String: AnyCodable].self) {
-            self = .dictionary(d); return
+            self = .dictionary(d)
+            return
         }
         self = .string("Unknown error")
     }
@@ -68,14 +106,33 @@ struct AnyCodable: Codable {
 
     init(from decoder: Decoder) throws {
         let container = try decoder.singleValueContainer()
-        if let s = try? container.decode(String.self) { value = s; return }
-        if let i = try? container.decode(Int.self) { value = i; return }
-        if let d = try? container.decode(Double.self) { value = d; return }
-        if let b = try? container.decode(Bool.self) { value = b; return }
-        if container.decodeNil() { value = NSNull(); return }
-        if let arr = try? container.decode([AnyCodable].self) { value = arr.map { $0.value }; return }
+        if let s = try? container.decode(String.self) {
+            value = s
+            return
+        }
+        if let i = try? container.decode(Int.self) {
+            value = i
+            return
+        }
+        if let d = try? container.decode(Double.self) {
+            value = d
+            return
+        }
+        if let b = try? container.decode(Bool.self) {
+            value = b
+            return
+        }
+        if container.decodeNil() {
+            value = NSNull()
+            return
+        }
+        if let arr = try? container.decode([AnyCodable].self) {
+            value = arr.map { $0.value }
+            return
+        }
         if let dict = try? container.decode([String: AnyCodable].self) {
-            value = dict.mapValues { $0.value }; return
+            value = dict.mapValues { $0.value }
+            return
         }
         throw DecodingError.dataCorruptedError(
             in: container,

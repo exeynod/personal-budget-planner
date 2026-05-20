@@ -31,7 +31,10 @@ final class SettingsViewModel {
             draftNotifyDays = s.notifyDaysBefore
             draftEnableAi = s.enableAiCategorization
         } catch {
-            errorMessage = error.localizedDescription
+            #if DEBUG
+            print("SettingsViewModel.load error: \(error)")
+            #endif
+            errorMessage = error.userFacingRu
         }
     }
 
@@ -55,7 +58,10 @@ final class SettingsViewModel {
             try? await Task.sleep(nanoseconds: 1_500_000_000)
             savedFlash = false
         } catch {
-            errorMessage = error.localizedDescription
+            #if DEBUG
+            print("SettingsViewModel.save error: \(error)")
+            #endif
+            errorMessage = error.userFacingRu
         }
     }
 }

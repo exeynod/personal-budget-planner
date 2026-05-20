@@ -34,7 +34,10 @@ final class NativeCategoryDetailViewModel {
         } catch APIError.notFound {
             state = .noActivePeriod
         } catch {
-            state = .error(error.localizedDescription)
+            #if DEBUG
+            print("CategoryDetailScreen.load error: \(error)")
+            #endif
+            state = .error(error.userFacingRu)
         }
     }
 }
@@ -145,7 +148,8 @@ struct CategoryDetailScreen: View {
                         .font(.title2)
                         .foregroundStyle(visual.color)
                         .frame(width: 44, height: 44)
-                        .background(visual.color.opacity(0.15), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        .background(
+                            visual.color.opacity(0.15), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
 
                     VStack(alignment: .leading, spacing: 2) {
                         Text(category.kind == .expense ? "Расход" : "Доход")

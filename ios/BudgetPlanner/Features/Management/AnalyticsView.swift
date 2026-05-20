@@ -1,5 +1,5 @@
-import SwiftUI
 import Charts
+import SwiftUI
 
 @MainActor
 @Observable
@@ -23,7 +23,10 @@ final class AnalyticsViewModel {
             self.forecast = await forecastTask
             self.trend = await trendTask
         } catch {
-            errorMessage = error.localizedDescription
+            #if DEBUG
+            print("AnalyticsView.load error: \(error)")
+            #endif
+            errorMessage = error.userFacingRu
         }
     }
 }

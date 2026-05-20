@@ -358,7 +358,10 @@ struct TransactionEditor: View {
             await onSaved()
             dismiss()
         } catch {
-            errorMessage = error.localizedDescription
+            #if DEBUG
+            print("TransactionEditor.save error: \(error)")
+            #endif
+            errorMessage = error.userFacingRu
         }
     }
 }

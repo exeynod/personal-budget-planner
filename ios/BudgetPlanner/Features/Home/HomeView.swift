@@ -25,7 +25,10 @@ final class HomeViewModel {
         } catch APIError.notFound {
             state = .noActivePeriod
         } catch {
-            state = .error(error.localizedDescription)
+            #if DEBUG
+            print("HomeView.load error: \(error)")
+            #endif
+            state = .error(error.userFacingRu)
         }
     }
 
@@ -103,7 +106,9 @@ struct HomeView: View {
             ContentUnavailableView {
                 Label("Период ещё не открыт", systemImage: "calendar.badge.clock")
             } description: {
-                Text("Новый месячный период создаётся автоматически после закрытия предыдущего или при первой трате. Добавьте операцию через «+» вверху или обновите экран.")
+                Text(
+                    "Новый месячный период создаётся автоматически после закрытия предыдущего или при первой трате. Добавьте операцию через «+» вверху или обновите экран."
+                )
             } actions: {
                 Button("Добавить трату") { showingEditor = true }
                     .buttonStyle(.borderedProminent)

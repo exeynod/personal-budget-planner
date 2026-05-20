@@ -24,7 +24,10 @@ final class TemplateViewModel {
             self.categories = (try await categoriesTask).filter { !$0.isArchived }
             self.period = try? await periodTask
         } catch {
-            errorMessage = error.localizedDescription
+            #if DEBUG
+            print("TemplateView.load error: \(error)")
+            #endif
+            errorMessage = error.userFacingRu
         }
     }
 
@@ -33,19 +36,24 @@ final class TemplateViewModel {
             try await TemplateAPI.delete(id: id)
             items.removeAll { $0.id == id }
         } catch {
-            errorMessage = error.localizedDescription
+            #if DEBUG
+            print("TemplateView.delete error: \(error)")
+            #endif
+            errorMessage = error.userFacingRu
         }
     }
 
     func entries(for kind: CategoryKind) -> [(category: CategoryDTO, items: [TemplateItemDTO])] {
-        let cats = categories
+        let cats =
+            categories
             .filter { $0.kind == kind }
             .sorted { lhs, rhs in
                 if lhs.sortOrder != rhs.sortOrder { return lhs.sortOrder < rhs.sortOrder }
                 return lhs.name.localizedCompare(rhs.name) == .orderedAscending
             }
         return cats.map { cat in
-            let catItems = items
+            let catItems =
+                items
                 .filter { $0.categoryId == cat.id }
                 .sorted { ($0.sortOrder, $0.id) < ($1.sortOrder, $1.id) }
             return (cat, catItems)
