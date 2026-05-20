@@ -17,157 +17,75 @@ import SwiftUI
 @MainActor
 @Observable
 final class SubscriptionsViewModel {
-    enum Status: Equatable {
-        case idle
-        case loading
-        case ready
-        case error(String)
-    }
+    typealias Status = SubscriptionsStore.Status
 
-    /// Инъецируемый network-seam (WR-04). По умолчанию проксирует
-    /// `SubscriptionsV10API`/`Categories`/`Accounts` static-методы — прод
-    /// поведение не меняется. Тесты подменяют closures на стабы, чтобы
-    /// проверять submitting-guard / mutationError / reload-on-success без сети.
-    struct API {
-        var listSubs: () async throws -> [SubscriptionV10DTO]
-        var listCategories: () async throws -> [CategoryDTO]
-        var listAccounts: () async throws -> [AccountDTO]
-        var reschedule: ([SubscriptionV10DTO]) async -> Void
-        var post: (Int) async throws -> Void
-        var unpost: (Int) async throws -> Void
-        var delete: (Int) async throws -> Void
-        var patch: (Int, SubscriptionV10UpdateRequest) async throws -> Void
+    /// Инъецируемый network-seam (WR-04). Phase 70-05 (D/R6): lifted into the
+    /// shared `SubscriptionsStore`; this typealias keeps `SubscriptionsViewModel.API`
+    /// stable for the existing tests + `.live` default — прод поведение не
+    /// меняется. Тесты подменяют closures на стабы, чтобы проверять
+    /// submitting-guard / mutationError / reload-on-success без сети.
+    typealias API = SubscriptionsStore.API
 
-        static let live = API(
-            listSubs: { try await SubscriptionsV10API.list() },
-            listCategories: { try await CategoriesAPI.list() },
-            listAccounts: { try await AccountsAPI.list() },
-            reschedule: { await LocalNotifications.reschedule(subscriptionsV10: $0) },
-            post: { _ = try await SubscriptionsV10API.post(id: $0) },
-            unpost: { try await SubscriptionsV10API.unpost(id: $0) },
-            delete: { try await SubscriptionsV10API.delete(id: $0) },
-            patch: { _ = try await SubscriptionsV10API.patch(id: $0, payload: $1) }
+    /// Phase 70-05 (D/R6): domain logic (load + mutations + re-entrancy + seam)
+    /// extracted into the shared store. This VM is now a thin v06-shell adapter
+    /// that maps store outcomes to the fixed-RU `mutationError` banner copy
+    /// (presentation stays per-shell). v06 loads cats/accounts + reschedules
+    /// (loadsCategoriesAccounts: true) and stores subs sorted via sortV06 so the
+    /// View binds `subscriptions` pre-sorted exactly as before.
+    @ObservationIgnored
+    private let store: SubscriptionsStore
+
+    init(api: API = .live) {
+        self.store = SubscriptionsStore(
+            api: api,
+            loadsCategoriesAccounts: true,
+            sort: { SubscriptionsDomain.sortV06($0) }
         )
     }
 
-    @ObservationIgnored
-    private let api: API
+    // MARK: - Store-backed state (read by the View)
 
-    init(api: API = .live) {
-        self.api = api
-    }
-
-    private(set) var subscriptions: [SubscriptionV10DTO] = []
-    private(set) var categories: [CategoryDTO] = []
-    private(set) var accounts: [AccountDTO] = []
-    private(set) var status: Status = .idle
-    private(set) var submitting: Bool = false
+    var subscriptions: [SubscriptionV10DTO] { store.subscriptions }
+    var categories: [CategoryDTO] { store.categories }
+    var accounts: [AccountDTO] { store.accounts }
+    var status: Status { store.status }
+    var submitting: Bool { store.submitting }
 
     /// Фиксированная RU-копия на mutation failure (T-63-02). UI читает в banner.
+    /// Presentation state — stays per-shell, mapped from store mutation outcomes.
     var mutationError: String? = nil
-
-    @ObservationIgnored
-    private var inFlight: Bool = false
-
-    /// WR-01: если mutation вызывает load() пока другой load() уже в полёте
-    /// (например .refreshable / .task), reload не должен молча теряться.
-    /// Флаг ставится при skip и перевызывает load() в defer текущего load().
-    @ObservationIgnored
-    private var reloadPending: Bool = false
 
     // MARK: - Load
 
     func load() async {
-        if inFlight {
-            reloadPending = true
-            return
-        }
-        inFlight = true
-        defer {
-            inFlight = false
-            if reloadPending {
-                reloadPending = false
-                Task { await load() }
-            }
-        }
-
-        status = .loading
-        do {
-            async let subsTask = api.listSubs()
-            async let catsTask = api.listCategories()
-            async let accsTask = api.listAccounts()
-            let (subs, cats, accs) = try await (subsTask, catsTask, accsTask)
-            self.subscriptions = SubscriptionsDomain.sortV06(subs)
-            self.categories = cats.filter { !$0.isArchived }
-            self.accounts = accs
-            // Phase 63-02 — восстановлен rescheduling нотификаций через
-            // V10DTO-overload (63-01 known-gap закрыт).
-            await api.reschedule(self.subscriptions)
-            status = .ready
-        } catch {
-            print("[SubscriptionsViewModel] load failed: \(error)")
-            status = .error("Не удалось загрузить подписки")
-        }
+        await store.load()
     }
 
-    // MARK: - Mutations
+    // MARK: - Mutations (delegate to store; map outcome to fixed-RU banner)
 
     /// Провести списание подписки (создаёт транзакцию). Submitting guard
-    /// (T-63-01) + reload (T-63-04) на успехе.
+    /// (T-63-01) + reload (T-63-04) на успехе — в store. Здесь — banner-копия.
     @discardableResult
     func post(_ sub: SubscriptionV10DTO) async -> Bool {
-        guard !submitting else { return false }
-        submitting = true
-        defer { submitting = false }
-        do {
-            try await api.post(sub.id)
-            mutationError = nil
-            await load()
-            return true
-        } catch {
-            print("[SubscriptionsViewModel] post failed: \(error)")
-            mutationError = "Не удалось провести подписку"
-            // WR-06: stale-state 4xx (e.g. уже проведена) мог оставить строку
-            // со старым posted-бейджем. Reload отражает реальное состояние.
-            await load()
-            return false
-        }
+        let ok = await store.post(sub.id)
+        // T-70-05-03: store reports Bool only; v06 maps to fixed RU copy (no
+        // raw-error interpolation) — preserves 67-05 IN-01 contract.
+        mutationError = ok ? nil : "Не удалось провести подписку"
+        return ok
     }
 
     /// Отменить проведение подписки. Submitting guard + reload.
     @discardableResult
     func unpost(_ sub: SubscriptionV10DTO) async -> Bool {
-        guard !submitting else { return false }
-        submitting = true
-        defer { submitting = false }
-        do {
-            try await api.unpost(sub.id)
-            mutationError = nil
-            await load()
-            return true
-        } catch {
-            print("[SubscriptionsViewModel] unpost failed: \(error)")
-            mutationError = "Не удалось отменить проведение"
-            // WR-06: stale-state 4xx (e.g. уже не проведена) мог оставить
-            // строку со старым posted-бейджем. Reload отражает реальность.
-            await load()
-            return false
-        }
+        let ok = await store.unpost(sub.id)
+        mutationError = ok ? nil : "Не удалось отменить проведение"
+        return ok
     }
 
     /// Удалить подписку (hard delete). Submitting guard + reload.
     func delete(_ sub: SubscriptionV10DTO) async {
-        guard !submitting else { return }
-        submitting = true
-        defer { submitting = false }
-        do {
-            try await api.delete(sub.id)
-            mutationError = nil
-            await load()
-        } catch {
-            print("[SubscriptionsViewModel] delete failed: \(error)")
-            mutationError = "Не удалось удалить подписку"
-        }
+        let ok = await store.delete(sub.id)
+        mutationError = ok ? nil : "Не удалось удалить подписку"
     }
 
     /// PATCH подписки (используется editor edit-path в Plan 63-02).
@@ -182,19 +100,9 @@ final class SubscriptionsViewModel {
     /// полей `day_of_month`/`account_id` (Plan 63-02). Submitting guard + reload.
     @discardableResult
     func patchById(_ id: Int, payload: SubscriptionV10UpdateRequest) async -> Bool {
-        guard !submitting else { return false }
-        submitting = true
-        defer { submitting = false }
-        do {
-            try await api.patch(id, payload)
-            mutationError = nil
-            await load()
-            return true
-        } catch {
-            print("[SubscriptionsViewModel] patch failed: \(error)")
-            mutationError = "Не удалось сохранить подписку"
-            return false
-        }
+        let ok = await store.patch(id: id, payload: payload)
+        mutationError = ok ? nil : "Не удалось сохранить подписку"
+        return ok
     }
 
     // MARK: - Helpers
@@ -215,10 +123,12 @@ final class SubscriptionsViewModel {
         accounts: [AccountDTO] = [],
         status: Status = .ready
     ) {
-        self.subscriptions = subscriptions
-        self.categories = categories
-        self.accounts = accounts
-        self.status = status
+        store._setStateForTesting(
+            subscriptions: subscriptions,
+            categories: categories,
+            accounts: accounts,
+            status: status
+        )
     }
     #endif
 }

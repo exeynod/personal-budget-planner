@@ -222,4 +222,23 @@ final class SubscriptionsStore {
             return false
         }
     }
+
+    // MARK: - DEBUG backdoor
+
+    #if DEBUG
+    /// Test-only state injection — used by the per-shell VM backdoors (v06
+    /// `SubscriptionsViewModel._setStateForTesting`) so existing state/derived
+    /// specs keep passing unmodified against the delegated store.
+    func _setStateForTesting(
+        subscriptions: [SubscriptionV10DTO] = [],
+        categories: [CategoryDTO] = [],
+        accounts: [AccountDTO] = [],
+        status: Status = .ready
+    ) {
+        self.subscriptions = subscriptions
+        self.categories = categories
+        self.accounts = accounts
+        self.status = status
+    }
+    #endif
 }

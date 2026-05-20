@@ -31,15 +31,25 @@ import Observation
 @MainActor
 @Observable
 final class SubscriptionsV10ViewModel {
-    enum Status: Equatable {
-        case idle
-        case loading
-        case ready
-        case error(String)
+    typealias Status = SubscriptionsStore.Status
+
+    /// Phase 70-05 (D/R6): load + mutation domain logic extracted into the
+    /// shared `SubscriptionsStore`. This VM is now a thin V10-shell adapter
+    /// that keeps only presentation state (menu/delete/toast) and maps store
+    /// mutation outcomes to a toast. V10 lists subs only
+    /// (loadsCategoriesAccounts: false) and keeps identity store-order, sorting
+    /// V10-style in its own `sortedSubs` derived getter — display order is
+    /// byte-identical to pre-refactor.
+    @ObservationIgnored
+    private let store: SubscriptionsStore
+
+    init(api: SubscriptionsStore.API = .live) {
+        self.store = SubscriptionsStore(api: api, loadsCategoriesAccounts: false)
     }
 
-    private(set) var subs: [SubscriptionV10DTO] = []
-    private(set) var status: Status = .idle
+    /// Store-backed subscriptions (read by derived getters + the View).
+    var subs: [SubscriptionV10DTO] { store.subscriptions }
+    var status: Status { store.status }
 
     /// Subscription whose «···» button was tapped — drives the primary
     /// posterSheet menu binding. Set to nil to dismiss.
@@ -50,93 +60,53 @@ final class SubscriptionsV10ViewModel {
     var pendingDeleteSub: SubscriptionV10DTO? = nil
 
     /// DEBT-04 / Plan 30-04: error toast text — non-nil triggers `toastVisible`
-    /// in the view. Set on PATCH/DELETE failure so users see the backend
-    /// error message instead of a silent fail.
+    /// in the view. Set on PATCH/DELETE failure so users see the failure
+    /// instead of a silent fail. Presentation state — stays per-shell.
     var toastMessage: String? = nil
-
-    private var inFlight = false
 
     // MARK: - Load
 
-    /// Fetch subscriptions list. Re-entrant calls are no-ops.
+    /// Fetch subscriptions list. Re-entrant calls coalesce in the store (WR-01).
     func load() async {
-        if inFlight { return }
-        inFlight = true
-        defer { inFlight = false }
-
-        status = .loading
-        do {
-            self.subs = try await SubscriptionsV10API.list()
-            status = .ready
-        } catch {
-            status = .error("Не удалось загрузить подписки")
-        }
+        await store.load()
     }
 
-    // MARK: - Mutations (SUBS-V10-03 / SUBS-V10-04)
+    // MARK: - Mutations (SUBS-V10-03 / SUBS-V10-04) — delegate to store
 
-    /// Flip `is_active` via PATCH. Refetches on success. On failure surfaces a
-    /// toast with the backend error message (DEBT-04 — replaces silent fail).
+    /// Flip `is_active` via the store's PATCH. Store refetches on success. On
+    /// failure surfaces a toast (DEBT-04 — replaces silent fail).
     func togglePause(_ sub: SubscriptionV10DTO) async {
-        do {
-            _ = try await SubscriptionsV10API.patch(
-                id: sub.id,
-                payload: SubscriptionV10UpdateRequest(isActive: !sub.isActive)
-            )
-            await load()
-        } catch {
-            toastMessage = "Не удалось обновить · " + errMessage(error, fallback: "статус не сохранён")
-        }
+        let ok = await store.patch(
+            id: sub.id,
+            payload: SubscriptionV10UpdateRequest(isActive: !sub.isActive)
+        )
+        if !ok { toastMessage = "Не удалось обновить · статус не сохранён" }
     }
 
-    /// Patch `day_of_month` (requires Plan 26-05 backend v1.0 router merge —
-    /// legacy SubscriptionUpdate rejects with 422 until then).
+    /// Patch `day_of_month` via the store (requires Plan 26-05 backend v1.0
+    /// router merge — legacy SubscriptionUpdate rejects with 422 until then).
     func changeDay(_ sub: SubscriptionV10DTO, newDay: Int) async {
-        do {
-            _ = try await SubscriptionsV10API.patch(
-                id: sub.id,
-                payload: SubscriptionV10UpdateRequest(dayOfMonth: newDay)
-            )
-            await load()
-        } catch {
-            toastMessage = "Не удалось обновить · " + errMessage(error, fallback: "день не сохранён")
-        }
+        let ok = await store.patch(
+            id: sub.id,
+            payload: SubscriptionV10UpdateRequest(dayOfMonth: newDay)
+        )
+        if !ok { toastMessage = "Не удалось обновить · день не сохранён" }
     }
 
-    /// Patch `amount_cents` to a new positive value.
+    /// Patch `amount_cents` to a new positive value via the store.
     func changePrice(_ sub: SubscriptionV10DTO, newCents: Int) async {
         guard newCents > 0 else { return }
-        do {
-            _ = try await SubscriptionsV10API.patch(
-                id: sub.id,
-                payload: SubscriptionV10UpdateRequest(amountCents: newCents)
-            )
-            await load()
-        } catch {
-            toastMessage = "Не удалось обновить · " + errMessage(error, fallback: "цена не сохранена")
-        }
+        let ok = await store.patch(
+            id: sub.id,
+            payload: SubscriptionV10UpdateRequest(amountCents: newCents)
+        )
+        if !ok { toastMessage = "Не удалось обновить · цена не сохранена" }
     }
 
-    /// DELETE /subscriptions/:id (204) and refetch.
+    /// DELETE /subscriptions/:id (204) via the store and refetch.
     func deleteSub(_ sub: SubscriptionV10DTO) async {
-        do {
-            try await SubscriptionsV10API.delete(id: sub.id)
-            await load()
-        } catch {
-            toastMessage = "Не удалось удалить · " + errMessage(error, fallback: "подписка не удалена")
-        }
-    }
-
-    // MARK: - Helpers
-
-    /// Best-effort human-readable error string for toast surfaces.
-    /// Falls back to `fallback` when the error has no usable description
-    /// (e.g. a raw URLError with localizedDescription == "operation could not
-    /// be completed"). Phase 30-04 (DEBT-04).
-    private func errMessage(_ error: Error, fallback: String) -> String {
-        let desc = error.localizedDescription
-        if desc.isEmpty { return fallback }
-        return desc
+        let ok = await store.delete(sub.id)
+        if !ok { toastMessage = "Не удалось удалить · подписка не удалена" }
     }
 
     // MARK: - Derived (consumed by View)
