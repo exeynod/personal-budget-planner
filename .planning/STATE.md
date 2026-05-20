@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.1.2
 milestone_name: — iOS v06 Native Rebuild)
 current_phase: 65
-status: Plan 64-02 executed (Phase 64 complete); build + 11 tests GREEN
+status: completed
 stopped_at: Completed 64-02-PLAN.md
-last_updated: "2026-05-20T14:33:27.283Z"
+last_updated: "2026-05-20T14:46:04.143Z"
 last_activity: 2026-05-20
 progress:
   total_phases: 35
@@ -47,7 +47,7 @@ See: .planning/PROJECT.md (updated 2026-05-09 — v1.0 milestone «Maximal Poste
 ## Current Position
 
 Phase: 64 (addsheet-v06) — COMPLETE (2/2 plans)
-Plan: 64-01 (account picker) + 64-02 (inline AI category hint) done
+Plan: Not started
 Status: Plan 64-02 executed (Phase 64 complete); build + 11 tests GREEN
 Last activity: 2026-05-20
 

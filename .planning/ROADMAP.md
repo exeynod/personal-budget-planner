@@ -410,7 +410,7 @@ Plans:
 ### Phase 64: AddSheet нативный (v06) — planned
 **Goal**: Замена `TransactionEditor` modal на расширенный native Form sheet — без custom keypad, используем `keyboardType: .decimalPad`. Picker категории/счёта. Подсказка AI-категории inline.
 
-**Plans:** 2 plans
+**Plans:** 2/2 plans complete
 
 Plans:
 - [x] 64-01-PLAN.md — Account Picker «Счёт списания» в TransactionEditor (actual-режимы, default primary?? first, «Не указан»=nil, load в .task) + ActualUpdateRequest.accountId + unit-тесты default-account
