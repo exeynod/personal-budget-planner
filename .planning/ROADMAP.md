@@ -481,7 +481,7 @@ Plans:
 ---
 
 ### Phase 69: Contract Codegen — R4 (v1.1.2 followup workstream B) — planned
-**Plans:** TBD
+**Plans:** 6 plans
 **Goal**: Единый источник истины для API-контракта — генерировать TS и Swift DTO из FastAPI OpenAPI; убрать 3 рукописных набора типов и «pending schema» заглушки (наибольший ROI против дрейфа контракта). Спецификация — `.planning/CONVERGENCE-AND-DEBT-PLAN.md` §ФАЗА 69 (workstream B). Решения владельца: внешние библиотеки разрешены (Apple `swift-openapi-generator` допустим); R4 делать целиком (полный codegen + миграция потребителей). Покрывает B1 (чистый детерминированный `/openapi.json` dump-таргет + артефакт `contract/openapi.json`), B2 (web `openapi-typescript` → `generated/schema.ts`), B3 (iOS codegen — планировщик сравнивает `swift-openapi-generator` vs кастомный скрипт→vanilla Codable, обосновывает выбор; xcodegen подхватывает generated/), B4 (миграция потребителей read-DTO сначала: CategoryRead/V10, Subscription*, Me*, Actual*; убрать pending-schema Optional-заглушки), B5 (CI sync-guard: regen+git-diff пуст).
 **Depends on**: Phase 68 (зелёные тесты как baseline).
 **Success Criteria**:
@@ -489,6 +489,13 @@ Plans:
 2. TS DTO (`openapi-typescript`) и Swift DTO генерируются идемпотентно; web build и iOS build зелёные на сгенерированных типах.
 3. Ключевые read-DTO мигрированы на сгенерированные; «pending schema» Optional-заглушек нет; ноль behavioral-регрессий; полные test-suites всех 3 стеков зелёные.
 4. CI sync-guard падает, если типы рассинхронизированы со схемой; regen-команда документирована.
+
+- [x] 69-01-PLAN.md — [W1] B1 backend: response_model audit (typed me consent/account + billing /me/tier + /me/subscription/cancel; GET /me/export + SSE /ai/chat exempted) + deterministic contract/openapi.json dump (sort_keys, idempotent, 8 domains) + make contract + contract guard test; full pytest 778 green (0 regression). Commits f25a7f0 + 0f15007
+- [ ] 69-02-PLAN.md — [W2] B2 web: openapi-typescript + gen:api → generated/schema.ts (idempotent) + drift-report vs handwritten types.ts (CategoryV10 pending stubs); build+typecheck:test+vitest green (gen only, no consumer migration)
+- [ ] 69-03-PLAN.md — [W2] B3 iOS: DECISION custom Python script→vanilla Codable (preserves URLSession transport; rejects swift-openapi-generator which forces ClientTransport+runtime) → GeneratedDTO.swift (idempotent) + xcodegen pickup + drift-report; iOS build green
+- [ ] 69-04-PLAN.md — [W3] B4 web migration: read-DTOs (CategoryV10/Subscription*/Me*/Actual*) onto generated via adapters.ts; remove pending-schema stubs+comments; write payloads deferred; build+typecheck:test+vitest green, zero regression
+- [ ] 69-05-PLAN.md — [W3] B4 iOS migration: read-DTOs onto generated (typealias/adoption); remove CategoryV10DTO pending stubs+decode fallbacks; transport untouched; write payloads deferred; iOS build+test suite green, zero regression
+- [ ] 69-06-PLAN.md — [W4] B5 CI sync-guard: check_contract_sync.sh regen-all + git-diff-empty + CI step + README regen pipeline; passes on current tree
 
 ---
 
