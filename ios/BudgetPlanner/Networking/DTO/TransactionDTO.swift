@@ -118,11 +118,38 @@ struct ActualCreateRequest: Encodable {
     }
 }
 
+/// Phase 64-01 — `PATCH /api/v1/actual/{id}` request body.
+///
+/// `accountId` is additive (ADD-V10-04): mirrors the same field already on
+/// `ActualCreateRequest`. All fields are optional and serialised through
+/// `encodeIfPresent` so the wire payload only carries set fields — the
+/// backend uses `exclude_unset` semantics, and a literal `"account_id":null`
+/// would be a contract regression (would clear the column instead of leaving
+/// it untouched). Existing callers that don't pass `accountId` keep working
+/// because of the `= nil` default.
 struct ActualUpdateRequest: Encodable {
     let amountCents: Int?
     let categoryId: Int?
     let txDate: String?
     let description: String?
+    var accountId: Int? = nil
+
+    private enum CodingKeys: String, CodingKey {
+        case amountCents
+        case categoryId
+        case txDate
+        case description
+        case accountId
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encodeIfPresent(amountCents, forKey: .amountCents)
+        try c.encodeIfPresent(categoryId, forKey: .categoryId)
+        try c.encodeIfPresent(txDate, forKey: .txDate)
+        try c.encodeIfPresent(description, forKey: .description)
+        try c.encodeIfPresent(accountId, forKey: .accountId)
+    }
 }
 
 struct PlannedCreateRequest: Encodable {
