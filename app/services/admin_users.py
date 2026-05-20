@@ -93,18 +93,23 @@ async def invite_user(db: AsyncSession, *, tg_user_id: int) -> AppUser:
 # FK-safe order: children first, parents last. Each table is user_id-scoped.
 # ai_message → ai_conversation: ai_message.conversation_id FK
 # planned/actual → budget_period (period_id FK), category (category_id FK)
-# subscription, plan_template_item → category (category_id FK)
+# subscription → category (category_id FK)
 # category_embedding → category (FK CASCADE — но удаляем явно для счёта)
-# subscription, plan_template_item, planned_transaction, actual_transaction,
+# subscription, planned_transaction, actual_transaction,
 #   budget_period, category — domain tables (user_id RESTRICT FK)
 # ai_usage_log — telemetry (CASCADE) — explicit для row count в audit log.
+#
+# Phase 68 (A2): ``plan_template_item`` removed from this purge list — the
+# table was DROPPED in alembic 0013 (CONTEXT D-02; Category.plan_cents is now
+# the source of truth). Keeping it here made every admin user-revoke crash with
+# ``UndefinedTableError: relation "plan_template_item" does not exist`` the
+# moment the FK-safe DELETE loop reached it.
 _PURGE_TABLES_ORDERED = (
     "ai_message",
     "ai_conversation",
     "category_embedding",
     "planned_transaction",
     "actual_transaction",
-    "plan_template_item",
     "subscription",
     "budget_period",
     "category",

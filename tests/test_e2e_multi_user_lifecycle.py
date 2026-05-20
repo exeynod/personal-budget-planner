@@ -120,29 +120,42 @@ async def test_e2e_1_owner_happy_path(e2e_env):
     me = me_resp.json()
     assert me["role"] == "owner"
 
-    # 2. Complete onboarding
+    # Phase 33 CMP-33-04: grant ПДн consent so v1.0 onboarding passes the gate.
+    # NOTE: under DEV_MODE the /me bootstrap upserts the OWNER_TG_ID row (not the
+    # test's synthetic owner_tg), so we grant consent for every row in the
+    # isolated test DB rather than filtering by tg_user_id.
+    SessionLocal = e2e_env["SessionLocal"]
+    from sqlalchemy import text
+    async with SessionLocal() as session:
+        await session.execute(text("UPDATE app_user SET pdn_consent_at = NOW()"))
+        await session.commit()
+
+    # 2. Complete onboarding — v1.0 contract (Phase 22 BE-15): income_cents +
+    # accounts + category_plans. Seeds 8 default categories + 1 'savings' = 9.
     onb = await client.post(
         "/api/v1/onboarding/complete",
         json={
-            "starting_balance_cents": 1_000_000,
-            "cycle_start_day": 5,
-            "seed_default_categories": True,
+            "income_cents": 1_000_000,
+            "accounts": [{"bank": "Tinkoff", "kind": "card", "primary": True}],
+            "category_plans": {"food": 100_000, "cafe": 50_000},
         },
         headers=owner_init,
     )
     assert onb.status_code == 200, onb.text
     onb_body = onb.json()
-    assert onb_body["seeded_categories"] >= 1  # MTONB-02
-    assert onb_body["embeddings_created"] >= 1  # MTONB-03
+    assert onb_body["income_cents"] == 1_000_000
+    assert len(onb_body["category_ids_by_code"]) == 8  # 8 default codes
+    assert onb_body["savings_category_id"] > 0  # system 'savings' category
+    assert onb_body["onboarded_at"] is not None
 
-    # 3. List categories
+    # 3. List categories — 8 defaults + 1 'savings' = 9.
     cats = await client.get("/api/v1/categories", headers=owner_init)
     assert cats.status_code == 200
-    assert len(cats.json()) >= 1
+    assert len(cats.json()) == 9
     expense_cat_id = next((c["id"] for c in cats.json() if c["kind"] == "expense"), None)
     assert expense_cat_id is not None
 
-    # 4. Create actual transaction
+    # 4. Create actual transaction (auto-creates the budget_period).
     actual = await client.post(
         "/api/v1/actual",
         json={
@@ -156,11 +169,12 @@ async def test_e2e_1_owner_happy_path(e2e_env):
     )
     assert actual.status_code in (200, 201), actual.text
 
-    # 5. Balance check
+    # 5. Balance check — v1.0 onboarding does not pre-create a period, so the
+    # period auto-created by the actual above carries starting_balance_cents=0.
     bal = await client.get("/api/v1/actual/balance", headers=owner_init)
     assert bal.status_code == 200
     bal_body = bal.json()
-    assert bal_body["starting_balance_cents"] == 1_000_000
+    assert bal_body["starting_balance_cents"] == 0
     assert bal_body["actual_total_expense_cents"] >= 50_000  # the actual we just created
 
     # 6. Admin endpoint accessible
@@ -257,6 +271,7 @@ async def test_e2e_3_member_onboarding_seeds_and_embeddings(e2e_env):
     member_a_tg = e2e_env["member_a_tg"]
 
     # Seed member directly (DEV_MODE quirk on /me prevents identity switching).
+    # Grant ПДн consent up-front (Phase 33 CMP-33-04) so v1.0 onboarding passes.
     from app.db.models import AppUser, UserRole
     async with SessionLocal() as session:
         await session.execute(text("RESET ROLE"))
@@ -270,27 +285,38 @@ async def test_e2e_3_member_onboarding_seeds_and_embeddings(e2e_env):
             role=UserRole.member,
             cycle_start_day=5,
             onboarded_at=None,
+            pdn_consent_at=datetime.now(timezone.utc),
         )
         session.add(member)
         await session.commit()
         await session.refresh(member)
         member_id = member.id
 
-    # Call complete_onboarding service directly (DEV_MODE bypasses /me identity)
-    from app.services import onboarding as onb_svc
+    # Run v1.0 onboarding (complete_v10) directly — the live contract seeds the
+    # 8 default categories + 1 'savings' = 9. Set tenant scope so RLS accepts
+    # the category INSERTs under the runtime role.
+    from app.services import onboarding_v10 as onb_v10_svc
+    from app.services.ai_embedding_backfill import backfill_user_embeddings
+    from app.db.session import set_tenant_scope
     async with SessionLocal() as session:
         await session.execute(text("RESET ROLE"))
-        result = await onb_svc.complete_onboarding(
+        await set_tenant_scope(session, member_id)
+        result = await onb_v10_svc.complete_v10(
             session,
-            tg_user_id=member_a_tg,
-            starting_balance_cents=500_000,
-            cycle_start_day=5,
-            seed_default_categories=True,
+            user_id=member_id,
+            income_cents=500_000,
+            accounts=[{"bank": "Tinkoff", "kind": "card", "primary": True}],
+            category_plans={"food": 100_000, "cafe": 50_000},
         )
+        # MTONB-03: backfill embeddings for the freshly-seeded categories
+        # (mocked OpenAI via e2e_env). v1.0 complete_v10 does not backfill, so
+        # we run it explicitly to exercise the embedding persistence path.
+        embeddings_created = await backfill_user_embeddings(session, user_id=member_id)
         await session.commit()
 
-    assert result["seeded_categories"] >= 14  # MTONB-02
-    assert result["embeddings_created"] >= 1  # MTONB-03 (real backfill ran)
+    assert len(result["category_ids_by_code"]) == 8  # 8 default codes (MTONB-02)
+    assert result["savings_category_id"] > 0  # system 'savings' category
+    assert embeddings_created >= 1  # MTONB-03 (real backfill ran)
 
     # Verify DB state
     async with SessionLocal() as session:
@@ -309,7 +335,7 @@ async def test_e2e_3_member_onboarding_seeds_and_embeddings(e2e_env):
             {"uid": member_id},
         )).scalar()
 
-    assert cat_count >= 14
+    assert cat_count == 9  # 8 defaults + 1 'savings'
     assert emb_count >= 1
     assert onb_at is not None  # gate now releases for this member
 
@@ -324,7 +350,7 @@ async def test_e2e_4_cross_tenant_isolation(e2e_env):
     """member-A cannot read/modify member-B data."""
     from sqlalchemy import text
     SessionLocal = e2e_env["SessionLocal"]
-    from app.db.models import AppUser, UserRole, Category, CategoryKind
+    from app.db.models import AppUser, UserRole, CategoryKind
     from app.db.session import set_tenant_scope
 
     # Seed two members directly.
@@ -348,9 +374,15 @@ async def test_e2e_4_cross_tenant_isolation(e2e_env):
         )
         session.add_all([a, b])
         await session.flush()
-        cat_a = Category(user_id=a.id, name="A-Food", kind=CategoryKind.expense, sort_order=10)
-        cat_b = Category(user_id=b.id, name="B-Food", kind=CategoryKind.expense, sort_order=10)
-        session.add_all([cat_a, cat_b])
+        from tests.helpers.seed import seed_category
+        cat_a = await seed_category(
+            session, user_id=a.id, name="A-Food",
+            kind=CategoryKind.expense, sort_order=10,
+        )
+        cat_b = await seed_category(
+            session, user_id=b.id, name="B-Food",
+            kind=CategoryKind.expense, sort_order=10,
+        )
         await session.commit()
         a_id, b_id = a.id, b.id
         cat_b_id = cat_b.id
@@ -483,7 +515,7 @@ async def test_e2e_6_revoke_cascade_purge(e2e_env):
     SessionLocal = e2e_env["SessionLocal"]
     client = e2e_env["client"]
     owner_init = {"X-Telegram-Init-Data": e2e_env["make_init"](e2e_env["owner_tg"])}
-    from app.db.models import AppUser, UserRole, Category, CategoryKind
+    from app.db.models import AppUser, UserRole, CategoryKind
 
     # Bootstrap owner with full state
     await client.get("/api/v1/me", headers=owner_init)
@@ -507,13 +539,14 @@ async def test_e2e_6_revoke_cascade_purge(e2e_env):
     async with SessionLocal() as session:
         await session.execute(text("RESET ROLE"))
         await session.execute(text("SET LOCAL row_security = off"))
-        cat = Category(
+        from tests.helpers.seed import seed_category
+        cat = await seed_category(
+            session,
             user_id=member_id,
             name="Member-stuff",
             kind=CategoryKind.expense,
             sort_order=10,
         )
-        session.add(cat)
         await session.execute(
             text(
                 # Phase 67 R8: cost_cents BIGINT (was est_cost_usd Float).
