@@ -70,7 +70,7 @@ async def test_ai_usage_log_hook_writes_row(fresh_db):
         result = await session.execute(
             text(
                 "SELECT user_id, model, prompt_tokens, completion_tokens, "
-                "cached_tokens, total_tokens, est_cost_usd "
+                "cached_tokens, total_tokens, cost_cents "
                 "FROM ai_usage_log WHERE user_id = :uid"
             ),
             {"uid": user_id},
@@ -84,7 +84,8 @@ async def test_ai_usage_log_hook_writes_row(fresh_db):
     assert row[3] == 50
     assert row[4] == 10
     assert row[5] == 150
-    assert abs(row[6] - 0.0012) < 1e-9
+    # Phase 67 R8: cost stored as cost_cents = ceil(0.0012 * 100) = ceil(0.12) = 1.
+    assert row[6] == 1
 
 
 @pytest.mark.asyncio

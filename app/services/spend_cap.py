@@ -6,19 +6,17 @@ Used by:
 - GET /me (Plan 15-05) — surfaces ai_spend_cents to Settings UI
 
 Design (CONTEXT D-15-02):
-- Spend = SUM(ai_usage_log.est_cost_usd) WHERE user_id=X
+- Spend = SUM(ai_usage_log.cost_cents) WHERE user_id=X
   AND created_at >= month_start_msk (converted to UTC for DB filter).
-- Cents = ceil(usd * 100).
+- cost_cents — BIGINT USD-копейки (Phase 67 R8: ранее хранилось как Float USD).
+  Cents in, cents out — никакого float-математики в агрегации.
 - Cache: cachetools.TTLCache(128, ttl=60), key=user_id, value=int cents.
 - Concurrency: asyncio.Lock around fetch — prevent thundering-herd on cache miss.
 - Month boundary: Europe/Moscow truncated to 1st 00:00 MSK; no DST edge (MSK MSK+3 fixed).
-- est_cost_usd is Float (legacy from Phase 13/v0.3); migration to BIGINT cost_cents
-  deferred per CONTEXT.md.
 """
 from __future__ import annotations
 
 import asyncio
-import math
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
@@ -96,14 +94,14 @@ def seconds_until_next_msk_month(now: datetime | None = None) -> int:
 
 
 async def _fetch_spend_cents_from_db(db: AsyncSession, user_id: int) -> int:
-    """Aggregate SUM(est_cost_usd) for current MSK month -> ceil(usd*100) cents.
+    """Aggregate SUM(cost_cents) for current MSK month — cents in, cents out.
 
     Tests may monkeypatch this to assert cache hit count. Plan 15-02 keeps
     it module-level so monkeypatch.setattr works without ORM dancing.
 
-    NOTE: est_cost_usd is Float (Phase 13 legacy); we sum as Float and
-    convert to int cents only at the end. Migration to BIGINT cost_cents
-    is deferred (CONTEXT out-of-scope).
+    Phase 67 R8: ``cost_cents`` is BIGINT USD-копейки (ранее — Float USD).
+    Каждый row уже округлён вверх до цента на write-path (``ceil(usd * 100)``),
+    поэтому здесь чистая целочисленная сумма — никакого float-конвертирования.
 
     RLS note: ai_usage_log has row-level security policy that filters by
     app.current_user_id. We call set_tenant_scope() (shared helper from
@@ -117,12 +115,12 @@ async def _fetch_spend_cents_from_db(db: AsyncSession, user_id: int) -> int:
     # matching app/db/session.py:30 (set_tenant_scope).
     from app.db.session import set_tenant_scope  # local import: avoid cycle
     await set_tenant_scope(db, user_id)
-    stmt = select(func.coalesce(func.sum(AiUsageLog.est_cost_usd), 0.0)).where(
+    stmt = select(func.coalesce(func.sum(AiUsageLog.cost_cents), 0)).where(
         AiUsageLog.user_id == user_id,
         AiUsageLog.created_at >= month_start_utc,
     )
-    total_usd = await db.scalar(stmt) or 0.0
-    return int(math.ceil(float(total_usd) * 100.0))
+    total_cents = await db.scalar(stmt) or 0
+    return int(total_cents)
 
 
 async def get_user_spend_cents(db: AsyncSession, *, user_id: int) -> int:

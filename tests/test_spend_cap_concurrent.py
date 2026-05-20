@@ -208,17 +208,18 @@ async def test_concurrent_ai_chat_at_cap_yields_one_pass_one_429(
         f"(a={a!r}, b={b!r}). Pre-fix would yield [200, 200]."
     )
 
-    # Final state: ai_usage_log SUM == 1.00 USD (0.99 pre + 0.01 from the
-    # one passer). The 429-er never reached _record_usage.
+    # Final state (Phase 67 R8): ai_usage_log SUM(cost_cents) == 100 cents
+    # (99¢ pre-seed + 1¢ from the one passer: ceil(0.01*100)=1). The 429-er
+    # never reached _record_usage.
     async with SessionLocal() as s:
         await s.execute(text("SET LOCAL row_security = off"))
         total = await s.scalar(
-            select(func.coalesce(func.sum(AiUsageLog.est_cost_usd), 0.0))
+            select(func.coalesce(func.sum(AiUsageLog.cost_cents), 0))
             .where(AiUsageLog.user_id == user_id)
         )
-    assert math.isclose(float(total), 1.00, abs_tol=0.001), (
-        f"Expected ai_usage_log total = exactly 1.00 USD (one passer + 99¢ "
-        f"pre-seed); got {total}. > 1.00 means BOTH requests recorded usage "
+    assert int(total) == 100, (
+        f"Expected ai_usage_log total = exactly 100 cents (one passer + 99¢ "
+        f"pre-seed); got {total}. > 100 means BOTH requests recorded usage "
         f"(race not closed)."
     )
 

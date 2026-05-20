@@ -38,6 +38,24 @@ if TYPE_CHECKING:
 EMBEDDING_DIM = 1536
 SUGGEST_THRESHOLD = 0.35
 
+# Phase 67 P2-7: text-embedding-3-small pricing — $0.02 per 1M tokens
+# (2026 OpenAI). Used to estimate the embedding-call cost so suggest-category
+# spend is logged to ai_usage_log и виден spend-cap'у.
+_EMBEDDING_PRICE_PER_M_USD = 0.02
+
+
+def estimate_embedding_cost_usd(description: str) -> float:
+    """Грубая оценка USD-стоимости одного embedding-вызова.
+
+    Точный token-count недоступен (provider.embed возвращает только вектор),
+    поэтому оцениваем ~1 token / 4 символа (типичный rule-of-thumb для
+    OpenAI tokenizer на коротких строках). Минимум 1 token, чтобы непустой
+    запрос всегда давал ненулевую (после ceil→cents) стоимость, видимую cap'у.
+    """
+    chars = len((description or "").strip())
+    tokens = max(1, (chars + 3) // 4)
+    return tokens * _EMBEDDING_PRICE_PER_M_USD / 1_000_000
+
 # Default synonym packs for seed-category names. Embedding the category
 # together with these short related terms ("Продукты: еда, магазин,
 # пятёрочка, перекрёсток…") lifts cosine similarity for short Russian
@@ -315,7 +333,13 @@ class EmbeddingService:
 
         if row is None:
             # Нет embeddings для этого юзера вовсе — нет смысла в confidence.
-            return None
+            # P2-7: embedding-вызов всё равно был сделан → embedding_used=True.
+            return {
+                "category_id": None,
+                "name": None,
+                "confidence": 0.0,
+                "embedding_used": True,
+            }
 
         category_id, name, confidence = row
         if confidence < SUGGEST_THRESHOLD:
@@ -324,12 +348,14 @@ class EmbeddingService:
                 "category_id": None,
                 "name": None,
                 "confidence": float(confidence),
+                "embedding_used": True,
             }
 
         return {
             "category_id": category_id,
             "name": name,
             "confidence": float(confidence),
+            "embedding_used": True,
         }
 
 

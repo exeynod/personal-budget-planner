@@ -32,7 +32,6 @@ from sqlalchemy import (
     Boolean,
     CheckConstraint,
     Date,
-    Float,
     ForeignKey,
     Index,
     Integer,
@@ -864,11 +863,16 @@ class AiUsageLog(Base):
     total_tokens: Mapped[int] = mapped_column(
         Integer, nullable=False, default=0, server_default="0"
     )
-    est_cost_usd: Mapped[float] = mapped_column(
-        Float(asdecimal=False),
+    # Phase 67 R8: ранее стоимость хранилась как Float (USD) — нарушало правило
+    # «никаких float для денег» (CLAUDE.md). Теперь BIGINT cost_cents (USD-копейки,
+    # 1 USD = 100 cents), как и spending_cap_cents. Стоимость одного вызова
+    # вычисляется как ceil(usd * 100) на write-path (округление вверх до цента —
+    # консервативно для cap). spend_cap суммирует cost_cents напрямую без float.
+    cost_cents: Mapped[int] = mapped_column(
+        BigInteger,
         nullable=False,
-        default=0.0,
-        server_default="0.0",
+        default=0,
+        server_default="0",
     )
     created_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True),

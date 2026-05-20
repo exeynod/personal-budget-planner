@@ -516,10 +516,11 @@ async def test_e2e_6_revoke_cascade_purge(e2e_env):
         session.add(cat)
         await session.execute(
             text(
+                # Phase 67 R8: cost_cents BIGINT (was est_cost_usd Float).
                 "INSERT INTO ai_usage_log "
                 "(user_id, model, prompt_tokens, completion_tokens, "
-                "cached_tokens, total_tokens, est_cost_usd, created_at) "
-                "VALUES (:uid, 'gpt-4o-mini', 100, 50, 0, 150, 0.001, NOW())"
+                "cached_tokens, total_tokens, cost_cents, created_at) "
+                "VALUES (:uid, 'gpt-4o-mini', 100, 50, 0, 150, 1, NOW())"
             ),
             {"uid": member_id},
         )

@@ -271,7 +271,8 @@ async def seed_ai_usage_log(
     completion_tokens: int = 0,
     cached_tokens: int = 0,
     total_tokens: int = 0,
-    est_cost_usd: float = 0.0,
+    est_cost_usd: float | None = None,
+    cost_cents: int | None = None,
     ts: Optional[datetime] = None,
 ) -> None:
     """Insert a single ai_usage_log row via raw SQL (no ORM dependency).
@@ -280,19 +281,33 @@ async def seed_ai_usage_log(
     the SQLAlchemy model. This helper uses sqlalchemy.text() to stay
     decoupled from import-time model loading order during RED phase.
 
+    Phase 67 R8: the ``est_cost_usd`` Float column was migrated to
+    ``cost_cents`` (BIGINT, USD-копейки). This helper now writes ``cost_cents``.
+    Legacy callers passing ``est_cost_usd`` are still supported — the USD value
+    is converted to cents via ``ceil(usd * 100)`` (matching the production
+    write-path), so historical per-row expectations hold under the new
+    direct-cents aggregation. Pass ``cost_cents`` directly to be explicit.
+
     ts: when None, defaults to now(UTC). Caller passes explicit ts to
     produce records inside / outside current month + 30d windows for
     the admin /ai-usage breakdown tests.
     """
+    import math
+
     from sqlalchemy import text
+
+    if cost_cents is None:
+        cents = math.ceil(float(est_cost_usd or 0.0) * 100.0)
+    else:
+        cents = int(cost_cents)
 
     when = ts or datetime.now(timezone.utc)
     await session.execute(
         text(
             "INSERT INTO ai_usage_log "
             "(user_id, model, prompt_tokens, completion_tokens, "
-            " cached_tokens, total_tokens, est_cost_usd, created_at) "
-            "VALUES (:user_id, :model, :pt, :ct, :ch, :tt, :ec, :ts)"
+            " cached_tokens, total_tokens, cost_cents, created_at) "
+            "VALUES (:user_id, :model, :pt, :ct, :ch, :tt, :cc, :ts)"
         ),
         {
             "user_id": user_id,
@@ -301,7 +316,7 @@ async def seed_ai_usage_log(
             "ct": completion_tokens,
             "ch": cached_tokens,
             "tt": total_tokens,
-            "ec": est_cost_usd,
+            "cc": cents,
             "ts": when,
         },
     )

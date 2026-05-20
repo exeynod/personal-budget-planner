@@ -9,13 +9,11 @@ Time windows:
   current_month: 1st of current month at 00:00 Europe/Moscow → now()
   last_30d:      now() - 30 days (UTC) → now()
 
-USD копейки (cents-of-USD storage): 1 USD == 100_000 storage units.
-(Equivalent: 1 cent of USD = 1000 копеек of cent.) Formula:
-  est_cost_cents = round(est_cost_usd * 100_000)
-This matches the cap test in test_admin_ai_usage_api.py — est_cost_usd 0.083
-with cap 10_000 yields pct_of_cap 0.83. Plan 13-02 default cap 46500 is a
-stub (~$0.465); Phase 15 will calibrate the cap unit to the documented
-"$5/month" semantic if the unit semantics are later refined.
+Cost storage (Phase 67 R8): ai_usage_log.cost_cents — BIGINT USD-копейки
+(1 USD = 100 cents), та же шкала, что spending_cap_cents. UsageBucket.est_cost_usd
+— display-поле (USD float) = cost_cents / 100.0. est_cost_cents_current_month
+получается обратной конвертацией round(est_cost_usd * 100) == cost_cents.
+Phase 15 откалибровал cap unit на 100 cents/USD.
 
 The runtime AsyncSession passed in is used only to read app_user (no RLS
 on app_user table). The aggregate query opens a separate engine on
@@ -68,6 +66,9 @@ def _empty_bucket() -> UsageBucket:
     )
 
 
+# Phase 67 R8: ai_usage_log stores BIGINT cost_cents (USD-копейки), не Float.
+# Aggregate cents directly; convert to display USD (cents / 100.0) для
+# UsageBucket.est_cost_usd (которое — display-поле, не storage).
 _AGGREGATE_QUERY = """
 SELECT
     user_id,
@@ -76,7 +77,7 @@ SELECT
     coalesce(sum(completion_tokens), 0) AS completion_tokens,
     coalesce(sum(cached_tokens), 0)     AS cached_tokens,
     coalesce(sum(total_tokens), 0)      AS total_tokens,
-    coalesce(sum(est_cost_usd), 0.0)    AS est_cost_usd
+    coalesce(sum(cost_cents), 0)        AS cost_cents
 FROM ai_usage_log
 WHERE created_at >= :start
 GROUP BY user_id
@@ -84,14 +85,15 @@ GROUP BY user_id
 
 
 def _bucket_from_row(row) -> UsageBucket:
-    """row[0] is user_id; aggregates start at row[1]."""
+    """row[0] is user_id; aggregates start at row[1]. row[6] is cost_cents."""
     return UsageBucket(
         requests=int(row[1] or 0),
         prompt_tokens=int(row[2] or 0),
         completion_tokens=int(row[3] or 0),
         cached_tokens=int(row[4] or 0),
         total_tokens=int(row[5] or 0),
-        est_cost_usd=float(row[6] or 0.0),
+        # cents → display USD (UsageBucket.est_cost_usd остаётся USD-float).
+        est_cost_usd=float(int(row[6] or 0)) / 100.0,
     )
 
 

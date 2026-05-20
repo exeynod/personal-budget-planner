@@ -74,7 +74,11 @@ async def test_spend_cents_zero_when_no_logs(db_client):
 
 @pytest.mark.asyncio
 async def test_spend_cents_aggregates_current_month(db_client):
-    """3 logs in current MSK month → ceil(sum(est_cost_usd) * 100)."""
+    """3 logs in current MSK month → SUM(per-row cost_cents).
+
+    Phase 67 R8: cost is stored per-row as cents = ceil(usd*100); the cap sums
+    cents directly. So the total is sum(ceil(usd_i*100)), not ceil(sum*100).
+    """
     from app.services.spend_cap import get_user_spend_cents
     from tests.helpers.seed import seed_user, seed_ai_usage_log
     from app.db.models import UserRole
@@ -84,7 +88,7 @@ async def test_spend_cents_aggregates_current_month(db_client):
         await session.commit()
         user_id = user.id
 
-    # Логи с est_cost_usd=[0.005, 0.0123, 0.001] → sum=0.0183 → ceil(0.0183*100) = ceil(1.83) = 2
+    # costs=[0.005, 0.0123, 0.001] → per-row cents=[1, 2, 1] → SUM = 4.
     costs = [0.005, 0.0123, 0.001]
     for cost in costs:
         async with db_client() as session:
@@ -93,9 +97,9 @@ async def test_spend_cents_aggregates_current_month(db_client):
     async with db_client() as session:
         result = await get_user_spend_cents(session, user_id=user_id)
 
-    expected = math.ceil(sum(costs) * 100)  # ceil(1.83) = 2
+    expected = sum(math.ceil(c * 100) for c in costs)  # 1 + 2 + 1 = 4
     assert result == expected, (
-        f"expected {expected} spend_cents (sum={sum(costs):.4f} USD), got {result}"
+        f"expected {expected} spend_cents (per-row ceil), got {result}"
     )
 
 
@@ -251,7 +255,9 @@ async def test_invalidate_cache_drops_user_entry(db_client):
         f"after invalidation, re-query must pick up new log: "
         f"first={first_result}, after_invalidate={after_invalidate}"
     )
-    expected = math.ceil((0.010 + 0.050) * 100)
+    # Phase 67 R8: per-row cents = ceil(usd*100), summed directly.
+    # ceil(0.010*100) + ceil(0.050*100) = 1 + 5 = 6 (no float ceil(sum) artifact).
+    expected = math.ceil(0.010 * 100) + math.ceil(0.050 * 100)
     assert after_invalidate == expected, (
         f"post-invalidation spend expected {expected} cents, got {after_invalidate}"
     )

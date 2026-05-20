@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import json
 import logging
+import math
 import time
 from collections import defaultdict, deque
 from datetime import datetime, timezone
@@ -125,6 +126,10 @@ async def _record_usage(
     if not user_id or session_factory is None:
         return
     try:
+        # Phase 67 R8: persist BIGINT cost_cents (USD-копейки), не Float.
+        # ceil(usd * 100) — округление вверх до цента (консервативно для cap).
+        est_usd = float(usage.get("est_cost_usd", 0.0) or 0.0)
+        cost_cents = math.ceil(est_usd * 100.0)
         async with session_factory() as session:
             row = AiUsageLog(
                 user_id=user_id,
@@ -133,7 +138,7 @@ async def _record_usage(
                 completion_tokens=int(usage.get("completion_tokens", 0) or 0),
                 cached_tokens=int(usage.get("cached_tokens", 0) or 0),
                 total_tokens=int(usage.get("total_tokens", 0) or 0),
-                est_cost_usd=float(usage.get("est_cost_usd", 0.0) or 0.0),
+                cost_cents=int(cost_cents),
             )
             session.add(row)
             await session.commit()

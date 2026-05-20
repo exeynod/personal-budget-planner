@@ -116,7 +116,10 @@ async def test_me_returns_ai_spend_cents_zero_for_new_user(
 async def test_me_returns_ai_spend_cents_for_owner_with_logs(
     db_client, bot_token, owner_tg_id
 ):
-    """Owner + 3 current-month logs → ai_spend_cents = ceil(sum * 100)."""
+    """Owner + 3 current-month logs → ai_spend_cents = SUM(per-row cost_cents).
+
+    Phase 67 R8: per-row cents = ceil(usd*100), cap sums cents directly.
+    """
     from tests.conftest import make_init_data
     from tests.helpers.seed import seed_user, seed_ai_usage_log
     from app.db.models import UserRole
@@ -130,7 +133,7 @@ async def test_me_returns_ai_spend_cents_for_owner_with_logs(
         await s.commit()
         user_id = user.id
 
-    # 3 логов: 0.005 + 0.012 + 0.001 = 0.018 USD → ceil(0.018 * 100) = ceil(1.8) = 2 cents
+    # 3 логов: per-row cents = ceil([0.5, 1.2, 0.1]) = [1, 2, 1] → SUM = 4 cents.
     costs = [0.005, 0.012, 0.001]
     for cost in costs:
         async with SessionLocal() as s:
@@ -141,7 +144,7 @@ async def test_me_returns_ai_spend_cents_for_owner_with_logs(
     assert resp.status_code == 200, resp.text
     body = resp.json()
 
-    expected = math.ceil(sum(costs) * 100)  # 2
+    expected = sum(math.ceil(c * 100) for c in costs)  # 4
     assert "ai_spend_cents" in body, (
         f"MeResponse must include ai_spend_cents, got keys={list(body.keys())}"
     )
