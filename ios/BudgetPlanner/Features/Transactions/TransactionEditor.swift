@@ -59,6 +59,8 @@ struct TransactionEditor: View {
     // Phase 64-01 (ADD-V10-04) — optional account picker, actual modes only.
     @State private var accounts: [AccountDTO] = []
     @State private var selectedAccountId: Int? = nil
+    // Phase 64-02 (AI-V10-03) — inline AI category hint (debounce helper).
+    @State private var aiHint = AISuggestHint()
 
     private var amountCents: Int? { MoneyParser.parseToCents(amountText) }
 
@@ -142,6 +144,29 @@ struct TransactionEditor: View {
                 Section("Описание") {
                     TextField("Опционально", text: $description, axis: .vertical)
                         .lineLimit(2...4)
+                        // Phase 64-02 (AI-V10-03): debounce AI category hint.
+                        // Gated to create modes only (CONTEXT: edit not a
+                        // priority, don't hit the network there). PII note: the
+                        // description text is sent to the existing Pro-gated
+                        // /ai/suggest-category endpoint as a deliberate owner
+                        // action while typing (T-64-02-01 accepted).
+                        .onChange(of: description) { _, newValue in
+                            if !mode.isEdit { aiHint.descriptionChanged(newValue) }
+                        }
+
+                    // Tappable suggestion chip — shown ONLY in create modes when
+                    // the backend returned a category (confidence >= 0.5). It
+                    // merely PROPOSES; tapping is an explicit user action that
+                    // sets categoryId (do-not-auto-apply). No error banner on a
+                    // missing hint — silent (403/error just hides the chip).
+                    if !mode.isEdit, let sug = aiHint.suggestion, sug.categoryId != nil {
+                        Button {
+                            applySuggestion(sug)
+                        } label: {
+                            Label("AI: \(sug.name ?? "")", systemImage: "sparkles")
+                                .foregroundStyle(Color.accentColor)
+                        }
+                    }
                 }
 
                 if let errorMessage {
@@ -195,6 +220,22 @@ struct TransactionEditor: View {
     // source of truth shared with AccountPickerLogicTests).
     private func accountLabel(_ a: AccountDTO) -> String {
         AccountPickerLogic.label(a)
+    }
+
+    // Phase 64-02 (AI-V10-03) — explicit user tap applies the AI suggestion.
+    // Sets categoryId (and, for actual modes, aligns kind to the suggested
+    // category so the kind-filtered Picker keeps the selection). Clears the
+    // hint afterwards. This is NOT auto-applied — only this tap mutates the
+    // user's category choice.
+    private func applySuggestion(_ sug: SuggestCategoryDTO) {
+        guard let sid = sug.categoryId else { return }
+        if let cat = categories.first(where: { $0.id == sid }) {
+            if mode.isActual, cat.kind != kind { kind = cat.kind }
+            categoryId = sid
+        } else {
+            categoryId = sid
+        }
+        aiHint.clear()
     }
 
     /// Phase 64-01 (ADD-V10-04) — load accounts inside the editor so the 3
