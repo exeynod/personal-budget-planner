@@ -135,6 +135,16 @@ final class SavingsViewDataTests: XCTestCase {
         XCTAssertTrue(SavingsViewData.isValidDepositDraft(amountCents: 100, accountId: 1))
     }
 
+    // WR-05: accountId must be strictly > 0 (backend Field(gt=0)).
+
+    func test_isValidDepositDraft_rejectsZeroAccount() {
+        XCTAssertFalse(SavingsViewData.isValidDepositDraft(amountCents: 5000, accountId: 0))
+    }
+
+    func test_isValidDepositDraft_rejectsNegativeAccount() {
+        XCTAssertFalse(SavingsViewData.isValidDepositDraft(amountCents: 5000, accountId: -3))
+    }
+
     // MARK: - Helpers
 
     private func mskCalendar() -> Calendar {
