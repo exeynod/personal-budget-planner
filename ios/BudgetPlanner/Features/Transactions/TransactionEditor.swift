@@ -202,6 +202,12 @@ struct TransactionEditor: View {
             .interactiveDismissDisabled(isSubmitting)
             .onAppear { populate() }
             .task { await loadAccounts() }
+            // WR-01: tear down the in-flight AI-suggest Task when the sheet is
+            // dismissed. clear() cancels the debounce/network Task and resets the
+            // suggestion, so a post-dismiss request + PII send cannot fire after
+            // the user navigated away (wires the documented "cancels on disappear"
+            // contract that was previously missing).
+            .onDisappear { aiHint.clear() }
             .confirmationDialog(
                 "Удалить транзакцию?",
                 isPresented: $showingDeleteConfirm,
@@ -260,9 +266,12 @@ struct TransactionEditor: View {
                 selectedAccountId = AccountPickerLogic.defaultAccountId(list)
             }
         } catch {
-            // Graceful: keep section hidden, accountId stays nil. Raw error
-            // via print() only (no error.localizedDescription on screen).
-            print("TransactionEditor.loadAccounts failed: \(error)")
+            // Graceful: keep section hidden, accountId stays nil. IN-01: do NOT
+            // interpolate the raw error (it can embed the request URL/metadata);
+            // log only a static category in DEBUG, nothing in release.
+            #if DEBUG
+            print("TransactionEditor.loadAccounts failed (\(type(of: error)))")
+            #endif
         }
     }
 

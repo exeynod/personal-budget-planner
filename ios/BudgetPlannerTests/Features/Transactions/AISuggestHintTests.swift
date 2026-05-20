@@ -132,6 +132,31 @@ final class AISuggestHintTests: XCTestCase {
         hint.clear()
         XCTAssertNil(hint.suggestion)
     }
+
+    // MARK: - clear() cancels the in-flight Task (WR-01)
+
+    func test_clearWhileInFlight_cancelsTask_suggestionStaysNil() async {
+        // Simulates the editor being dismissed (.onDisappear → aiHint.clear())
+        // while an AI-suggest request is still in flight. The in-flight Task
+        // must be cancelled and its late response must NOT write `suggestion`,
+        // so no post-dismiss PII write/leak occurs.
+        let gate = AsyncGate()
+        let dto = makeDTO(categoryId: 9, name: "Кафе", confidence: 0.9)
+        let hint = AISuggestHint(debounce: .zero) { _ in
+            await gate.wait()  // hold the response open (in flight)
+            return dto
+        }
+
+        hint.descriptionChanged("кофе")
+        await Task.yield()
+        hint.clear()  // dismiss-equivalent: cancel the in-flight Task
+
+        // Release the held response; the cancelled Task must bail before write.
+        await gate.open()
+        await waitUntil(timeout: 0.3) { false }
+
+        XCTAssertNil(hint.suggestion)
+    }
 }
 
 /// Minimal async gate so the stale-request test can hold a stubbed response open
