@@ -58,6 +58,7 @@ async def seed_user(
     onboarded_at=_ONBOARDED_DEFAULT,
     pro_active_until: Optional[datetime] = None,
     trial_ends_at: Optional[datetime] = None,
+    pdn_consent_at: Optional[datetime] = None,
 ) -> AppUser:
     """Seed an AppUser row.
 
@@ -69,6 +70,14 @@ async def seed_user(
     ``enforce_spending_cap`` (429). A free user trips the 402 before the cap is
     ever evaluated; a Pro user reaches the 429 cap path. See
     ``app/services/tier.py::is_pro``.
+
+    ПДн consent (Phase 33 CMP-33-04 / 68-05): ``pdn_consent_at`` defaults to
+    ``None`` so existing callers are unchanged (backward-compatible, mirrors the
+    ``pro_active_until`` pattern from 68-01). Pass a timestamp to grant consent —
+    required by the v1.0 onboarding flow, which raises ``PdnConsentRequiredError``
+    (→ 403 ``pdn_consent_required``) when ``app_user.pdn_consent_at`` is NULL
+    before ``complete_onboarding_v10`` runs. See
+    ``app/services/onboarding_v10.py``.
     """
     if onboarded_at is _ONBOARDED_DEFAULT:
         onboarded_at = datetime.now(timezone.utc)
@@ -80,6 +89,7 @@ async def seed_user(
         onboarded_at=onboarded_at,
         pro_active_until=pro_active_until,
         trial_ends_at=trial_ends_at,
+        pdn_consent_at=pdn_consent_at,
     )
     session.add(user)
     await session.flush()
@@ -131,6 +141,9 @@ async def seed_category(
     sort_order: int = 0,
     code: Optional[str] = None,
     ord: Optional[str] = None,
+    plan_cents: Optional[int] = None,
+    rollover=None,
+    paused: Optional[bool] = None,
 ) -> Category:
     """Seed a Category row, populating the NOT-NULL ``code`` + ``ord`` columns.
 
@@ -150,13 +163,27 @@ async def seed_category(
 
     Pass ``code`` / ``ord`` explicitly only when a test asserts a specific
     value; otherwise rely on the defaults.
+
+    68-05: ``plan_cents`` / ``rollover`` / ``paused`` are optional v1.0 columns
+    (Phase 22 BE-04). When ``None`` they fall back to the model defaults
+    (``plan_cents=0``, ``rollover=misc``, ``paused=False``) so existing callers
+    are unchanged; pass them when a test seeds a system category (e.g.
+    ``code="savings", rollover=RolloverPolicy.savings, paused=True``) or asserts
+    a specific monthly plan.
     """
-    c = Category(
+    kwargs: dict = dict(
         user_id=user_id, name=name, kind=kind,
         is_archived=is_archived, sort_order=sort_order,
         code=code if code is not None else _default_code(name),
         ord=ord if ord is not None else _default_ord(sort_order),
     )
+    if plan_cents is not None:
+        kwargs["plan_cents"] = plan_cents
+    if rollover is not None:
+        kwargs["rollover"] = rollover
+    if paused is not None:
+        kwargs["paused"] = paused
+    c = Category(**kwargs)
     session.add(c)
     await session.flush()
     return c

@@ -416,9 +416,10 @@ async def two_tenants(db_session):
     from sqlalchemy import text
 
     from app.db.models import (
-        AppUser, UserRole, Category, CategoryKind,
-        Subscription, SubCycle,
+        AppUser, UserRole, CategoryKind,
+        SubCycle,
     )
+    from tests.helpers.seed import seed_category, seed_subscription, seed_user
 
     tg_a, tg_b = 9_000_000_001, 9_000_000_002
 
@@ -467,35 +468,48 @@ async def two_tenants(db_session):
 
     # Create users — onboarded so Phase 14 require_onboarded gate doesn't
     # block multi-tenant isolation tests on domain endpoints.
-    from datetime import datetime, timezone
-    _onb = datetime.now(timezone.utc)
-    user_a = AppUser(tg_user_id=tg_a, role=UserRole.member, cycle_start_day=5, onboarded_at=_onb)
-    user_b = AppUser(tg_user_id=tg_b, role=UserRole.member, cycle_start_day=5, onboarded_at=_onb)
-    db_session.add_all([user_a, user_b])
+    user_a = await seed_user(
+        db_session, tg_user_id=tg_a, role=UserRole.member, cycle_start_day=5,
+    )
+    user_b = await seed_user(
+        db_session, tg_user_id=tg_b, role=UserRole.member, cycle_start_day=5,
+    )
     await db_session.flush()
 
-    # Categories — обе с одинаковыми именами (тест scoped unique)
-    cat_a1 = Category(user_id=user_a.id, name="Продукты", kind=CategoryKind.expense, sort_order=10)
-    cat_a2 = Category(user_id=user_a.id, name="Транспорт", kind=CategoryKind.expense, sort_order=20)
-    cat_b1 = Category(user_id=user_b.id, name="Продукты", kind=CategoryKind.expense, sort_order=10)
-    cat_b2 = Category(user_id=user_b.id, name="Транспорт", kind=CategoryKind.expense, sort_order=20)
-    db_session.add_all([cat_a1, cat_a2, cat_b1, cat_b2])
+    # Categories — обе с одинаковыми именами (тест scoped unique).
+    # 68-05: route through seed_category() so the NOT-NULL code/ord columns are
+    # populated (raw Category(...) bypassed them → IntegrityError).
+    cat_a1 = await seed_category(
+        db_session, user_id=user_a.id, name="Продукты",
+        kind=CategoryKind.expense, sort_order=10,
+    )
+    cat_a2 = await seed_category(
+        db_session, user_id=user_a.id, name="Транспорт",
+        kind=CategoryKind.expense, sort_order=20,
+    )
+    cat_b1 = await seed_category(
+        db_session, user_id=user_b.id, name="Продукты",
+        kind=CategoryKind.expense, sort_order=10,
+    )
+    cat_b2 = await seed_category(
+        db_session, user_id=user_b.id, name="Транспорт",
+        kind=CategoryKind.expense, sort_order=20,
+    )
     await db_session.flush()
 
     # Subscriptions — обе с одинаковыми именами (test scoped unique)
-    sub_a = Subscription(
-        user_id=user_a.id, name="Netflix",
+    sub_a = await seed_subscription(
+        db_session, user_id=user_a.id, name="Netflix",
         amount_cents=99900, cycle=SubCycle.monthly,
         next_charge_date=date(2026, 6, 1),
         category_id=cat_a1.id, notify_days_before=2, is_active=True,
     )
-    sub_b = Subscription(
-        user_id=user_b.id, name="Netflix",
+    sub_b = await seed_subscription(
+        db_session, user_id=user_b.id, name="Netflix",
         amount_cents=149900, cycle=SubCycle.monthly,
         next_charge_date=date(2026, 6, 1),
         category_id=cat_b1.id, notify_days_before=2, is_active=True,
     )
-    db_session.add_all([sub_a, sub_b])
     await db_session.flush()
     await db_session.commit()
 
