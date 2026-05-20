@@ -41,11 +41,12 @@ final class SettingsViewModel {
         errorMessage = nil
         defer { isSaving = false }
         do {
-            let updated = try await SettingsAPI.update(SettingsUpdateRequest(
-                cycleStartDay: draftCycleDay,
-                notifyDaysBefore: draftNotifyDays,
-                enableAiCategorization: draftEnableAi
-            ))
+            let updated = try await SettingsAPI.update(
+                SettingsUpdateRequest(
+                    cycleStartDay: draftCycleDay,
+                    notifyDaysBefore: draftNotifyDays,
+                    enableAiCategorization: draftEnableAi
+                ))
             settings = updated
             draftCycleDay = updated.cycleStartDay
             draftNotifyDays = updated.notifyDaysBefore
@@ -192,23 +193,63 @@ struct SettingsView: View {
     }
 
     private var designSection: some View {
-        Section {
-            Button {
-                themeRaw = Theme.maximalPoster.rawValue
-            } label: {
-                LabeledContent {
-                    Text("MAXIMAL POSTER")
-                        .font(.subheadline.weight(.medium))
-                        .foregroundStyle(.secondary)
+        let current = ThemeOption.selected(forRaw: themeRaw)
+        return Section {
+            ForEach(ThemeOption.allOptions, id: \.self) { option in
+                Button {
+                    themeRaw = ThemeOption.rawValue(for: option)
                 } label: {
-                    Label("Переключить на V10", systemImage: "paintpalette")
-                        .foregroundStyle(.primary)
+                    HStack(spacing: 12) {
+                        themeSwatch(option)
+                        Text(option.ruLabel)
+                            .foregroundStyle(.primary)
+                        Spacer()
+                        if option == current {
+                            Image(systemName: "checkmark")
+                                .font(.body.weight(.semibold))
+                                .foregroundStyle(Color.accentColor)
+                        }
+                    }
+                    .contentShape(Rectangle())
                 }
+                .accessibilityIdentifier("theme-\(ThemeOption.rawValue(for: option))")
             }
         } header: {
             Text("Дизайн")
         } footer: {
-            Text("Текущий стиль — нативный iOS. Переключение откроет V10-шелл с темами MAXIMAL POSTER / LIQUID GLASS / IOS DEFAULT. Вернуться можно из настроек V10.")
+            Text(
+                "Выберите стиль интерфейса. СТАРЫЙ IOS — нативный SwiftUI-шелл; остальные открывают V10-шелл с выбранной темой."
+            )
         }
+    }
+
+    @ViewBuilder
+    private func themeSwatch(_ option: ThemeOption) -> some View {
+        Group {
+            switch option {
+            case .maximalPoster:
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .fill(Color(red: 1.0, green: 90 / 255, blue: 60 / 255))
+            case .liquidGlass:
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .fill(Color(red: 242 / 255, green: 242 / 255, blue: 247 / 255))
+            case .iosDefault:
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .fill(Color(red: 229 / 255, green: 229 / 255, blue: 234 / 255))
+            case .legacyV06:
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .fill(Color(.systemGroupedBackground))
+                    .overlay(
+                        Image(systemName: "house.fill")
+                            .font(.system(size: 11, weight: .regular))
+                            .foregroundStyle(Color.accentColor)
+                    )
+            }
+        }
+        .frame(width: 26, height: 26)
+        .overlay(
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .strokeBorder(.black.opacity(0.1), lineWidth: 1)
+        )
     }
 }
