@@ -255,8 +255,8 @@ final class SubscriptionsViewModelTests: XCTestCase {
             makeSub(id: 1, postedTxnId: nil),
             makeSub(id: 2, postedTxnId: 99),
         ])
-        XCTAssertFalse(SubscriptionsViewData.isPosted(vm.subscriptions[0]))
-        XCTAssertTrue(SubscriptionsViewData.isPosted(vm.subscriptions[1]))
+        XCTAssertFalse(SubscriptionsDomain.isPosted(vm.subscriptions[0]))
+        XCTAssertTrue(SubscriptionsDomain.isPosted(vm.subscriptions[1]))
     }
 
     // MARK: - WR-04: mutation behaviour via injectable seam
