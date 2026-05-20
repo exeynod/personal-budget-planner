@@ -2,11 +2,14 @@ import XCTest
 
 @testable import BudgetPlanner
 
-/// Phase 62 Plan 02 — unit tests for `SavingsViewModel`.
+/// Phase 62 Plan 02 / Phase 67 Plan 07 — unit + behavioural tests for
+/// `SavingsViewModel`.
 ///
-/// Exercises the state machine, derived getters, sheet toggling and the
-/// clear helpers via the `#if DEBUG` `_setStateForTesting` backdoor — no
-/// network calls (mutation-path integration smoke lands in 62-04).
+/// State-machine / derived / sheet coverage runs through the `#if DEBUG`
+/// `_setStateForTesting` backdoor. Money-mutation behaviour (deposit /
+/// createGoal / deleteGoal / optimistic-revert / reloadPending) is exercised
+/// via the injectable `SavingsViewModel.API` seam (P1-4 / R2) — mirror of the
+/// `SubscriptionsViewModel` seam-test style. No real network.
 @MainActor
 final class SavingsViewModelTests: XCTestCase {
 
@@ -20,7 +23,6 @@ final class SavingsViewModelTests: XCTestCase {
         XCTAssertEqual(vm.sheet, .none)
         XCTAssertFalse(vm.submitting)
         XCTAssertNil(vm.mutationError)
-        XCTAssertNil(vm.lastCreatedGoalId)
     }
 
     // MARK: - Derived getters
@@ -83,14 +85,6 @@ final class SavingsViewModelTests: XCTestCase {
         XCTAssertNil(vm.mutationError)
     }
 
-    func test_clearLastCreatedGoalId_setsNil() {
-        let vm = SavingsViewModel()
-        vm.lastCreatedGoalId = 42
-        XCTAssertNotNil(vm.lastCreatedGoalId)
-        vm.clearLastCreatedGoalId()
-        XCTAssertNil(vm.lastCreatedGoalId)
-    }
-
     // MARK: - DEBUG backdoor
 
     func test_setStateForTesting_storesSnapshotAndAccounts() {
@@ -130,7 +124,286 @@ final class SavingsViewModelTests: XCTestCase {
         XCTAssertEqual(vm.goals.map(\.id), [1, 2])
     }
 
-    // MARK: - Helpers
+    // MARK: - P1-4 / R2: deposit behaviour via injectable seam
+
+    func test_deposit_success_reloads_clearsSheet_returnsTrue() async {
+        let spy = APISpy()
+        spy.snapshot = makeSnapshot(total: 70000, monthIn: 0, roundupEnabled: false, base: 50, goals: [])
+        let vm = SavingsViewModel(api: spy.makeAPI())
+        vm.sheet = .deposit(goalId: 1)
+        vm.mutationError = "stale"
+
+        let ok = await vm.deposit(amountCents: 5000, accountId: 1, goalId: 1)
+
+        XCTAssertTrue(ok)
+        XCTAssertEqual(spy.depositCalls, 1)
+        XCTAssertEqual(spy.summaryCalls, 1, "успех депозита перезагружает (T-62-05)")
+        XCTAssertEqual(vm.sheet, .none)
+        XCTAssertNil(vm.mutationError)
+        XCTAssertFalse(vm.submitting)
+    }
+
+    func test_deposit_success_reload_updatesHero() async {
+        let spy = APISpy()
+        spy.snapshot = makeSnapshot(total: 99999, monthIn: 4242, roundupEnabled: false, base: 50, goals: [])
+        let vm = SavingsViewModel(api: spy.makeAPI())
+
+        _ = await vm.deposit(amountCents: 5000, accountId: 1, goalId: nil)
+
+        // reload pulled the spy snapshot → hero totals reflect new server state.
+        XCTAssertEqual(vm.totalCents, 99999)
+        XCTAssertEqual(vm.monthInCents, 4242)
+    }
+
+    func test_deposit_failure_setsFixedRuCopy_returnsFalse() async {
+        let spy = APISpy()
+        spy.depositShouldThrow = true
+        let vm = SavingsViewModel(api: spy.makeAPI())
+
+        let ok = await vm.deposit(amountCents: 5000, accountId: 1, goalId: 1)
+
+        XCTAssertFalse(ok)
+        XCTAssertEqual(vm.mutationError, "Не удалось пополнить")
+        XCTAssertEqual(vm.sheet, .none)
+        XCTAssertFalse(vm.submitting)
+    }
+
+    func test_deposit_invalidDraft_returnsFalse_noCall() async {
+        let spy = APISpy()
+        let vm = SavingsViewModel(api: spy.makeAPI())
+
+        let ok = await vm.deposit(amountCents: 0, accountId: 1, goalId: 1)
+
+        XCTAssertFalse(ok)
+        XCTAssertEqual(spy.depositCalls, 0)
+        XCTAssertFalse(vm.submitting)
+    }
+
+    func test_deposit_submittingGuard_blocksSecondCall() async {
+        let spy = APISpy()
+        spy.blockMutations = true
+        let vm = SavingsViewModel(api: spy.makeAPI())
+
+        let first = Task { await vm.deposit(amountCents: 5000, accountId: 1, goalId: 1) }
+        while spy.depositCalls == 0 { await Task.yield() }
+
+        let second = await vm.deposit(amountCents: 5000, accountId: 1, goalId: 1)
+        XCTAssertFalse(second, "submitting-guard блокирует реентрант (T-67-07-01)")
+        XCTAssertEqual(spy.depositCalls, 1, "второй network-вызов не пущен")
+
+        spy.releaseGate()
+        _ = await first.value
+        XCTAssertFalse(vm.submitting)
+    }
+
+    // MARK: - P1-4: createGoal behaviour
+
+    func test_createGoal_success_reloads_clearsSheet_returnsTrue() async {
+        let spy = APISpy()
+        spy.snapshot = makeSnapshot(total: 0, monthIn: 0, roundupEnabled: false, base: 50, goals: [])
+        let vm = SavingsViewModel(api: spy.makeAPI())
+        vm.sheet = .newGoal
+
+        let ok = await vm.createGoal(name: "Машина", targetCents: 500_000, due: nil)
+
+        XCTAssertTrue(ok)
+        XCTAssertEqual(spy.createCalls, 1)
+        XCTAssertEqual(spy.summaryCalls, 1)
+        XCTAssertEqual(vm.sheet, .none)
+        XCTAssertNil(vm.mutationError)
+    }
+
+    func test_createGoal_invalidDraft_returnsFalse_noCall() async {
+        let spy = APISpy()
+        let vm = SavingsViewModel(api: spy.makeAPI())
+
+        let ok = await vm.createGoal(name: "", targetCents: 0, due: nil)
+
+        XCTAssertFalse(ok)
+        XCTAssertEqual(spy.createCalls, 0)
+        XCTAssertFalse(vm.submitting)
+    }
+
+    func test_createGoal_failure_setsFixedRuCopy_returnsFalse() async {
+        let spy = APISpy()
+        spy.createShouldThrow = true
+        let vm = SavingsViewModel(api: spy.makeAPI())
+
+        let ok = await vm.createGoal(name: "Машина", targetCents: 500_000, due: nil)
+
+        XCTAssertFalse(ok)
+        XCTAssertEqual(vm.mutationError, "Не удалось создать цель")
+        XCTAssertEqual(vm.sheet, .none)
+    }
+
+    // MARK: - P1-4: deleteGoal behaviour
+
+    func test_deleteGoal_success_reloads_clearsError() async {
+        let spy = APISpy()
+        spy.snapshot = makeSnapshot(total: 0, monthIn: 0, roundupEnabled: false, base: 50, goals: [])
+        let vm = SavingsViewModel(api: spy.makeAPI())
+        vm.mutationError = "stale"
+
+        await vm.deleteGoal(id: 7)
+
+        XCTAssertEqual(spy.deleteCalls, 1)
+        XCTAssertEqual(spy.summaryCalls, 1)
+        XCTAssertNil(vm.mutationError)
+    }
+
+    func test_deleteGoal_failure_setsFixedRuCopy() async {
+        let spy = APISpy()
+        spy.deleteShouldThrow = true
+        let vm = SavingsViewModel(api: spy.makeAPI())
+
+        await vm.deleteGoal(id: 7)
+
+        XCTAssertEqual(vm.mutationError, "Не удалось удалить цель")
+    }
+
+    // MARK: - P1-4: optimistic-revert calls reload on failure
+
+    func test_toggleRoundup_failure_revertsViaReload() async {
+        let spy = APISpy()
+        spy.patchEnabledShouldThrow = true
+        spy.snapshot = makeSnapshot(total: 0, monthIn: 0, roundupEnabled: false, base: 50, goals: [])
+        let vm = SavingsViewModel(api: spy.makeAPI())
+        vm._setStateForTesting(
+            snapshot: makeSnapshot(total: 0, monthIn: 0, roundupEnabled: false, base: 50, goals: []))
+
+        await vm.toggleRoundup(true)
+
+        XCTAssertEqual(vm.mutationError, "Не удалось обновить округление")
+        XCTAssertEqual(spy.summaryCalls, 1, "optimistic-revert перезагружает (T-62-05)")
+    }
+
+    func test_selectBase_failure_revertsViaReload() async {
+        let spy = APISpy()
+        spy.patchBaseShouldThrow = true
+        spy.snapshot = makeSnapshot(total: 0, monthIn: 0, roundupEnabled: false, base: 50, goals: [])
+        let vm = SavingsViewModel(api: spy.makeAPI())
+        vm._setStateForTesting(
+            snapshot: makeSnapshot(total: 0, monthIn: 0, roundupEnabled: false, base: 50, goals: []))
+
+        await vm.selectBase(100)
+
+        XCTAssertEqual(vm.mutationError, "Не удалось обновить округление")
+        XCTAssertEqual(spy.summaryCalls, 1)
+    }
+
+    // MARK: - WR-01: reloadPending coalesces a load() requested mid-flight
+
+    func test_load_coalescesPendingReload_whenInFlight() async {
+        let spy = APISpy()
+        spy.snapshot = makeSnapshot(total: 0, monthIn: 0, roundupEnabled: false, base: 50, goals: [])
+        spy.blockSummary = true
+        let vm = SavingsViewModel(api: spy.makeAPI())
+
+        let first = Task { await vm.load() }
+        while spy.summaryCalls == 0 { await Task.yield() }
+
+        // load #2 while #1 in flight → запоминается, не теряется.
+        await vm.load()
+        XCTAssertEqual(spy.summaryCalls, 1, "второй load skip-нут, но запомнен")
+
+        spy.releaseSummaryGate()
+        await first.value
+
+        while spy.summaryCalls < 2 || vm.status != .ready { await Task.yield() }
+        XCTAssertEqual(spy.summaryCalls, 2, "pending reload перевызван, не потерян")
+        XCTAssertEqual(vm.status, .ready)
+    }
+
+    // MARK: - Seam spy
+
+    private struct StubError: Error {}
+
+    private final class APISpy: @unchecked Sendable {
+        var snapshot = SavingsSummaryDTO(
+            totalCents: 0, monthInCents: 0,
+            config: SavingsConfigDTO(roundupEnabled: false, roundupBase: 50), goals: [])
+        var accounts: [AccountDTO] = []
+
+        var summaryCalls = 0
+        var depositCalls = 0
+        var createCalls = 0
+        var deleteCalls = 0
+
+        var depositShouldThrow = false
+        var createShouldThrow = false
+        var deleteShouldThrow = false
+        var patchEnabledShouldThrow = false
+        var patchBaseShouldThrow = false
+
+        var blockMutations = false
+        private var gate: CheckedContinuation<Void, Never>?
+
+        var blockSummary = false
+        private var summaryGate: CheckedContinuation<Void, Never>?
+
+        func makeAPI() -> SavingsViewModel.API {
+            SavingsViewModel.API(
+                summary: {
+                    self.summaryCalls += 1
+                    await self.blockSummaryIfNeeded()
+                    return self.snapshot
+                },
+                accountsList: { self.accounts },
+                patchRoundupEnabled: { enabled in
+                    if self.patchEnabledShouldThrow { throw StubError() }
+                    return SavingsConfigDTO(roundupEnabled: enabled, roundupBase: 50)
+                },
+                patchRoundupBase: { base in
+                    if self.patchBaseShouldThrow { throw StubError() }
+                    return SavingsConfigDTO(roundupEnabled: false, roundupBase: base)
+                },
+                postDeposit: { _, _, _ in
+                    self.depositCalls += 1
+                    await self.blockIfNeeded()
+                    if self.depositShouldThrow { throw StubError() }
+                },
+                goalsCreate: { req in
+                    self.createCalls += 1
+                    if self.createShouldThrow { throw StubError() }
+                    return GoalDTO(
+                        id: 999, name: req.name, targetCents: req.targetCents,
+                        currentCents: 0, due: req.due, createdAt: Date(timeIntervalSince1970: 0))
+                },
+                goalsDelete: { _ in
+                    self.deleteCalls += 1
+                    if self.deleteShouldThrow { throw StubError() }
+                }
+            )
+        }
+
+        private func blockIfNeeded() async {
+            guard blockMutations else { return }
+            blockMutations = false
+            await withCheckedContinuation { (c: CheckedContinuation<Void, Never>) in
+                self.gate = c
+            }
+        }
+
+        private func blockSummaryIfNeeded() async {
+            guard blockSummary else { return }
+            blockSummary = false
+            await withCheckedContinuation { (c: CheckedContinuation<Void, Never>) in
+                self.summaryGate = c
+            }
+        }
+
+        func releaseGate() {
+            gate?.resume()
+            gate = nil
+        }
+
+        func releaseSummaryGate() {
+            summaryGate?.resume()
+            summaryGate = nil
+        }
+    }
+
+    // MARK: - Fixtures
 
     private func makeSnapshot(
         total: Int, monthIn: Int, roundupEnabled: Bool, base: Int, goals: [GoalDTO]
