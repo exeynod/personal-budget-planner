@@ -1,14 +1,21 @@
 import Foundation
 import Observation
 
-/// Phase 62 — SavingsViewModel для v06 SavingsView (master list).
+/// Phase 62 — SavingsViewModel для v06 SavingsView (master).
 ///
-/// Stub (Plan 62-01). Полная реализация load() / toggleRoundup /
-/// selectBase / createGoal / deleteGoal / deposit — Plan 62-02.
+/// Plan 62-02 реализация:
+///   - load(): async let parallel fetch SavingsAPI.summary + AccountsAPI.list
+///   - toggleRoundup / selectBase: optimistic snapshot rebuild + PATCH;
+///     failure → load() reload
+///   - createGoal: submitting guard → validate → POST → load → lastCreatedGoalId
+///   - deleteGoal: submitting guard → DELETE → load
+///   - deposit: submitting guard → validate → POST → load
 ///
-/// Pattern: parallel to V10 SavingsV10ViewModel (FeaturesV10), но v06
-/// native shell — никакого poster-styling. Discriminated SheetMode для
-/// dual-sheet state (new goal + deposit с optional pre-filled goalId).
+/// Threat-model:
+///   - T-62-03 (Information Disclosure): catch блоки → filtered Russian
+///     copy («Не удалось ...»); raw Swift error → ТОЛЬКО print() в Xcode.
+///   - T-62-04 (Concurrency): submitting flag guard на mutation paths.
+///   - T-62-05 (Stale-state): full reload после mutation успеха.
 @MainActor
 @Observable
 final class SavingsViewModel {
@@ -45,54 +52,172 @@ final class SavingsViewModel {
     /// or manually через clearMutationError().
     var mutationError: String? = nil
 
-    /// Set by createGoal() on success — triggers ScrollViewReader
-    /// scrollTo в SavingsView. Cleared after consumption.
+    /// Set by createGoal() on success — может triggerить scroll/highlight
+    /// в SavingsView. Cleared after consumption.
     var lastCreatedGoalId: Int? = nil
 
     @ObservationIgnored
     private var inFlight: Bool = false
 
-    // MARK: - Load (filled in 62-02)
+    // MARK: - Load
+
     func load() async {
-        // Plan 62-02 fills this body.
+        if inFlight { return }
+        inFlight = true
+        defer { inFlight = false }
+
+        status = .loading
+        do {
+            async let snapTask = SavingsAPI.summary()
+            async let accsTask = AccountsAPI.list()
+            let (snap, accs) = try await (snapTask, accsTask)
+            self.snapshot = snap
+            self.accounts = accs
+            status = .ready
+        } catch {
+            print("[SavingsViewModel] load failed: \(error)")
+            status = .error("Не удалось загрузить копилку")
+        }
     }
 
-    // MARK: - Mutations (filled in 62-02)
+    // MARK: - Mutations
+
+    /// Optimistic toggle. На failure → reload (T-62-05).
     func toggleRoundup(_ enabled: Bool) async {
-        // Plan 62-02 fills.
+        guard let snap = snapshot else { return }
+        snapshot = SavingsSummaryDTO(
+            totalCents: snap.totalCents,
+            monthInCents: snap.monthInCents,
+            config: SavingsConfigDTO(roundupEnabled: enabled, roundupBase: snap.config.roundupBase),
+            goals: snap.goals
+        )
+        do {
+            let cfg = try await SavingsAPI.patchConfig(roundupEnabled: enabled)
+            if let s = snapshot {
+                snapshot = SavingsSummaryDTO(
+                    totalCents: s.totalCents, monthInCents: s.monthInCents, config: cfg,
+                    goals: s.goals)
+            }
+        } catch {
+            print("[SavingsViewModel] toggleRoundup failed: \(error)")
+            mutationError = "Не удалось обновить округление"
+            await load()
+        }
     }
 
+    /// Optimistic base selection. UI ограничивает {10,50,100} (CONTEXT T-62-01).
     func selectBase(_ base: Int) async {
-        // Plan 62-02 fills.
+        guard let snap = snapshot else { return }
+        snapshot = SavingsSummaryDTO(
+            totalCents: snap.totalCents,
+            monthInCents: snap.monthInCents,
+            config: SavingsConfigDTO(roundupEnabled: snap.config.roundupEnabled, roundupBase: base),
+            goals: snap.goals
+        )
+        do {
+            let cfg = try await SavingsAPI.patchConfig(roundupBase: base)
+            if let s = snapshot {
+                snapshot = SavingsSummaryDTO(
+                    totalCents: s.totalCents, monthInCents: s.monthInCents, config: cfg,
+                    goals: s.goals)
+            }
+        } catch {
+            print("[SavingsViewModel] selectBase failed: \(error)")
+            mutationError = "Не удалось обновить округление"
+            await load()
+        }
     }
 
+    /// Create new goal. Submitting guard (T-62-04) + validate + POST + reload (T-62-05).
+    @discardableResult
     func createGoal(name: String, targetCents: Int, due: Date?) async -> Bool {
-        // Plan 62-02 fills. Returns true on success.
-        return false
+        guard !submitting else { return false }
+        guard SavingsViewData.isValidGoalDraft(name: name, targetCents: targetCents) else {
+            return false
+        }
+        submitting = true
+        defer { submitting = false }
+        do {
+            let created = try await GoalsAPI.create(
+                GoalCreateRequest(
+                    name: name.trimmingCharacters(in: .whitespaces), targetCents: targetCents,
+                    due: due)
+            )
+            mutationError = nil
+            await load()
+            lastCreatedGoalId = created.id
+            sheet = .none
+            return true
+        } catch {
+            print("[SavingsViewModel] createGoal failed: \(error)")
+            mutationError = "Не удалось создать цель"
+            sheet = .none
+            return false
+        }
     }
 
+    /// Delete goal. Submitting guard + DELETE + reload.
     func deleteGoal(id: Int) async {
-        // Plan 62-02 fills.
+        guard !submitting else { return }
+        submitting = true
+        defer { submitting = false }
+        do {
+            try await GoalsAPI.delete(id: id)
+            mutationError = nil
+            await load()
+        } catch {
+            print("[SavingsViewModel] deleteGoal failed: \(error)")
+            mutationError = "Не удалось удалить цель"
+        }
     }
 
+    /// Deposit. Submitting guard + validate + POST + reload.
+    @discardableResult
     func deposit(amountCents: Int, accountId: Int, goalId: Int?) async -> Bool {
-        // Plan 62-02 fills. Returns true on success.
-        return false
+        guard !submitting else { return false }
+        guard SavingsViewData.isValidDepositDraft(amountCents: amountCents, accountId: accountId)
+        else { return false }
+        submitting = true
+        defer { submitting = false }
+        do {
+            _ = try await SavingsAPI.postDeposit(
+                amountCents: amountCents, accountId: accountId, goalId: goalId)
+            mutationError = nil
+            await load()
+            sheet = .none
+            return true
+        } catch {
+            print("[SavingsViewModel] deposit failed: \(error)")
+            mutationError = "Не удалось пополнить"
+            sheet = .none
+            return false
+        }
     }
 
     // MARK: - Helpers
-    func clearMutationError() {
-        self.mutationError = nil
-    }
 
-    func clearLastCreatedGoalId() {
-        self.lastCreatedGoalId = nil
-    }
+    func clearMutationError() { self.mutationError = nil }
+    func clearLastCreatedGoalId() { self.lastCreatedGoalId = nil }
 
     // MARK: - Derived
+
     var totalCents: Int { snapshot?.totalCents ?? 0 }
     var monthInCents: Int { snapshot?.monthInCents ?? 0 }
     var goals: [GoalDTO] { snapshot?.goals ?? [] }
     var roundupEnabled: Bool { snapshot?.config.roundupEnabled ?? false }
     var roundupBase: Int { snapshot?.config.roundupBase ?? 50 }
+
+    // MARK: - DEBUG backdoor
+
+    #if DEBUG
+    func _setStateForTesting(
+        snapshot: SavingsSummaryDTO? = nil,
+        accounts: [AccountDTO] = [],
+        status: Status = .ready
+    ) {
+        self.snapshot = snapshot
+        self.accounts = accounts
+        self.status = status
+    }
+    #endif
 }
