@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.1.2
 milestone_name: — iOS v06 Native Rebuild)
 current_phase: 66
-status: completed
+status: Plan 66-01 executed (v06 Settings theme picker); build + 568 tests GREEN
 stopped_at: Completed 66-01-PLAN.md
-last_updated: "2026-05-20T15:00:08.083Z"
+last_updated: "2026-05-20T15:05:00.597Z"
 last_activity: 2026-05-20
 progress:
   total_phases: 35
