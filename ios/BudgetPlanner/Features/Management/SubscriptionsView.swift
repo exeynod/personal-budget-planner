@@ -1,47 +1,166 @@
 import SwiftUI
 
+/// Phase 63 Plan 01 — SubscriptionsViewModel мигрирован на SubscriptionsV10API.
+///
+/// list / patch / post / unpost / delete — всё на v1.0-контракте
+/// (`SubscriptionV10DTO`). create-путь остаётся на legacy `SubscriptionsAPI`
+/// (V10API не имеет create-эндпоинта — резолюция CONTEXT open-вопроса) и живёт
+/// во View-editor (Plan 63-02). post/unpost — денежные мутации (создают /
+/// отменяют транзакцию).
+///
+/// Эталон поведения — SavingsViewModel (Phase 62):
+///   - Status state-machine {idle, loading, ready, error};
+///   - inFlight guard в load();
+///   - submitting guard + defer на post/unpost/patch/delete (T-63-01);
+///   - raw error → ТОЛЬКО print(); UI читает фиксированную RU-копию (T-63-02);
+///   - full reload после успешной мутации (T-63-04).
 @MainActor
 @Observable
 final class SubscriptionsViewModel {
-    var subscriptions: [SubscriptionDTO] = []
-    var categories: [CategoryDTO] = []
-    var isLoading: Bool = false
-    var errorMessage: String?
+    enum Status: Equatable {
+        case idle
+        case loading
+        case ready
+        case error(String)
+    }
+
+    private(set) var subscriptions: [SubscriptionV10DTO] = []
+    private(set) var categories: [CategoryDTO] = []
+    private(set) var accounts: [AccountDTO] = []
+    private(set) var status: Status = .idle
+    private(set) var submitting: Bool = false
+
+    /// Фиксированная RU-копия на mutation failure (T-63-02). UI читает в banner.
+    var mutationError: String? = nil
+
+    @ObservationIgnored
+    private var inFlight: Bool = false
+
+    // MARK: - Load
 
     func load() async {
-        isLoading = true
-        errorMessage = nil
-        defer { isLoading = false }
+        if inFlight { return }
+        inFlight = true
+        defer { inFlight = false }
+
+        status = .loading
         do {
-            async let subs = SubscriptionsAPI.list()
-            async let cats = CategoriesAPI.list()
-            self.subscriptions = (try await subs).sorted { $0.nextChargeDate < $1.nextChargeDate }
-            self.categories = (try await cats).filter { !$0.isArchived }
-            await LocalNotifications.reschedule(subscriptions: self.subscriptions)
+            async let subsTask = SubscriptionsV10API.list()
+            async let catsTask = CategoriesAPI.list()
+            async let accsTask = AccountsAPI.list()
+            let (subs, cats, accs) = try await (subsTask, catsTask, accsTask)
+            self.subscriptions = SubscriptionsViewData.sortForDisplay(subs)
+            self.categories = cats.filter { !$0.isArchived }
+            self.accounts = accs
+            // NOTE (Phase 63-01 known-gap): LocalNotifications.reschedule принимает
+            // legacy [SubscriptionDTO] (Decodable-only, нет memberwise init), поэтому
+            // V10DTO нельзя смэппить без модификации LocalNotifications/SubscriptionDTO
+            // (вне scope этого плана). Rescheduling нотификаций подписок — follow-up;
+            // CRUD-функционал подписок не регрессирует. TODO(63-02+): overload под V10DTO.
+            status = .ready
         } catch {
-            errorMessage = error.localizedDescription
+            print("[SubscriptionsViewModel] load failed: \(error)")
+            status = .error("Не удалось загрузить подписки")
         }
     }
 
-    func delete(_ sub: SubscriptionDTO) async {
+    // MARK: - Mutations
+
+    /// Провести списание подписки (создаёт транзакцию). Submitting guard
+    /// (T-63-01) + reload (T-63-04) на успехе.
+    @discardableResult
+    func post(_ sub: SubscriptionV10DTO) async -> Bool {
+        guard !submitting else { return false }
+        submitting = true
+        defer { submitting = false }
         do {
-            try await SubscriptionsAPI.delete(id: sub.id)
-            subscriptions.removeAll { $0.id == sub.id }
-            await LocalNotifications.reschedule(subscriptions: subscriptions)
+            _ = try await SubscriptionsV10API.post(id: sub.id)
+            mutationError = nil
+            await load()
+            return true
         } catch {
-            errorMessage = error.localizedDescription
+            print("[SubscriptionsViewModel] post failed: \(error)")
+            mutationError = "Не удалось провести подписку"
+            return false
         }
     }
 
-    var activeCount: Int {
-        subscriptions.filter(\.isActive).count
-    }
-
-    var monthlyLoadCents: Int {
-        subscriptions.filter(\.isActive).reduce(0) { acc, s in
-            acc + (s.cycle == .monthly ? s.amountCents : s.amountCents / 12)
+    /// Отменить проведение подписки. Submitting guard + reload.
+    @discardableResult
+    func unpost(_ sub: SubscriptionV10DTO) async -> Bool {
+        guard !submitting else { return false }
+        submitting = true
+        defer { submitting = false }
+        do {
+            try await SubscriptionsV10API.unpost(id: sub.id)
+            mutationError = nil
+            await load()
+            return true
+        } catch {
+            print("[SubscriptionsViewModel] unpost failed: \(error)")
+            mutationError = "Не удалось отменить проведение"
+            return false
         }
     }
+
+    /// Удалить подписку (hard delete). Submitting guard + reload.
+    func delete(_ sub: SubscriptionV10DTO) async {
+        guard !submitting else { return }
+        submitting = true
+        defer { submitting = false }
+        do {
+            try await SubscriptionsV10API.delete(id: sub.id)
+            mutationError = nil
+            await load()
+        } catch {
+            print("[SubscriptionsViewModel] delete failed: \(error)")
+            mutationError = "Не удалось удалить подписку"
+        }
+    }
+
+    /// PATCH подписки (используется editor edit-path в Plan 63-02).
+    /// Submitting guard + reload.
+    @discardableResult
+    func patch(_ sub: SubscriptionV10DTO, payload: SubscriptionV10UpdateRequest) async -> Bool {
+        guard !submitting else { return false }
+        submitting = true
+        defer { submitting = false }
+        do {
+            _ = try await SubscriptionsV10API.patch(id: sub.id, payload: payload)
+            mutationError = nil
+            await load()
+            return true
+        } catch {
+            print("[SubscriptionsViewModel] patch failed: \(error)")
+            mutationError = "Не удалось сохранить подписку"
+            return false
+        }
+    }
+
+    // MARK: - Helpers
+
+    func clearMutationError() { self.mutationError = nil }
+
+    // MARK: - Derived
+
+    var activeCount: Int { SubscriptionsViewData.computeActiveCount(subscriptions) }
+    var monthlyLoadCents: Int { SubscriptionsViewData.computeMonthlyLoadCents(subscriptions) }
+
+    // MARK: - DEBUG backdoor
+
+    #if DEBUG
+    func _setStateForTesting(
+        subscriptions: [SubscriptionV10DTO] = [],
+        categories: [CategoryDTO] = [],
+        accounts: [AccountDTO] = [],
+        status: Status = .ready
+    ) {
+        self.subscriptions = subscriptions
+        self.categories = categories
+        self.accounts = accounts
+        self.status = status
+    }
+    #endif
 }
 
 /// Subscriptions — native iOS List(.insetGrouped) layout.
@@ -51,8 +170,17 @@ final class SubscriptionsViewModel {
 ///   - "+" → SubscriptionEditor sheet
 struct SubscriptionsView: View {
     @State private var viewModel = SubscriptionsViewModel()
-    @State private var editingSub: SubscriptionDTO?
+    @State private var editingSub: SubscriptionV10DTO?
     @State private var showingNew = false
+
+    private var isLoading: Bool {
+        if case .loading = viewModel.status { return true }
+        return false
+    }
+
+    private func categoryName(_ id: Int) -> String {
+        viewModel.categories.first { $0.id == id }?.name ?? ""
+    }
 
     var body: some View {
         List {
@@ -70,8 +198,15 @@ struct SubscriptionsView: View {
             }
 
             Section("Подписки") {
-                if viewModel.isLoading && viewModel.subscriptions.isEmpty {
+                if isLoading && viewModel.subscriptions.isEmpty {
                     ProgressView()
+                } else if case .error(let msg) = viewModel.status, viewModel.subscriptions.isEmpty {
+                    ContentUnavailableView(
+                        "Не удалось загрузить",
+                        systemImage: "exclamationmark.triangle",
+                        description: Text(msg)
+                    )
+                    .listRowBackground(Color.clear)
                 } else if viewModel.subscriptions.isEmpty {
                     ContentUnavailableView(
                         "Подписок нет",
@@ -81,7 +216,7 @@ struct SubscriptionsView: View {
                     .listRowBackground(Color.clear)
                 } else {
                     ForEach(viewModel.subscriptions) { sub in
-                        SubscriptionRow(sub: sub)
+                        SubscriptionRow(sub: sub, categoryName: categoryName(sub.categoryId))
                             .contentShape(Rectangle())
                             .onTapGesture { editingSub = sub }
                             .swipeActions(edge: .trailing) {
@@ -90,12 +225,13 @@ struct SubscriptionsView: View {
                                 } label: {
                                     Label("Удалить", systemImage: "trash")
                                 }
+                                .disabled(viewModel.submitting)
                             }
                     }
                 }
             }
 
-            if let err = viewModel.errorMessage {
+            if let err = viewModel.mutationError {
                 Section {
                     Label(err, systemImage: "exclamationmark.triangle")
                         .foregroundStyle(.red)
@@ -109,6 +245,7 @@ struct SubscriptionsView: View {
                 Button { showingNew = true } label: { Image(systemName: "plus") }
             }
         }
+        .refreshable { await viewModel.load() }
         .task {
             _ = await LocalNotifications.requestAuthorization()
             await viewModel.load()
@@ -134,7 +271,8 @@ struct SubscriptionsView: View {
 }
 
 private struct SubscriptionRow: View {
-    let sub: SubscriptionDTO
+    let sub: SubscriptionV10DTO
+    let categoryName: String
 
     private var daysUntil: Int {
         let today = Calendar.current.startOfDay(for: Date())
@@ -149,7 +287,7 @@ private struct SubscriptionRow: View {
     }
 
     private var visual: Tokens.Categories.Visual {
-        Tokens.Categories.visual(for: sub.category?.name ?? "")
+        Tokens.Categories.visual(for: categoryName)
     }
 
     var body: some View {
@@ -182,9 +320,8 @@ private struct SubscriptionRow: View {
     }
 
     private var metaLine: String {
-        let cycle = sub.cycle == .monthly ? "мес" : "год"
-        let cat = sub.category?.name ?? ""
-        return [cycle, cat, pillLabel].filter { !$0.isEmpty }.joined(separator: " · ")
+        let cadence = SubscriptionsViewData.formatCadenceRu(cycle: sub.cycle, dayOfMonth: sub.dayOfMonth)
+        return [cadence, categoryName, pillLabel].filter { !$0.isEmpty }.joined(separator: " · ")
     }
 }
 
@@ -192,7 +329,7 @@ private struct SubscriptionRow: View {
 
 enum SubscriptionEditorMode: Identifiable {
     case create
-    case edit(SubscriptionDTO)
+    case edit(SubscriptionV10DTO)
 
     var id: String {
         switch self {
