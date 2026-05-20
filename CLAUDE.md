@@ -3,7 +3,7 @@
 
 # TG Budget Planner
 
-Личный Telegram Mini App для планирования и ведения месячного бюджета — перенос Google-таблицы заказчика (план/факт по категориям, шаблон плана, подписки с напоминаниями) в TG-приложение с быстрым вводом трат через Mini App или бот-команды. Single-tenant: один пользователь, авторизация по `tg_user_id` через `OWNER_TG_ID`.
+Личный Telegram Mini App для планирования и ведения месячного бюджета — перенос Google-таблицы заказчика (план/факт по категориям, шаблон плана, подписки с напоминаниями) в TG-приложение с быстрым вводом трат через Mini App или бот-команды. Авторизация по `tg_user_id`; единственный owner — через `OWNER_TG_ID`. Технически система **multi-tenant via RLS** (см. ниже R9 / ARCH-A7): per-row `user_id`, PostgreSQL Row-Level Security и роли `owner`/`member` уже активны.
 
 **Core Value:** В один тап записать факт-трату и видеть актуальную дельту план/факт по категориям бюджета — быстрее, чем открывать Google-таблицу.
 
@@ -31,7 +31,7 @@ See `docs/HLD.md` for full architecture and API contract.
 - Деньги хранятся как `BIGINT` (`*_cents`), на UI — рубли. Никаких `float`.
 - Бизнес-даты — `DATE`, аудит-времена — `TIMESTAMPTZ` UTC.
 - Soft delete только для `category` (через `is_archived`). Транзакции и подписки — hard delete.
-- Single-tenant в MVP: FK на `app_user` НЕ вводим, миграция на multi-tenant — отдельная задача.
+- **Multi-tenant via RLS (R9 / ARCH-A7):** не single-tenant. Доменные таблицы несут `user_id`; PostgreSQL Row-Level Security изолирует строки (`user_id = current_setting('app.current_user_id')::bigint`, alembic 0008); роли `owner`/`member` (`UserRole`); каждый запрос вызывает `set_tenant_scope` → `SET LOCAL app.current_user_id` (transaction-scoped, сбрасывается на COMMIT/ROLLBACK). Это security-актив, а не carrying cost. `admin_audit_log` намеренно вне RLS (owner-only под `budget_admin`).
 - Знак дельты: «положительная = хорошо». Расходы `План−Факт`, доходы `Факт−План`.
 - Period расчёт: `period_for(date, cycle_start_day) -> (period_start, period_end)`.
 - Telegram `initData` валидируется HMAC-SHA256 на каждом запросе, `auth_date` ≤ 24ч.

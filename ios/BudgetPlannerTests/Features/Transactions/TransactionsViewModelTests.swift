@@ -386,13 +386,17 @@ final class TransactionsViewModelTests: XCTestCase {
         let vm = TransactionsViewModel()
         XCTAssertEqual(vm.status, .idle, "Initial status must be .idle before any load() call")
 
-        NotificationCenter.default.post(name: .txnCreated, object: nil)
+        // P2-12 (QA-F6): de-flaked — await the deterministic load-seam instead
+        // of a 300ms timed wait. The observer calls load() then fires
+        // `onNotificationLoadComplete`; we resume the continuation there, so
+        // the assertion runs exactly once the reload has finished regardless
+        // of machine speed. (load() fails against no backend → .error, which
+        // still proves status moved off .idle.)
+        await withCheckedContinuation { (cont: CheckedContinuation<Void, Never>) in
+            vm.onNotificationLoadComplete = { cont.resume() }
+            NotificationCenter.default.post(name: .txnCreated, object: nil)
+        }
 
-        // The observer posts a Task that calls load(); load() will fail
-        // against no backend (no APIClient base URL in unit-test bundle),
-        // landing in .error("не удалось загрузить транзакции"). Either way
-        // status MUST transition off .idle within ~300ms.
-        try? await Task.sleep(nanoseconds: 300_000_000)
         XCTAssertNotEqual(
             vm.status, .idle,
             "Notification observer should trigger load() and move status off .idle")

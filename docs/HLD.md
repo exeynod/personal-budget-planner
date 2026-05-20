@@ -114,7 +114,7 @@
 - **Деньги:** все суммы хранятся как `BIGINT` в копейках (`*_cents`).
 - **Даты:** `DATE` для бизнес-дат (period, tx_date, planned_date, next_charge_date); `TIMESTAMPTZ` для аудита (`created_at`, `closed_at`, `onboarded_at`). В БД — UTC, расчёты периодов и шедулер — `Europe/Moscow`.
 - **Soft delete:** только для `category` (через `is_archived`). Транзакции и подписки — hard delete.
-- **Single-tenant:** в MVP `app_user` содержит ровно одну строку. FK от других таблиц на `app_user` **не вводим** — упрощаем модель. Если в будущем понадобится multi-tenant, миграция = добавление `user_id` во все таблицы.
+- **Multi-tenant via RLS (R9 / ARCH-A7):** система de-facto multi-tenant. Начиналась как single-tenant MVP, но с Phase 11–13 в неё внедрены: per-row `user_id` на доменных таблицах, PostgreSQL **Row-Level Security** (политики `user_id = current_setting('app.current_user_id')::bigint`, alembic 0008), роли `owner`/`member` (`UserRole`), и `set_tenant_scope(session, user_id)` который ставит `SET LOCAL app.current_user_id` (transaction-scoped GUC, сбрасывается на COMMIT/ROLLBACK) **на каждый запрос**. Изоляция арендаторов работает на уровне БД — это **актив** (security-backstop), а не carrying cost. Единственный owner авторизуется по `OWNER_TG_ID`; `member`-доступ возможен через invite. `admin_audit_log` намеренно вне RLS (owner-only read под ролью `budget_admin`).
 
 ### 2.2 Перечисления (enums)
 

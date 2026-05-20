@@ -80,6 +80,13 @@ final class TransactionsViewModel {
     @ObservationIgnored
     private var txnCreatedObserver: NSObjectProtocol?
 
+    /// P2-12 (QA-F6): deterministic load-seam. Fires AFTER a notification-
+    /// triggered `load()` completes, so tests can `await` the reload instead
+    /// of relying on a flaky `Task.sleep(300ms)`. Production leaves it nil
+    /// (no behavioural change) — only the test injects a continuation.
+    @ObservationIgnored
+    var onNotificationLoadComplete: (@MainActor () -> Void)?
+
     private static func defaultCalendar() -> Calendar {
         var c = Calendar(identifier: .gregorian)
         c.timeZone = TimeZone(identifier: "Europe/Moscow") ?? .current
@@ -96,6 +103,9 @@ final class TransactionsViewModel {
         ) { [weak self] _ in
             Task { @MainActor [weak self] in
                 await self?.load()
+                // P2-12: signal the (test-injected) seam that the
+                // notification-triggered reload finished. No-op in prod.
+                self?.onNotificationLoadComplete?()
             }
         }
     }
