@@ -84,17 +84,24 @@ async def create_category(
         # to ForeignKeyViolationError when _refresh_embedding's fresh
         # session can't see the not-yet-committed category row.
         await db.commit()
-        background_tasks.add_task(_refresh_embedding, cat.id, cat.name)
+        background_tasks.add_task(_refresh_embedding, cat.id, cat.name, user_id)
     return CategoryRead.model_validate(cat)
 
 
-async def _refresh_embedding(category_id: int, name: str) -> None:
+async def _refresh_embedding(category_id: int, name: str, user_id: int) -> None:
     """Background task: regenerate category embedding after name change (AICAT-04).
 
     Runs outside the request lifecycle — uses its own DB session.
     Skips silently if OPENAI_API_KEY is not configured.
+
+    P1-1 (BE-F2): the upsert is tenant-scoped — ``upsert_category_embedding``
+    requires a kw-only ``user_id`` (NOT NULL on category_embedding) AND the
+    fresh session must call ``set_tenant_scope`` before the INSERT so RLS lets
+    the row be written. Previously both were missing → TypeError swallowed by
+    the ``except`` below → user-category embeddings never persisted and
+    /ai/suggest-category silently degraded to substring-fallback only.
     """
-    from app.db.session import AsyncSessionLocal
+    from app.db.session import AsyncSessionLocal, set_tenant_scope
 
     try:
         from app.ai.embedding_service import augment_category_name_for_embedding
@@ -104,7 +111,13 @@ async def _refresh_embedding(category_id: int, name: str) -> None:
             augment_category_name_for_embedding(name)
         )
         async with AsyncSessionLocal() as session:
-            await embedding_svc.upsert_category_embedding(session, category_id, vector)
+            # SET LOCAL app.current_user_id — transaction-scoped GUC that RLS
+            # policies read. Without it the background session has no tenant
+            # context and the INSERT is rejected / invisible.
+            await set_tenant_scope(session, user_id)
+            await embedding_svc.upsert_category_embedding(
+                session, category_id, vector, user_id=user_id
+            )
             # AsyncSession's async-with does NOT auto-commit on exit
             # (only closes the session) — without this, the upsert is
             # silently rolled back even though the SQL was issued.
@@ -160,7 +173,7 @@ async def update_category(
         # Same rationale as create_category: commit before scheduling so
         # the background task's fresh session sees the renamed row.
         await db.commit()
-        background_tasks.add_task(_refresh_embedding, cat.id, cat.name)
+        background_tasks.add_task(_refresh_embedding, cat.id, cat.name, user_id)
 
     return CategoryRead.model_validate(cat)
 
