@@ -97,21 +97,23 @@ async def seed_categories(db_setup, owner_tg_id):
         )
         user_id = result.scalar_one()
 
-        expense_cat = Category(
+        from tests.helpers.seed import seed_category
+        expense_cat = await seed_category(
+            session,
             user_id=user_id,
             name="Продукты",
             kind=CategoryKind.expense,
             is_archived=False,
             sort_order=10,
         )
-        income_cat = Category(
+        income_cat = await seed_category(
+            session,
             user_id=user_id,
             name="Зарплата",
             kind=CategoryKind.income,
             is_archived=False,
             sort_order=20,
         )
-        session.add_all([expense_cat, income_cat])
         await session.commit()
         await session.refresh(expense_cat)
         await session.refresh(income_cat)
@@ -262,24 +264,32 @@ async def _create_subscription(
 # ----- Tests -----
 
 
+# 68-05 (class G): snapshot-from-period is part of the deprecated template WRITE
+# surface (Phase 22 CR-05). plan_template_item was dropped (alembic 0013); the
+# endpoint returns 410 Gone immediately without touching the DB
+# (app/api/routes/templates.py::snapshot_from_period_deprecated). The original
+# tests asserted snapshot SEMANTICS (clear/copy/exclude/overwrite template rows)
+# against that dropped table; those semantics no longer exist. Tests now assert
+# the 410 contract — the legacy ``_create_template_item`` helper (which inserted
+# into the dropped table) is no longer called.
+
+
 @pytest.mark.asyncio
-async def test_snapshot_period_not_found_404(db_client, auth_headers):
+async def test_snapshot_period_not_found_410_gone(db_client, auth_headers):
+    """Deprecated snapshot returns 410 (not 404) — surface is gone (CR-05)."""
     response = await db_client.post(
         "/api/v1/template/snapshot-from-period/99999",
         headers=auth_headers,
     )
-    assert response.status_code == 404
+    assert response.status_code == 410, response.text
+    assert response.json()["detail"]["error"] == "templates_deprecated"
 
 
 @pytest.mark.asyncio
-async def test_snapshot_empty_period_clears_template(
+async def test_snapshot_empty_period_410_gone(
     db_setup, auth_headers, seed_categories, owner_tg_id
 ):
-    """Snapshot from a period with no planned rows wipes the template.
-
-    Setup: period exists, no planned rows. Pre-existing 2 template items.
-    Expect: response.replaced == 2, template_items empty. GET /template/items returns [].
-    """
+    """Snapshot (empty-period clear path removed) → 410 Gone (CR-05)."""
     client, SessionLocal = db_setup
     period_id = await _create_period(
         SessionLocal,
@@ -287,41 +297,23 @@ async def test_snapshot_empty_period_clears_template(
         period_start=date(2026, 2, 5),
         period_end=date(2026, 3, 4),
     )
-    # Pre-existing template items (will be cleared)
-    await _create_template_item(
-        SessionLocal,
-        owner_tg_id=owner_tg_id,
-        category_id=seed_categories["expense_cat"].id,
-        amount_cents=500000,
-        sort_order=0,
-    )
-    await _create_template_item(
-        SessionLocal,
-        owner_tg_id=owner_tg_id,
-        category_id=seed_categories["expense_cat"].id,
-        amount_cents=600000,
-        sort_order=10,
-    )
-
     response = await client.post(
         f"/api/v1/template/snapshot-from-period/{period_id}",
         headers=auth_headers,
     )
-    assert response.status_code == 200
-    body = response.json()
-    assert body["template_items"] == []
-    assert body["replaced"] == 2
+    assert response.status_code == 410, response.text
 
+    # GET surface remains an empty list.
     listing = await client.get("/api/v1/template/items", headers=auth_headers)
     assert listing.status_code == 200
     assert listing.json() == []
 
 
 @pytest.mark.asyncio
-async def test_snapshot_includes_template_and_manual(
+async def test_snapshot_includes_template_and_manual_410_gone(
     db_setup, auth_headers, seed_categories, owner_tg_id
 ):
-    """Snapshot copies planned rows where source IN ('template', 'manual')."""
+    """Snapshot (template+manual copy path removed) → 410 Gone (CR-05)."""
     from app.db.models import CategoryKind, PlanSource
 
     client, SessionLocal = db_setup
@@ -331,7 +323,8 @@ async def test_snapshot_includes_template_and_manual(
         period_start=date(2026, 2, 5),
         period_end=date(2026, 3, 4),
     )
-    # Two planned rows: one template-source, one manual-source.
+    # Planned rows still seed fine (planned_transaction is a live table); the
+    # snapshot endpoint just no longer reads them.
     await _create_planned(
         SessionLocal,
         owner_tg_id=owner_tg_id,
@@ -339,54 +332,23 @@ async def test_snapshot_includes_template_and_manual(
         category_id=seed_categories["expense_cat"].id,
         kind=CategoryKind.expense,
         amount_cents=1500000,
-        source=PlanSource.template,
+        source=PlanSource.manual,
         description="Закупка",
         planned_date=date(2026, 2, 9),
     )
-    await _create_planned(
-        SessionLocal,
-        owner_tg_id=owner_tg_id,
-        period_id=period_id,
-        category_id=seed_categories["income_cat"].id,
-        kind=CategoryKind.income,
-        amount_cents=12000000,
-        source=PlanSource.manual,
-        description="Аванс",
-        planned_date=date(2026, 2, 25),
-    )
 
     response = await client.post(
         f"/api/v1/template/snapshot-from-period/{period_id}",
         headers=auth_headers,
     )
-    assert response.status_code == 200
-    body = response.json()
-    assert len(body["template_items"]) == 2
-    assert body["replaced"] == 0  # template was empty before
-
-    listing = await client.get("/api/v1/template/items", headers=auth_headers)
-    assert listing.status_code == 200
-    items = listing.json()
-    assert len(items) == 2
-
-    # Verify amounts/categories preserved
-    amounts = sorted(it["amount_cents"] for it in items)
-    assert amounts == [1500000, 12000000]
-    cat_ids = sorted(it["category_id"] for it in items)
-    assert cat_ids == sorted(
-        [seed_categories["expense_cat"].id, seed_categories["income_cat"].id]
-    )
-    descriptions = sorted(it["description"] for it in items)
-    assert descriptions == ["Аванс", "Закупка"]
+    assert response.status_code == 410, response.text
 
 
 @pytest.mark.asyncio
-async def test_snapshot_excludes_subscription_auto(
+async def test_snapshot_excludes_subscription_auto_410_gone(
     db_setup, auth_headers, seed_categories, owner_tg_id
 ):
-    """D-32: snapshot must exclude rows with source='subscription_auto'."""
-    from app.db.models import CategoryKind, PlanSource
-
+    """Snapshot (subscription_auto exclude path removed) → 410 Gone (CR-05)."""
     client, SessionLocal = db_setup
     period_id = await _create_period(
         SessionLocal,
@@ -394,114 +356,30 @@ async def test_snapshot_excludes_subscription_auto(
         period_start=date(2026, 2, 5),
         period_end=date(2026, 3, 4),
     )
-    sub_id = await _create_subscription(
-        SessionLocal,
-        owner_tg_id=owner_tg_id,
-        category_id=seed_categories["expense_cat"].id,
-    )
-
-    # 3 planned rows: template + manual + subscription_auto.
-    await _create_planned(
-        SessionLocal,
-        owner_tg_id=owner_tg_id,
-        period_id=period_id,
-        category_id=seed_categories["expense_cat"].id,
-        kind=CategoryKind.expense,
-        amount_cents=1000000,
-        source=PlanSource.template,
-        description="Template row",
-    )
-    await _create_planned(
-        SessionLocal,
-        owner_tg_id=owner_tg_id,
-        period_id=period_id,
-        category_id=seed_categories["expense_cat"].id,
-        kind=CategoryKind.expense,
-        amount_cents=2000000,
-        source=PlanSource.manual,
-        description="Manual row",
-    )
-    await _create_planned(
-        SessionLocal,
-        owner_tg_id=owner_tg_id,
-        period_id=period_id,
-        category_id=seed_categories["expense_cat"].id,
-        kind=CategoryKind.expense,
-        amount_cents=29900,
-        source=PlanSource.subscription_auto,
-        description="Spotify (auto)",
-        subscription_id=sub_id,
-    )
-
     response = await client.post(
         f"/api/v1/template/snapshot-from-period/{period_id}",
         headers=auth_headers,
     )
-    assert response.status_code == 200
-    body = response.json()
-    assert len(body["template_items"]) == 2  # subscription_auto excluded
-    assert body["replaced"] == 0
-
-    listing = await client.get("/api/v1/template/items", headers=auth_headers)
-    assert listing.status_code == 200
-    items = listing.json()
-    assert len(items) == 2
-    descriptions = sorted(it["description"] for it in items)
-    assert descriptions == ["Manual row", "Template row"]
-    # Subscription row absent
-    assert "Spotify (auto)" not in [it["description"] for it in items]
+    assert response.status_code == 410, response.text
 
 
 @pytest.mark.asyncio
-async def test_snapshot_overwrites_existing_template(
+async def test_snapshot_overwrites_existing_template_410_gone(
     db_setup, auth_headers, seed_categories, owner_tg_id
 ):
-    """Snapshot is destructive: prior template rows wiped, new ones derived from period."""
-    from app.db.models import CategoryKind, PlanSource
-
+    """Snapshot (destructive overwrite path removed) → 410 Gone (CR-05)."""
     client, SessionLocal = db_setup
-    # Pre-existing template-item (different amount than what snapshot will produce)
-    await _create_template_item(
-        SessionLocal,
-        owner_tg_id=owner_tg_id,
-        category_id=seed_categories["expense_cat"].id,
-        amount_cents=999999,
-        description="Old template",
-        sort_order=0,
-    )
     period_id = await _create_period(
         SessionLocal,
         owner_tg_id=owner_tg_id,
         period_start=date(2026, 2, 5),
         period_end=date(2026, 3, 4),
     )
-    # One planned row (manual) — what snapshot will produce
-    await _create_planned(
-        SessionLocal,
-        owner_tg_id=owner_tg_id,
-        period_id=period_id,
-        category_id=seed_categories["expense_cat"].id,
-        kind=CategoryKind.expense,
-        amount_cents=750000,
-        source=PlanSource.manual,
-        description="New from period",
-    )
-
     response = await client.post(
         f"/api/v1/template/snapshot-from-period/{period_id}",
         headers=auth_headers,
     )
-    assert response.status_code == 200
-    body = response.json()
-    assert body["replaced"] == 1  # the old template-item
-    assert len(body["template_items"]) == 1
-
-    listing = await client.get("/api/v1/template/items", headers=auth_headers)
-    assert listing.status_code == 200
-    items = listing.json()
-    assert len(items) == 1
-    assert items[0]["amount_cents"] == 750000  # new, not 999999
-    assert items[0]["description"] == "New from period"
+    assert response.status_code == 410, response.text
 
 
 @pytest.mark.asyncio

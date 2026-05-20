@@ -94,15 +94,18 @@ async def test_rls_setting_resets_after_commit(
     )
 
 
-async def test_rls_enabled_on_all_nine_tables(db_session):
-    """MUL-02: pg_class.relrowsecurity = true на всех 9 доменных таблицах.
+async def test_rls_enabled_on_all_eight_tables(db_session):
+    """MUL-02: pg_class.relrowsecurity = true на доменных таблицах.
 
     Schema-level check — superuser/role context не влияет.
+
+    68-05 (class E): ``plan_template_item`` was dropped in alembic 0013
+    (CONTEXT D-02), so the historical "nine tables" list is now eight. The
+    remaining tables still carry RLS (FORCE ROW LEVEL SECURITY, alembic 0008).
     """
     domain_tables = (
         "category",
         "budget_period",
-        "plan_template_item",
         "planned_transaction",
         "actual_transaction",
         "subscription",

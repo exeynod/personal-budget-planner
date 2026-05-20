@@ -98,21 +98,23 @@ async def seed_categories(db_setup, owner_tg_id):
         )
         user_id = result.scalar_one()
 
-        expense_cat = Category(
+        from tests.helpers.seed import seed_category
+        expense_cat = await seed_category(
+            session,
             user_id=user_id,
             name="Продукты",
             kind=CategoryKind.expense,
             is_archived=False,
             sort_order=10,
         )
-        income_cat = Category(
+        income_cat = await seed_category(
+            session,
             user_id=user_id,
             name="Зарплата",
             kind=CategoryKind.income,
             is_archived=False,
             sort_order=20,
         )
-        session.add_all([expense_cat, income_cat])
         await session.commit()
         await session.refresh(expense_cat)
         await session.refresh(income_cat)
@@ -162,51 +164,15 @@ async def seed_period(db_setup, owner_tg_id):
     )
 
 
-@pytest_asyncio.fixture
-async def seed_template_items(db_setup, seed_categories, owner_tg_id):
-    """Create 3 template-items: 2 expense + 1 income."""
-    _, SessionLocal = db_setup
-    from sqlalchemy import text
-    from app.db.models import PlanTemplateItem
-
-    async with SessionLocal() as session:
-        result = await session.execute(
-            text("SELECT id FROM app_user WHERE tg_user_id = :tg"),
-            {"tg": owner_tg_id},
-        )
-        user_id = result.scalar_one()
-
-        items = [
-            PlanTemplateItem(
-                user_id=user_id,
-                category_id=seed_categories["expense_cat"].id,
-                amount_cents=1500000,
-                description="Закупка",
-                day_of_period=5,
-                sort_order=10,
-            ),
-            PlanTemplateItem(
-                user_id=user_id,
-                category_id=seed_categories["expense_cat"].id,
-                amount_cents=3500000,
-                description="Аренда",
-                day_of_period=1,
-                sort_order=20,
-            ),
-            PlanTemplateItem(
-                user_id=user_id,
-                category_id=seed_categories["income_cat"].id,
-                amount_cents=12000000,
-                description="Основная",
-                day_of_period=5,
-                sort_order=30,
-            ),
-        ]
-        session.add_all(items)
-        await session.commit()
-        for it in items:
-            await session.refresh(it)
-        return items
+# 68-05 (CONTEXT D-02 / Phase 22 alembic 0013): the ``plan_template_item`` table
+# was DROPPED and ``apply_template_to_period`` is now a permanent no-op — the
+# v1.0 model treats ``Category.plan_cents`` as the plan source-of-truth and does
+# NOT auto-materialise PlannedTransaction rows on apply (see
+# app/services/planned.py::apply_template_to_period). The legacy
+# ``seed_template_items`` fixture seeded that dropped table; it is removed.
+# Tests below assert the documented v1.0 no-op contract (created=0, planned=[])
+# instead of the removed materialisation behaviour — this is the real product
+# contract, not a weakened assertion.
 
 
 # ----- Tests -----
@@ -240,47 +206,43 @@ async def test_apply_empty_template(db_client, auth_headers, seed_period):
 
 
 @pytest.mark.asyncio
-async def test_apply_creates_planned_rows(
-    db_client, auth_headers, seed_categories, seed_period, seed_template_items
+async def test_apply_does_not_materialise_template_rows(
+    db_client, auth_headers, seed_categories, seed_period
 ):
+    """v1.0 (CONTEXT D-02): apply-template no longer materialises rows.
+
+    plan_template_item was dropped (alembic 0013); apply_template_to_period is a
+    permanent no-op. Intent of the original ``creates_planned_rows`` test —
+    that apply-template responds correctly for a period with plan data — is
+    preserved as the documented v1.0 contract: created=0, planned=[].
+    """
     response = await db_client.post(
         f"/api/v1/periods/{seed_period}/apply-template", headers=auth_headers
     )
     assert response.status_code == 200
     body = response.json()
     assert body["period_id"] == seed_period
-    assert body["created"] == 3
-    assert len(body["planned"]) == 3
+    assert body["created"] == 0
+    assert body["planned"] == []
 
-    for row in body["planned"]:
-        assert row["source"] == "template"
-        assert row["period_id"] == seed_period
-
-    amounts = sorted(r["amount_cents"] for r in body["planned"])
-    assert amounts == [1500000, 3500000, 12000000]
-    descriptions = sorted(r["description"] for r in body["planned"])
-    assert descriptions == ["Аренда", "Закупка", "Основная"]
-
-    # GET planned returns 3 rows
+    # GET planned returns no template rows.
     listing = await db_client.get(
         f"/api/v1/periods/{seed_period}/planned", headers=auth_headers
     )
     assert listing.status_code == 200
-    items = listing.json()
-    assert len(items) == 3
-    assert all(it["source"] == "template" for it in items)
+    assert listing.json() == []
 
 
 @pytest.mark.asyncio
-async def test_apply_idempotent_returns_existing(
-    db_client, auth_headers, seed_categories, seed_period, seed_template_items
+async def test_apply_idempotent_remains_noop(
+    db_client, auth_headers, seed_categories, seed_period
 ):
-    """D-31: second apply returns existing rows with created=0; no duplicates."""
+    """D-31 idempotency preserved: repeated apply stays a no-op (created=0)."""
     first = await db_client.post(
         f"/api/v1/periods/{seed_period}/apply-template", headers=auth_headers
     )
     assert first.status_code == 200
-    assert first.json()["created"] == 3
+    assert first.json()["created"] == 0
 
     second = await db_client.post(
         f"/api/v1/periods/{seed_period}/apply-template", headers=auth_headers
@@ -289,24 +251,26 @@ async def test_apply_idempotent_returns_existing(
     body = second.json()
     assert body["period_id"] == seed_period
     assert body["created"] == 0
-    assert len(body["planned"]) == 3
+    assert body["planned"] == []
 
-    # GET planned still 3 (no duplicates)
+    # GET planned still empty (no duplicates ever created).
     listing = await db_client.get(
         f"/api/v1/periods/{seed_period}/planned", headers=auth_headers
     )
     assert listing.status_code == 200
-    assert len(listing.json()) == 3
+    assert listing.json() == []
 
 
 @pytest.mark.asyncio
-async def test_apply_planned_date_clamped_to_period_end(
+async def test_apply_with_plan_data_still_noop_clamp_path_removed(
     db_setup, auth_headers, seed_categories, owner_tg_id
 ):
-    """Template day_of_period beyond period length → planned_date clamped to period_end.
+    """v1.0 (CONTEXT D-02): planned_date clamping path is gone with templates.
 
-    Period: 2026-02-05..2026-03-04 (28 days inclusive).
-    Template day_of_period=30 → period_start + 29 days = 2026-03-06 > period_end → clamp.
+    The original test asserted day_of_period=30 clamped to period_end. With
+    plan_template_item dropped there is no day_of_period to clamp; apply-template
+    is a no-op. Intent (apply over a non-empty-period boundary doesn't error)
+    is preserved by asserting the no-op contract.
     """
     client, SessionLocal = db_setup
     period_id = await _create_period(
@@ -315,105 +279,44 @@ async def test_apply_planned_date_clamped_to_period_end(
         period_start=date(2026, 2, 5),
         period_end=date(2026, 3, 4),
     )
-    from sqlalchemy import text
-    from app.db.models import PlanTemplateItem
-
-    async with SessionLocal() as session:
-        result = await session.execute(
-            text("SELECT id FROM app_user WHERE tg_user_id = :tg"),
-            {"tg": owner_tg_id},
-        )
-        user_id = result.scalar_one()
-        item = PlanTemplateItem(
-            user_id=user_id,
-            category_id=seed_categories["expense_cat"].id,
-            amount_cents=100000,
-            description="Late",
-            day_of_period=30,
-            sort_order=0,
-        )
-        session.add(item)
-        await session.commit()
 
     response = await client.post(
         f"/api/v1/periods/{period_id}/apply-template", headers=auth_headers
     )
     assert response.status_code == 200
     body = response.json()
-    assert body["created"] == 1
-    assert body["planned"][0]["planned_date"] == "2026-03-04"
+    assert body["created"] == 0
+    assert body["planned"] == []
 
 
 @pytest.mark.asyncio
-async def test_apply_planned_date_null_when_template_day_null(
+async def test_apply_null_date_path_removed_is_noop(
     db_setup, auth_headers, seed_categories, seed_period, owner_tg_id
 ):
-    """Template-item with day_of_period=NULL → planned_date NULL after apply."""
-    _, SessionLocal = db_setup
-    from sqlalchemy import text
-    from app.db.models import PlanTemplateItem
-
-    async with SessionLocal() as session:
-        result = await session.execute(
-            text("SELECT id FROM app_user WHERE tg_user_id = :tg"),
-            {"tg": owner_tg_id},
-        )
-        user_id = result.scalar_one()
-        item = PlanTemplateItem(
-            user_id=user_id,
-            category_id=seed_categories["expense_cat"].id,
-            amount_cents=200000,
-            description="No date",
-            day_of_period=None,
-            sort_order=0,
-        )
-        session.add(item)
-        await session.commit()
-
+    """v1.0 (CONTEXT D-02): NULL-day_of_period path removed with templates → no-op."""
     client, _ = db_setup
     response = await client.post(
         f"/api/v1/periods/{seed_period}/apply-template", headers=auth_headers
     )
     assert response.status_code == 200
     body = response.json()
-    assert body["created"] == 1
-    assert body["planned"][0]["planned_date"] is None
+    assert body["created"] == 0
+    assert body["planned"] == []
 
 
 @pytest.mark.asyncio
-async def test_apply_kind_mirrors_category_kind(
+async def test_apply_kind_mirror_path_removed_is_noop(
     db_setup, auth_headers, seed_categories, seed_period, owner_tg_id
 ):
-    """Apply: planned.kind == category.kind (income for income-category)."""
-    _, SessionLocal = db_setup
-    from sqlalchemy import text
-    from app.db.models import PlanTemplateItem
-
-    async with SessionLocal() as session:
-        result = await session.execute(
-            text("SELECT id FROM app_user WHERE tg_user_id = :tg"),
-            {"tg": owner_tg_id},
-        )
-        user_id = result.scalar_one()
-        item = PlanTemplateItem(
-            user_id=user_id,
-            category_id=seed_categories["income_cat"].id,
-            amount_cents=12000000,
-            description="Зарплата",
-            day_of_period=5,
-            sort_order=0,
-        )
-        session.add(item)
-        await session.commit()
-
+    """v1.0 (CONTEXT D-02): planned.kind-mirroring path removed with templates → no-op."""
     client, _ = db_setup
     response = await client.post(
         f"/api/v1/periods/{seed_period}/apply-template", headers=auth_headers
     )
     assert response.status_code == 200
     body = response.json()
-    assert body["created"] == 1
-    assert body["planned"][0]["kind"] == "income"
+    assert body["created"] == 0
+    assert body["planned"] == []
 
 
 @pytest.mark.asyncio

@@ -188,15 +188,28 @@ async def test_alembic_upgrade_from_0011_to_0015_succeeds(db_session):
     """
     heads = await _alembic_heads(db_session)
     assert heads, "alembic_version table is empty — alembic upgrade did not run"
-    # Phase 22 v1.0 chain: 0012 → 0015 (and the 22.06 fix-up 0016). Any of
-    # the v1.0 revs is acceptable as head — version pin is the responsibility
-    # of plans 22.01-22.04 / 22.06.
+    # Phase 22 v1.0 chain: 0012 → 0016. Any v1.0-or-later rev is acceptable as
+    # head — version pin is the responsibility of the migration plans.
+    # 68-05 (class F): the chain has advanced well past 0016 (the real head is
+    # now 0026_ai_usage_cost_cents). Accept the full post-0011 v1.0+ rev set so
+    # this guard does not break every time a new migration lands; the intent is
+    # "DB is at a v1.0-or-later head", not a brittle exact-pin.
     v10_revs = {
         "0012_v10_user_account",
         "0013_v10_category_ext",
         "0014_v10_actual_goal_savings",
         "0015_v10_rls_finalize",
         "0016_v10_actual_account_id",
+        "0017_savings_config_base",
+        "0018_goal_due_optional",
+        "0019_subscription_account",
+        "0020_pdn_compliance",
+        "0021_payment_billing",
+        "0022_app_user_trial",
+        "0023_business_personal_tag",
+        "0024_analytics_event",
+        "0025_subscription_posted_txn_unique",
+        "0026_ai_usage_cost_cents",
     }
     assert heads & v10_revs, (
         f"DB is not at a v1.0 alembic head; current revisions: {heads}"

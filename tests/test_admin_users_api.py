@@ -392,9 +392,13 @@ async def test_admin_delete_user_cascade_purges_data(
 
     # Verify cascade: every domain table has 0 rows for member, owner intact.
     async with SessionLocal() as s:
+        # 68-05 (class E): plan_template_item was dropped in alembic 0013
+        # (CONTEXT D-02) — remove it from the expected-purge list; add the v1.0
+        # account/goal/savings_config tables that now carry user_id.
         for table in (
             "category", "budget_period", "actual_transaction",
-            "planned_transaction", "subscription", "plan_template_item",
+            "planned_transaction", "subscription",
+            "savings_config", "goal", "account",
             "category_embedding", "ai_conversation", "ai_message",
         ):
             result = await s.execute(

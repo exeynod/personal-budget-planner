@@ -191,9 +191,11 @@ async def seeded_savings_category(db_session, owner_user):
     completion. For service-layer roundup tests we create it directly so
     we can exercise maybe_create_roundup_child without the onboarding path.
     """
-    from app.db.models import Category, CategoryKind, RolloverPolicy
+    from app.db.models import CategoryKind, RolloverPolicy
+    from tests.helpers.seed import seed_category
 
-    cat = Category(
+    cat = await seed_category(
+        db_session,
         user_id=owner_user["id"],
         name="КОПИЛКА",
         kind=CategoryKind.expense,
@@ -204,7 +206,6 @@ async def seeded_savings_category(db_session, owner_user):
         rollover=RolloverPolicy.savings,
         paused=True,
     )
-    db_session.add(cat)
     await db_session.flush()
     yield cat
 
@@ -212,9 +213,11 @@ async def seeded_savings_category(db_session, owner_user):
 @pytest_asyncio.fixture
 async def regular_category(db_session, owner_user):
     """A regular expense Category for parent transactions (e.g. Еда)."""
-    from app.db.models import Category, CategoryKind
+    from app.db.models import CategoryKind
+    from tests.helpers.seed import seed_category
 
-    cat = Category(
+    cat = await seed_category(
+        db_session,
         user_id=owner_user["id"],
         name="ПРОДУКТЫ",
         kind=CategoryKind.expense,
@@ -223,7 +226,6 @@ async def regular_category(db_session, owner_user):
         ord="01",
         plan_cents=2000000,
     )
-    db_session.add(cat)
     await db_session.flush()
     yield cat
 
@@ -702,8 +704,15 @@ async def test_account_balance_reduced_by_delta(
         db_session, user_id=owner_user["id"], parent_txn=parent
     )
 
+    # 68-05 (class D): the roundup child applies the balance delta via a raw
+    # UPDATE...RETURNING (not through the ORM), so the cached identity-map
+    # Account still holds the stale pre-update balance. populate_existing forces
+    # the ORM to overwrite the cached attributes from the fresh DB row (async-safe;
+    # expire_all() would trigger a lazy IO load outside the greenlet → MissingGreenlet).
     refreshed = await db_session.scalar(
-        select(Account).where(Account.id == primary_account.id)
+        select(Account)
+        .where(Account.id == primary_account.id)
+        .execution_options(populate_existing=True)
     )
     # Roundup child applies -9 (delta) to balance. Parent's own delta is
     # NOT applied here — that's the caller's responsibility (create_actual_v10).
@@ -758,8 +767,12 @@ async def test_create_actual_v10_expense_with_roundup_creates_child(
     assert child.account_id == primary_account.id
     assert child.category_id == seeded_savings_category.id
 
+    # 68-05 (class D): balance applied via raw UPDATE — populate_existing forces
+    # the ORM to refresh the cached row (async-safe; see note above).
     refreshed = await db_session.scalar(
-        select(Account).where(Account.id == primary_account.id)
+        select(Account)
+        .where(Account.id == primary_account.id)
+        .execution_options(populate_existing=True)
     )
     # Parent (-101) + child (-9) → balance reduced by 110.
     assert refreshed.balance_cents == starting_balance - 110
@@ -785,9 +798,11 @@ async def test_create_actual_v10_income_does_not_create_child(
     starting_balance = primary_account.balance_cents
 
     # Use an income-kind category for kind validation to pass v0.x semantics.
-    from app.db.models import Category, CategoryKind
+    from app.db.models import CategoryKind
+    from tests.helpers.seed import seed_category
 
-    income_cat = Category(
+    income_cat = await seed_category(
+        db_session,
         user_id=owner_user["id"],
         name="ЗАРПЛАТА",
         kind=CategoryKind.income,
@@ -796,7 +811,6 @@ async def test_create_actual_v10_income_does_not_create_child(
         ord="20",
         plan_cents=0,
     )
-    db_session.add(income_cat)
     await db_session.flush()
 
     parent, child = await create_actual_v10(
@@ -814,8 +828,11 @@ async def test_create_actual_v10_income_does_not_create_child(
     assert parent is not None
     assert child is None
 
+    # 68-05 (class D): populate_existing refreshes the cached row (async-safe).
     refreshed = await db_session.scalar(
-        select(Account).where(Account.id == primary_account.id)
+        select(Account)
+        .where(Account.id == primary_account.id)
+        .execution_options(populate_existing=True)
     )
     assert refreshed.balance_cents == starting_balance + 5000000
 
@@ -895,8 +912,12 @@ async def test_delete_actual_v10_restores_balance_for_both_parent_and_child(
     assert child is not None
 
     # Mid-test balance: starting − 110 (parent 101 + child 9).
+    # 68-05 (class D): balance applied via raw UPDATE — populate_existing refreshes
+    # the cached ORM row (async-safe).
     after_create = await db_session.scalar(
-        select(Account).where(Account.id == primary_account.id)
+        select(Account)
+        .where(Account.id == primary_account.id)
+        .execution_options(populate_existing=True)
     )
     assert after_create.balance_cents == starting_balance - 110
 
@@ -905,7 +926,9 @@ async def test_delete_actual_v10_restores_balance_for_both_parent_and_child(
     await db_session.flush()
 
     after_delete = await db_session.scalar(
-        select(Account).where(Account.id == primary_account.id)
+        select(Account)
+        .where(Account.id == primary_account.id)
+        .execution_options(populate_existing=True)
     )
     # Balance fully restored: parent +101 + child +9 → back to starting.
     assert after_delete.balance_cents == starting_balance

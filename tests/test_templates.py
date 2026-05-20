@@ -102,21 +102,23 @@ async def seed_categories(db_setup, owner_tg_id):
         )
         user_id = result.scalar_one()
 
-        expense_cat = Category(
+        from tests.helpers.seed import seed_category
+        expense_cat = await seed_category(
+            session,
             user_id=user_id,
             name="Продукты",
             kind=CategoryKind.expense,
             is_archived=False,
             sort_order=10,
         )
-        income_cat = Category(
+        income_cat = await seed_category(
+            session,
             user_id=user_id,
             name="Зарплата",
             kind=CategoryKind.income,
             is_archived=False,
             sort_order=20,
         )
-        session.add_all([expense_cat, income_cat])
         await session.commit()
         await session.refresh(expense_cat)
         await session.refresh(income_cat)
@@ -137,14 +139,15 @@ async def seed_archived_category(db_setup, owner_tg_id):
         )
         user_id = result.scalar_one()
 
-        cat = Category(
+        from tests.helpers.seed import seed_category
+        cat = await seed_category(
+            session,
             user_id=user_id,
             name="Архивная",
             kind=CategoryKind.expense,
             is_archived=True,
             sort_order=99,
         )
-        session.add(cat)
         await session.commit()
         await session.refresh(cat)
         return cat
@@ -160,8 +163,18 @@ async def test_list_empty(db_client, auth_headers):
     assert response.json() == []
 
 
+# 68-05 (class G): the template WRITE surface (POST/PATCH/DELETE on
+# /template/items + snapshot-from-period) was DEPRECATED by design in Phase 22
+# CR-05 — the plan_template_item table was dropped (alembic 0013) and the v1.0
+# model uses Category.plan_cents as the plan source-of-truth. The deprecated
+# write endpoints return 410 Gone immediately (see app/api/routes/templates.py).
+# These tests assert that contract: every write is 410 Gone. GET still works
+# (200 []) for legacy v0.x clients and is covered by test_list_empty above.
+
+
 @pytest.mark.asyncio
-async def test_create_template_item(db_client, auth_headers, seed_categories):
+async def test_create_template_item_410_gone(db_client, auth_headers, seed_categories):
+    """POST /template/items is deprecated → 410 Gone (CR-05)."""
     response = await db_client.post(
         "/api/v1/template/items",
         json={
@@ -173,79 +186,64 @@ async def test_create_template_item(db_client, auth_headers, seed_categories):
         },
         headers=auth_headers,
     )
-    assert response.status_code in (200, 201)
-    data = response.json()
-    assert data["category_id"] == seed_categories["expense_cat"].id
-    assert data["amount_cents"] == 1500000
-    assert data["description"] == "Закупка продуктов"
-    assert data["day_of_period"] == 5
-    assert data["sort_order"] == 10
-    assert "id" in data
+    assert response.status_code == 410, response.text
+    assert response.json()["detail"]["error"] == "templates_deprecated"
 
-    # Verify persistence via GET
+    # GET surface remains an empty list (no rows were ever created).
     listing = await db_client.get("/api/v1/template/items", headers=auth_headers)
     assert listing.status_code == 200
-    items = listing.json()
-    assert len(items) == 1
-    assert items[0]["id"] == data["id"]
+    assert listing.json() == []
 
 
 @pytest.mark.asyncio
-async def test_create_with_invalid_category_404(db_client, auth_headers):
+async def test_create_with_invalid_category_410_gone(db_client, auth_headers):
+    """Deprecated POST returns 410 BEFORE any category validation (CR-05)."""
     response = await db_client.post(
         "/api/v1/template/items",
-        json={
-            "category_id": 99999,
-            "amount_cents": 100000,
-        },
+        json={"category_id": 99999, "amount_cents": 100000},
         headers=auth_headers,
     )
-    assert response.status_code == 404
+    assert response.status_code == 410, response.text
 
 
 @pytest.mark.asyncio
-async def test_create_with_archived_category_400(
+async def test_create_with_archived_category_410_gone(
     db_client, auth_headers, seed_archived_category
 ):
+    """Deprecated POST returns 410 BEFORE any archived-category guard (CR-05)."""
     response = await db_client.post(
         "/api/v1/template/items",
-        json={
-            "category_id": seed_archived_category.id,
-            "amount_cents": 100000,
-        },
+        json={"category_id": seed_archived_category.id, "amount_cents": 100000},
         headers=auth_headers,
     )
-    assert response.status_code == 400
+    assert response.status_code == 410, response.text
 
 
 @pytest.mark.asyncio
-async def test_create_amount_zero_422(db_client, auth_headers, seed_categories):
+async def test_create_amount_zero_410_gone(db_client, auth_headers, seed_categories):
+    """Deprecated POST returns 410 BEFORE Pydantic amount validation (CR-05)."""
     response = await db_client.post(
         "/api/v1/template/items",
-        json={
-            "category_id": seed_categories["expense_cat"].id,
-            "amount_cents": 0,
-        },
+        json={"category_id": seed_categories["expense_cat"].id, "amount_cents": 0},
         headers=auth_headers,
     )
-    assert response.status_code == 422
+    assert response.status_code == 410, response.text
 
 
 @pytest.mark.asyncio
-async def test_create_amount_negative_422(db_client, auth_headers, seed_categories):
+async def test_create_amount_negative_410_gone(db_client, auth_headers, seed_categories):
+    """Deprecated POST returns 410 BEFORE Pydantic amount validation (CR-05)."""
     response = await db_client.post(
         "/api/v1/template/items",
-        json={
-            "category_id": seed_categories["expense_cat"].id,
-            "amount_cents": -100,
-        },
+        json={"category_id": seed_categories["expense_cat"].id, "amount_cents": -100},
         headers=auth_headers,
     )
-    assert response.status_code == 422
+    assert response.status_code == 410, response.text
 
 
 @pytest.mark.asyncio
-async def test_create_day_of_period_32_422(db_client, auth_headers, seed_categories):
+async def test_create_day_of_period_32_410_gone(db_client, auth_headers, seed_categories):
+    """Deprecated POST returns 410 BEFORE day_of_period validation (CR-05)."""
     response = await db_client.post(
         "/api/v1/template/items",
         json={
@@ -255,13 +253,14 @@ async def test_create_day_of_period_32_422(db_client, auth_headers, seed_categor
         },
         headers=auth_headers,
     )
-    assert response.status_code == 422
+    assert response.status_code == 410, response.text
 
 
 @pytest.mark.asyncio
-async def test_create_day_of_period_zero_422(
+async def test_create_day_of_period_zero_410_gone(
     db_client, auth_headers, seed_categories
 ):
+    """Deprecated POST returns 410 BEFORE day_of_period validation (CR-05)."""
     response = await db_client.post(
         "/api/v1/template/items",
         json={
@@ -271,78 +270,47 @@ async def test_create_day_of_period_zero_422(
         },
         headers=auth_headers,
     )
-    assert response.status_code == 422
+    assert response.status_code == 410, response.text
 
 
 @pytest.mark.asyncio
-async def test_update_template_item(db_client, auth_headers, seed_categories):
-    create = await db_client.post(
-        "/api/v1/template/items",
-        json={
-            "category_id": seed_categories["expense_cat"].id,
-            "amount_cents": 1000000,
-            "description": "Старое",
-        },
-        headers=auth_headers,
-    )
-    assert create.status_code in (200, 201)
-    item_id = create.json()["id"]
-
+async def test_update_template_item_410_gone(db_client, auth_headers, seed_categories):
+    """PATCH /template/items/{id} is deprecated → 410 Gone (CR-05)."""
     update = await db_client.patch(
-        f"/api/v1/template/items/{item_id}",
+        "/api/v1/template/items/1",
         json={"amount_cents": 2000000, "description": "Новое"},
         headers=auth_headers,
     )
-    assert update.status_code == 200
-    assert update.json()["amount_cents"] == 2000000
-    assert update.json()["description"] == "Новое"
-
-    listing = await db_client.get("/api/v1/template/items", headers=auth_headers)
-    assert listing.status_code == 200
-    items = listing.json()
-    assert len(items) == 1
-    assert items[0]["amount_cents"] == 2000000
+    assert update.status_code == 410, update.text
 
 
 @pytest.mark.asyncio
-async def test_update_not_found_404(db_client, auth_headers):
+async def test_update_not_found_410_gone(db_client, auth_headers):
+    """Deprecated PATCH returns 410 (not 404) — the surface is gone (CR-05)."""
     response = await db_client.patch(
         "/api/v1/template/items/99999",
         json={"amount_cents": 100},
         headers=auth_headers,
     )
-    assert response.status_code == 404
+    assert response.status_code == 410, response.text
 
 
 @pytest.mark.asyncio
-async def test_delete_template_item(db_client, auth_headers, seed_categories):
-    create = await db_client.post(
-        "/api/v1/template/items",
-        json={
-            "category_id": seed_categories["expense_cat"].id,
-            "amount_cents": 100000,
-        },
-        headers=auth_headers,
-    )
-    assert create.status_code in (200, 201)
-    item_id = create.json()["id"]
-
+async def test_delete_template_item_410_gone(db_client, auth_headers, seed_categories):
+    """DELETE /template/items/{id} is deprecated → 410 Gone (CR-05)."""
     delete = await db_client.delete(
-        f"/api/v1/template/items/{item_id}", headers=auth_headers
+        "/api/v1/template/items/1", headers=auth_headers
     )
-    assert delete.status_code == 200
-
-    listing = await db_client.get("/api/v1/template/items", headers=auth_headers)
-    assert listing.status_code == 200
-    assert listing.json() == []
+    assert delete.status_code == 410, delete.text
 
 
 @pytest.mark.asyncio
-async def test_delete_not_found_404(db_client, auth_headers):
+async def test_delete_not_found_410_gone(db_client, auth_headers):
+    """Deprecated DELETE returns 410 (not 404) — the surface is gone (CR-05)."""
     response = await db_client.delete(
         "/api/v1/template/items/99999", headers=auth_headers
     )
-    assert response.status_code == 404
+    assert response.status_code == 410, response.text
 
 
 @pytest.mark.asyncio
@@ -352,38 +320,10 @@ async def test_no_init_data_403(db_client):
 
 
 @pytest.mark.asyncio
-async def test_list_includes_all_fields(
+async def test_list_returns_empty_for_deprecated_surface(
     db_client, auth_headers, seed_categories
 ):
-    create = await db_client.post(
-        "/api/v1/template/items",
-        json={
-            "category_id": seed_categories["income_cat"].id,
-            "amount_cents": 12000000,
-            "description": "Основная зарплата",
-            "day_of_period": 5,
-            "sort_order": 30,
-        },
-        headers=auth_headers,
-    )
-    assert create.status_code in (200, 201)
-
+    """GET /template/items always returns [] (writes are 410; no rows exist)."""
     listing = await db_client.get("/api/v1/template/items", headers=auth_headers)
     assert listing.status_code == 200
-    items = listing.json()
-    assert len(items) == 1
-    item = items[0]
-    expected_keys = {
-        "id",
-        "category_id",
-        "amount_cents",
-        "description",
-        "day_of_period",
-        "sort_order",
-    }
-    assert expected_keys.issubset(item.keys())
-    assert item["category_id"] == seed_categories["income_cat"].id
-    assert item["amount_cents"] == 12000000
-    assert item["description"] == "Основная зарплата"
-    assert item["day_of_period"] == 5
-    assert item["sort_order"] == 30
+    assert listing.json() == []
