@@ -413,6 +413,142 @@ async def test_post_subscription_exposes_posted_txn_id(
 
 
 # ---------------------------------------------------------------------------
+# P1-2 (BE-F4) double-post idempotency + P2-13 (QA-F10) savepoint rollback
+#
+# - double-post: second POST /{id}/post sees the committed posted_txn_id (the
+#   first request's transaction committed via get_db) → 409, exactly one
+#   ActualTransaction exists, posted_txn_id set once.
+# - savepoint/partial-failure: a forced error inside post_subscription (after
+#   create_actual_v10 created the txn, before commit) must leave no orphan
+#   ActualTransaction and posted_txn_id NULL once the transaction rolls back.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_double_post_yields_single_txn_and_409(
+    db_setup, auth_headers, seed_categories, seed_account
+):
+    """Two posts of the same subscription → one txn, second call 409 (P1-2)."""
+    db_client, SessionLocal = db_setup
+    cat_id = seed_categories["expense_cat"].id
+
+    create = await db_client.post(
+        "/api/v1/subscriptions", json=_sub_payload(cat_id), headers=auth_headers
+    )
+    assert create.status_code in (200, 201)
+    sub_id = create.json()["id"]
+
+    from sqlalchemy import func, select
+    from app.db.models import ActualTransaction, Subscription
+
+    async with SessionLocal() as session:
+        sub = await session.scalar(
+            select(Subscription).where(Subscription.id == sub_id)
+        )
+        sub.account_id = seed_account
+        await session.commit()
+
+    first = await db_client.post(
+        f"/api/v1/subscriptions/{sub_id}/post", headers=auth_headers
+    )
+    assert first.status_code == 200, first.text
+    first_txn_id = first.json()["txn_id"]
+
+    second = await db_client.post(
+        f"/api/v1/subscriptions/{sub_id}/post", headers=auth_headers
+    )
+    assert second.status_code == 409, second.text
+    detail = second.json()["detail"]
+    assert detail["error"] == "already_posted"
+    assert detail["posted_txn_id"] == first_txn_id
+
+    # Exactly one ActualTransaction parent for this subscription's category,
+    # and posted_txn_id set once.
+    async with SessionLocal() as session:
+        txn_count = (
+            await session.execute(
+                select(func.count())
+                .select_from(ActualTransaction)
+                .where(ActualTransaction.category_id == cat_id)
+            )
+        ).scalar_one()
+        sub = await session.scalar(
+            select(Subscription).where(Subscription.id == sub_id)
+        )
+    assert txn_count == 1, f"expected exactly one txn, got {txn_count}"
+    assert sub.posted_txn_id == first_txn_id
+
+
+@pytest.mark.asyncio
+async def test_post_partial_failure_savepoint_rollback_no_orphan(
+    db_setup, auth_headers, seed_categories, seed_account, monkeypatch
+):
+    """Forced error mid-post → no orphan ActualTransaction, posted_txn_id NULL (P2-13)."""
+    db_client, SessionLocal = db_setup
+    cat_id = seed_categories["expense_cat"].id
+
+    create = await db_client.post(
+        "/api/v1/subscriptions", json=_sub_payload(cat_id), headers=auth_headers
+    )
+    assert create.status_code in (200, 201)
+    sub_id = create.json()["id"]
+
+    from sqlalchemy import func, select
+    from app.db.models import ActualTransaction, Subscription
+    from app.services import subscriptions as sub_service
+
+    async with SessionLocal() as session:
+        sub = await session.scalar(
+            select(Subscription).where(Subscription.id == sub_id)
+        )
+        sub.account_id = seed_account
+        await session.commit()
+
+    # Monkeypatch create_actual_v10 so it really inserts the ActualTransaction
+    # (flushing it into the live transaction) and THEN raises — simulating a
+    # partial failure after the money row exists but before the post commits.
+    import app.services.actual as actual_mod
+
+    real_create = actual_mod.create_actual_v10
+
+    async def _boom(db, **kwargs):
+        parent, child = await real_create(db, **kwargs)
+        # Row now exists in this transaction (flushed by create_actual_v10).
+        raise RuntimeError("forced partial failure after actual created")
+
+    monkeypatch.setattr(actual_mod, "create_actual_v10", _boom)
+
+    # Drive post_subscription directly against a real session and assert the
+    # exception propagates, then roll back (mirrors get_db's except: rollback).
+    async with SessionLocal() as session:
+        from app.db.session import set_tenant_scope
+
+        sub = await session.scalar(
+            select(Subscription).where(Subscription.id == sub_id)
+        )
+        user_id = sub.user_id
+        await set_tenant_scope(session, user_id)
+        with pytest.raises(RuntimeError):
+            await sub_service.post_subscription(session, sub_id, user_id=user_id)
+        await session.rollback()
+
+    # No orphan txn, posted_txn_id stays NULL.
+    async with SessionLocal() as session:
+        txn_count = (
+            await session.execute(
+                select(func.count())
+                .select_from(ActualTransaction)
+                .where(ActualTransaction.category_id == cat_id)
+            )
+        ).scalar_one()
+        sub = await session.scalar(
+            select(Subscription).where(Subscription.id == sub_id)
+        )
+    assert txn_count == 0, f"expected no orphan txn after rollback, got {txn_count}"
+    assert sub.posted_txn_id is None
+
+
+# ---------------------------------------------------------------------------
 # charge-now tests (SUB-04)
 # ---------------------------------------------------------------------------
 
