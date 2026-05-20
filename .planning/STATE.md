@@ -3,16 +3,16 @@ gsd_state_version: 1.0
 milestone: v1.1.2
 milestone_name: — iOS v06 Native Rebuild)
 current_phase: 65
-status: verifying
-stopped_at: Completed 63-02-PLAN.md
-last_updated: "2026-05-20T14:08:52.401Z"
+status: Plan 64-01 executed; build + 11 tests GREEN
+stopped_at: Completed 64-01-PLAN.md
+last_updated: "2026-05-20T14:28:05.154Z"
 last_activity: 2026-05-20
 progress:
   total_phases: 35
   completed_phases: 22
-  total_plans: 59
-  completed_plans: 59
-  percent: 100
+  total_plans: 61
+  completed_plans: 60
+  percent: 98
 ---
 
 ## Active Milestone: v1.1.2 — iOS v06 Native Rebuild
@@ -42,13 +42,13 @@ User-direction 2026-05-11: вернуть нативный iOS UI (`MainShell`) 
 See: .planning/PROJECT.md (updated 2026-05-09 — v1.0 milestone «Maximal Poster Full» started)
 
 **Core value:** В один тап записать факт-трату и видеть актуальную дельту план/факт по категориям бюджета — быстрее, чем открывать Google-таблицу. После v0.3 — conversational AI-помощник + аналитика; после v0.4 — multi-tenant whitelist + AI cost cap; v0.6 — native iOS-клиент. v1.0 — pixel-perfect Maximal Poster дизайн-система + Account/Goal/Recurrent/SavingsConfig + auto-roundup + rollover.
-**Current focus:** Phase 63 — subscriptions-v06
+**Current focus:** Phase 64 — addsheet-v06
 
 ## Current Position
 
-Phase: 63 (subscriptions-v06) — EXECUTING
-Plan: Not started
-Status: Phase complete — ready for verification
+Phase: 64 (addsheet-v06) — EXECUTING
+Plan: 64-01 complete (account picker, Wave 1) — 64-02 next
+Status: Plan 64-01 executed; build + 11 tests GREEN
 Last activity: 2026-05-20
 
 ## Milestone v1.0 Phases
@@ -99,6 +99,7 @@ Last activity: 2026-05-20
 | Phase 62 P03 | 12min | 3 tasks | 7 files |
 | Phase 63 P01 | 4min | 2 tasks | 3 files |
 | Phase 63 P02 | 25min | 3 tasks | 3 files |
+| Phase 64 P01 | 4min | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -136,6 +137,7 @@ Recent decisions from v0.6 (preserved for context):
 - [Phase ?]: [Phase 63-01]: SubscriptionsViewModel migrated to SubscriptionsV10API (list/post/unpost/patch/delete); create-path stays legacy (V10API has no create); LocalNotifications.reschedule dropped as known-gap (legacy Decodable-only DTO); SubscriptionsViewData 6 Foundation-only pure helpers + 18 tests green; T-63-01 submitting guard + T-63-02 filtered RU + T-63-04 full reload
 - [Phase ?]: 63-02: edit-path date stays on legacy String yyyy-MM-dd path (avoid .iso8601 UTC day-shift); day_of_month/account_id via follow-up V10 PATCH
 - [Phase ?]: 63-02: LocalNotifications.reschedule(subscriptionsV10:) overload restores 63-01 dropped rescheduling
+- [Phase ?]: [Phase 64-01]: account picker «Счёт списания» in-place в TransactionEditor (actual-режимы); accountId через encodeIfPresent в ActualCreate/UpdateRequest; default primary ?? first; AccountPickerLogic pure-helpers; 3 call-site неизменны; 11 тестов green
 
 ### Pending Todos
 
@@ -220,8 +222,8 @@ v1.0 deferred (acknowledged at planning):
 
 ## Session Continuity
 
-Last session: 2026-05-20T11:44:18.273Z
-Stopped at: Completed 63-02-PLAN.md
+Last session: 2026-05-20T14:27:37.484Z
+Stopped at: Completed 64-01-PLAN.md
 Resume file: None
 
 ## Deferred Items
