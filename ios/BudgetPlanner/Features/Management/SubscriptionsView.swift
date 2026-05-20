@@ -600,15 +600,27 @@ struct SubscriptionEditor: View {
                                 Text("\(dayOfMonth)").monospacedDigit()
                             }
                         }
+                        .onChange(of: dayOfMonth) { _, newDay in
+                            // P2-2: Stepper подстраивает день в nextChargeDate,
+                            // чтобы пара день↔дата оставалась согласованной (дата
+                            // — источник истины при отправке).
+                            syncNextChargeDay(to: newDay)
+                        }
                     } header: {
                         Text("День месяца")
                     } footer: {
-                        Text("Порядковый день (1–28) для ежемесячного списания.")
+                        Text("Порядковый день (1–28) для ежемесячного списания. Синхронизирован с датой ниже.")
                     }
                 }
                 Section("Следующее списание") {
                     DatePicker("Дата", selection: $nextChargeDate, displayedComponents: .date)
                         .environment(\.locale, Locale(identifier: "ru_RU"))
+                        .onChange(of: nextChargeDate) { _, newDate in
+                            // P2-2: дата — источник истины; держим Stepper в
+                            // согласии (clamped 1...28 под backend CHECK).
+                            let day = min(max(Calendar.current.component(.day, from: newDate), 1), 28)
+                            if cycle == .monthly && dayOfMonth != day { dayOfMonth = day }
+                        }
                 }
                 Section {
                     Picker(selection: $accountId) {
@@ -726,6 +738,17 @@ struct SubscriptionEditor: View {
         }
     }
 
+    /// P2-2: переносит выбранный Stepper-день в `nextChargeDate`, сохраняя
+    /// месяц/год. Гарантирует, что день↔дата всегда согласованы при отправке.
+    private func syncNextChargeDay(to day: Int) {
+        let cal = Calendar.current
+        let clamped = min(max(day, 1), 28)
+        guard cal.component(.day, from: nextChargeDate) != clamped else { return }
+        if let synced = cal.date(bySetting: .day, value: clamped, of: nextChargeDate) {
+            nextChargeDate = synced
+        }
+    }
+
     private func performDelete() async {
         guard let onDelete else { return }
         isSubmitting = true
@@ -740,6 +763,16 @@ struct SubscriptionEditor: View {
         errorMessage = nil
         defer { isSubmitting = false }
 
+        // P2-2 (iOS-F8): nextChargeDate — источник истины дня для monthly.
+        // `day_of_month` и `nextChargeDate` раньше задавались независимо
+        // (Stepper 1...28 vs DatePicker) → на бэкенд уходила несогласованная
+        // пара (например day_of_month=5, но дата 17-го). Перед отправкой
+        // выводим day_of_month из дня выбранной даты, clamped в 1...28 под
+        // backend CHECK. Stepper по-прежнему правит `dayOfMonth` для UX, но
+        // фактическое значение payload синхронизируется с датой — пара
+        // всегда консистентна.
+        let dayFromDate = min(max(Calendar.current.component(.day, from: nextChargeDate), 1), 28)
+
         // day_of_month — ordinal, только для monthly. account_id — optional.
         // WR-03: на edit-path пишем day_of_month ТОЛЬКО если пользователь
         // реально изменил значение (vs исходного DTO). На create-path —
@@ -749,14 +782,20 @@ struct SubscriptionEditor: View {
         case .create:
             dayChanged = (cycle == .monthly)
         case .edit:
-            dayChanged = (cycle == .monthly) && (dayOfMonth != originalDayOfMonth)
+            dayChanged = (cycle == .monthly) && (dayFromDate != originalDayOfMonth)
         }
-        let dayPayload: Int? = dayChanged ? dayOfMonth : nil
+        let dayPayload: Int? = dayChanged ? dayFromDate : nil
         let v10Payload = SubscriptionV10UpdateRequest(dayOfMonth: dayPayload, accountId: accountId)
         // PATCH нужен только если есть что писать в V10-extension поля.
         let needsFollowUpPatch = dayPayload != nil || accountId != nil
 
         do {
+            // P2-1 (iOS-F9): create/edit-success раньше делало 2-3 reload подряд
+            // — follow-up `onPatchV10` уже вызывает `viewModel.load()`, а затем
+            // безусловный `onSaved()` запускал ещё один. Теперь `onSaved()`
+            // (= лишний reload) зовётся ТОЛЬКО когда follow-up PATCH не
+            // выполнялся; при успешном patch reload уже произошёл — no-op.
+            var patchAlreadyReloaded = false
             switch mode {
             case .create:
                 // V10API не имеет create — legacy create задаёт скаляры+дату
@@ -785,6 +824,7 @@ struct SubscriptionEditor: View {
                             + "Откройте её и сохраните ещё раз."
                         return
                     }
+                    patchAlreadyReloaded = true
                 }
             case .edit(let s):
                 // Скаляры+дата через legacy update (String date — без day-shift),
@@ -812,9 +852,14 @@ struct SubscriptionEditor: View {
                             + "Попробуйте сохранить ещё раз."
                         return
                     }
+                    patchAlreadyReloaded = true
                 }
             }
-            await onSaved()
+            // P2-1: единственный reload. Если follow-up PATCH уже перезагрузил
+            // список (patchById → load()), повторный onSaved()/load() не нужен.
+            if !patchAlreadyReloaded {
+                await onSaved()
+            }
             dismiss()
         } catch {
             // T-63-02 — фиксированная RU-копия, без утечки raw error.
