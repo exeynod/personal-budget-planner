@@ -724,10 +724,19 @@ struct SubscriptionEditor: View {
                         notifyDaysBefore: notifyDaysBefore
                     ))
                 if needsFollowUpPatch, let onPatchV10 {
-                    // T-63-06 (accept): подписка уже создана. Если PATCH упадёт —
-                    // VM выставит mutationError + load() покажет реальное
-                    // состояние; пользователь сможет переоткрыть редактор.
-                    _ = await onPatchV10(created.id, v10Payload)
+                    // WR-02: подписка создана, но follow-up PATCH (day/account)
+                    // может упасть. Раньше результат игнорировался и sheet
+                    // закрывался как полный успех. Теперь — проверяем результат:
+                    // на сбое НЕ закрываем sheet, показываем partial-success
+                    // ошибку и отражаем реальное состояние через onSaved().
+                    let ok = await onPatchV10(created.id, v10Payload)
+                    if !ok {
+                        await onSaved()
+                        errorMessage =
+                            "Подписка создана, но счёт/день не сохранились. "
+                            + "Откройте её и сохраните ещё раз."
+                        return
+                    }
                 }
             case .edit(let s):
                 // Скаляры+дата через legacy update (String date — без day-shift),
@@ -743,8 +752,18 @@ struct SubscriptionEditor: View {
                         notifyDaysBefore: notifyDaysBefore,
                         isActive: isActive
                     ))
-                if let onPatchV10 {
-                    _ = await onPatchV10(s.id, v10Payload)
+                if needsFollowUpPatch, let onPatchV10 {
+                    // WR-02 (симметрично create): на сбое follow-up PATCH не
+                    // закрываем sheet, показываем ошибку и отражаем реальное
+                    // состояние через onSaved().
+                    let ok = await onPatchV10(s.id, v10Payload)
+                    if !ok {
+                        await onSaved()
+                        errorMessage =
+                            "Основные поля сохранены, но счёт/день не сохранились. "
+                            + "Попробуйте сохранить ещё раз."
+                        return
+                    }
                 }
             }
             await onSaved()
