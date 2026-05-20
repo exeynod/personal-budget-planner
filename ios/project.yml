@@ -22,6 +22,10 @@ targets:
     platform: iOS
     deploymentTarget: "26.0"
     sources:
+      # The recursive `- path: BudgetPlanner` auto-includes Networking/Generated/
+      # (Phase 69 B3 codegen output — GeneratedDTO.swift). It is NOT in the
+      # excludes below, so xcodegen picks it up as build sources. Regen via
+      # `make gen-dto`. Do not add Networking/Generated to excludes.
       - path: BudgetPlanner
         excludes:
           - "**/.DS_Store"
