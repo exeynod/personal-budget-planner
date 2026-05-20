@@ -3,16 +3,16 @@ gsd_state_version: 1.0
 milestone: v1.1.2
 milestone_name: — iOS v06 Native Rebuild)
 current_phase: 65
-status: Plan 64-01 executed; build + 11 tests GREEN
-stopped_at: Completed 64-01-PLAN.md
-last_updated: "2026-05-20T14:28:05.154Z"
+status: Plan 64-02 executed (Phase 64 complete); build + 11 tests GREEN
+stopped_at: Completed 64-02-PLAN.md
+last_updated: "2026-05-20T14:33:27.283Z"
 last_activity: 2026-05-20
 progress:
   total_phases: 35
-  completed_phases: 22
+  completed_phases: 23
   total_plans: 61
-  completed_plans: 60
-  percent: 98
+  completed_plans: 61
+  percent: 100
 ---
 
 ## Active Milestone: v1.1.2 — iOS v06 Native Rebuild
@@ -46,9 +46,9 @@ See: .planning/PROJECT.md (updated 2026-05-09 — v1.0 milestone «Maximal Poste
 
 ## Current Position
 
-Phase: 64 (addsheet-v06) — EXECUTING
-Plan: 64-01 complete (account picker, Wave 1) — 64-02 next
-Status: Plan 64-01 executed; build + 11 tests GREEN
+Phase: 64 (addsheet-v06) — COMPLETE (2/2 plans)
+Plan: 64-01 (account picker) + 64-02 (inline AI category hint) done
+Status: Plan 64-02 executed (Phase 64 complete); build + 11 tests GREEN
 Last activity: 2026-05-20
 
 ## Milestone v1.0 Phases
@@ -100,6 +100,7 @@ Last activity: 2026-05-20
 | Phase 63 P01 | 4min | 2 tasks | 3 files |
 | Phase 63 P02 | 25min | 3 tasks | 3 files |
 | Phase 64 P01 | 4min | 3 tasks | 5 files |
+| Phase 64 P02 | 3min | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -138,6 +139,7 @@ Recent decisions from v0.6 (preserved for context):
 - [Phase ?]: 63-02: edit-path date stays on legacy String yyyy-MM-dd path (avoid .iso8601 UTC day-shift); day_of_month/account_id via follow-up V10 PATCH
 - [Phase ?]: 63-02: LocalNotifications.reschedule(subscriptionsV10:) overload restores 63-01 dropped rescheduling
 - [Phase ?]: [Phase 64-01]: account picker «Счёт списания» in-place в TransactionEditor (actual-режимы); accountId через encodeIfPresent в ActualCreate/UpdateRequest; default primary ?? first; AccountPickerLogic pure-helpers; 3 call-site неизменны; 11 тестов green
+- [Phase ?]: [Phase 64-02]: inline AI category hint — AISuggestCategoryAPI silent wrapper (suppressUnauthHandler:true → non-pro 403 не логаутит owner, T-64-02-02); @Observable AISuggestHint debounce/cancel (Task.isCancelled после await — stale-race T-64-02-03); tappable chip create-only, не авто-применять; 11 тестов green
 
 ### Pending Todos
 
@@ -222,8 +224,8 @@ v1.0 deferred (acknowledged at planning):
 
 ## Session Continuity
 
-Last session: 2026-05-20T14:27:37.484Z
-Stopped at: Completed 64-01-PLAN.md
+Last session: 2026-05-20T14:33:27.280Z
+Stopped at: Completed 64-02-PLAN.md
 Resume file: None
 
 ## Deferred Items

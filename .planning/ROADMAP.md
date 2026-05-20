@@ -414,7 +414,7 @@ Plans:
 
 Plans:
 - [x] 64-01-PLAN.md — Account Picker «Счёт списания» в TransactionEditor (actual-режимы, default primary?? first, «Не указан»=nil, load в .task) + ActualUpdateRequest.accountId + unit-тесты default-account
-- [ ] 64-02-PLAN.md — Inline AI-подсказка категории: AISuggestCategoryAPI (silent-403 без logout) + @Observable AISuggestHint (debounce/cancel) + tappable chip (не авто-применять) + ≥5 unit-тестов
+- [x] 64-02-PLAN.md — Inline AI-подсказка категории: AISuggestCategoryAPI (silent-403 без logout) + @Observable AISuggestHint (debounce/cancel) + tappable chip (не авто-применять) + ≥5 unit-тестов
 
 ### Phase 65: CategoryDetail drill-down (v06 native) ✅
 **Status**: Shipped 2026-05-11.
