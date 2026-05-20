@@ -3,16 +3,16 @@ gsd_state_version: 1.0
 milestone: v1.1.2
 milestone_name: — iOS v06 Native Rebuild)
 current_phase: 67 (remediation-cleanup)
-status: P0-3 closed — suppressForbiddenHandler removed from APIClient + AISuggestCategoryAPI; strict 403→onUnauthenticated restored (require_pro=402 stays serverError→nil); iOS build + 568 tests GREEN
-stopped_at: Completed 67-04-PLAN.md
-last_updated: "2026-05-20T16:59:36.393Z"
+status: completed
+stopped_at: Completed 67-05-PLAN.md
+last_updated: "2026-05-20T20:10:00.000Z"
 last_activity: 2026-05-20
 progress:
   total_phases: 36
   completed_phases: 24
   total_plans: 72
-  completed_plans: 66
-  percent: 92
+  completed_plans: 68
+  percent: 94
 ---
 
 ## Active Milestone: v1.1.2 — iOS v06 Native Rebuild
@@ -105,6 +105,7 @@ Last activity: 2026-05-20
 | Phase 67 P01 | 3min | 2 tasks | 3 files |
 | Phase 67 P02 | 2min | 1 tasks | 3 files |
 | Phase 67 P04 | 5min | 3 tasks | 5 files |
+| Phase 67 P05 | 12min | 3 tasks | 17 files |
 
 ## Accumulated Context
 
@@ -114,6 +115,8 @@ Full decision log в PROJECT.md Key Decisions table.
 
 Recent decisions affecting v1.0 planning:
 
+- 67-05 (2026-05-20): SSE 403 also calls onUnauthenticated() — AI chat stream is always authed (= REST !skipAuth), so 403 there is a genuine auth failure; mirrors final 67-03 REST semantics.
+- 67-05 (2026-05-20): `userFacingRu` (UI-only, never surfaces server detail) kept distinct from `errorDescription` (still interpolates detail for logs/dev).
 - v1.0 (2026-05-09): 7-phase split (Backend / Design / Onboarding / Home+Tx+Add / CatDet+PLAN+Subs / AI+Sav+Accts+Anal+Mgmt / Polish) — derived from REQUIREMENTS.md категорий, не imposed structure. Каждая фаза = coherent delivery boundary с verifiable user-observable outcomes.
 - v1.0 (2026-05-09): ADR-001 — DM Serif Display Italic не имеет cyrillic subset на Google Fonts; решение: web использует dual-font через `unicode-range` (DM Serif для Latin + PT Serif Italic для cyrillic); iOS использует единый PT Serif Italic как pragmatic fallback. Это не блокирует Phase 23, но требует designer review для acceptance §14.7.
 - v1.0 (2026-05-09): ADR-002 — Native `NavigationStack` нельзя override на 28px-slide + 420ms-easeOut (`posterSlideInFwd`); решение: custom `PosterNavStack` (50 LOC, ZStack + asymmetric transitions + @Observable router) + ручной edge-swipe-back через `UIScreenEdgePanGestureRecognizer` (minimumDistance 24, threshold 80px). Risk — gesture conflict с TabView swipe — POC на real device первую неделю Phase 23.
@@ -231,8 +234,8 @@ v1.0 deferred (acknowledged at planning):
 
 ## Session Continuity
 
-Last session: 2026-05-20T16:59:24.711Z
-Stopped at: Completed 67-03-PLAN.md
+Last session: 2026-05-20T20:10:00.000Z
+Stopped at: Completed 67-05-PLAN.md
 Resume file: None
 
 ## Deferred Items
