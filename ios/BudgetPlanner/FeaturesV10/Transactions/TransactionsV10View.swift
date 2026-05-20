@@ -265,7 +265,7 @@ struct TransactionsV10View: View {
             .padding(.vertical, 12)
             .background(PosterTokens.Color.yellow)
             .padding(.horizontal, PosterTokens.Space.s22)
-            .padding(.bottom, 110) // clear of FAB / bottom nav chrome
+            .padding(.bottom, 110)  // clear of FAB / bottom nav chrome
         }
     }
 }
@@ -279,7 +279,7 @@ private struct TxRow: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
-            Text(V10Formatters.formatTimeHM(tx.createdAt ?? tx.txDate))
+            Text(V10Formatters.formatTimeHM(tx.createdAt ?? tx.txDate.date))
                 .font(.posterMono(size: PosterTokens.FontSize.monoSm))
                 .foregroundColor(PosterTokens.Color.paper.opacity(0.55))
                 .frame(width: 52, alignment: .leading)

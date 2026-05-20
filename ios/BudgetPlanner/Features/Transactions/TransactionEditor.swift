@@ -287,7 +287,7 @@ struct TransactionEditor: View {
             kind = a.kind
             amountText = MoneyFormatter.format(cents: a.amountCents)
             categoryId = a.categoryId
-            date = a.txDate
+            date = a.txDate.date
             description = a.description ?? ""
         // Phase 64-01: legacy ActualDTO has no accountId → preselect from
         // DTO is N/A on this legacy surface. selectedAccountId falls back

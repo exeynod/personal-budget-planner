@@ -31,7 +31,7 @@ enum LocalNotifications {
                 let triggerDate = moscowCal.date(
                     byAdding: .day,
                     value: -sub.notifyDaysBefore,
-                    to: sub.nextChargeDate
+                    to: sub.nextChargeDate.date
                 )
             else { continue }
 

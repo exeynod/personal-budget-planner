@@ -106,7 +106,7 @@ final class AccountDetailV10ViewModel {
     /// `period.periodStart`. Falls back to «МЕСЯЦЕ» when period is unknown.
     var monthLabel: String {
         guard let p = period else { return "МЕСЯЦЕ" }
-        let monthIdx = calendar.component(.month, from: p.periodStart) - 1
+        let monthIdx = calendar.component(.month, from: p.periodStart.date) - 1
         let arr = AccountDetailV10ViewModel.monthsRuPrep
         guard arr.indices.contains(monthIdx) else { return "МЕСЯЦЕ" }
         return arr[monthIdx].uppercased()

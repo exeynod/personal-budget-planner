@@ -93,7 +93,7 @@ final class AnalyticsV10ViewModel {
         f.dateFormat = "yyyy-MM"
         f.timeZone = TimeZone(identifier: "UTC")
         return periods.first(where: {
-            f.string(from: $0.periodStart) == prefix
+            f.string(from: $0.periodStart.date) == prefix
         })?.id
     }
 
@@ -165,15 +165,19 @@ final class AnalyticsV10ViewModel {
         guard let m = selectedMonth else { return [] }
         switch groupMode {
         case .day:
+            // E2/R7: bucket keys are BusinessDate (MSK day). Read the
+            // day-of-month label in Europe/Moscow so it matches the MSK day the
+            // bucket represents (a UTC formatter against the MSK-midnight key
+            // would render the previous calendar day).
             let f = DateFormatter()
             f.dateFormat = "d"
-            f.timeZone = TimeZone(identifier: "UTC")
+            f.timeZone = TimeZone(identifier: "Europe/Moscow")
             let buckets = AnalyticsData.groupByDay(
                 actuals,
-                periodStart: parseDate(m.periodStart),
-                periodEnd: parseDate(m.periodEnd)
+                periodStart: BusinessDate(parseDate(m.periodStart)),
+                periodEnd: BusinessDate(parseDate(m.periodEnd))
             )
-            return buckets.map { (f.string(from: $0.key), $0.sumCents, 0) }
+            return buckets.map { (f.string(from: $0.key.date), $0.sumCents, 0) }
         case .week:
             let buckets = AnalyticsData.groupByWeek(actuals, calendar: calendar)
             return buckets.map { ("W\($0.weekIdx)", $0.sumCents, 0) }

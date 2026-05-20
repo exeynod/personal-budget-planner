@@ -27,35 +27,26 @@ final class APIClient {
         let dec = JSONDecoder()
         dec.keyDecodingStrategy = .convertFromSnakeCase
         dec.dateDecodingStrategy = .custom { decoder in
+            // E2/R7: this strategy now serves AUDIT-TIME `Date` only (ISO-8601
+            // timestamps: `created_at`, `closed_at`, …). Wire business dates
+            // (`due`, `next_charge_date`, `tx_date`, `planned_date`,
+            // `period_start/end`) are typed `BusinessDate` and self-decode from
+            // their own singleValueContainer — they never reach this closure, so
+            // the old `yyyy-MM-dd → MSK` format heuristic (WR-05 band-aid) is
+            // gone. MSK-midnight semantics now live in `BusinessDate`.
             let container = try decoder.singleValueContainer()
             let str = try container.decode(String.self)
-            let formats: [String] = [
-                "yyyy-MM-dd'T'HH:mm:ss.SSSSSSXXXXX",
-                "yyyy-MM-dd'T'HH:mm:ssXXXXX",
-                "yyyy-MM-dd'T'HH:mm:ss.SSSSSS",
-                "yyyy-MM-dd'T'HH:mm:ss",
-                "yyyy-MM-dd",
-            ]
             let f = ISO8601DateFormatter()
             f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
             if let d = f.date(from: str) { return d }
             f.formatOptions = [.withInternetDateTime]
             if let d = f.date(from: str) { return d }
-            for fmt in formats {
-                let df = DateFormatter()
-                df.locale = Locale(identifier: "en_US_POSIX")
-                // WR-05: bare DATE-поля (yyyy-MM-dd) — это бизнес-даты в МСК
-                // (period_for / worker-джобы). Без фикс. tz они декодировались
-                // в timezone устройства, и MSK-calendar чтение в
-                // LocalNotifications могло сместить fire-date на день восточнее
-                // МСК. Пинним декод к Europe/Moscow — encode/decode/read
-                // согласованы на МСК.
-                if fmt == "yyyy-MM-dd" {
-                    df.timeZone = TimeZone(identifier: "Europe/Moscow")
-                }
-                df.dateFormat = fmt
-                if let d = df.date(from: str) { return d }
-            }
+            // No-zone fallback (DateFormatter без явной tz → device tz) for
+            // legacy timestamp shapes that omit the zone.
+            let df = DateFormatter()
+            df.locale = Locale(identifier: "en_US_POSIX")
+            df.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"
+            if let d = df.date(from: str) { return d }
             throw DecodingError.dataCorruptedError(
                 in: container,
                 debugDescription: "Unrecognized date: \(str)"

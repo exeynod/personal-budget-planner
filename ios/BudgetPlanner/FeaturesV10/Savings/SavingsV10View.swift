@@ -284,7 +284,7 @@ struct SavingsV10View: View {
             currentCents: goal.currentCents,
             targetCents: goal.targetCents
         )
-        let dueRu = SavingsData.formatDueRu(goal.due)
+        let dueRu = SavingsData.formatDueRu(goal.due?.date)
         return Button {
             model.sheet = .deposit(goalId: goal.id)
         } label: {

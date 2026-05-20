@@ -10,7 +10,7 @@ struct SubscriptionDTO: Decodable, Identifiable, Equatable {
     let name: String
     let amountCents: Int
     let cycle: SubCycle
-    let nextChargeDate: Date
+    let nextChargeDate: BusinessDate
     let categoryId: Int
     let notifyDaysBefore: Int
     let isActive: Bool
@@ -79,8 +79,8 @@ struct ForecastResponse: Decodable {
 }
 
 struct TrendPoint: Decodable {
-    let periodStart: Date
-    let periodEnd: Date
+    let periodStart: BusinessDate
+    let periodEnd: BusinessDate
     let actualExpenseCents: Int
     let plannedExpenseCents: Int
 }

@@ -70,8 +70,8 @@ enum SubscriptionsData {
             return "ежемесячно"
         }
         // .yearly
-        let day = calendar.component(.day, from: sub.nextChargeDate)
-        let monthIdx = calendar.component(.month, from: sub.nextChargeDate) - 1
+        let day = calendar.component(.day, from: sub.nextChargeDate.date)
+        let monthIdx = calendar.component(.month, from: sub.nextChargeDate.date) - 1
         guard (0..<V10Formatters.monthsRuGenitive.count).contains(monthIdx) else {
             return "ежегодно"
         }

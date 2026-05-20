@@ -18,7 +18,7 @@ struct ActualDTO: Decodable, Identifiable, Equatable {
     let amountCents: Int
     let description: String?
     let categoryId: Int
-    let txDate: Date
+    let txDate: BusinessDate
     let source: ActualSource
     let createdAt: Date?
 }
@@ -59,7 +59,7 @@ struct ActualV10DTO: Decodable, Identifiable, Equatable {
     let amountCents: Int
     let description: String?
     let categoryId: Int
-    let txDate: Date
+    let txDate: BusinessDate
     let source: ActualSource
     /// `ActualRead.created_at` is required on the wire, but kept Optional
     /// here intentionally: every list/sort consumer falls back via
@@ -83,7 +83,7 @@ struct PlannedDTO: Decodable, Identifiable, Equatable {
     let amountCents: Int
     let description: String?
     let categoryId: Int
-    let plannedDate: Date?
+    let plannedDate: BusinessDate?
     let source: PlannedSource
     let subscriptionId: Int?
 }

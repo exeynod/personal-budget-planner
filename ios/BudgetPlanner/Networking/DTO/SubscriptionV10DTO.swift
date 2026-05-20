@@ -23,7 +23,7 @@ struct SubscriptionV10DTO: Decodable, Identifiable, Equatable {
     let name: String
     let amountCents: Int
     let cycle: SubCycle
-    let nextChargeDate: Date
+    let nextChargeDate: BusinessDate
     let categoryId: Int
     let notifyDaysBefore: Int
     let isActive: Bool
@@ -55,7 +55,7 @@ struct SubscriptionV10DTO: Decodable, Identifiable, Equatable {
         self.name = try c.decode(String.self, forKey: .name)
         self.amountCents = try c.decode(Int.self, forKey: .amountCents)
         self.cycle = try c.decode(SubCycle.self, forKey: .cycle)
-        self.nextChargeDate = try c.decode(Date.self, forKey: .nextChargeDate)
+        self.nextChargeDate = try c.decode(BusinessDate.self, forKey: .nextChargeDate)
         self.categoryId = try c.decode(Int.self, forKey: .categoryId)
         self.notifyDaysBefore = try c.decode(Int.self, forKey: .notifyDaysBefore)
         self.isActive = try c.decode(Bool.self, forKey: .isActive)
@@ -76,7 +76,7 @@ struct SubscriptionV10UpdateRequest: Encodable {
     var name: String? = nil
     var amountCents: Int? = nil
     var cycle: SubCycle? = nil
-    var nextChargeDate: Date? = nil
+    var nextChargeDate: BusinessDate? = nil
     var categoryId: Int? = nil
     var notifyDaysBefore: Int? = nil
     var isActive: Bool? = nil

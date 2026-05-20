@@ -199,7 +199,7 @@ struct AccountDetailV10View: View {
         let subline = "\(catName) · \(acc.bank.uppercased())\(maskStr)"
 
         return HStack(alignment: .top, spacing: 10) {
-            Text(V10Formatters.formatTimeHM(tx.createdAt ?? tx.txDate, calendar: model.calendar))
+            Text(V10Formatters.formatTimeHM(tx.createdAt ?? tx.txDate.date, calendar: model.calendar))
                 .font(.posterMono(size: 11))
                 .foregroundColor(PosterTokens.Color.paper.opacity(0.55))
                 .frame(width: 50, alignment: .leading)
@@ -226,7 +226,7 @@ struct AccountDetailV10View: View {
     private func amountColor(for kind: ActualKindV10) -> Color {
         switch kind {
         case .roundup, .deposit: return PosterTokens.Color.yellow
-        case .expense, .income:  return PosterTokens.Color.paper
+        case .expense, .income: return PosterTokens.Color.paper
         }
     }
 }

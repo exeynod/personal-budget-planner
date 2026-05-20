@@ -155,8 +155,12 @@ final class TransactionsViewModel {
             self.actuals = acts.sorted { lhs, rhs in
                 // Newest first regardless of grouping — within-day sort key
                 // is `createdAt ?? txDate` DESC (mirrors V10 pattern).
-                let l = lhs.createdAt ?? lhs.txDate
-                let r = rhs.createdAt ?? rhs.txDate
+                // E2/R7: txDate is now BusinessDate; bridge to its MSK-midnight
+                // `.date` so the mixed `audit Date? ?? business-date` expression
+                // type-checks AND keeps the exact previous ordering (the
+                // bridged instant is the same MSK midnight the decoder produced).
+                let l = lhs.createdAt ?? lhs.txDate.date
+                let r = rhs.createdAt ?? rhs.txDate.date
                 return l > r
             }
             self.planned = plans.sorted { $0.id < $1.id }

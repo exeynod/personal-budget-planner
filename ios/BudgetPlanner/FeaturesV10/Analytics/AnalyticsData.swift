@@ -34,11 +34,11 @@ enum AnalyticsData {
 
     /// One option in the period chip row.
     struct MonthOption: Equatable, Identifiable, Hashable {
-        let label: String          // «МАЙ 26»
+        let label: String  // «МАЙ 26»
         let year: Int
-        let month: Int             // 1..12
-        let periodStart: String    // YYYY-MM-01
-        let periodEnd: String      // YYYY-MM-DD (last day)
+        let month: Int  // 1..12
+        let periodStart: String  // YYYY-MM-01
+        let periodEnd: String  // YYYY-MM-DD (last day)
 
         var id: String { periodStart }
     }
@@ -66,37 +66,46 @@ enum AnalyticsData {
                 from: DateComponents(year: y, month: m, day: 1)
             )!
             let lastDay = (calendar.range(of: .day, in: .month, for: firstOfMonth)?.upperBound ?? 32) - 1
-            out.append(MonthOption(
-                label: label,
-                year: y,
-                month: m,
-                periodStart: String(format: "%04d-%02d-01", y, m),
-                periodEnd: String(format: "%04d-%02d-%02d", y, m, lastDay)
-            ))
+            out.append(
+                MonthOption(
+                    label: label,
+                    year: y,
+                    month: m,
+                    periodStart: String(format: "%04d-%02d-01", y, m),
+                    periodEnd: String(format: "%04d-%02d-%02d", y, m, lastDay)
+                ))
         }
         return out
     }
 
     // MARK: - Bar-chart bucketing
 
-    /// One day bucket. `key` is the txDate (midnight UTC).
+    /// One day bucket. `key` is the txDate business-date (MSK midnight).
     struct DayBucket: Equatable {
-        let key: Date
+        let key: BusinessDate
         let sumCents: Int
     }
 
-    /// Group expense actuals by day (UTC midnight). Income / roundup /
+    /// Group expense actuals by day (MSK calendar day). Income / roundup /
     /// deposit kinds are excluded — analytics screen tracks spend.
+    ///
+    /// E2/R7: `periodStart` / `periodEnd` and `txDate` are all `BusinessDate`,
+    /// so the inclusive range and the `Dictionary(grouping:by:)` key are direct
+    /// BusinessDate operations — both anchored at MSK midnight. The grouping key
+    /// is one-bucket-per-MSK-day (BusinessDate Hashable equates same-MSK-day),
+    /// so buckets cannot fragment, and the inclusive `[periodStart, periodEnd]`
+    /// selects exactly the same transactions as before.
     static func groupByDay(
         _ actuals: [ActualV10DTO],
-        periodStart: Date,
-        periodEnd: Date
+        periodStart: BusinessDate,
+        periodEnd: BusinessDate
     ) -> [DayBucket] {
         let filtered = actuals.filter {
             $0.kind == .expense && $0.txDate >= periodStart && $0.txDate <= periodEnd
         }
         let grouped = Dictionary(grouping: filtered, by: { $0.txDate })
-        return grouped
+        return
+            grouped
             .map { DayBucket(key: $0.key, sumCents: $0.value.reduce(0) { $0 + abs($1.amountCents) }) }
             .sorted { $0.key < $1.key }
     }
@@ -115,14 +124,20 @@ enum AnalyticsData {
     ) -> [WeekBucket] {
         let filtered = actuals.filter { $0.kind == .expense }
         var buckets: [Int: Int] = [:]
+        // E2/R7: txDate is a BusinessDate anchored at MSK midnight. The
+        // day-of-month for the week partition is the MSK calendar day, so read
+        // the day component in Europe/Moscow (was UTC — which, against a
+        // MSK-midnight instant, would read the previous calendar day). Bridge
+        // txDate via `.date` for the Calendar read.
         var cal = calendar
-        cal.timeZone = TimeZone(identifier: "UTC") ?? cal.timeZone
+        cal.timeZone = TimeZone(identifier: "Europe/Moscow") ?? cal.timeZone
         for t in filtered {
-            let day = cal.component(.day, from: t.txDate)
+            let day = cal.component(.day, from: t.txDate.date)
             let weekIdx = (day + 6) / 7  // 1..5
             buckets[weekIdx, default: 0] += abs(t.amountCents)
         }
-        return buckets
+        return
+            buckets
             .map { WeekBucket(weekIdx: $0.key, sumCents: $0.value) }
             .sorted { $0.weekIdx < $1.weekIdx }
     }
@@ -148,7 +163,8 @@ enum AnalyticsData {
         for t in filtered {
             sums[t.categoryId, default: 0] += abs(t.amountCents)
         }
-        return sums
+        return
+            sums
             .map { (cid, sum) -> CategoryBucket in
                 let cat = catMap[cid]
                 return CategoryBucket(

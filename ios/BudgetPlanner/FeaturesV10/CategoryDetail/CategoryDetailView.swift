@@ -108,7 +108,8 @@ struct CategoryDetailView: View {
         let fact = model.factCents
         let isOver = model.isOver
         let segments = model.barSegments
-        let subtitle: String = isOver
+        let subtitle: String =
+            isOver
             ? "— превышено на \(CategoryDetailData.computeOverPercent(factCents: fact, planCents: cat.planCents))%"
             : "— на \(CategoryDetailData.computeUnderPercent(factCents: fact, planCents: cat.planCents))% плана"
         let groups = model.dayGroups
@@ -116,7 +117,7 @@ struct CategoryDetailView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
                 headerRow(cat: cat)
-                Mass(cat.name, size: 70)             // Mass uppercases for non-italic mode
+                Mass(cat.name, size: 70)  // Mass uppercases for non-italic mode
                 Mass(subtitle, italic: true, size: 28)
                     .opacity(0.85)
                     .padding(.top, 2)
@@ -260,7 +261,7 @@ struct CategoryDetailView: View {
 
     private func txRow(_ tx: ActualV10DTO) -> some View {
         HStack(alignment: .top, spacing: 10) {
-            Text(V10Formatters.formatTimeHM(tx.createdAt ?? tx.txDate, calendar: model.calendar))
+            Text(V10Formatters.formatTimeHM(tx.createdAt ?? tx.txDate.date, calendar: model.calendar))
                 .font(.posterMono(size: PosterTokens.FontSize.monoSm))
                 .foregroundColor(PosterTokens.Color.paper.opacity(0.55))
                 .frame(width: 50, alignment: .leading)
@@ -288,7 +289,7 @@ struct CategoryDetailView: View {
     private func amountColor(for kind: ActualKindV10) -> Color {
         switch kind {
         case .roundup, .deposit: return PosterTokens.Color.yellow
-        case .expense, .income:  return PosterTokens.Color.paper
+        case .expense, .income: return PosterTokens.Color.paper
         }
     }
 }

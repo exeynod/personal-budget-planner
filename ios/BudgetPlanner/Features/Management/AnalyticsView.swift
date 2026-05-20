@@ -131,7 +131,7 @@ struct AnalyticsView: View {
                     AxisMarks(values: .stride(by: 1)) { value in
                         if let idx = value.as(Int.self), idx < trend.points.count {
                             AxisValueLabel {
-                                Text(monthLabel(for: trend.points[idx].periodStart))
+                                Text(monthLabel(for: trend.points[idx].periodStart.date))
                                     .font(.caption2)
                             }
                         }

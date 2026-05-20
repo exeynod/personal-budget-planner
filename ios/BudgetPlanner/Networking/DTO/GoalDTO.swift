@@ -22,7 +22,7 @@ struct GoalDTO: Decodable, Identifiable, Equatable {
     let name: String
     let targetCents: Int
     let currentCents: Int
-    let due: Date?  // YYYY-MM-DD on the wire; nil = no deadline.
+    let due: BusinessDate?  // YYYY-MM-DD on the wire; nil = no deadline.
     let createdAt: Date
 }
 
@@ -39,7 +39,7 @@ struct GoalDTO: Decodable, Identifiable, Equatable {
 struct GoalCreateRequest: Encodable {
     let name: String
     let targetCents: Int
-    let due: Date?
+    let due: BusinessDate?
 
     enum CodingKeys: String, CodingKey {
         case name
@@ -51,23 +51,13 @@ struct GoalCreateRequest: Encodable {
         var c = encoder.container(keyedBy: CodingKeys.self)
         try c.encode(name, forKey: .name)
         try c.encode(targetCents, forKey: .targetCents)
+        // E2/R7: `due` is a BusinessDate — its own encode emits the MSK
+        // `yyyy-MM-dd` string Pydantic GoalCreate.due expects (IN-04: MSK
+        // keeps the wire day == the picked day). The old hand-rolled MSK
+        // DateFormatter band-aid (WR-05) is gone; the semantics now live in
+        // the type. nil → explicit null.
         if let due {
-            // Pydantic GoalCreate.due expects YYYY-MM-DD; default
-            // JSONEncoder.dateEncodingStrategy = .iso8601 would emit a
-            // full ISO timestamp which `_coerce_iso_date` does NOT
-            // accept (it only parses pure date strings). Encode the
-            // wire-required shape explicitly.
-            //
-            // IN-04: timeZone MUST be Europe/Moscow, NOT UTC. A SwiftUI
-            // DatePicker in MSK produces midnight-MSK (= previous-day
-            // 21:00 UTC), so a UTC formatter would render the wire
-            // `yyyy-MM-dd` one calendar day EARLIER than the user picked.
-            // Formatting in MSK keeps the wire day == the picked day.
-            let fmt = DateFormatter()
-            fmt.locale = Locale(identifier: "en_US_POSIX")
-            fmt.timeZone = TimeZone(identifier: "Europe/Moscow") ?? TimeZone(identifier: "UTC")!
-            fmt.dateFormat = "yyyy-MM-dd"
-            try c.encode(fmt.string(from: due), forKey: .due)
+            try c.encode(due, forKey: .due)
         } else {
             try c.encodeNil(forKey: .due)
         }

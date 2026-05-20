@@ -138,13 +138,19 @@ enum TransactionsData {
         var buckets: [String: [ActualV10DTO]] = [:]
         var anyDateForKey: [String: Date] = [:]
         for a in actuals {
-            let key = keyFormatter.string(from: a.txDate)
+            // E2/R7: txDate is BusinessDate; bridge to its MSK-midnight `.date`
+            // for the day-key formatter and the per-day representative-date
+            // tracking (anyDateForKey holds audit-style Date). Behavior is
+            // unchanged — the bridged instant is the same MSK midnight the
+            // decoder produced.
+            let txDate = a.txDate.date
+            let key = keyFormatter.string(from: txDate)
             buckets[key, default: []].append(a)
             // Track newest txDate per day for inter-group sort.
             if let existing = anyDateForKey[key] {
-                if a.txDate > existing { anyDateForKey[key] = a.txDate }
+                if txDate > existing { anyDateForKey[key] = txDate }
             } else {
-                anyDateForKey[key] = a.txDate
+                anyDateForKey[key] = txDate
             }
         }
 
@@ -156,13 +162,13 @@ enum TransactionsData {
         return orderedKeys.map { key in
             let rows = buckets[key] ?? []
             let sortedRows = rows.sorted { lhs, rhs in
-                let l = lhs.createdAt ?? lhs.txDate
-                let r = rhs.createdAt ?? rhs.txDate
+                let l = lhs.createdAt ?? lhs.txDate.date
+                let r = rhs.createdAt ?? rhs.txDate.date
                 return l > r
             }
             let sum = sortedRows.reduce(0) { $0 + Swift.abs($1.amountCents) }
             // Use any row's txDate (the representative) for label formatting.
-            let repDate = anyDateForKey[key] ?? sortedRows.first?.txDate ?? today
+            let repDate = anyDateForKey[key] ?? sortedRows.first?.txDate.date ?? today
             let label = V10Formatters.formatDay(repDate, today: today, calendar: calendar)
             return TxDayGroup(id: key, dateLabel: label, dateKey: key, rows: sortedRows, sumCents: sum)
         }

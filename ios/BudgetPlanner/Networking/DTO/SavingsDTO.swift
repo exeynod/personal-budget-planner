@@ -72,6 +72,6 @@ struct DepositResponseDTO: Decodable, Equatable {
     let amountCents: Int  // signed (typically negative for outflow leg)
     let accountId: Int?
     let categoryId: Int
-    let txDate: Date
+    let txDate: BusinessDate
     let description: String?
 }

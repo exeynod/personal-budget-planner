@@ -198,6 +198,6 @@ private struct ActualHistoryRow: View {
     }
 
     private var timeLabel: String {
-        V10Formatters.formatTimeHM(actual.createdAt ?? actual.txDate, calendar: calendar)
+        V10Formatters.formatTimeHM(actual.createdAt ?? actual.txDate.date, calendar: calendar)
     }
 }

@@ -275,7 +275,7 @@ private struct SavingsGoalRow: View {
     }
 
     private var dueText: String? {
-        SavingsViewData.formatDue(goal.due, calendar: SavingsGoalRow.mskCalendar)
+        SavingsViewData.formatDue(goal.due?.date, calendar: SavingsGoalRow.mskCalendar)
     }
 
     private static let mskCalendar: Calendar = {

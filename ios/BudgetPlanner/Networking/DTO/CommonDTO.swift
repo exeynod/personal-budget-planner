@@ -38,8 +38,8 @@ enum PeriodStatus: String, Decodable {
 
 struct PeriodDTO: Decodable, Identifiable, Equatable {
     let id: Int
-    let periodStart: Date
-    let periodEnd: Date
+    let periodStart: BusinessDate
+    let periodEnd: BusinessDate
     let startingBalanceCents: Int
     let endingBalanceCents: Int?
     let status: PeriodStatus
@@ -59,8 +59,8 @@ struct BalanceCategoryRow: Decodable, Identifiable, Equatable {
 
 struct BalanceResponse: Decodable, Equatable {
     let periodId: Int
-    let periodStart: Date
-    let periodEnd: Date
+    let periodStart: BusinessDate
+    let periodEnd: BusinessDate
     let startingBalanceCents: Int
     let plannedTotalExpenseCents: Int
     let actualTotalExpenseCents: Int

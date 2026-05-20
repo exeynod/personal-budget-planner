@@ -132,7 +132,7 @@ struct GoalDetailView: View {
                 )
                 .font(.subheadline.monospacedDigit())
                 .foregroundStyle(.secondary)
-                if let due = SavingsViewData.formatDue(goal.due, calendar: GoalDetailView.mskCalendar) {
+                if let due = SavingsViewData.formatDue(goal.due?.date, calendar: GoalDetailView.mskCalendar) {
                     Text(due)
                         .font(.caption)
                         .foregroundStyle(.secondary)

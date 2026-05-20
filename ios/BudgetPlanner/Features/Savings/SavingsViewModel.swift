@@ -210,7 +210,7 @@ final class SavingsViewModel {
             _ = try await api.goalsCreate(
                 GoalCreateRequest(
                     name: name.trimmingCharacters(in: .whitespaces), targetCents: targetCents,
-                    due: due)
+                    due: due.map(BusinessDate.init))
             )
             mutationError = nil
             await load()

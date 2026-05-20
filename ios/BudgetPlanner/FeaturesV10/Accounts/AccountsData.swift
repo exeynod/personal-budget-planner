@@ -56,9 +56,14 @@ enum AccountsData {
     /// to the «N ОПЕРАЦИЙ» KPI plate sum.
     static func sumPeriodOps(
         _ actuals: [ActualV10DTO],
-        periodStart: Date,
-        periodEnd: Date
+        periodStart: BusinessDate,
+        periodEnd: BusinessDate
     ) -> (count: Int, sumCents: Int) {
+        // E2/R7: txDate, periodStart and periodEnd are all BusinessDate, so the
+        // inclusive [periodStart, periodEnd] range is a direct BusinessDate
+        // comparison (all anchored at MSK midnight) — the day-inclusive
+        // boundary selects exactly the same transactions as before, with no
+        // Date round-trip and no TZ ambiguity.
         let inRange = actuals.filter { $0.txDate >= periodStart && $0.txDate <= periodEnd }
         return (inRange.count, inRange.reduce(0) { $0 + abs($1.amountCents) })
     }

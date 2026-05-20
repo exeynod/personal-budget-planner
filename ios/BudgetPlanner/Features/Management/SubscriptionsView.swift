@@ -430,7 +430,7 @@ private struct SubscriptionRow: View {
 
     private var daysUntil: Int {
         let today = Calendar.current.startOfDay(for: Date())
-        let day = Calendar.current.startOfDay(for: sub.nextChargeDate)
+        let day = Calendar.current.startOfDay(for: sub.nextChargeDate.date)
         return Calendar.current.dateComponents([.day], from: today, to: day).day ?? 0
     }
 
@@ -728,7 +728,7 @@ struct SubscriptionEditor: View {
             name = s.name
             amountText = MoneyFormatter.format(cents: s.amountCents)
             cycle = s.cycle
-            nextChargeDate = s.nextChargeDate
+            nextChargeDate = s.nextChargeDate.date
             categoryId = s.categoryId
             notifyDaysBefore = s.notifyDaysBefore
             isActive = s.isActive

@@ -153,7 +153,9 @@ final class SavingsV10ViewModel {
         defer { submitting = false }
         do {
             _ = try await GoalsAPI.create(
-                GoalCreateRequest(name: name, targetCents: targetCents, due: due)
+                GoalCreateRequest(
+                    name: name, targetCents: targetCents,
+                    due: due.map(BusinessDate.init))
             )
             sheet = .none
             await load()

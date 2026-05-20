@@ -199,7 +199,7 @@ private struct TransactionDetailRow: View {
                     .font(.body)
                     .foregroundStyle(.primary)
                     .lineLimit(1)
-                Text(transaction.txDate, format: .dateTime.day().month().year(.twoDigits))
+                Text(transaction.txDate.date, format: .dateTime.day().month().year(.twoDigits))
                     .font(.caption.monospacedDigit())
                     .foregroundStyle(.secondary)
             }
