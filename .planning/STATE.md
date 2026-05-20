@@ -3,16 +3,16 @@ gsd_state_version: 1.0
 milestone: v1.1.2
 milestone_name: — iOS v06 Native Rebuild)
 current_phase: 67 (remediation-cleanup)
-status: completed
-stopped_at: Completed 67-05-PLAN.md
-last_updated: "2026-05-20T17:12:51.793Z"
+status: "67-07 closed (Wave 3 iOS P1-4/R2 + P1-7) — SavingsViewModel/GoalDetailViewModel got an injectable API struct seam (default .live) + reloadPending coalescing on SavingsViewModel.load(); dead lastCreatedGoalId removed. Behavioural money-mutation tests added (deposit/createGoal/deleteGoal success/failure/submitting-guard/optimistic-revert/coalesce; GoalDetail load not-found). APIClient regression-locked via URLProtocol stub: 401->logout+.unauthorized, 403(!skipAuth)->logout+.forbidden (strict, post-67-03), 403(skipAuth)->no logout; MSK yyyy-MM-dd '2027-01-01' decodes to Europe/Moscow midnight + timestamp formats parse. APIClient source untouched. Full suite 609 green (+41)."
+stopped_at: Completed 67-07-PLAN.md
+last_updated: "2026-05-20T20:25:00.000Z"
 last_activity: 2026-05-20
 progress:
   total_phases: 36
   completed_phases: 24
   total_plans: 72
-  completed_plans: 68
-  percent: 94
+  completed_plans: 70
+  percent: 97
 ---
 
 ## Active Milestone: v1.1.2 — iOS v06 Native Rebuild
@@ -47,8 +47,8 @@ See: .planning/PROJECT.md (updated 2026-05-09 — v1.0 milestone «Maximal Poste
 ## Current Position
 
 Phase: 67 (remediation-cleanup) — IN PROGRESS
-Plan: 67-06 executed (Wave 2 web P1-6 ui.theme split + R5 dead-shell inventory)
-Status: P1-6/FE-F4 closed — main.tsx shell dispatch moved to localStorage 'ui.shell' (v06/v10) with one-time migration shim; useTheme.ts is now sole owner of 'ui.theme' (theme values); collision that made v06 shell unreachable removed; VITE_UI_THEME env still wins for shell. R5 inventory written (DEAD-SHELL-INVENTORY.md): v06 shell = KEEP (reachable, maintained), ~50-file deletion deferred to scoped follow-up pending R6/ARCH-A1 owner decision. npm run build green; useTheme tests 6/6.
+Plan: 67-07 executed (Wave 3 iOS P1-4/R2 Savings/GoalDetail seam+coalesce+money tests + P1-7 APIClient regression tests)
+Status: SavingsViewModel/GoalDetailViewModel now take an injectable API struct seam (default .live); SavingsViewModel.load() has reloadPending coalescing (post-deposit reload not dropped during pull-to-refresh); dead lastCreatedGoalId removed. Behavioural seam tests cover deposit/createGoal/deleteGoal success+failure+submitting-guard+optimistic-revert+coalesce and GoalDetail load not-found. APIClient regression-locked via URLProtocol stub (401->logout, 403(!skipAuth)->logout strict post-67-03, 403(skipAuth)->no logout, MSK yyyy-MM-dd decode + timestamp parse). APIClient.swift untouched. Full suite 609 green (+41).
 Last activity: 2026-05-20
 
 ## Milestone v1.0 Phases
@@ -107,6 +107,7 @@ Last activity: 2026-05-20
 | Phase 67 P04 | 5min | 3 tasks | 5 files |
 | Phase 67 P05 | 12min | 3 tasks | 17 files |
 | Phase 67 P06 | 3min | 2 tasks | 4 files |
+| Phase 67 P07 | ~15min | 3 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -236,7 +237,7 @@ v1.0 deferred (acknowledged at planning):
 
 ## Session Continuity
 
-Last session: 2026-05-20T17:13:00.000Z
+Last session: 2026-05-20T17:21:01.007Z
 Stopped at: Completed 67-06-PLAN.md
 Resume file: None
 
