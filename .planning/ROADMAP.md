@@ -492,7 +492,7 @@ Plans:
 
 - [x] 69-01-PLAN.md — [W1] B1 backend: response_model audit (typed me consent/account + billing /me/tier + /me/subscription/cancel; GET /me/export + SSE /ai/chat exempted) + deterministic contract/openapi.json dump (sort_keys, idempotent, 8 domains) + make contract + contract guard test; full pytest 778 green (0 regression). Commits f25a7f0 + 0f15007
 - [x] 69-02-PLAN.md — [W2] B2 web: openapi-typescript + gen:api → generated/schema.ts (idempotent) + drift-report vs handwritten types.ts (CategoryV10 pending stubs); build+typecheck:test+vitest green (gen only, no consumer migration)
-- [ ] 69-03-PLAN.md — [W2] B3 iOS: DECISION custom Python script→vanilla Codable (preserves URLSession transport; rejects swift-openapi-generator which forces ClientTransport+runtime) → GeneratedDTO.swift (idempotent) + xcodegen pickup + drift-report; iOS build green
+- [x] 69-03-PLAN.md — [W2] B3 iOS: DECISION custom Python script→vanilla Codable (preserves URLSession transport; rejects swift-openapi-generator which forces ClientTransport+runtime) → GeneratedDTO.swift (idempotent) + xcodegen pickup + drift-report; iOS build green
 - [ ] 69-04-PLAN.md — [W3] B4 web migration: read-DTOs (CategoryV10/Subscription*/Me*/Actual*) onto generated via adapters.ts; remove pending-schema stubs+comments; write payloads deferred; build+typecheck:test+vitest green, zero regression
 - [ ] 69-05-PLAN.md — [W3] B4 iOS migration: read-DTOs onto generated (typealias/adoption); remove CategoryV10DTO pending stubs+decode fallbacks; transport untouched; write payloads deferred; iOS build+test suite green, zero regression
 - [ ] 69-06-PLAN.md — [W4] B5 CI sync-guard: check_contract_sync.sh regen-all + git-diff-empty + CI step + README regen pipeline; passes on current tree
