@@ -15,11 +15,11 @@
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, fireEvent, cleanup } from '@testing-library/react';
-import { AiView, type AiMessage } from '../AiView';
+import { AiView, type AiMessage, type AiViewProps } from '../AiView';
 
 afterEach(cleanup);
 
-const baseProps = {
+const baseProps: AiViewProps = {
   observation: 'Май в плюсе на 12 345 ₽',
   observationGeneratedAt: new Date(2026, 4, 9, 12, 0, 0),
   observationLoading: false,

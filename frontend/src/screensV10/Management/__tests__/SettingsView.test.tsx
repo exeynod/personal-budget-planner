@@ -21,6 +21,16 @@ function makeProps(overrides: Partial<SettingsViewProps> = {}): SettingsViewProp
     onToggleAiCat: vi.fn(),
     canPop: true,
     onBack: vi.fn(),
+    // Phase 30-07 (DEBT-08): Home background color picker.
+    homeColor: 'coral',
+    pickerOpen: false,
+    onSelectHomeColor: vi.fn(),
+    onTogglePicker: vi.fn(),
+    // Phase 54-01 (LG-SW-02 web): Theme picker.
+    theme: 'maximal_poster',
+    themePickerOpen: false,
+    onSelectTheme: vi.fn(),
+    onToggleThemePicker: vi.fn(),
     ...overrides,
   };
 }
