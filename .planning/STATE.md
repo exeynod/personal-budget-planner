@@ -2,24 +2,24 @@
 gsd_state_version: 1.0
 milestone: v1.1.2
 milestone_name: — iOS v06 Native Rebuild)
-current_phase: 67
-status: Plan 67-01 executed (P0-1 SubscriptionReadV10 response_model); subscriptions tests GREEN (19 passed, 1 skipped)
-stopped_at: Completed 67-01-PLAN.md
-last_updated: "2026-05-20T16:42:00.116Z"
+current_phase: 67 (remediation-cleanup)
+status: P0-2 closed — `npm run build` (tsc -b && vite build) GREEN; AnalyticsRange import + AiView bottomRef type fixed; test files excluded from production tsc gate (FE-F3)
+stopped_at: Completed 67-02-PLAN.md
+last_updated: "2026-05-20T16:45:40.438Z"
 last_activity: 2026-05-20
 progress:
   total_phases: 36
   completed_phases: 24
   total_plans: 72
-  completed_plans: 63
-  percent: 88
+  completed_plans: 64
+  percent: 89
 ---
 
 ## Active Milestone: v1.1.2 — iOS v06 Native Rebuild
 
 User-direction 2026-05-11: вернуть нативный iOS UI (`MainShell`) как полноценную альтернативу `V10MainShell`. Оба шелла сосуществуют через `@AppStorage("ui.theme")` тумблер. Параллельная разработка в ветке `v1.0-maximal-poster`.
 
-**Current Phase:** 66
+**Current Phase:** 67 (remediation-cleanup)
 
 **Next Phases (planned, see ROADMAP.md):**
 
@@ -46,9 +46,9 @@ See: .planning/PROJECT.md (updated 2026-05-09 — v1.0 milestone «Maximal Poste
 
 ## Current Position
 
-Phase: 66 (settings-ai-polish-v06) — COMPLETE (1/1 plans)
-Plan: Not started
-Status: Plan 66-01 executed (v06 Settings theme picker); build + 568 tests GREEN
+Phase: 67 (remediation-cleanup) — IN PROGRESS
+Plan: 67-02 executed (Wave 1 Web P0-2)
+Status: P0-2 closed — `npm run build` (tsc -b && vite build) GREEN; AnalyticsRange import + AiView bottomRef type fixed; test files excluded from production tsc gate (FE-F3)
 Last activity: 2026-05-20
 
 ## Milestone v1.0 Phases
@@ -103,6 +103,7 @@ Last activity: 2026-05-20
 | Phase 64 P02 | 3min | 3 tasks | 5 files |
 | Phase 66 P01 | 2min | 2 tasks | 3 files |
 | Phase 67 P01 | 3min | 2 tasks | 3 files |
+| Phase 67 P02 | 2min | 1 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -228,8 +229,8 @@ v1.0 deferred (acknowledged at planning):
 
 ## Session Continuity
 
-Last session: 2026-05-20T16:41:42.350Z
-Stopped at: Completed 66-01-PLAN.md
+Last session: 2026-05-20T16:45:03.917Z
+Stopped at: Completed 67-02-PLAN.md
 Resume file: None
 
 ## Deferred Items

@@ -449,7 +449,7 @@ Plans:
 **Plans:** 10 plans in 5 waves
 
 - [x] 67-01-PLAN.md — [W1] BE P0-1: SubscriptionReadV10 response_model on list/post/patch + round-trip test
-- [ ] 67-02-PLAN.md — [W1] Web P0-2: fix tsc build (AnalyticsRange import + bottomRef type) — npm run build green
+- [x] 67-02-PLAN.md — [W1] Web P0-2: fix tsc build (AnalyticsRange import + bottomRef type) — npm run build green
 - [ ] 67-03-PLAN.md — [W1] iOS P0-3: remove suppressForbiddenHandler, restore strict 403→logout (require_pro=402)
 - [ ] 67-04-PLAN.md — [W2] BE P1-1/P1-2/P2-13: embedding user_id+tenant scope; double-post FOR UPDATE+unique index migration; savepoint test
 - [ ] 67-05-PLAN.md — [W2] iOS P1-3/P1-5/R1: APIError→RU mapper (leak cluster), SSE 401/403 split, account-label/banner/LocalNotifications dedup
