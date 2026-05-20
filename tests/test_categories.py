@@ -251,3 +251,80 @@ async def test_seed_idempotent_skips_when_categories_exist(db_client, auth_heade
     listing = await db_client.get("/api/v1/categories", headers=auth_headers)
     # Should remain at 1 (seed skipped because >= 1 existed)
     assert len(listing.json()) == 1
+
+
+# ---------------------------------------------------------------------------
+# P1-1 (BE-F2): _refresh_embedding must thread user_id + set tenant scope.
+#
+# Regression: the background task called upsert_category_embedding WITHOUT the
+# kw-only user_id (→ TypeError, swallowed) and its fresh session never called
+# set_tenant_scope → user-category embeddings silently never persisted. This
+# test seeds a user + category in the real DB, runs _refresh_embedding with a
+# mocked embed_text (no OpenAI call), and asserts a category_embedding row was
+# written for that user/category.
+# ---------------------------------------------------------------------------
+@pytest.mark.asyncio
+async def test_refresh_embedding_persists_row_for_user_category():
+    """_refresh_embedding(user_id) → category_embedding row persisted (P1-1)."""
+    _require_db()
+    from unittest.mock import AsyncMock
+
+    from sqlalchemy import func, select
+    from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+
+    from app.ai.embedding_service import (
+        EMBEDDING_DIM,
+        get_embedding_service,
+    )
+    from app.api.routes import categories as cat_routes
+    from app.db.models import Category, CategoryEmbedding, CategoryKind
+    from tests.helpers.seed import seed_user
+
+    engine = create_async_engine(os.environ["DATABASE_URL"], echo=False)
+    SessionLocal = async_sessionmaker(engine, expire_on_commit=False)
+
+    from tests.helpers.seed import truncate_db
+    await truncate_db()
+
+    async with SessionLocal() as session:
+        user = await seed_user(session, tg_user_id=9_670_400_001)
+        cat = Category(
+            user_id=user.id,
+            name="Кофейни",
+            kind=CategoryKind.expense,
+            is_archived=False,
+            sort_order=0,
+            code="coffee",
+            ord="00",
+        )
+        session.add(cat)
+        await session.commit()
+        await session.refresh(cat)
+        user_id, category_id = user.id, cat.id
+
+    # Mock embed_text on the singleton service so no OpenAI call is made; the
+    # real upsert_category_embedding still runs against the DB.
+    svc = get_embedding_service()
+    fixed_vector = [0.123] * EMBEDDING_DIM
+    svc.embed_text = AsyncMock(return_value=fixed_vector)
+
+    try:
+        # Must accept user_id (kw or positional) and persist the embedding.
+        await cat_routes._refresh_embedding(category_id, "Кофейни", user_id)
+
+        async with SessionLocal() as session:
+            row_count = (
+                await session.execute(
+                    select(func.count())
+                    .select_from(CategoryEmbedding)
+                    .where(CategoryEmbedding.category_id == category_id)
+                    .where(CategoryEmbedding.user_id == user_id)
+                )
+            ).scalar_one()
+        assert row_count == 1, (
+            "embedding row must be persisted for the user category "
+            "(P1-1: user_id threaded + tenant scope set)"
+        )
+    finally:
+        get_embedding_service.cache_clear()
+        await engine.dispose()
