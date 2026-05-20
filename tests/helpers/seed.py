@@ -12,6 +12,8 @@ Usage:
         await session.commit()
 """
 from __future__ import annotations
+import itertools
+import re
 from datetime import date, datetime, timezone
 from typing import Optional
 
@@ -84,6 +86,41 @@ async def seed_user(
     return user
 
 
+# Process-wide monotonic counter for collision-resistant ``code`` defaults.
+# A2 (Phase 68): ``Category.code`` is a NOT-NULL ``String(40)`` slug under a
+# partial-unique index ``uq_category_user_code`` on ``(user_id, code) WHERE NOT
+# is_archived``. Two active categories for the SAME user can legitimately share
+# a ``sort_order`` (e.g. both default 0), so deriving ``code`` from ``sort_order``
+# (the old anti-pattern ``f"c{sort_order}"``) would collide on that index.
+# A monotonic counter guarantees uniqueness across repeated ``seed_category``
+# calls for one user within a test. The counter starts at 1 so the very first
+# call gets a non-zero suffix.
+_CODE_COUNTER = itertools.count(1)
+
+
+def _default_code(name: str) -> str:
+    """Derive a collision-resistant slug for the NOT-NULL ``code`` column.
+
+    Slugify ``name`` (lowercase ASCII-ish, non-alnum → '-') and append a
+    process-wide monotonic suffix so two same-named active categories for one
+    user never collide on ``uq_category_user_code``. Truncated to String(40).
+    """
+    base = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-") or "cat"
+    suffix = f"-{next(_CODE_COUNTER)}"
+    # Keep the suffix; truncate the base so the whole slug fits String(40).
+    base = base[: 40 - len(suffix)]
+    return f"{base}{suffix}"
+
+
+def _default_ord(sort_order: int) -> str:
+    """Derive a valid 2-digit ``ord`` matching the DB CHECK ``^[0-9]{2}$``.
+
+    Clamp ``sort_order`` into 00..99 so any test ``sort_order`` (incl. 0 or
+    values > 99 like the e2e ``sort_order=10``) yields a schema-valid ordinal.
+    """
+    return f"{max(0, min(sort_order, 99)):02d}"
+
+
 async def seed_category(
     session: AsyncSession,
     *,
@@ -92,10 +129,33 @@ async def seed_category(
     kind: CategoryKind = CategoryKind.expense,
     is_archived: bool = False,
     sort_order: int = 0,
+    code: Optional[str] = None,
+    ord: Optional[str] = None,
 ) -> Category:
+    """Seed a Category row, populating the NOT-NULL ``code`` + ``ord`` columns.
+
+    A2 (Phase 68 systemic fix): ``Category.code`` (``String(40)`` slug) and
+    ``Category.ord`` (``String(2)``, DB CHECK ``^[0-9]{2}$``) are both NOT NULL.
+    Callers historically worked around this with inline hacks (e.g.
+    ``code="coffee", ord="00"`` or raw ``Category(...)`` constructors). This
+    helper now supplies sensible, schema-valid auto-defaults so **no future
+    test needs an inline seed hack**:
+
+      - ``code``: when None → a collision-resistant slugified-name + monotonic
+        suffix (NOT ``sort_order``-derived — that collides on the partial-unique
+        ``(user_id, code) WHERE NOT is_archived`` index when one user has two
+        active categories sharing a sort_order). Unique across repeated calls.
+      - ``ord``: when None → ``sort_order`` clamped to 00..99 as a 2-digit
+        string (satisfies ``ck_category_ord_format``).
+
+    Pass ``code`` / ``ord`` explicitly only when a test asserts a specific
+    value; otherwise rely on the defaults.
+    """
     c = Category(
         user_id=user_id, name=name, kind=kind,
         is_archived=is_archived, sort_order=sort_order,
+        code=code if code is not None else _default_code(name),
+        ord=ord if ord is not None else _default_ord(sort_order),
     )
     session.add(c)
     await session.flush()

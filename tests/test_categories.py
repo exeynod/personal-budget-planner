@@ -194,13 +194,25 @@ async def test_archived_can_be_unarchived(db_client, auth_headers):
     assert restore.json()["is_archived"] is False
 
 
-@pytest.mark.asyncio
-async def test_seed_creates_14_categories(db_client, auth_headers, owner_tg_id):
-    """CAT-03: seed via /onboarding/complete (with seed_default_categories=true).
+# v1.0 onboarding contract (Phase 22 BE-15): the live endpoint is
+# ``onboarding_v10_router`` — the legacy ``starting_balance_cents /
+# cycle_start_day / seed_default_categories`` body is unmounted and now 422s
+# (extra_forbidden + missing income_cents/accounts/category_plans). The v1.0
+# seed creates the 8 DEFAULT_CATEGORIES + 1 system 'savings' category = 9 rows.
+_V10_ONBOARDING_BODY = {
+    "income_cents": 10_000_000,
+    "accounts": [{"bank": "Tinkoff", "kind": "card", "primary": True}],
+    "category_plans": {"food": 100_000, "cafe": 50_000},
+}
 
-    Phase 14 test-infra note: db_client fixture flips onboarded_at=NOW() right
-    after the GET /me bootstrap. Reset it back to NULL so /onboarding/complete
-    can run (otherwise → 409 AlreadyOnboardedError).
+
+async def _prep_for_onboarding(owner_tg_id: int) -> None:
+    """Reset onboarded_at=NULL + grant ПДн consent so v1.0 onboarding can run.
+
+    The ``db_client`` fixture flips ``onboarded_at=NOW()`` right after the
+    GET /me bootstrap; v1.0 ``/onboarding/complete`` requires it NULL (else 409
+    already-onboarded) AND a non-null ``pdn_consent_at`` (Phase 33 CMP-33-04,
+    else 403 pdn_consent_required). Set both directly in the DB.
     """
     import os
     from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
@@ -209,48 +221,80 @@ async def test_seed_creates_14_categories(db_client, auth_headers, owner_tg_id):
     _SessionLocal = async_sessionmaker(_engine, expire_on_commit=False)
     async with _SessionLocal() as _s:
         await _s.execute(
-            _text("UPDATE app_user SET onboarded_at = NULL WHERE tg_user_id = :tg"),
+            _text(
+                "UPDATE app_user SET onboarded_at = NULL, pdn_consent_at = NOW() "
+                "WHERE tg_user_id = :tg"
+            ),
             {"tg": owner_tg_id},
         )
         await _s.commit()
     await _engine.dispose()
 
+
+@pytest.mark.asyncio
+async def test_seed_creates_14_categories(db_client, auth_headers, owner_tg_id):
+    """CAT-03: seed via v1.0 /onboarding/complete.
+
+    NOTE (Phase 68 A2): the historical name says "14" — that was the legacy
+    Phase-2 seed count. The v1.0 contract (onboarding_v10) seeds the 8 default
+    categories + 1 system 'savings' category = **9**. Name kept for traceability;
+    the assertion follows the real v1.0 contract.
+    """
+    await _prep_for_onboarding(owner_tg_id)
+
     response = await db_client.post(
         "/api/v1/onboarding/complete",
-        json={
-            "starting_balance_cents": 0,
-            "cycle_start_day": 5,
-            "seed_default_categories": True,
-        },
+        json=_V10_ONBOARDING_BODY,
         headers=auth_headers,
     )
-    assert response.status_code == 200
+    assert response.status_code == 200, response.text
     listing = await db_client.get("/api/v1/categories", headers=auth_headers)
-    assert len(listing.json()) == 14
+    # v1.0: 8 default categories + 1 system 'savings' = 9.
+    assert len(listing.json()) == 9
 
 
 @pytest.mark.asyncio
-async def test_seed_idempotent_skips_when_categories_exist(db_client, auth_headers):
-    """Если уже есть хоть одна категория, seed не добавляет новых."""
-    # Manually create one category first
-    await db_client.post(
+async def test_seed_idempotent_skips_when_categories_exist(db_client, auth_headers, owner_tg_id):
+    """v1.0 onboarding seeds the 9 system categories; re-running 409s (idempotent).
+
+    NOTE (Phase 68 A2): the legacy "skip seed if any category exists" semantics
+    were dropped in v1.0. ``onboarding_v10`` seeds the 8 default categories +
+    'savings' (9 total) and is a one-shot flow — re-posting after onboarding
+    returns 409 already-onboarded (no duplicate seed). A user-created category
+    added afterward coexists with the 9 system rows (its own unique code), so
+    the total becomes 10 and re-onboarding does not clobber it.
+    """
+    await _prep_for_onboarding(owner_tg_id)
+
+    # v1.0 onboarding seeds the 9 system categories.
+    onb = await db_client.post(
+        "/api/v1/onboarding/complete",
+        json=_V10_ONBOARDING_BODY,
+        headers=auth_headers,
+    )
+    assert onb.status_code == 200, onb.text
+    listing = await db_client.get("/api/v1/categories", headers=auth_headers)
+    assert len(listing.json()) == 9
+
+    # A manually-created category coexists with the 9 system rows → 10.
+    created = await db_client.post(
         "/api/v1/categories",
         json={"name": "Existing", "kind": "expense"},
         headers=auth_headers,
     )
-    # Now run onboarding with seed=true
-    await db_client.post(
+    assert created.status_code in (200, 201), created.text
+
+    # Re-running onboarding is rejected (already onboarded) — no duplicate seed.
+    onb2 = await db_client.post(
         "/api/v1/onboarding/complete",
-        json={
-            "starting_balance_cents": 0,
-            "cycle_start_day": 5,
-            "seed_default_categories": True,
-        },
+        json=_V10_ONBOARDING_BODY,
         headers=auth_headers,
     )
+    assert onb2.status_code == 409, onb2.text
+
     listing = await db_client.get("/api/v1/categories", headers=auth_headers)
-    # Should remain at 1 (seed skipped because >= 1 existed)
-    assert len(listing.json()) == 1
+    # 9 system + 1 manual ("Existing"); re-onboard 409 added nothing.
+    assert len(listing.json()) == 10
 
 
 # ---------------------------------------------------------------------------
@@ -277,7 +321,7 @@ async def test_refresh_embedding_persists_row_for_user_category():
         get_embedding_service,
     )
     from app.api.routes import categories as cat_routes
-    from app.db.models import Category, CategoryEmbedding, CategoryKind
+    from app.db.models import CategoryEmbedding, CategoryKind
     from tests.helpers.seed import seed_user
 
     engine = create_async_engine(os.environ["DATABASE_URL"], echo=False)
@@ -286,18 +330,16 @@ async def test_refresh_embedding_persists_row_for_user_category():
     from tests.helpers.seed import truncate_db
     await truncate_db()
 
+    from tests.helpers.seed import seed_category
     async with SessionLocal() as session:
         user = await seed_user(session, tg_user_id=9_670_400_001)
-        cat = Category(
+        cat = await seed_category(
+            session,
             user_id=user.id,
             name="Кофейни",
             kind=CategoryKind.expense,
-            is_archived=False,
             sort_order=0,
-            code="coffee",
-            ord="00",
         )
-        session.add(cat)
         await session.commit()
         await session.refresh(cat)
         user_id, category_id = user.id, cat.id
