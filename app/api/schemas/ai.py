@@ -4,15 +4,20 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class ChatRequest(BaseModel):
-    """Тело запроса POST /ai/chat."""
+    """Тело запроса POST /ai/chat.
+
+    Phase 67 P2-4 (BE-F5): ``message`` ограничено по длине — пустая строка
+    отклоняется (422), oversize (>4000 символов) отклоняется (422). Это
+    защищает от token-cost amplification на нетрастед free-text от клиента.
+    """
 
     model_config = ConfigDict(from_attributes=True)
 
-    message: str
+    message: str = Field(min_length=1, max_length=4000)
 
 
 class ChatMessageRead(BaseModel):
@@ -38,8 +43,9 @@ class ChatHistoryResponse(BaseModel):
 class SuggestCategoryResponse(BaseModel):
     """Ответ GET /ai/suggest-category.
 
-    category_id и name — None если уверенность ниже порога (0.5).
-    confidence — cosine similarity от 0.0 до 1.0.
+    category_id и name — None если уверенность ниже порога (0.35,
+    SUGGEST_THRESHOLD). confidence — фактический cosine similarity от 0.0 до
+    1.0 (Phase 67 P2-5: реальное значение возвращается даже при miss).
     """
 
     model_config = ConfigDict(from_attributes=True)

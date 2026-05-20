@@ -55,8 +55,10 @@ async def suggest_category(
     Phase 11: scoped по user_id — embedding lookup только среди категорий
     текущего юзера.
 
-    Возвращает ближайшую категорию если confidence >= 0.5.
-    Иначе возвращает {category_id: null, name: null, confidence: <value>}.
+    Возвращает ближайшую категорию если confidence >= 0.35 (SUGGEST_THRESHOLD).
+    Иначе возвращает {category_id: null, name: null, confidence: <value>} —
+    Phase 67 P2-5: confidence несёт фактический cosine similarity (не 0.0),
+    кроме случая когда у юзера вообще нет embeddings (тогда 0.0).
 
     Требует ENABLE_AI_CATEGORIZATION=True (ENV) и enable_ai_categorization=True (user setting).
     """
@@ -80,9 +82,11 @@ async def suggest_category(
     result = await service.suggest_category(db=db, description=q, user_id=user_id)
 
     if result is None:
-        # Нет подходящей категории или низкая уверенность
+        # У юзера нет embeddings вовсе — нет реального confidence для отдачи.
         return SuggestCategoryResponse(category_id=None, name=None, confidence=0.0)
 
+    # P2-5: result может быть hit (category_id заполнен) ИЛИ miss с реальным
+    # confidence (category_id None). В обоих случаях отдаём как есть.
     return SuggestCategoryResponse(
         category_id=result["category_id"],
         name=result["name"],

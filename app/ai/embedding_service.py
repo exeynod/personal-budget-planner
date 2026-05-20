@@ -257,8 +257,13 @@ class EmbeddingService:
 
         Использует pgvector оператор <=> (cosine distance).
         confidence = 1 - cosine_distance.
-        Возвращает {category_id, name, confidence} если confidence >= SUGGEST_THRESHOLD,
-        иначе None.
+        Возвращает {category_id, name, confidence} если confidence >= SUGGEST_THRESHOLD.
+
+        Phase 67 P2-5 (BE-F6): при miss (confidence < SUGGEST_THRESHOLD) больше
+        НЕ теряем фактическое значение — возвращаем {category_id: None,
+        name: None, confidence: <реальный cosine>}, чтобы route мог отдать
+        клиенту настоящую уверенность вместо хардкод-0.0. None возвращается
+        только когда подходящих embeddings нет вовсе (пустая выборка).
 
         Substring pre-check: text-embedding-3-small struggles with isolated
         Russian brand names ("самокат", "лавка", "вкусвилл") — confidence
@@ -309,11 +314,17 @@ class EmbeddingService:
         row = result.fetchone()
 
         if row is None:
+            # Нет embeddings для этого юзера вовсе — нет смысла в confidence.
             return None
 
         category_id, name, confidence = row
         if confidence < SUGGEST_THRESHOLD:
-            return None
+            # P2-5: miss, но фактический confidence сохраняем (category=None).
+            return {
+                "category_id": None,
+                "name": None,
+                "confidence": float(confidence),
+            }
 
         return {
             "category_id": category_id,
