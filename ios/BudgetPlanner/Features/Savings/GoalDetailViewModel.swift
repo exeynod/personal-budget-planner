@@ -10,6 +10,10 @@ import Observation
 ///   - deleteGoal(): submitting guard + GoalsAPI.delete; returns true
 ///     на success (caller dismisses), false + mutationError на failure.
 ///
+/// Phase 67 Plan 07 (P1-4 / R2) — инъецируемый `API` struct-seam (эталон
+/// `SubscriptionsViewModel.API`, default `.live`) → deposit/load/deleteGoal
+/// тестируемы поведенчески без сети.
+///
 /// T-62-03 (Information Disclosure) — mitigation:
 ///   - cross-tenant / missing id collapses в одно сообщение «Цель
 ///     не найдена» (single message без existence leak);
@@ -25,7 +29,30 @@ final class GoalDetailViewModel {
         case error(String)
     }
 
+    /// Инъецируемый network-seam (P1-4 / R2). По умолчанию проксирует
+    /// `GoalsAPI`/`AccountsAPI`/`SavingsAPI` static-методы — прод-поведение
+    /// не меняется; тесты подменяют closures на стабы.
+    struct API {
+        var goalsList: () async throws -> [GoalDTO]
+        var accountsList: () async throws -> [AccountDTO]
+        var postDeposit: (_ amountCents: Int, _ accountId: Int, _ goalId: Int?) async throws -> Void
+        var goalsDelete: (Int) async throws -> Void
+
+        static let live = API(
+            goalsList: { try await GoalsAPI.list() },
+            accountsList: { try await AccountsAPI.list() },
+            postDeposit: { amount, account, goal in
+                _ = try await SavingsAPI.postDeposit(
+                    amountCents: amount, accountId: account, goalId: goal)
+            },
+            goalsDelete: { try await GoalsAPI.delete(id: $0) }
+        )
+    }
+
     let goalId: Int
+
+    @ObservationIgnored
+    private let api: API
 
     private(set) var status: Status = .idle
     private(set) var goal: GoalDTO?
@@ -38,8 +65,9 @@ final class GoalDetailViewModel {
     @ObservationIgnored
     private var inFlight: Bool = false
 
-    init(goalId: Int) {
+    init(goalId: Int, api: API = .live) {
         self.goalId = goalId
+        self.api = api
     }
 
     // MARK: - Load
@@ -53,8 +81,8 @@ final class GoalDetailViewModel {
         do {
             // Параллельно: goals + accounts. Нет GET /goals/{id} —
             // list + клиентский filter by goalId (mirror AccountDetail).
-            async let goalsTask = GoalsAPI.list()
-            async let accsTask = AccountsAPI.list()
+            async let goalsTask = api.goalsList()
+            async let accsTask = api.accountsList()
             let (goals, accs) = try await (goalsTask, accsTask)
 
             // T-62-03 / IN-01: cross-tenant / missing id → single message
@@ -88,8 +116,7 @@ final class GoalDetailViewModel {
         submitting = true
         defer { submitting = false }
         do {
-            _ = try await SavingsAPI.postDeposit(
-                amountCents: amountCents, accountId: accountId, goalId: goalId)
+            try await api.postDeposit(amountCents, accountId, goalId)
             mutationError = nil
             await load()
             return true
@@ -106,7 +133,7 @@ final class GoalDetailViewModel {
         submitting = true
         defer { submitting = false }
         do {
-            try await GoalsAPI.delete(id: goalId)
+            try await api.goalsDelete(goalId)
             return true
         } catch {
             // T-62-03: filtered Russian copy; raw error → print only.

@@ -7,15 +7,22 @@ import Observation
 ///   - load(): async let parallel fetch SavingsAPI.summary + AccountsAPI.list
 ///   - toggleRoundup / selectBase: optimistic snapshot rebuild + PATCH;
 ///     failure → load() reload
-///   - createGoal: submitting guard → validate → POST → load → lastCreatedGoalId
+///   - createGoal: submitting guard → validate → POST → load
 ///   - deleteGoal: submitting guard → DELETE → load
 ///   - deposit: submitting guard → validate → POST → load
+///
+/// Phase 67 Plan 07 (P1-4 / R2) — инъецируемый `API` struct-seam (эталон
+/// `SubscriptionsViewModel.API`, default `.live`) + `reloadPending`-коалесинг
+/// в load() (WR-01: reload после депозита не теряется при активном
+/// pull-to-refresh). Мёртвый `lastCreatedGoalId`/`clearLastCreatedGoalId()`
+/// (deferred из 67-05, без view-консьюмера) удалён.
 ///
 /// Threat-model:
 ///   - T-62-03 (Information Disclosure): catch блоки → filtered Russian
 ///     copy («Не удалось ...»); raw Swift error → ТОЛЬКО print() в Xcode.
 ///   - T-62-04 (Concurrency): submitting flag guard на mutation paths.
 ///   - T-62-05 (Stale-state): full reload после mutation успеха.
+///   - T-67-07-01 (Tampering / reentry): submitting-guard покрыт seam-тестами.
 @MainActor
 @Observable
 final class SavingsViewModel {
@@ -36,6 +43,41 @@ final class SavingsViewModel {
         case deposit(goalId: Int?)
     }
 
+    /// Инъецируемый network-seam (P1-4 / R2 / WR-04). По умолчанию проксирует
+    /// `SavingsAPI`/`AccountsAPI`/`GoalsAPI` static-методы — прод-поведение не
+    /// меняется. Тесты подменяют closures на стабы, чтобы проверять
+    /// submitting-guard / mutationError / reload-on-success / optimistic-revert
+    /// без сети (эталон `SubscriptionsViewModel.API`).
+    struct API {
+        var summary: () async throws -> SavingsSummaryDTO
+        var accountsList: () async throws -> [AccountDTO]
+        var patchRoundupEnabled: (Bool) async throws -> SavingsConfigDTO
+        var patchRoundupBase: (Int) async throws -> SavingsConfigDTO
+        var postDeposit: (_ amountCents: Int, _ accountId: Int, _ goalId: Int?) async throws -> Void
+        var goalsCreate: (GoalCreateRequest) async throws -> GoalDTO
+        var goalsDelete: (Int) async throws -> Void
+
+        static let live = API(
+            summary: { try await SavingsAPI.summary() },
+            accountsList: { try await AccountsAPI.list() },
+            patchRoundupEnabled: { try await SavingsAPI.patchConfig(roundupEnabled: $0) },
+            patchRoundupBase: { try await SavingsAPI.patchConfig(roundupBase: $0) },
+            postDeposit: { amount, account, goal in
+                _ = try await SavingsAPI.postDeposit(
+                    amountCents: amount, accountId: account, goalId: goal)
+            },
+            goalsCreate: { try await GoalsAPI.create($0) },
+            goalsDelete: { try await GoalsAPI.delete(id: $0) }
+        )
+    }
+
+    @ObservationIgnored
+    private let api: API
+
+    init(api: API = .live) {
+        self.api = api
+    }
+
     // MARK: - State
 
     private(set) var status: Status = .idle
@@ -52,24 +94,35 @@ final class SavingsViewModel {
     /// or manually через clearMutationError().
     var mutationError: String? = nil
 
-    /// Set by createGoal() on success — может triggerить scroll/highlight
-    /// в SavingsView. Cleared after consumption.
-    var lastCreatedGoalId: Int? = nil
-
     @ObservationIgnored
     private var inFlight: Bool = false
+
+    /// WR-01: если mutation вызывает load() пока другой load() уже в полёте
+    /// (например .refreshable / .task), reload не должен молча теряться.
+    /// Флаг ставится при skip и перевызывает load() в defer текущего load().
+    @ObservationIgnored
+    private var reloadPending: Bool = false
 
     // MARK: - Load
 
     func load() async {
-        if inFlight { return }
+        if inFlight {
+            reloadPending = true
+            return
+        }
         inFlight = true
-        defer { inFlight = false }
+        defer {
+            inFlight = false
+            if reloadPending {
+                reloadPending = false
+                Task { await load() }
+            }
+        }
 
         status = .loading
         do {
-            async let snapTask = SavingsAPI.summary()
-            async let accsTask = AccountsAPI.list()
+            async let snapTask = api.summary()
+            async let accsTask = api.accountsList()
             let (snap, accs) = try await (snapTask, accsTask)
             self.snapshot = snap
             self.accounts = accs
@@ -92,7 +145,7 @@ final class SavingsViewModel {
             goals: snap.goals
         )
         do {
-            let cfg = try await SavingsAPI.patchConfig(roundupEnabled: enabled)
+            let cfg = try await api.patchRoundupEnabled(enabled)
             if let s = snapshot {
                 snapshot = SavingsSummaryDTO(
                     totalCents: s.totalCents, monthInCents: s.monthInCents, config: cfg,
@@ -115,7 +168,7 @@ final class SavingsViewModel {
             goals: snap.goals
         )
         do {
-            let cfg = try await SavingsAPI.patchConfig(roundupBase: base)
+            let cfg = try await api.patchRoundupBase(base)
             if let s = snapshot {
                 snapshot = SavingsSummaryDTO(
                     totalCents: s.totalCents, monthInCents: s.monthInCents, config: cfg,
@@ -138,14 +191,13 @@ final class SavingsViewModel {
         submitting = true
         defer { submitting = false }
         do {
-            let created = try await GoalsAPI.create(
+            _ = try await api.goalsCreate(
                 GoalCreateRequest(
                     name: name.trimmingCharacters(in: .whitespaces), targetCents: targetCents,
                     due: due)
             )
             mutationError = nil
             await load()
-            lastCreatedGoalId = created.id
             sheet = .none
             return true
         } catch {
@@ -162,7 +214,7 @@ final class SavingsViewModel {
         submitting = true
         defer { submitting = false }
         do {
-            try await GoalsAPI.delete(id: id)
+            try await api.goalsDelete(id)
             mutationError = nil
             await load()
         } catch {
@@ -180,8 +232,7 @@ final class SavingsViewModel {
         submitting = true
         defer { submitting = false }
         do {
-            _ = try await SavingsAPI.postDeposit(
-                amountCents: amountCents, accountId: accountId, goalId: goalId)
+            try await api.postDeposit(amountCents, accountId, goalId)
             mutationError = nil
             await load()
             sheet = .none
@@ -197,7 +248,6 @@ final class SavingsViewModel {
     // MARK: - Helpers
 
     func clearMutationError() { self.mutationError = nil }
-    func clearLastCreatedGoalId() { self.lastCreatedGoalId = nil }
 
     // MARK: - Derived
 
