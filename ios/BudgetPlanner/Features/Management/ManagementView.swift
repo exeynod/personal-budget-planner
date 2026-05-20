@@ -115,6 +115,7 @@ struct ManagementView: View {
         case .settings: SettingsView()
         case .access: AccessView()
         case .planEditor: PlanEditorView()
+        case .savings: SavingsView()
         }
     }
 
@@ -132,7 +133,7 @@ struct ManagementView: View {
 
 struct ManagementItem: Identifiable, Hashable {
     enum ID: String, Hashable {
-        case analytics, subscriptions, template, accounts, categories, settings, access, planEditor
+        case analytics, subscriptions, template, accounts, categories, settings, access, planEditor, savings
     }
 
     let id: ID
@@ -151,6 +152,9 @@ struct ManagementItem: Identifiable, Hashable {
         .init(id: .subscriptions, label: "Подписки",
               description: "Регулярные платежи и напоминания",
               icon: "square.stack.3d.up.fill", ownerOnly: false),
+        .init(id: .savings, label: "Копилка",
+              description: "Цели и накопления",
+              icon: "banknote.fill", ownerOnly: false),
         .init(id: .template, label: "Шаблон бюджета",
               description: "Повторяющийся план для нового периода",
               icon: "list.bullet.rectangle", ownerOnly: false),
