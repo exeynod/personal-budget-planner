@@ -296,7 +296,9 @@ async def seeded_with_account_savings_and_categories(db_setup, owner_tg_id):
         # Categories — expense food + system savings.
         # NOTE: Category.ord is NOT NULL CHAR(2) per migration 0013 — must
         # supply a 2-char ordinal even in tests (CHECK enforces format).
-        food_cat = Category(
+        from tests.helpers.seed import seed_category
+        food_cat = await seed_category(
+            session,
             user_id=user_id,
             name="Кафе",
             code="cafe",
@@ -306,7 +308,8 @@ async def seeded_with_account_savings_and_categories(db_setup, owner_tg_id):
             plan_cents=500_00,
             ord="01",
         )
-        savings_cat = Category(
+        savings_cat = await seed_category(
+            session,
             user_id=user_id,
             name="Копилка",
             code="savings",
@@ -316,7 +319,6 @@ async def seeded_with_account_savings_and_categories(db_setup, owner_tg_id):
             plan_cents=0,
             ord="99",
         )
-        session.add_all([food_cat, savings_cat])
 
         # SavingsConfig — roundup enabled, base=10. The DB CHECK enforces
         # roundup_base IN (10, 50, 100) literally; the existing v0.x roundup

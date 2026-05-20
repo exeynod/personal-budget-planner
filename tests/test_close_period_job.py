@@ -178,10 +178,10 @@ async def test_close_period_balance_with_transactions(db_setup, monkeypatch):
         ActualSource, ActualTransaction, BudgetPeriod,
         Category, CategoryKind, PeriodStatus,
     )
+    from tests.helpers.seed import seed_category
     async with SessionLocal() as session:
-        exp_cat = Category(user_id=owner_user_id, name="Еда", kind=CategoryKind.expense, is_archived=False, sort_order=1)
-        inc_cat = Category(user_id=owner_user_id, name="Зарплата", kind=CategoryKind.income, is_archived=False, sort_order=2)
-        session.add_all([exp_cat, inc_cat])
+        exp_cat = await seed_category(session, user_id=owner_user_id, name="Еда", kind=CategoryKind.expense, is_archived=False, sort_order=1)
+        inc_cat = await seed_category(session, user_id=owner_user_id, name="Зарплата", kind=CategoryKind.income, is_archived=False, sort_order=2)
         await session.flush()
 
         p = BudgetPeriod(

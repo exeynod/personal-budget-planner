@@ -99,8 +99,10 @@ def _patch_today(monkeypatch, fake_today: date):
 
 async def _seed_savings_category(session, *, user_id: int):
     """Seed the system 'savings' category (paused, ord='99', expense)."""
-    from app.db.models import Category, CategoryKind, RolloverPolicy
-    cat = Category(
+    from app.db.models import CategoryKind, RolloverPolicy
+    from tests.helpers.seed import seed_category
+    cat = await seed_category(
+        session,
         user_id=user_id,
         name="КОПИЛКА",
         kind=CategoryKind.expense,
@@ -112,8 +114,6 @@ async def _seed_savings_category(session, *, user_id: int):
         rollover=RolloverPolicy.savings,
         paused=True,
     )
-    session.add(cat)
-    await session.flush()
     await session.refresh(cat)
     return cat
 
@@ -157,8 +157,10 @@ async def _seed_category(
     session, *, user_id: int, name: str, code: str, ord: str,
     plan_cents: int = 0, rollover: str = "misc", paused: bool = False,
 ):
-    from app.db.models import Category, CategoryKind, RolloverPolicy
-    cat = Category(
+    from app.db.models import CategoryKind, RolloverPolicy
+    from tests.helpers.seed import seed_category as _seed_category_helper
+    cat = await _seed_category_helper(
+        session,
         user_id=user_id,
         name=name,
         kind=CategoryKind.expense,
@@ -170,8 +172,6 @@ async def _seed_category(
         rollover=RolloverPolicy(rollover),
         paused=paused,
     )
-    session.add(cat)
-    await session.flush()
     await session.refresh(cat)
     return cat
 

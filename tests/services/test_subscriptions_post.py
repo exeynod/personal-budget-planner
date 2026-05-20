@@ -100,9 +100,11 @@ async def two_users(db_session):
 @pytest_asyncio.fixture
 async def regular_category(db_session, owner_user):
     """An expense Category for the subscription (e.g. ПОДПИСКИ)."""
-    from app.db.models import Category, CategoryKind
+    from app.db.models import CategoryKind
+    from tests.helpers.seed import seed_category
 
-    cat = Category(
+    cat = await seed_category(
+        db_session,
         user_id=owner_user["id"],
         name="ПОДПИСКИ",
         kind=CategoryKind.expense,
@@ -111,7 +113,6 @@ async def regular_category(db_session, owner_user):
         ord="08",
         plan_cents=200000,
     )
-    db_session.add(cat)
     await db_session.flush()
     yield cat
 
@@ -351,11 +352,11 @@ async def test_post_subscription_cross_tenant_raises_lookup_error(
     """User B cannot post user A's subscription — LookupError (T-22-09-02)."""
     from app.db.models import (
         AccountKind,
-        Category,
         CategoryKind,
         SubCycle,
         Subscription,
     )
+    from tests.helpers.seed import seed_category
     from app.db.session import set_tenant_scope
     from app.services import accounts as acct_svc
     from app.services.subscriptions import post_subscription
@@ -371,7 +372,8 @@ async def test_post_subscription_cross_tenant_raises_lookup_error(
         kind=AccountKind.card,
         balance_cents=100_000,
     )
-    a_cat = Category(
+    a_cat = await seed_category(
+        db_session,
         user_id=a_id,
         name="ПОДПИСКИ",
         kind=CategoryKind.expense,
@@ -379,7 +381,6 @@ async def test_post_subscription_cross_tenant_raises_lookup_error(
         code="subs",
         ord="08",
     )
-    db_session.add(a_cat)
     await db_session.flush()
 
     a_sub = Subscription(

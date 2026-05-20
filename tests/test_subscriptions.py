@@ -97,7 +97,9 @@ async def seed_categories(db_setup, owner_tg_id):
         )
         user_id = result.scalar_one()
 
-        expense_cat = Category(
+        from tests.helpers.seed import seed_category
+        expense_cat = await seed_category(
+            session,
             user_id=user_id,
             name="Подписки",
             kind=CategoryKind.expense,
@@ -106,7 +108,8 @@ async def seed_categories(db_setup, owner_tg_id):
             code="subs",
             ord="10",
         )
-        archived_cat = Category(
+        archived_cat = await seed_category(
+            session,
             user_id=user_id,
             name="Архивная",
             kind=CategoryKind.expense,
@@ -115,7 +118,6 @@ async def seed_categories(db_setup, owner_tg_id):
             code="archived",
             ord="99",
         )
-        session.add_all([expense_cat, archived_cat])
         await session.commit()
         await session.refresh(expense_cat)
         await session.refresh(archived_cat)

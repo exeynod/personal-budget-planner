@@ -72,7 +72,8 @@ async def db_client(db_setup):
 async def seed_expense_category(db_setup, owner_tg_id):
     _, SessionLocal = db_setup
     from sqlalchemy import text
-    from app.db.models import Category, CategoryKind
+    from app.db.models import CategoryKind
+    from tests.helpers.seed import seed_category
 
     async with SessionLocal() as session:
         result = await session.execute(
@@ -81,8 +82,7 @@ async def seed_expense_category(db_setup, owner_tg_id):
         )
         user_id = result.scalar_one()
 
-        cat = Category(user_id=user_id, name="Продукты", kind=CategoryKind.expense, is_archived=False, sort_order=10)
-        session.add(cat)
+        cat = await seed_category(session, user_id=user_id, name="Продукты", kind=CategoryKind.expense, is_archived=False, sort_order=10)
         await session.commit()
         await session.refresh(cat)
         return cat

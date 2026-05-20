@@ -89,9 +89,9 @@ async def full_balance_setup(db_setup, owner_tg_id):
         )
         user_id = result.scalar_one()
 
-        exp_cat = Category(user_id=user_id, name="Продукты", kind=CategoryKind.expense, is_archived=False, sort_order=10)
-        inc_cat = Category(user_id=user_id, name="Зарплата", kind=CategoryKind.income, is_archived=False, sort_order=20)
-        session.add_all([exp_cat, inc_cat])
+        from tests.helpers.seed import seed_category
+        exp_cat = await seed_category(session, user_id=user_id, name="Продукты", kind=CategoryKind.expense, is_archived=False, sort_order=10)
+        inc_cat = await seed_category(session, user_id=user_id, name="Зарплата", kind=CategoryKind.income, is_archived=False, sort_order=20)
         await session.flush()
 
         period = BudgetPeriod(

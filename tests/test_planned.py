@@ -98,21 +98,23 @@ async def seed_categories(db_setup, owner_tg_id):
         )
         user_id = result.scalar_one()
 
-        expense_cat = Category(
+        from tests.helpers.seed import seed_category
+        expense_cat = await seed_category(
+            session,
             user_id=user_id,
             name="Продукты",
             kind=CategoryKind.expense,
             is_archived=False,
             sort_order=10,
         )
-        income_cat = Category(
+        income_cat = await seed_category(
+            session,
             user_id=user_id,
             name="Зарплата",
             kind=CategoryKind.income,
             is_archived=False,
             sort_order=20,
         )
-        session.add_all([expense_cat, income_cat])
         await session.commit()
         await session.refresh(expense_cat)
         await session.refresh(income_cat)
@@ -123,7 +125,8 @@ async def seed_categories(db_setup, owner_tg_id):
 async def seed_archived_category(db_setup, owner_tg_id):
     _, SessionLocal = db_setup
     from sqlalchemy import text
-    from app.db.models import Category, CategoryKind
+    from app.db.models import CategoryKind
+    from tests.helpers.seed import seed_category
 
     async with SessionLocal() as session:
         result = await session.execute(
@@ -132,14 +135,14 @@ async def seed_archived_category(db_setup, owner_tg_id):
         )
         user_id = result.scalar_one()
 
-        cat = Category(
+        cat = await seed_category(
+            session,
             user_id=user_id,
             name="Архивная",
             kind=CategoryKind.expense,
             is_archived=True,
             sort_order=99,
         )
-        session.add(cat)
         await session.commit()
         await session.refresh(cat)
         return cat
@@ -410,11 +413,12 @@ async def test_list_filter_by_category(
         )
         _user_id = result.scalar_one()
 
-        cat_b = Category(
+        from tests.helpers.seed import seed_category
+        cat_b = await seed_category(
+            session,
             user_id=_user_id,
             name="Кафе", kind=CategoryKind.expense, is_archived=False, sort_order=15
         )
-        session.add(cat_b)
         await session.commit()
         await session.refresh(cat_b)
         cat_b_id = cat_b.id

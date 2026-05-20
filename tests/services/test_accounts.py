@@ -294,11 +294,11 @@ async def test_delete_account_with_subscription_blocks(db_session, owner_user):
 
     from app.db.models import (
         AccountKind,
-        Category,
         CategoryKind,
         SubCycle,
         Subscription,
     )
+    from tests.helpers.seed import seed_category
     from app.db.session import set_tenant_scope
     from app.services import accounts as svc
     from app.services.accounts import AccountHasTxnsError
@@ -311,12 +311,12 @@ async def test_delete_account_with_subscription_blocks(db_session, owner_user):
     # Need a category for the subscription FK. Phase 22 added Category.code/ord
     # NOT NULL columns (migration 0013) — supply them explicitly so the
     # service-layer test is decoupled from any onboarding-seed helper.
-    cat = Category(
+    cat = await seed_category(
+        db_session,
         user_id=owner_user["id"], name="Подписки",
         kind=CategoryKind.expense, sort_order=10,
         code="subs", ord="10",
     )
-    db_session.add(cat)
     await db_session.flush()
 
     sub = Subscription(

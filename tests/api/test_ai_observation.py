@@ -147,9 +147,11 @@ async def _seed_category(
     plan_cents: int = 0,
     paused: bool = False,
 ) -> int:
-    from app.db.models import Category, CategoryKind, RolloverPolicy
+    from app.db.models import CategoryKind, RolloverPolicy
+    from tests.helpers.seed import seed_category
 
-    cat = Category(
+    cat = await seed_category(
+        session,
         user_id=user_id,
         name=name,
         code=code,
@@ -160,7 +162,6 @@ async def _seed_category(
         paused=paused,
         sort_order=10,
     )
-    session.add(cat)
     await session.flush()
     return cat.id
 

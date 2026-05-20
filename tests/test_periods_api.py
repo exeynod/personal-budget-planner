@@ -203,11 +203,12 @@ async def test_get_period_balance_returns_balance_for_existing_period(
         )
         _user_id = result.scalar_one()
 
-        cat = Category(
+        from tests.helpers.seed import seed_category
+        cat = await seed_category(
+            session,
             user_id=_user_id,
             name="Тест", kind=CategoryKind.expense, is_archived=False, sort_order=1
         )
-        session.add(cat)
         await session.flush()
 
         period = BudgetPeriod(

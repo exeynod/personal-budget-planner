@@ -462,23 +462,23 @@ async def _seed_category(
     ord_: str = "10",
 ) -> int:
     """Insert a Category row with all v1.0 NOT NULL columns. Returns id."""
-    from app.db.models import Category, CategoryKind, RolloverPolicy
+    from app.db.models import CategoryKind
     from app.db.session import set_tenant_scope
+    from tests.helpers.seed import seed_category
 
     await set_tenant_scope(session, user_id)
-    cat = Category(
+    # 68-05: route through seed_category (authoritative for code/ord). The model
+    # defaults (plan_cents=0, rollover=misc, paused=False) match the previous
+    # explicit values, so this is value-preserving.
+    cat = await seed_category(
+        session,
         user_id=user_id,
         name=name,
         kind=CategoryKind.expense,
         sort_order=int(ord_),
-        plan_cents=0,
         code=code,
         ord=ord_,
-        rollover=RolloverPolicy.misc,
-        paused=False,
     )
-    session.add(cat)
-    await session.flush()
     await session.commit()
     await session.refresh(cat)
     return cat.id

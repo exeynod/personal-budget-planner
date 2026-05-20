@@ -85,9 +85,9 @@ async def seed_data(db_setup, owner_tg_id):
         )
         user_id = result.scalar_one()
 
-        exp_cat = Category(user_id=user_id, name="Продукты", kind=CategoryKind.expense, is_archived=False, sort_order=10)
-        inc_cat = Category(user_id=user_id, name="Зарплата", kind=CategoryKind.income, is_archived=False, sort_order=20)
-        session.add_all([exp_cat, inc_cat])
+        from tests.helpers.seed import seed_category
+        exp_cat = await seed_category(session, user_id=user_id, name="Продукты", kind=CategoryKind.expense, is_archived=False, sort_order=10)
+        inc_cat = await seed_category(session, user_id=user_id, name="Зарплата", kind=CategoryKind.income, is_archived=False, sort_order=20)
 
         period = BudgetPeriod(
             user_id=user_id,
@@ -134,7 +134,8 @@ async def test_bot_actual_ambiguous(db_client, internal_headers, seed_data, db_s
     """Two categories matching query → status=ambiguous."""
     _, SessionLocal = db_setup
     from sqlalchemy import text
-    from app.db.models import Category, CategoryKind
+    from app.db.models import CategoryKind
+    from tests.helpers.seed import seed_category
 
     async with SessionLocal() as session:
         result = await session.execute(
@@ -142,8 +143,7 @@ async def test_bot_actual_ambiguous(db_client, internal_headers, seed_data, db_s
             {"tg": owner_tg_id},
         )
         user_id = result.scalar_one()
-        cat2 = Category(user_id=user_id, name="Продуктовый рынок", kind=CategoryKind.expense, is_archived=False, sort_order=15)
-        session.add(cat2)
+        cat2 = await seed_category(session, user_id=user_id, name="Продуктовый рынок", kind=CategoryKind.expense, is_archived=False, sort_order=15)
         await session.commit()
 
     response = await db_client.post(

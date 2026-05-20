@@ -83,7 +83,9 @@ async def seed_savings_cat_and_account(db_setup, owner_tg_id):
             {"tg": owner_tg_id},
         )).scalar_one()
 
-        cat = Category(
+        from tests.helpers.seed import seed_category
+        cat = await seed_category(
+            session,
             user_id=uid,
             name="КОПИЛКА", code="savings", ord="99",
             kind=CategoryKind.expense,
@@ -96,7 +98,7 @@ async def seed_savings_cat_and_account(db_setup, owner_tg_id):
             user_id=uid, bank="Т-Банк", kind=AccountKind.card,
             balance_cents=1_000_00, is_primary=True,
         )
-        session.add_all([cat, acc])
+        session.add(acc)
         await session.commit()
         await session.refresh(cat)
         await session.refresh(acc)

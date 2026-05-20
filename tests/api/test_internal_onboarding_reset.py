@@ -120,38 +120,37 @@ async def _seed_onboarded_user(
         session.add(acc)
         await session.flush()
 
+        from tests.helpers.seed import seed_category
         # 8 default categories with non-zero plan_cents — reset must zero them.
         for i, code in enumerate(
             ["food", "cafe", "home", "transit", "fun", "gifts", "health", "subs"], start=1
         ):
-            session.add(
-                Category(
-                    user_id=user.id,
-                    name=code.upper(),
-                    code=code,
-                    ord=f"{i:02d}",
-                    kind=CategoryKind.expense,
-                    plan_cents=10_000_00,
-                    rollover=RolloverPolicy.misc,
-                    paused=False,
-                    is_archived=False,
-                    sort_order=i,
-                )
+            await seed_category(
+                session,
+                user_id=user.id,
+                name=code.upper(),
+                code=code,
+                ord=f"{i:02d}",
+                kind=CategoryKind.expense,
+                plan_cents=10_000_00,
+                rollover=RolloverPolicy.misc,
+                paused=False,
+                is_archived=False,
+                sort_order=i,
             )
         # System savings category (kept after reset).
-        session.add(
-            Category(
-                user_id=user.id,
-                name="КОПИЛКА",
-                code="savings",
-                ord="99",
-                kind=CategoryKind.expense,
-                plan_cents=0,
-                rollover=RolloverPolicy.savings,
-                paused=True,
-                is_archived=False,
-                sort_order=99,
-            )
+        await seed_category(
+            session,
+            user_id=user.id,
+            name="КОПИЛКА",
+            code="savings",
+            ord="99",
+            kind=CategoryKind.expense,
+            plan_cents=0,
+            rollover=RolloverPolicy.savings,
+            paused=True,
+            is_archived=False,
+            sort_order=99,
         )
 
         session.add(

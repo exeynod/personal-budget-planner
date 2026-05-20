@@ -78,12 +78,15 @@ async def seed_sub_with_account(db_setup, owner_tg_id):
 
         # Need savings cat for create_actual_v10's roundup hook (savings can be
         # absent, hook is a no-op when SavingsConfig.roundup_enabled=false).
-        cat = Category(
+        from tests.helpers.seed import seed_category
+        cat = await seed_category(
+            session,
             user_id=uid, name="Подписки", code="subs", ord="08",
             kind=CategoryKind.expense, plan_cents=0,
             rollover=RolloverPolicy.misc, paused=False, sort_order=10,
         )
-        savings_cat = Category(
+        savings_cat = await seed_category(
+            session,
             user_id=uid, name="КОПИЛКА", code="savings", ord="99",
             kind=CategoryKind.expense, plan_cents=0,
             rollover=RolloverPolicy.savings, paused=True, sort_order=99,
@@ -92,7 +95,7 @@ async def seed_sub_with_account(db_setup, owner_tg_id):
             user_id=uid, bank="Т-Банк", kind=AccountKind.card,
             balance_cents=10_000_00, is_primary=True,
         )
-        session.add_all([cat, savings_cat, acc])
+        session.add(acc)
         await session.commit()
         await session.refresh(cat)
         await session.refresh(acc)

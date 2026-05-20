@@ -96,9 +96,11 @@ async def two_users(db_session):
 @pytest_asyncio.fixture
 async def seeded_savings_category(db_session, owner_user):
     """System Category code='savings' for the owner user."""
-    from app.db.models import Category, CategoryKind, RolloverPolicy
+    from app.db.models import CategoryKind, RolloverPolicy
+    from tests.helpers.seed import seed_category
 
-    cat = Category(
+    cat = await seed_category(
+        db_session,
         user_id=owner_user["id"],
         name="КОПИЛКА",
         kind=CategoryKind.expense,
@@ -109,7 +111,6 @@ async def seeded_savings_category(db_session, owner_user):
         rollover=RolloverPolicy.savings,
         paused=True,
     )
-    db_session.add(cat)
     await db_session.flush()
     yield cat
 
@@ -284,16 +285,17 @@ async def test_get_savings_snapshot_excludes_expense_and_income(
         ActualSource,
         ActualTransaction,
         BudgetPeriod,
-        Category,
         CategoryKind,
         PeriodStatus,
     )
     from app.db.session import set_tenant_scope
     from app.services.savings import get_savings_snapshot
+    from tests.helpers.seed import seed_category
 
     await set_tenant_scope(db_session, owner_user["id"])
 
-    food = Category(
+    food = await seed_category(
+        db_session,
         user_id=owner_user["id"],
         name="FOOD",
         kind=CategoryKind.expense,
@@ -302,7 +304,6 @@ async def test_get_savings_snapshot_excludes_expense_and_income(
         ord="01",
         plan_cents=100000,
     )
-    db_session.add(food)
     await db_session.flush()
 
     today = _today_msk()

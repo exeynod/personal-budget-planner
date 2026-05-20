@@ -71,22 +71,25 @@ async def db_setup(async_client, owner_tg_id):
         session.add_all([owner, other])
         await session.flush()
 
-        cat_a = Category(
+        from tests.helpers.seed import seed_category
+        cat_a = await seed_category(
+            session,
             user_id=owner.id, name="Продукты", kind=CategoryKind.expense,
             sort_order=10, plan_cents=10_000_00, code="food", ord="01",
             rollover=RolloverPolicy.misc, paused=False,
         )
-        cat_b = Category(
+        cat_b = await seed_category(
+            session,
             user_id=owner.id, name="Транспорт", kind=CategoryKind.expense,
             sort_order=20, plan_cents=20_000_00, code="transport", ord="02",
             rollover=RolloverPolicy.misc, paused=False,
         )
-        cat_c = Category(
+        cat_c = await seed_category(
+            session,
             user_id=other.id, name="OtherFood", kind=CategoryKind.expense,
             sort_order=10, plan_cents=5_000_00, code="food", ord="01",
             rollover=RolloverPolicy.misc, paused=False,
         )
-        session.add_all([cat_a, cat_b, cat_c])
         await session.commit()
         await session.refresh(cat_a)
         await session.refresh(cat_b)

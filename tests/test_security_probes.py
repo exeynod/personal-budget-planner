@@ -109,8 +109,8 @@ async def test_sp1_rls_blocks_unscoped_session(sec_env):
         )
         session.add(u)
         await session.flush()
-        c = Category(user_id=u.id, name="X", kind=CategoryKind.expense, sort_order=10)
-        session.add(c)
+        from tests.helpers.seed import seed_category
+        c = await seed_category(session, user_id=u.id, name="X", kind=CategoryKind.expense, sort_order=10)
         await session.commit()
 
     # Attempt: unscoped query as default DB role (SUPERUSER bypasses RLS in dev DB).
@@ -354,8 +354,8 @@ async def test_sp7_cross_tenant_id_returns_404(sec_env):
         )
         session.add_all([a, b])
         await session.flush()
-        cat_b = Category(user_id=b.id, name="B-only", kind=CategoryKind.expense, sort_order=10)
-        session.add(cat_b)
+        from tests.helpers.seed import seed_category
+        cat_b = await seed_category(session, user_id=b.id, name="B-only", kind=CategoryKind.expense, sort_order=10)
         await session.commit()
         cat_b_id = cat_b.id
 
@@ -491,17 +491,18 @@ async def test_sp11_subscription_double_charge_409(sec_env):
     client = sec_env["client"]
     headers = {"X-Telegram-Init-Data": sec_env["make_init"](app_settings.OWNER_TG_ID)}
 
-    # Bootstrap owner + onboarding
+    # Bootstrap owner + onboarding (68-05: v1.0 contract + ПДн consent grant).
+    from datetime import datetime, timezone
+
+    from tests.helpers.onboarding import complete_onboarding_v10
     await client.get("/api/v1/me", headers=headers)
-    onb = await client.post(
-        "/api/v1/onboarding/complete",
-        json={
-            "starting_balance_cents": 0,
-            "cycle_start_day": 5,
-            "seed_default_categories": True,
-        },
-        headers=headers,
-    )
+    async with SessionLocal() as _s:
+        await _s.execute(
+            text("UPDATE app_user SET pdn_consent_at = :ts WHERE tg_user_id = :tg"),
+            {"ts": datetime.now(timezone.utc), "tg": app_settings.OWNER_TG_ID},
+        )
+        await _s.commit()
+    onb = await complete_onboarding_v10(client, headers)
     assert onb.status_code == 200, onb.text
 
     cats = (await client.get("/api/v1/categories", headers=headers)).json()
@@ -564,30 +565,23 @@ async def test_sp12_onboarding_double_completion_409(sec_env):
     client = sec_env["client"]
     headers = {"X-Telegram-Init-Data": sec_env["make_init"](app_settings.OWNER_TG_ID)}
 
-    await client.get("/api/v1/me", headers=headers)
+    from datetime import datetime, timezone
 
-    # First onboarding
-    o1 = await client.post(
-        "/api/v1/onboarding/complete",
-        json={
-            "starting_balance_cents": 100,
-            "cycle_start_day": 5,
-            "seed_default_categories": False,
-        },
-        headers=headers,
-    )
+    from tests.helpers.onboarding import complete_onboarding_v10
+    await client.get("/api/v1/me", headers=headers)
+    async with SessionLocal() as _s:
+        await _s.execute(
+            text("UPDATE app_user SET pdn_consent_at = :ts WHERE tg_user_id = :tg"),
+            {"ts": datetime.now(timezone.utc), "tg": app_settings.OWNER_TG_ID},
+        )
+        await _s.commit()
+
+    # First onboarding (v1.0) creates accounts — the conflict gate's trigger.
+    o1 = await complete_onboarding_v10(client, headers)
     assert o1.status_code == 200, o1.text
 
-    # Second onboarding → 409
-    o2 = await client.post(
-        "/api/v1/onboarding/complete",
-        json={
-            "starting_balance_cents": 200,
-            "cycle_start_day": 5,
-            "seed_default_categories": False,
-        },
-        headers=headers,
-    )
+    # Second onboarding → 409 already_onboarded (existing accounts, T-22-11-01).
+    o2 = await complete_onboarding_v10(client, headers)
     assert o2.status_code == 409, (
         f"double-onboarding must be 409, got {o2.status_code}: {o2.text}"
     )
