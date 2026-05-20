@@ -5,14 +5,14 @@ milestone_name: — iOS v06 Native Rebuild)
 current_phase: 67 (remediation-cleanup)
 status: P0-2 closed — `npm run build` (tsc -b && vite build) GREEN; AnalyticsRange import + AiView bottomRef type fixed; test files excluded from production tsc gate (FE-F3)
 stopped_at: Completed 67-02-PLAN.md
-last_updated: "2026-05-20T16:45:40.438Z"
+last_updated: "2026-05-20T16:49:42.574Z"
 last_activity: 2026-05-20
 progress:
   total_phases: 36
   completed_phases: 24
   total_plans: 72
-  completed_plans: 64
-  percent: 89
+  completed_plans: 65
+  percent: 90
 ---
 
 ## Active Milestone: v1.1.2 — iOS v06 Native Rebuild
@@ -47,8 +47,8 @@ See: .planning/PROJECT.md (updated 2026-05-09 — v1.0 milestone «Maximal Poste
 ## Current Position
 
 Phase: 67 (remediation-cleanup) — IN PROGRESS
-Plan: 67-02 executed (Wave 1 Web P0-2)
-Status: P0-2 closed — `npm run build` (tsc -b && vite build) GREEN; AnalyticsRange import + AiView bottomRef type fixed; test files excluded from production tsc gate (FE-F3)
+Plan: 67-03 executed (Wave 1 iOS P0-3)
+Status: P0-3 closed — suppressForbiddenHandler removed from APIClient + AISuggestCategoryAPI; strict 403→onUnauthenticated restored (require_pro=402 stays serverError→nil); iOS build + 568 tests GREEN
 Last activity: 2026-05-20
 
 ## Milestone v1.0 Phases
@@ -229,8 +229,8 @@ v1.0 deferred (acknowledged at planning):
 
 ## Session Continuity
 
-Last session: 2026-05-20T16:45:03.917Z
-Stopped at: Completed 67-02-PLAN.md
+Last session: 2026-05-20T16:50:00.000Z
+Stopped at: Completed 67-03-PLAN.md
 Resume file: None
 
 ## Deferred Items
