@@ -512,6 +512,10 @@ struct SubscriptionEditor: View {
     @State private var notifyDaysBefore: Int = 2
     @State private var isActive: Bool = true
     @State private var dayOfMonth: Int = 1
+    /// Исходное значение day_of_month из DTO (edit-path). nil → поле было
+    /// не задано (legacy row). Используется чтобы НЕ писать day_of_month=1
+    /// в follow-up PATCH, если пользователь не трогал Stepper (WR-03).
+    @State private var originalDayOfMonth: Int?
     @State private var accountId: Int?
     @State private var isSubmitting = false
     @State private var errorMessage: String?
@@ -675,6 +679,7 @@ struct SubscriptionEditor: View {
             categoryId = expenses.first?.id
             accountId = defaultAccount
             dayOfMonth = 1
+            originalDayOfMonth = nil
         case .edit(let s):
             name = s.name
             amountText = MoneyFormatter.format(cents: s.amountCents)
@@ -684,6 +689,7 @@ struct SubscriptionEditor: View {
             notifyDaysBefore = s.notifyDaysBefore
             isActive = s.isActive
             dayOfMonth = s.dayOfMonth ?? 1
+            originalDayOfMonth = s.dayOfMonth
             accountId = s.accountId
         }
     }
@@ -703,7 +709,17 @@ struct SubscriptionEditor: View {
         defer { isSubmitting = false }
 
         // day_of_month — ordinal, только для monthly. account_id — optional.
-        let dayPayload: Int? = (cycle == .monthly) ? dayOfMonth : nil
+        // WR-03: на edit-path пишем day_of_month ТОЛЬКО если пользователь
+        // реально изменил значение (vs исходного DTO). На create-path —
+        // если выбран monthly (пользователь всегда видит Stepper).
+        let dayChanged: Bool
+        switch mode {
+        case .create:
+            dayChanged = (cycle == .monthly)
+        case .edit:
+            dayChanged = (cycle == .monthly) && (dayOfMonth != originalDayOfMonth)
+        }
+        let dayPayload: Int? = dayChanged ? dayOfMonth : nil
         let v10Payload = SubscriptionV10UpdateRequest(dayOfMonth: dayPayload, accountId: accountId)
         // PATCH нужен только если есть что писать в V10-extension поля.
         let needsFollowUpPatch = dayPayload != nil || accountId != nil
