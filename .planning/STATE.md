@@ -5,7 +5,7 @@ milestone_name: — iOS v06 Native Rebuild)
 current_phase: 65
 status: verifying
 stopped_at: Completed 63-02-PLAN.md
-last_updated: "2026-05-20T11:44:18.276Z"
+last_updated: "2026-05-20T14:08:52.401Z"
 last_activity: 2026-05-20
 progress:
   total_phases: 35
@@ -47,7 +47,7 @@ See: .planning/PROJECT.md (updated 2026-05-09 — v1.0 milestone «Maximal Poste
 ## Current Position
 
 Phase: 63 (subscriptions-v06) — EXECUTING
-Plan: 63-01 complete (2 of 2 plans) — 63-02 next
+Plan: Not started
 Status: Phase complete — ready for verification
 Last activity: 2026-05-20
 

@@ -401,7 +401,7 @@ Plans:
 ### Phase 63: Subscriptions расширенные (v06 native) — planned
 **Goal**: post/unpost action, day_of_month, account_id selection. Form-based редактор с DatePicker и Picker (счёт). Миграция на SubscriptionsV10API.
 
-**Plans:** 2 plans (2 waves)
+**Plans:** 2/2 plans complete
 
 Plans:
 - [x] 63-01-PLAN.md — Миграция SubscriptionsViewModel на SubscriptionsV10API (list/patch/post/unpost/delete) + post/unpost мутации + SubscriptionsViewData pure-helpers (create остаётся legacy — V10API без create-эндпоинта)
