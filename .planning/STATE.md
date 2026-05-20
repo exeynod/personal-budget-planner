@@ -3,16 +3,16 @@ gsd_state_version: 1.0
 milestone: v1.1.2
 milestone_name: — iOS v06 Native Rebuild)
 current_phase: 67 (remediation-cleanup)
-status: SavingsViewModel/GoalDetailViewModel now take an injectable API struct seam (default .live); SavingsViewModel.load() has reloadPending coalescing (post-deposit reload not dropped during pull-to-refresh); dead lastCreatedGoalId removed. Behavioural seam tests cover deposit/createGoal/deleteGoal success+failure+submitting-guard+optimistic-revert+coalesce and GoalDetail load not-found. APIClient regression-locked via URLProtocol stub (401->logout, 403(!skipAuth)->logout strict post-67-03, 403(skipAuth)->no logout, MSK yyyy-MM-dd decode + timestamp parse). APIClient.swift untouched. Full suite 609 green (+41).
-stopped_at: Completed 67-09-PLAN.md
-last_updated: "2026-05-20T17:47:28.129Z"
+status: Phase 67 (remediation-cleanup) COMPLETE — 67-10 (last plan) shipped iOS P2 minors + de-flake + R9 docs. Subscription create/edit reloads exactly once (patchAlreadyReloaded skips redundant onSaved); nextChargeDate is source-of-truth for monthly day_of_month (derived+clamped 1..28, Stepper/DatePicker bidirectional sync); toggleRoundup/selectBase serialized via separate configInFlight guard; flaky notification test de-flaked via injected onNotificationLoadComplete seam (no Task.sleep); CLAUDE.md+docs/HLD.md reframed single-tenant->multi-tenant-via-RLS reality (RLS alembic 0008, owner/member roles, set_tenant_scope per request) as a security asset. 67-05 banner + 67-07 Savings seam preserved; APIClient/backend/web/FeaturesV10 untouched. Full iOS suite 609 green.
+stopped_at: Completed 67-10-PLAN.md (Phase 67 complete)
+last_updated: "2026-05-20T17:54:46.693Z"
 last_activity: 2026-05-20
 progress:
   total_phases: 36
-  completed_phases: 24
+  completed_phases: 25
   total_plans: 72
-  completed_plans: 71
-  percent: 99
+  completed_plans: 72
+  percent: 100
 ---
 
 ## Active Milestone: v1.1.2 — iOS v06 Native Rebuild
@@ -46,9 +46,9 @@ See: .planning/PROJECT.md (updated 2026-05-09 — v1.0 milestone «Maximal Poste
 
 ## Current Position
 
-Phase: 67 (remediation-cleanup) — IN PROGRESS
-Plan: 67-07 executed (Wave 3 iOS P1-4/R2 Savings/GoalDetail seam+coalesce+money tests + P1-7 APIClient regression tests)
-Status: SavingsViewModel/GoalDetailViewModel now take an injectable API struct seam (default .live); SavingsViewModel.load() has reloadPending coalescing (post-deposit reload not dropped during pull-to-refresh); dead lastCreatedGoalId removed. Behavioural seam tests cover deposit/createGoal/deleteGoal success+failure+submitting-guard+optimistic-revert+coalesce and GoalDetail load not-found. APIClient regression-locked via URLProtocol stub (401->logout, 403(!skipAuth)->logout strict post-67-03, 403(skipAuth)->no logout, MSK yyyy-MM-dd decode + timestamp parse). APIClient.swift untouched. Full suite 609 green (+41).
+Phase: 67 (remediation-cleanup) — COMPLETE (10/10 plans)
+Plan: 67-10 executed (Wave 5 — iOS P2-1/2/3 + P2-12 de-flake + R9 docs)
+Status: Phase 67 complete. 67-10: single-reload subscription create (patchAlreadyReloaded skips redundant onSaved, P2-1); nextChargeDate source-of-truth for monthly day_of_month clamped 1..28 with Stepper/DatePicker bidirectional sync (P2-2); toggleRoundup/selectBase serialized via separate configInFlight guard (P2-3); flaky test_notificationTxnCreated_triggersLoad de-flaked via injected onNotificationLoadComplete seam + withCheckedContinuation, no Task.sleep (P2-12); CLAUDE.md + docs/HLD.md reframed single-tenant -> multi-tenant-via-RLS reality (RLS alembic 0008, owner/member roles, set_tenant_scope per request) as a security asset (R9). 67-05 banner + 67-07 Savings seam preserved; APIClient/backend/web/FeaturesV10 untouched. Full iOS suite 609 green.
 Last activity: 2026-05-20
 
 ## Milestone v1.0 Phases
@@ -109,6 +109,7 @@ Last activity: 2026-05-20
 | Phase 67 P06 | 3min | 2 tasks | 4 files |
 | Phase 67 P07 | ~15min | 3 tasks | 7 files |
 | Phase 67 P09 | 22m | 3 tasks | 15 files |
+| Phase 67 P10 | 9min | 3 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -155,6 +156,7 @@ Recent decisions from v0.6 (preserved for context):
 - [Phase ?]: [Phase 67-04]: backend P1-1/P1-2/P2-13 — _refresh_embedding threads user_id + set_tenant_scope (embeddings persist); post_subscription FOR UPDATE + partial unique index uq_subscription_posted_txn_id + IntegrityError->409; savepoint-rollback test proves no orphan; alembic revision ids must be <=32 chars (varchar32)
 - [Phase 67-06]: web P1-6/FE-F4 — split colliding localStorage 'ui.theme' into 'ui.shell' (dispatch v06/v10) + 'ui.theme' (theme); useTheme.ts sole owner of theme key; migration shim adopts legacy ui.theme shell value; VITE_UI_THEME env still wins for shell. R5: v06 web shell KEEP (reachable post-split, maintained); ~50 v06-only files (App.tsx+screens/13+hooks/16+api/6+components/38) deletion DEFERRED pending R6/ARCH-A1 owner decision (DEAD-SHELL-INVENTORY.md)
 - [Phase ?]: parseMoney.ts re-exports canonical parseRublesToKopecks (format.ts), adds Or0 wrapper + sanitizeMoneyInput; no duplicate parser
+- [Phase ?]: 67-10 (2026-05-20): single reload on subscription create via patchAlreadyReloaded (P2-1); nextChargeDate source-of-truth for day_of_month clamped 1..28 (P2-2); configInFlight serializes config PATCH separate from submitting (P2-3); deterministic notification test via onNotificationLoadComplete seam, no sleep (P2-12); CLAUDE.md+HLD reframed multi-tenant-via-RLS as security asset (R9)
 
 ### Pending Todos
 
@@ -239,7 +241,7 @@ v1.0 deferred (acknowledged at planning):
 
 ## Session Continuity
 
-Last session: 2026-05-20T17:47:28.125Z
+Last session: 2026-05-20T17:54:09.499Z
 Stopped at: Completed 67-09-PLAN.md
 Resume file: None
 

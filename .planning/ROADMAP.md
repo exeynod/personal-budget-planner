@@ -457,7 +457,7 @@ Plans:
 - [x] 67-07-PLAN.md — [W3] iOS P1-4/P1-7/R2: Savings/GoalDetail API-seam + reload-coalesce + money-mutation tests; APIClient 403/401+MSK-date regression tests
 - [x] 67-08-PLAN.md — [W4] BE P2-4..7/R8: ChatRequest bounds, suggest confidence/docstring, symmetric /me builder, est_cost float→cost_cents migration, get_db dedup
 - [x] 67-09-PLAN.md — [W4] Web P2-8..11/R5: useAiCategorize stale-guard, local wire-date parse, single parseRublesToKopecks, window.alert→Toast
-- [ ] 67-10-PLAN.md — [W5] iOS P2-1/2/3/P2-12/R9: single-reload create, day/nextCharge reconcile, config-inFlight guard, de-flake notification test, multi-tenant docs
+- [x] 67-10-PLAN.md — [W5] iOS P2-1/2/3/P2-12/R9: single-reload create, day/nextCharge reconcile, config-inFlight guard, de-flake notification test, multi-tenant docs
 
 ---
 
