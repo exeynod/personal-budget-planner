@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v1.1.2
 milestone_name: — iOS v06 Native Rebuild)
-current_phase: 62
+current_phase: 65
 status: verifying
 stopped_at: Completed 62-03-PLAN.md (Savings gap closure)
-last_updated: "2026-05-20T11:05:10.387Z"
+last_updated: "2026-05-20T11:18:24.212Z"
 last_activity: 2026-05-20
 progress:
   total_phases: 35
@@ -19,7 +19,7 @@ progress:
 
 User-direction 2026-05-11: вернуть нативный iOS UI (`MainShell`) как полноценную альтернативу `V10MainShell`. Оба шелла сосуществуют через `@AppStorage("ui.theme")` тумблер. Параллельная разработка в ветке `v1.0-maximal-poster`.
 
-**Current Phase:** 62
+**Current Phase:** 65
 
 **Next Phases (planned, see ROADMAP.md):**
 
@@ -47,7 +47,7 @@ See: .planning/PROJECT.md (updated 2026-05-09 — v1.0 milestone «Maximal Poste
 ## Current Position
 
 Phase: 62 (savings-goals-v06) — EXECUTING
-Plan: 2 of 2
+Plan: Not started
 Status: Phase complete — ready for verification
 Last activity: 2026-05-20
 
