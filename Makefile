@@ -1,4 +1,16 @@
-.PHONY: tokens tokens-check perf-report hidden-unicode-grep migration-roundtrip
+.PHONY: tokens tokens-check perf-report hidden-unicode-grep migration-roundtrip contract
+
+# Phase 69 B1 — regenerate contract/openapi.json from the LIVE app inside the
+# docker api container (local .venv is broken). The api image bakes the code
+# and does NOT bind-mount the repo, so we pipe the dump script in via stdin and
+# redirect its --stdout output into the host file. sort_keys makes it
+# byte-stable for the B5 git-diff sync-guard.
+DC_TEST = docker compose -f docker-compose.yml -f docker-compose.dev.yml -f docker-compose.test.yml
+contract:
+	@echo "Regenerating contract/openapi.json from the live app (docker api)…"
+	@$(DC_TEST) exec -T api /app/.venv/bin/python - --stdout \
+	  < contract/dump_openapi.py > contract/openapi.json
+	@echo "Wrote contract/openapi.json ($$(wc -l < contract/openapi.json) lines)."
 
 tokens:
 	npm run gen:tokens

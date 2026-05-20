@@ -46,6 +46,29 @@ class SubscriptionRead(BaseModel):
     status: str
 
 
+class TierResponse(BaseModel):
+    """GET /api/v1/me/tier response — effective tier + trial/pro window.
+
+    Phase 69 (B1): typed from the previous ``response_model=dict`` so codegen
+    (B2/B3) gets a real schema. Byte-identical to the prior bare-dict body —
+    ``trial_ends_at`` / ``pro_active_until`` are ISO-8601 wire-strings (or None).
+    """
+
+    tier: str
+    trial_ends_at: Optional[str]
+    pro_active_until: Optional[str]
+    is_trial_active: bool
+
+
+class SubscriptionCancelResponse(BaseModel):
+    """POST /api/v1/me/subscription/cancel response — idempotent cancel.
+
+    Phase 69 (B1): typed from the previous untyped ``dict[str, str]`` return.
+    """
+
+    status: str
+
+
 class WebhookEvent(BaseModel):
     event: str
     object: dict

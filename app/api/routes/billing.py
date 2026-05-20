@@ -30,7 +30,9 @@ from app.api.schemas.billing import (
     PaymentCreateRequest,
     PaymentCreateResponse,
     PaymentRead,
+    SubscriptionCancelResponse,
     SubscriptionRead,
+    TierResponse,
 )
 from app.db.models import AppUser, Payment, SubscriptionBilling
 from app.db.session import get_db
@@ -128,10 +130,10 @@ async def my_subscription(
     return SubscriptionRead.model_validate(row)
 
 
-@router.get("/me/tier", response_model=dict)
+@router.get("/me/tier", response_model=TierResponse)
 async def my_tier(
     user: AppUser = Depends(get_current_user),
-) -> dict:
+) -> TierResponse:
     """Return current effective tier + trial/pro window info for paywall UI.
 
     Phase 35 REQ-35-02. Mirrors the resolution logic in
@@ -159,7 +161,11 @@ async def my_tier(
     }
 
 
-@router.post("/me/subscription/cancel", status_code=status.HTTP_200_OK)
+@router.post(
+    "/me/subscription/cancel",
+    status_code=status.HTTP_200_OK,
+    response_model=SubscriptionCancelResponse,
+)
 async def cancel_my_subscription(
     user: AppUser = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
