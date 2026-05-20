@@ -528,7 +528,7 @@ struct SubscriptionEditor: View {
     }
 
     private func accountLabel(_ a: AccountDTO) -> String {
-        a.bank + (a.mask.map { " ·\($0)" } ?? "")
+        a.bank + (a.mask.map { " · \($0)" } ?? "")
     }
 
     private var canSave: Bool {
