@@ -56,6 +56,9 @@ struct TransactionEditor: View {
     @State private var isSubmitting = false
     @State private var errorMessage: String?
     @State private var showingDeleteConfirm = false
+    // Phase 64-01 (ADD-V10-04) — optional account picker, actual modes only.
+    @State private var accounts: [AccountDTO] = []
+    @State private var selectedAccountId: Int? = nil
 
     private var amountCents: Int? { MoneyParser.parseToCents(amountText) }
 
@@ -121,6 +124,21 @@ struct TransactionEditor: View {
                     }
                 }
 
+                // Phase 64-01 (ADD-V10-04) — «Счёт списания» только для
+                // actual-режимов И когда счета загрузились. Если accounts
+                // пуст (не загрузились / у пользователя нет счетов) — секция
+                // скрыта (graceful), сохранение идёт с accountId=nil.
+                if mode.isActual, !accounts.isEmpty {
+                    Section("Счёт списания") {
+                        Picker("Счёт", selection: $selectedAccountId) {
+                            Text("Не указан").tag(Int?.none)
+                            ForEach(accounts) { a in
+                                Text(accountLabel(a)).tag(Int?.some(a.id))
+                            }
+                        }
+                    }
+                }
+
                 Section("Описание") {
                     TextField("Опционально", text: $description, axis: .vertical)
                         .lineLimit(2...4)
@@ -158,6 +176,7 @@ struct TransactionEditor: View {
             }
             .interactiveDismissDisabled(isSubmitting)
             .onAppear { populate() }
+            .task { await loadAccounts() }
             .confirmationDialog(
                 "Удалить транзакцию?",
                 isPresented: $showingDeleteConfirm,
@@ -170,6 +189,34 @@ struct TransactionEditor: View {
         }
         .presentationDragIndicator(.visible)
         .presentationDetents([.medium, .large])
+    }
+
+    // Phase 64-01 — picker row label (delegates to pure helper / single
+    // source of truth shared with AccountPickerLogicTests).
+    private func accountLabel(_ a: AccountDTO) -> String {
+        AccountPickerLogic.label(a)
+    }
+
+    /// Phase 64-01 (ADD-V10-04) — load accounts inside the editor so the 3
+    /// call-sites don't gain a new parameter. Actual modes only; runs once
+    /// (`guard accounts.isEmpty`). On failure the picker section stays hidden
+    /// and accountId remains nil — the account is optional, so we do NOT
+    /// surface an error banner (threat T-64-01-02: DoS accepted, graceful).
+    private func loadAccounts() async {
+        guard mode.isActual else { return }
+        guard accounts.isEmpty else { return }
+        do {
+            let list = try await AccountsAPI.list()
+            accounts = list
+            // Don't overwrite a selection populate() may have set.
+            if selectedAccountId == nil {
+                selectedAccountId = AccountPickerLogic.defaultAccountId(list)
+            }
+        } catch {
+            // Graceful: keep section hidden, accountId stays nil. Raw error
+            // via print() only (no error.localizedDescription on screen).
+            print("TransactionEditor.loadAccounts failed: \(error)")
+        }
     }
 
     private func populate() {
@@ -186,6 +233,9 @@ struct TransactionEditor: View {
             categoryId = a.categoryId
             date = a.txDate
             description = a.description ?? ""
+        // Phase 64-01: legacy ActualDTO has no accountId → preselect from
+        // DTO is N/A on this legacy surface. selectedAccountId falls back
+        // to the default (primary ?? first) set in loadAccounts().
         case .editPlanned(let p):
             kind = p.kind
             amountText = MoneyFormatter.format(cents: p.amountCents)
@@ -210,35 +260,44 @@ struct TransactionEditor: View {
         do {
             switch mode {
             case .createActual:
-                _ = try await ActualAPI.create(ActualCreateRequest(
-                    kind: kind.rawValue,
-                    amountCents: cents,
-                    categoryId: catId,
-                    txDate: DateFormatters.isoDate.string(from: date),
-                    description: description.isEmpty ? nil : description
-                ))
+                _ = try await ActualAPI.create(
+                    ActualCreateRequest(
+                        kind: kind.rawValue,
+                        amountCents: cents,
+                        categoryId: catId,
+                        txDate: DateFormatters.isoDate.string(from: date),
+                        description: description.isEmpty ? nil : description,
+                        accountId: selectedAccountId
+                    ))
             case .createPlanned(let pid):
-                _ = try await PlannedAPI.create(periodId: pid, PlannedCreateRequest(
-                    kind: kind.rawValue,
-                    amountCents: cents,
-                    categoryId: catId,
-                    plannedDate: nil,
-                    description: description.isEmpty ? nil : description
-                ))
+                _ = try await PlannedAPI.create(
+                    periodId: pid,
+                    PlannedCreateRequest(
+                        kind: kind.rawValue,
+                        amountCents: cents,
+                        categoryId: catId,
+                        plannedDate: nil,
+                        description: description.isEmpty ? nil : description
+                    ))
             case .editActual(let a):
-                _ = try await ActualAPI.update(id: a.id, ActualUpdateRequest(
-                    amountCents: cents,
-                    categoryId: catId,
-                    txDate: DateFormatters.isoDate.string(from: date),
-                    description: description.isEmpty ? nil : description
-                ))
+                _ = try await ActualAPI.update(
+                    id: a.id,
+                    ActualUpdateRequest(
+                        amountCents: cents,
+                        categoryId: catId,
+                        txDate: DateFormatters.isoDate.string(from: date),
+                        description: description.isEmpty ? nil : description,
+                        accountId: selectedAccountId
+                    ))
             case .editPlanned(let p):
-                _ = try await PlannedAPI.update(id: p.id, PlannedUpdateRequest(
-                    amountCents: cents,
-                    categoryId: catId,
-                    plannedDate: nil,
-                    description: description.isEmpty ? nil : description
-                ))
+                _ = try await PlannedAPI.update(
+                    id: p.id,
+                    PlannedUpdateRequest(
+                        amountCents: cents,
+                        categoryId: catId,
+                        plannedDate: nil,
+                        description: description.isEmpty ? nil : description
+                    ))
             }
             await onSaved()
             dismiss()
