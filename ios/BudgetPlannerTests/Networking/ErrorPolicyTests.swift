@@ -95,6 +95,42 @@ final class ErrorPolicyTests: XCTestCase {
             .fail(.serverError(500, "boom"), logout: false))
     }
 
+    // MARK: live-client 402 — require_pro NO logout (67-05 contract)
+
+    /// End-to-end through the live `APIClient` + default policy: a 402
+    /// (require_pro / PRO_TIER_REQUIRED) maps to `.serverError(402, …)` and does
+    /// NOT fire `onUnauthenticated`. The old `APIClientForbiddenTests` never
+    /// covered 402 explicitly; this pins the AISuggest silent-nil contract so a
+    /// future regression (false logout stranding a non-pro owner) fails CI.
+    /// APIClientForbiddenTests stays UNMODIFIED — this lives here by design.
+    @MainActor
+    func test_live_402_requirePro_serverError_doesNotLogOut() async {
+        URLProtocolStub.reset()
+        defer { URLProtocolStub.reset() }
+        URLProtocolStub.stub = .init(
+            statusCode: 402,
+            data: Data(#"{"detail":"PRO_TIER_REQUIRED"}"#.utf8),
+            headers: ["Content-Type": "application/json"])
+
+        let client = APIClient(
+            baseURL: URL(string: "http://stub.local")!,
+            session: URLProtocolStub.makeSession())
+        var logoutCount = 0
+        client.onUnauthenticated = { logoutCount += 1 }
+
+        do {
+            let _: SuggestCategoryDTO = try await client.request("GET", "/ai/suggest-category")
+            XCTFail("expected throw")
+        } catch let error as APIError {
+            guard case .serverError(402, _) = error else {
+                return XCTFail("expected .serverError(402, _), got \(error)")
+            }
+        } catch {
+            XCTFail("unexpected error type: \(error)")
+        }
+        XCTAssertEqual(logoutCount, 0, "402 require_pro НЕ разлогинивает (67-05)")
+    }
+
     // MARK: composable tolerating(_:) — illustrative, non-logout empty signal
 
     func test_tolerating_treatsListedStatusAsNonLogout() {
