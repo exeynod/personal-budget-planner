@@ -28,10 +28,22 @@ struct SavingsNewGoalSheet: View {
     let onCreate: (_ name: String, _ targetCents: Int, _ due: Date?) async -> Bool
     let onCancel: () -> Void
 
+    /// WR-04: picker calendar MUST be Europe/Moscow, matching
+    /// GoalCreateRequest.encode (которое форматирует `due` в MSK). На
+    /// устройстве восточнее MSK Calendar.current выбрала бы local-midnight,
+    /// который маппится на ПРЕДЫДУЩИЙ календарный день в MSK → off-by-one
+    /// на wire. Считаем «завтра» от MSK-now тем же календарём, что и encoder.
+    private static let mskCalendar: Calendar = {
+        var c = Calendar(identifier: .gregorian)
+        c.timeZone = TimeZone(identifier: "Europe/Moscow") ?? .current
+        return c
+    }()
+
     @State private var name: String = ""
     @State private var targetText: String = ""
     @State private var hasDue: Bool = false
-    @State private var dueDate: Date = Calendar.current.date(byAdding: .day, value: 1, to: Date()) ?? Date()
+    @State private var dueDate: Date =
+        SavingsNewGoalSheet.mskCalendar.date(byAdding: .day, value: 1, to: Date()) ?? Date()
 
     // MARK: - Derived
 
@@ -48,7 +60,7 @@ struct SavingsNewGoalSheet: View {
     }
 
     private var minDueDate: Date {
-        Calendar.current.date(byAdding: .day, value: 1, to: Date()) ?? Date()
+        SavingsNewGoalSheet.mskCalendar.date(byAdding: .day, value: 1, to: Date()) ?? Date()
     }
 
     // MARK: - Body
