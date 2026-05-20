@@ -12,9 +12,10 @@ import SwiftUI
 /// dismiss on success.
 ///
 /// «Пополнить» CTA открывает SavingsDepositSheet pre-filled этой целью;
-/// success-path вызывает SavingsAPI.postDeposit напрямую и `viewModel.load()`
-/// (GoalDetail self-contained — SavingsViewModel не трогаем). T-62-05:
-/// reload после успешного депозита освежает hero/progress.
+/// success-path идёт через `GoalDetailViewModel.deposit` (submitting guard
+/// против double-submit + reload hero/progress; GoalDetail self-contained —
+/// SavingsViewModel не трогаем). T-62-05: reload после успешного депозита
+/// освежает hero/progress. WR-01: failure → mutation-error banner.
 struct GoalDetailView: View {
     let goalId: Int
 
@@ -91,18 +92,14 @@ struct GoalDetailView: View {
                 accounts: viewModel.accounts,
                 initialGoalId: viewModel.goalId,
                 onDeposit: { amount, accountId, goalId in
-                    do {
-                        _ = try await SavingsAPI.postDeposit(
-                            amountCents: amount, accountId: accountId, goalId: goalId)
-                        // T-62-05: refresh hero/progress после депозита.
-                        await viewModel.load()
-                        showDeposit = false
-                        return true
-                    } catch {
-                        // T-62-03: raw error → print only.
-                        print("[GoalDetailView] deposit failed: \(error)")
-                        return false
-                    }
+                    // CR-01: депозит идёт через VM behind submitting guard
+                    // (no double-submit, sheet interactiveDismissDisabled).
+                    // WR-01: failure ставит viewModel.mutationError в banner.
+                    // T-62-05: VM.deposit делает reload hero/progress на success.
+                    let ok = await viewModel.deposit(
+                        amountCents: amount, accountId: accountId, goalId: goalId)
+                    if ok { showDeposit = false }
+                    return ok
                 },
                 onCancel: { showDeposit = false }
             )

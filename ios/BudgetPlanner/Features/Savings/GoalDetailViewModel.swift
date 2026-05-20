@@ -75,6 +75,31 @@ final class GoalDetailViewModel {
     }
 
     // MARK: - Mutations
+
+    /// Deposit (T-62-04): submitting guard prevents double-submit of a
+    /// money mutation; validate (T-62-01 / WR-05) → POST → reload
+    /// (T-62-05) so hero/progress освежается. Failure → filtered Russian
+    /// copy в mutationError (WR-01); raw error → print only (T-62-03).
+    @discardableResult
+    func deposit(amountCents: Int, accountId: Int, goalId: Int?) async -> Bool {
+        guard !submitting else { return false }
+        guard SavingsViewData.isValidDepositDraft(amountCents: amountCents, accountId: accountId)
+        else { return false }
+        submitting = true
+        defer { submitting = false }
+        do {
+            _ = try await SavingsAPI.postDeposit(
+                amountCents: amountCents, accountId: accountId, goalId: goalId)
+            mutationError = nil
+            await load()
+            return true
+        } catch {
+            print("[GoalDetailViewModel] deposit failed: \(error)")
+            mutationError = "Не удалось пополнить"
+            return false
+        }
+    }
+
     func deleteGoal() async -> Bool {
         // T-62-04: submitting guard prevents double-delete.
         guard !submitting else { return false }
