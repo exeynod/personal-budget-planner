@@ -14,11 +14,24 @@ final class APIClient {
     private(set) var bearerToken: String?
     var onUnauthenticated: (() -> Void)?
 
+    /// E1/R7 (70-03): the injectable status→domain-error+logout strategy. The
+    /// `.default` policy is byte-equivalent to the old inline switch and
+    /// preserves the 67-03/67-05 auth semantics exactly. Tests inject a custom
+    /// policy via `init`; production uses `.default`. NOTE: 429 Retry-After is
+    /// handled inline below (it needs the HTTPURLResponse header the policy
+    /// signature does not carry) — the policy never sees 429.
+    var errorPolicy: ErrorHandling
+
     private let session: URLSession
     private let decoder: JSONDecoder
     private let encoder: JSONEncoder
 
-    init(baseURL: URL? = nil, session: URLSession = .shared) {
+    init(
+        baseURL: URL? = nil,
+        session: URLSession = .shared,
+        errorPolicy: ErrorHandling = .default
+    ) {
+        self.errorPolicy = errorPolicy
         let envURL = ProcessInfo.processInfo.environment["BACKEND_URL"]
             .flatMap(URL.init(string:))
         self.baseURL = baseURL ?? envURL ?? URL(string: "http://localhost:8000")!
@@ -140,36 +153,31 @@ final class APIClient {
             throw APIError.invalidResponse
         }
 
-        switch http.statusCode {
-        case 200...299:
-            return data
-        case 401:
-            // WR-02: a genuine 401 (expired/invalid token) ALWAYS triggers the
-            // global logout — there is no per-call suppression here.
-            onUnauthenticated?()
-            throw APIError.unauthorized
-        case 403:
-            let detail = decodeErrorDetail(data) ?? "Forbidden"
-            // P0-3 (T-67-03-01): a 403 is a genuine auth failure (broken/forbidden
-            // owner token) and ALWAYS logs out when !skipAuth — there is no
-            // per-call suppression. The old per-call 403-suppress flag was
-            // removed: require_pro returns 402 (PRO_TIER_REQUIRED), NOT 403, so
-            // the flag guarded a non-existent case while masking real 403s on the
-            // AI path. A non-pro 402 falls through to the default serverError
-            // branch and is swallowed to nil by AISuggestCategoryAPI (no logout).
-            if !skipAuth { onUnauthenticated?() }
-            throw APIError.forbidden(detail)
-        case 404:
-            throw APIError.notFound
-        case 409:
-            throw APIError.conflict(decodeErrorDetail(data) ?? "Conflict")
-        case 422:
-            throw APIError.unprocessable(decodeErrorDetail(data) ?? "Validation error")
-        case 429:
+        // E1/R7 (70-03) — 429 SPLIT: handle Retry-After inline FIRST. The
+        // `Retry-After` header lives on the HTTPURLResponse, which the injected
+        // `errorPolicy.map` signature deliberately does not receive (keeping the
+        // policy header-free keeps the auth matrix exact + unit-testable). So
+        // 429 is owned here and never reaches the policy — unchanged from the
+        // pre-70-03 switch.
+        if http.statusCode == 429 {
             let retryAfter = http.value(forHTTPHeaderField: "Retry-After").flatMap(Int.init)
             throw APIError.rateLimited(retryAfter: retryAfter)
-        default:
-            throw APIError.serverError(http.statusCode, decodeErrorDetail(data) ?? "")
+        }
+
+        // All OTHER statuses delegate to the injectable strategy. The policy
+        // returns the domain error AND the logout decision; APIClient owns the
+        // `onUnauthenticated` callback (the policy is a pure mapping). `skipAuth`
+        // is a single transport parameter the policy reads (403-skipAuth-no-logout
+        // rule) — NOT a per-endpoint auth Bool. The default policy is
+        // byte-equivalent to the old switch (401 always logout; 403 logout iff
+        // !skipAuth; 402 require_pro -> serverError no-logout, swallowed by
+        // AISuggest; 404/409/422 no-logout; 2xx success).
+        switch errorPolicy.map(http.statusCode, data, skipAuth, decodeErrorDetail) {
+        case .success:
+            return data
+        case .fail(let error, let logout):
+            if logout { onUnauthenticated?() }
+            throw error
         }
     }
 
