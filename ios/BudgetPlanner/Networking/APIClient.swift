@@ -34,7 +34,7 @@ final class APIClient {
                 "yyyy-MM-dd'T'HH:mm:ssXXXXX",
                 "yyyy-MM-dd'T'HH:mm:ss.SSSSSS",
                 "yyyy-MM-dd'T'HH:mm:ss",
-                "yyyy-MM-dd"
+                "yyyy-MM-dd",
             ]
             let f = ISO8601DateFormatter()
             f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
@@ -44,6 +44,15 @@ final class APIClient {
             for fmt in formats {
                 let df = DateFormatter()
                 df.locale = Locale(identifier: "en_US_POSIX")
+                // WR-05: bare DATE-поля (yyyy-MM-dd) — это бизнес-даты в МСК
+                // (period_for / worker-джобы). Без фикс. tz они декодировались
+                // в timezone устройства, и MSK-calendar чтение в
+                // LocalNotifications могло сместить fire-date на день восточнее
+                // МСК. Пинним декод к Europe/Moscow — encode/decode/read
+                // согласованы на МСК.
+                if fmt == "yyyy-MM-dd" {
+                    df.timeZone = TimeZone(identifier: "Europe/Moscow")
+                }
                 df.dateFormat = fmt
                 if let d = df.date(from: str) { return d }
             }
@@ -99,10 +108,12 @@ final class APIClient {
         body: Encodable?,
         skipAuth: Bool
     ) async throws -> Data {
-        guard var components = URLComponents(
-            url: baseURL.appendingPathComponent("api/v1\(path)"),
-            resolvingAgainstBaseURL: false
-        ) else { throw APIError.invalidURL }
+        guard
+            var components = URLComponents(
+                url: baseURL.appendingPathComponent("api/v1\(path)"),
+                resolvingAgainstBaseURL: false
+            )
+        else { throw APIError.invalidURL }
 
         if let query, !query.isEmpty {
             components.queryItems = query.map { URLQueryItem(name: $0.key, value: $0.value) }
