@@ -18,7 +18,7 @@
 //   - On Phase 26 there is no direct bottom-nav entry — Phase 27 will add one.
 //
 // Failure mode (Plan 30-04 / DEBT-04): PATCH/DELETE errors surface via PosterToast
-// with the backend error message (replaces silent fail + the legacy window.alert
+// with the backend error message (replaces silent fail + the legacy alert
 // stub). Toast state is lifted to the Mount so the same component can show
 // errors for togglePause / changeDay / changePrice / delete from a single source.
 

@@ -133,9 +133,7 @@ export function PlanMount({ focusCategoryId = null }: PlanMountProps = {}) {
           prev.map((c) => (c.id === catId ? updated : c)),
         );
       } catch {
-        if (typeof window !== 'undefined') {
-          window.alert('Не удалось обновить «Остаток» — попробуйте снова');
-        }
+        setToastMsg('Не удалось обновить «Остаток» — попробуйте снова');
       }
     },
     [],
@@ -149,9 +147,7 @@ export function PlanMount({ focusCategoryId = null }: PlanMountProps = {}) {
       // Reload to refresh subscription posted_txn_id state.
       setReloadToken((n) => n + 1);
     } catch {
-      if (typeof window !== 'undefined') {
-        window.alert('Не удалось провести регулярный платёж');
-      }
+      setToastMsg('Не удалось провести регулярный платёж');
     }
   }, []);
 
@@ -161,9 +157,7 @@ export function PlanMount({ focusCategoryId = null }: PlanMountProps = {}) {
       setToastMsg('Отменено');
       setReloadToken((n) => n + 1);
     } catch {
-      if (typeof window !== 'undefined') {
-        window.alert('Не удалось отменить проводку');
-      }
+      setToastMsg('Не удалось отменить проводку');
     }
   }, []);
 

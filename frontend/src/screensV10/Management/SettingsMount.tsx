@@ -8,9 +8,10 @@
 //
 // Mutations: every change PATCHes /settings with the single delta. Optimistic
 // local state ensures the stepper feels instant; on error we revert to the
-// last-known server snapshot and surface the message via window.alert.
+// last-known server snapshot and surface the message via <Toast> (P2-11).
 
 import { useCallback, useEffect, useState } from 'react';
+import { Toast } from '../../componentsV10';
 import { getSettings, updateSettings } from '../../api/settings';
 import { getMeV10 } from '../../api/me';
 import type { SettingsRead, SettingsUpdatePayload } from '../../api/types';
@@ -35,6 +36,8 @@ export function SettingsMount() {
   // Phase 54-01 (LG-SW-02, LG-SW-05 web): Theme + picker sheet state.
   const [theme, setTheme] = useTheme();
   const [themePickerOpen, setThemePickerOpen] = useState(false);
+  // P2-11: PATCH error surface (single toast slot, last error wins).
+  const [toastMsg, setToastMsg] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -71,9 +74,7 @@ export function SettingsMount() {
         // Rollback + alert.
         setSettings(previous);
         const msg = e instanceof Error ? e.message : 'Не удалось сохранить';
-        if (typeof window !== 'undefined') {
-          window.alert(`Ошибка сохранения: ${msg}`);
-        }
+        setToastMsg(`Ошибка сохранения: ${msg}`);
       }
     },
     [settings],
@@ -99,6 +100,7 @@ export function SettingsMount() {
   );
 
   return (
+    <>
     <SettingsView
       cycle_start_day={settings?.cycle_start_day ?? FALLBACK_CYCLE_DAY}
       notify_days_before={settings?.notify_days_before ?? FALLBACK_NOTIFY_DAYS}
@@ -120,5 +122,12 @@ export function SettingsMount() {
       onSelectTheme={setTheme}
       onToggleThemePicker={setThemePickerOpen}
     />
+    <Toast
+      message={toastMsg ?? ''}
+      visible={toastMsg !== null}
+      onDismiss={() => setToastMsg(null)}
+      duration={4000}
+    />
+    </>
   );
 }

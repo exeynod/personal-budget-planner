@@ -34,7 +34,7 @@ import {
 } from '../../api/v10';
 import { getCurrentPeriod } from '../../api/periods';
 import { deleteActual } from '../../api/actual';
-import { Eyebrow, PosterButton } from '../../componentsV10';
+import { Eyebrow, PosterButton, Toast } from '../../componentsV10';
 import { PosterSheet, useRefetchToken, usePosterRouter } from '../common';
 import { TransactionsView } from './TransactionsView';
 import {
@@ -65,6 +65,8 @@ export function TransactionsMount() {
   const [reloadToken, setReloadToken] = useState(0);
   const [chip, setChip] = useState<TxFilterChip>('all');
   const [editingTx, setEditingTx] = useState<ActualV10Read | null>(null);
+  // P2-11: delete error surface (single toast slot, last error wins).
+  const [toastMsg, setToastMsg] = useState<string | null>(null);
   // Phase 30-02 (DEBT-02): AddSheet submit bumps this token via V10MainShell
   // → RefetchTokenProvider → useRefetchToken. Including it in the fetch-effect
   // deps array refreshes the registry immediately after a new tx is created.
@@ -131,9 +133,7 @@ export function TransactionsMount() {
       await deleteActual(tx.id);
       setReloadToken((t) => t + 1);
     } catch {
-      if (typeof window !== 'undefined') {
-        window.alert('Не удалось удалить операцию — попробуйте снова');
-      }
+      setToastMsg('Не удалось удалить операцию — попробуйте снова');
     }
   }, []);
   const handleBack = useCallback(() => {
@@ -198,6 +198,12 @@ export function TransactionsMount() {
       >
         <EditPlaceholder tx={editingTx} onClose={handleEditClose} />
       </PosterSheet>
+      <Toast
+        message={toastMsg ?? ''}
+        visible={toastMsg !== null}
+        onDismiss={() => setToastMsg(null)}
+        duration={4000}
+      />
     </>
   );
 }

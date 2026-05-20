@@ -9,10 +9,11 @@
 //      POST /goals (NewGoalSheet save), POST /savings/deposit (DepositSheet save).
 //   5. After successful POST: bump reload-token → effect refetches snapshot.
 //
-// Failure mode: window.alert (parity with SubscriptionsMount + Plan 28
-// polish will replace with PosterToast).
+// Failure mode (P2-11 / R5): mutation errors surface via <Toast> (single slot,
+// last error wins) — parity with SubscriptionsMount; replaces the old alert.
 
 import { useCallback, useEffect, useState } from 'react';
+import { Toast } from '../../componentsV10';
 import {
   fetchSavingsSummary,
   patchSavingsConfig,
@@ -42,6 +43,8 @@ export function SavingsMount() {
   const [reloadToken, setReloadToken] = useState(0);
   const [sheet, setSheet] = useState<SheetMode>({ kind: 'none' });
   const [submitting, setSubmitting] = useState(false);
+  // P2-11: mutation error surface (single toast slot, last error wins).
+  const [toastMsg, setToastMsg] = useState<string | null>(null);
 
   // ─────────── fetch effect ───────────
   useEffect(() => {
@@ -82,9 +85,7 @@ export function SavingsMount() {
         const cfg = await patchSavingsConfig({ roundup_enabled: enabled });
         setSnapshot((s) => (s ? { ...s, config: cfg } : s));
       } catch {
-        if (typeof window !== 'undefined') {
-          window.alert('Не удалось переключить округление — попробуйте снова');
-        }
+        setToastMsg('Не удалось переключить округление — попробуйте снова');
         setReloadToken((n) => n + 1);
       }
     },
@@ -102,9 +103,7 @@ export function SavingsMount() {
         const cfg = await patchSavingsConfig({ roundup_base: base });
         setSnapshot((s) => (s ? { ...s, config: cfg } : s));
       } catch {
-        if (typeof window !== 'undefined') {
-          window.alert('Не удалось сменить базу округления');
-        }
+        setToastMsg('Не удалось сменить базу округления');
         setReloadToken((n) => n + 1);
       }
     },
@@ -124,9 +123,7 @@ export function SavingsMount() {
         setSheet({ kind: 'none' });
         setReloadToken((n) => n + 1);
       } catch {
-        if (typeof window !== 'undefined') {
-          window.alert('Не удалось создать цель');
-        }
+        setToastMsg('Не удалось создать цель');
       } finally {
         setSubmitting(false);
       }
@@ -147,9 +144,7 @@ export function SavingsMount() {
         setSheet({ kind: 'none' });
         setReloadToken((n) => n + 1);
       } catch {
-        if (typeof window !== 'undefined') {
-          window.alert('Не удалось пополнить копилку');
-        }
+        setToastMsg('Не удалось пополнить копилку');
       } finally {
         setSubmitting(false);
       }
@@ -200,6 +195,12 @@ export function SavingsMount() {
           submitting={submitting}
         />
       </PosterSheet>
+      <Toast
+        message={toastMsg ?? ''}
+        visible={toastMsg !== null}
+        onDismiss={() => setToastMsg(null)}
+        duration={4000}
+      />
     </>
   );
 }

@@ -28,7 +28,7 @@ import {
   type CategoryV10,
 } from '../../api/v10';
 import { getCurrentPeriod } from '../../api/periods';
-import { Eyebrow, PosterButton } from '../../componentsV10';
+import { Eyebrow, PosterButton, Toast } from '../../componentsV10';
 import { usePosterRouter } from '../common';
 // Phase 26-04: real Plan editor with focusCategoryId deep-link replaces the
 // prior WIP PlanViewPlaceholder push.
@@ -59,6 +59,8 @@ export function CategoryDetailMount({ categoryId }: CategoryDetailMountProps) {
   const router = usePosterRouter();
   const [state, setState] = useState<LoadState>({ status: 'loading' });
   const [reloadToken, setReloadToken] = useState(0);
+  // P2-11: mutation error surface (single toast slot, last error wins).
+  const [toastMsg, setToastMsg] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -116,11 +118,8 @@ export function CategoryDetailMount({ categoryId }: CategoryDetailMountProps) {
           : s,
       );
     } catch {
-      // T-26-02-04 mitigation: minimum-viable failure surface. Plan 28 polish
-      // upgrades to a poster toast.
-      if (typeof window !== 'undefined') {
-        window.alert('Не удалось обновить «Остаток» — попробуйте снова');
-      }
+      // T-26-02-04 mitigation (P2-11): surface via Toast instead of alert.
+      setToastMsg('Не удалось обновить «Остаток» — попробуйте снова');
     }
   }, [state]);
 
@@ -137,9 +136,7 @@ export function CategoryDetailMount({ categoryId }: CategoryDetailMountProps) {
           : s,
       );
     } catch {
-      if (typeof window !== 'undefined') {
-        window.alert('Не удалось переключить «Паузу» — попробуйте снова');
-      }
+      setToastMsg('Не удалось переключить «Паузу» — попробуйте снова');
     }
   }, [state]);
 
@@ -168,14 +165,22 @@ export function CategoryDetailMount({ categoryId }: CategoryDetailMountProps) {
     );
   }
   return (
-    <CategoryDetailView
-      category={state.data.category}
-      actuals={state.data.actuals}
-      onPushPlan={handlePushPlan}
-      onTogglePause={handleTogglePause}
-      onToggleRollover={handleToggleRollover}
-      onBack={handleBack}
-    />
+    <>
+      <CategoryDetailView
+        category={state.data.category}
+        actuals={state.data.actuals}
+        onPushPlan={handlePushPlan}
+        onTogglePause={handleTogglePause}
+        onToggleRollover={handleToggleRollover}
+        onBack={handleBack}
+      />
+      <Toast
+        message={toastMsg ?? ''}
+        visible={toastMsg !== null}
+        onDismiss={() => setToastMsg(null)}
+        duration={4000}
+      />
+    </>
   );
 }
 

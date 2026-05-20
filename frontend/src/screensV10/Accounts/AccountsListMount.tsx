@@ -15,11 +15,12 @@
 //   - Phase 27-06 will mount this from V10MainShell tab='savings' or Mgmt-хаб
 //     «02 СЧЕТА» row. This plan only ships the Mount — no shell wiring.
 //
-// Failure mode: window.alert (parity with TransactionsMount / SubscriptionsMount;
-// Plan 28 polish replaces with PosterToast).
+// Failure mode (P2-11 / R5): mutation errors surface via <Toast> (parity with
+// TransactionsMount / SubscriptionsMount); replaces the old alert.
 
 import { useCallback, useEffect, useState } from 'react';
 import { usePosterRouter, PosterSheet } from '../common';
+import { Toast } from '../../componentsV10';
 import {
   listAccounts,
   createAccount,
@@ -45,6 +46,8 @@ export function AccountsListMount(props: AccountsListMountProps = {}) {
   const [sheet, setSheet] = useState<'none' | 'newAccount'>('none');
   const [submitting, setSubmitting] = useState(false);
   const [reloadToken, setReloadToken] = useState(0);
+  // P2-11: mutation error surface (single toast slot, last error wins).
+  const [toastMsg, setToastMsg] = useState<string | null>(null);
 
   // ─────────── fetch ───────────
   useEffect(() => {
@@ -94,9 +97,7 @@ export function AccountsListMount(props: AccountsListMountProps = {}) {
         setSheet('none');
         setReloadToken((n) => n + 1);
       } catch {
-        if (typeof window !== 'undefined') {
-          window.alert('Не удалось создать счёт — попробуйте снова');
-        }
+        setToastMsg('Не удалось создать счёт — попробуйте снова');
       } finally {
         setSubmitting(false);
       }
@@ -128,6 +129,12 @@ export function AccountsListMount(props: AccountsListMountProps = {}) {
           submitting={submitting}
         />
       </PosterSheet>
+      <Toast
+        message={toastMsg ?? ''}
+        visible={toastMsg !== null}
+        onDismiss={() => setToastMsg(null)}
+        duration={4000}
+      />
     </>
   );
 }
