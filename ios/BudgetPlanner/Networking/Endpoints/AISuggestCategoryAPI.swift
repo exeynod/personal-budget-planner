@@ -9,9 +9,10 @@
 // failure (403 require_pro for a non-pro caller, 404 AI disabled, network,
 // decoding) returns nil — no thrown error, no error banner.
 //
-// CRITICAL (T-64-02-02): the request passes `suppressUnauthHandler: true` so a
-// 403 from require_pro does NOT trigger APIClient.onUnauthenticated → global
-// logout. Without this flag a non-pro 403 would log the owner out.
+// CRITICAL (T-64-02-02): the request passes `suppressForbiddenHandler: true` so
+// a 403 from require_pro does NOT trigger APIClient.onUnauthenticated → global
+// logout. Without this flag a non-pro 403 would log the owner out. WR-02: this
+// suppression is 403-only; a genuine 401 expired-token here still logs out.
 
 import Foundation
 
@@ -37,13 +38,19 @@ enum AISuggestCategoryAPI {
             let dto: SuggestCategoryDTO = try await APIClient.shared.request(
                 "GET", "/ai/suggest-category",
                 query: ["q": q],
-                suppressUnauthHandler: true)
+                suppressForbiddenHandler: true)
             return dto
         } catch {
             // Silent: 403 (non-pro) / 404 (AI off) / network / decoding → nil.
-            // NOTE: suppressUnauthHandler:true above means a 403 never reached
-            // onUnauthenticated, so the owner is NOT logged out here.
-            print("AISuggest silent fail: \(error)")
+            // NOTE: suppressForbiddenHandler:true above means a 403 never reached
+            // onUnauthenticated, so the owner is NOT logged out here. A real 401
+            // is NOT suppressed and still triggers the global logout (WR-02).
+            // IN-01: do NOT interpolate the raw error — a networking error can
+            // embed the request URL with the `q=` description (PII). Log only a
+            // static category in DEBUG; nothing in release.
+            #if DEBUG
+            print("AISuggest silent fail (\(type(of: error)))")
+            #endif
             return nil
         }
     }

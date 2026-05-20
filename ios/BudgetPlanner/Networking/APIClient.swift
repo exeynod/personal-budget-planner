@@ -79,11 +79,11 @@ final class APIClient {
         query: [String: String]? = nil,
         body: Encodable? = nil,
         skipAuth: Bool = false,
-        suppressUnauthHandler: Bool = false
+        suppressForbiddenHandler: Bool = false
     ) async throws -> T {
         let data = try await rawRequest(
             method, path, query: query, body: body,
-            skipAuth: skipAuth, suppressUnauthHandler: suppressUnauthHandler)
+            skipAuth: skipAuth, suppressForbiddenHandler: suppressForbiddenHandler)
         if T.self == EmptyResponse.self {
             return EmptyResponse() as! T
         }
@@ -100,11 +100,11 @@ final class APIClient {
         query: [String: String]? = nil,
         body: Encodable? = nil,
         skipAuth: Bool = false,
-        suppressUnauthHandler: Bool = false
+        suppressForbiddenHandler: Bool = false
     ) async throws {
         _ = try await rawRequest(
             method, path, query: query, body: body,
-            skipAuth: skipAuth, suppressUnauthHandler: suppressUnauthHandler)
+            skipAuth: skipAuth, suppressForbiddenHandler: suppressForbiddenHandler)
     }
 
     private func rawRequest(
@@ -113,7 +113,7 @@ final class APIClient {
         query: [String: String]?,
         body: Encodable?,
         skipAuth: Bool,
-        suppressUnauthHandler: Bool = false
+        suppressForbiddenHandler: Bool = false
     ) async throws -> Data {
         guard
             var components = URLComponents(
@@ -156,16 +156,21 @@ final class APIClient {
         case 200...299:
             return data
         case 401:
-            // 64-02 (T-64-02-02): silent AI-suggest passes suppressUnauthHandler
-            // → a non-pro/expired token does NOT trigger the global logout path.
-            if !suppressUnauthHandler { onUnauthenticated?() }
+            // WR-02: a genuine 401 (expired/invalid token) ALWAYS triggers the
+            // global logout — there is no per-call suppression here. Earlier the
+            // AI-suggest call swallowed 401 too via the old suppressUnauthHandler
+            // flag, which was broader than its stated "require_pro 403" intent.
+            // Suppression is now scoped to 403 only (suppressForbiddenHandler).
+            onUnauthenticated?()
             throw APIError.unauthorized
         case 403:
             let detail = decodeErrorDetail(data) ?? "Forbidden"
             // 64-02 (T-64-02-02): require_pro 403 on /ai/suggest-category MUST
-            // NOT log the owner out — suppressUnauthHandler gates it (combined
+            // NOT log the owner out — suppressForbiddenHandler gates it (combined
             // with the existing !skipAuth condition). Additive, default false.
-            if !skipAuth, !suppressUnauthHandler { onUnauthenticated?() }
+            // WR-02: this flag is intentionally 403-only; a 401 auth-expiry on
+            // the same endpoint still logs out (see the 401 branch above).
+            if !skipAuth, !suppressForbiddenHandler { onUnauthenticated?() }
             throw APIError.forbidden(detail)
         case 404:
             throw APIError.notFound
