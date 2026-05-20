@@ -49,6 +49,31 @@ final class GoalDetailViewModelTests: XCTestCase {
         XCTAssertNil(vm.mutationError)
     }
 
+    // MARK: - deposit validation guard (IN-03 / CR-01)
+
+    // The deposit POST hits the concrete SavingsAPI enum (no injectable
+    // seam — same constraint as load()/deleteGoal()), so success/failure
+    // round-trips are verifier-smoke territory. What IS unit-testable
+    // deterministically is the validation gate, which returns `false`
+    // BEFORE any network call and without flipping submitting.
+
+    func test_deposit_invalidDraft_returnsFalse_noSubmittingSideEffect() async {
+        let vm = GoalDetailViewModel(goalId: 1)
+        // amountCents == 0 → isValidDepositDraft false → early return.
+        let ok = await vm.deposit(amountCents: 0, accountId: 1, goalId: 1)
+        XCTAssertFalse(ok)
+        XCTAssertFalse(vm.submitting)
+        XCTAssertNil(vm.mutationError)
+    }
+
+    func test_deposit_zeroAccount_returnsFalse() async {
+        let vm = GoalDetailViewModel(goalId: 1)
+        // accountId == 0 violates backend Field(gt=0) → gate rejects.
+        let ok = await vm.deposit(amountCents: 5000, accountId: 0, goalId: 1)
+        XCTAssertFalse(ok)
+        XCTAssertFalse(vm.submitting)
+    }
+
     // MARK: - Status equatable
 
     func test_status_equatable() {
