@@ -3,16 +3,16 @@ gsd_state_version: 1.0
 milestone: v1.1.2
 milestone_name: — iOS v06 Native Rebuild)
 current_phase: 65
-status: completed
-stopped_at: Completed 62-03-PLAN.md (Savings gap closure)
-last_updated: "2026-05-20T11:35:36.433Z"
+status: verifying
+stopped_at: Completed 63-02-PLAN.md
+last_updated: "2026-05-20T11:44:18.276Z"
 last_activity: 2026-05-20
 progress:
   total_phases: 35
-  completed_phases: 21
+  completed_phases: 22
   total_plans: 59
-  completed_plans: 58
-  percent: 98
+  completed_plans: 59
+  percent: 100
 ---
 
 ## Active Milestone: v1.1.2 — iOS v06 Native Rebuild
@@ -48,7 +48,7 @@ See: .planning/PROJECT.md (updated 2026-05-09 — v1.0 milestone «Maximal Poste
 
 Phase: 63 (subscriptions-v06) — EXECUTING
 Plan: 63-01 complete (2 of 2 plans) — 63-02 next
-Status: Plan 63-01 complete (V10API migration + pure helpers)
+Status: Phase complete — ready for verification
 Last activity: 2026-05-20
 
 ## Milestone v1.0 Phases
@@ -98,6 +98,7 @@ Last activity: 2026-05-20
 | Phase 62 P02 | 5min | 3 tasks | 5 files |
 | Phase 62 P03 | 12min | 3 tasks | 7 files |
 | Phase 63 P01 | 4min | 2 tasks | 3 files |
+| Phase 63 P02 | 25min | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -133,6 +134,8 @@ Recent decisions from v0.6 (preserved for context):
 - [Phase ?]: [Phase 62-02]: SavingsViewModel optimistic config update + filtered Russian copy + submitting guard (T-62-04/05); 0 error.localizedDescription (T-62-03); SavingsViewData 5 Foundation-only pure helpers; 32 unit tests pass
 - [Phase ?]: [Phase 62-03]: GoalDetail/NewGoal/Deposit stubs closed; WR-05 (accountId>0) + IN-04 (MSK due encoding) fixed; GoalDetail deposit self-contained via SavingsAPI.postDeposit+load; WR-01/02/03/04/06 remain OPEN in master mutation paths (out of scope); 488 tests green
 - [Phase ?]: [Phase 63-01]: SubscriptionsViewModel migrated to SubscriptionsV10API (list/post/unpost/patch/delete); create-path stays legacy (V10API has no create); LocalNotifications.reschedule dropped as known-gap (legacy Decodable-only DTO); SubscriptionsViewData 6 Foundation-only pure helpers + 18 tests green; T-63-01 submitting guard + T-63-02 filtered RU + T-63-04 full reload
+- [Phase ?]: 63-02: edit-path date stays on legacy String yyyy-MM-dd path (avoid .iso8601 UTC day-shift); day_of_month/account_id via follow-up V10 PATCH
+- [Phase ?]: 63-02: LocalNotifications.reschedule(subscriptionsV10:) overload restores 63-01 dropped rescheduling
 
 ### Pending Todos
 
@@ -217,8 +220,8 @@ v1.0 deferred (acknowledged at planning):
 
 ## Session Continuity
 
-Last session: 2026-05-20T11:34:59.510Z
-Stopped at: Completed 62-03-PLAN.md (Savings gap closure)
+Last session: 2026-05-20T11:44:18.273Z
+Stopped at: Completed 63-02-PLAN.md
 Resume file: None
 
 ## Deferred Items

@@ -405,7 +405,7 @@ Plans:
 
 Plans:
 - [x] 63-01-PLAN.md — Миграция SubscriptionsViewModel на SubscriptionsV10API (list/patch/post/unpost/delete) + post/unpost мутации + SubscriptionsViewData pure-helpers (create остаётся legacy — V10API без create-эндпоинта)
-- [ ] 63-02-PLAN.md — Editor расширения (account Picker + day_of_month Stepper 1...28 monthly) + row badge + swipe post/unpost с confirmationDialog + create-path (legacy create + follow-up V10 PATCH) + >=10 unit-тестов
+- [x] 63-02-PLAN.md — Editor расширения (account Picker + day_of_month Stepper 1...28 monthly) + row badge + swipe post/unpost с confirmationDialog + create-path (legacy create + follow-up V10 PATCH) + >=10 unit-тестов
 
 ### Phase 64: AddSheet нативный (v06) — planned
 **Goal**: Замена `TransactionEditor` modal на расширенный native Form sheet — без custom keypad, используем `keyboardType: .decimalPad`. Picker категории/счёта. Подсказка AI-категории inline.
