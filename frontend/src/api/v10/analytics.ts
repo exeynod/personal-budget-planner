@@ -16,7 +16,8 @@
  * `computeAnalytics.groupActualsByCategory` output for symmetry.
  */
 import { apiFetch } from '../client';
-import type { TopCategoriesResponse, AnalyticsRange } from '../types';
+import type { TopCategoriesResponse } from '../types';
+import type { AnalyticsRange } from '../analytics';
 
 /**
  * Phase 27-05 — UI-facing top-category row used by `AnalyticsView`.

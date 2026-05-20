@@ -78,7 +78,7 @@ export function AiView(props: AiViewProps) {
 
   // Auto-scroll to last message / typing indicator while streaming or on
   // any message append. Active state only — initial has no scroll log.
-  const bottomRef = useRef<HTMLDivElement | null>(null);
+  const bottomRef = useRef<HTMLLIElement | null>(null);
   useEffect(() => {
     if (!isInitial) {
       // jsdom (test env) doesn't implement scrollIntoView — guard with typeof.
