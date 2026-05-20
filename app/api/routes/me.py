@@ -31,7 +31,13 @@ from app.api.dependencies import (
     get_db,
     get_db_with_tenant_scope,
 )
-from app.api.schemas.me_v10 import MePatchV10, MeV10Response
+from app.api.schemas.me_v10 import (
+    AccountDeleteResponse,
+    ConsentGrantResponse,
+    ConsentRevokeResponse,
+    MePatchV10,
+    MeV10Response,
+)
 from app.db.models import AppUser, PdnAuditEvent
 from app.services.pdn_audit import record_audit
 
@@ -106,13 +112,14 @@ async def patch_me(
 @me_router.post(
     "/me/consent",
     status_code=status.HTTP_200_OK,
+    response_model=ConsentGrantResponse,
     responses={200: {"description": "Consent granted (idempotent)."}},
 )
 async def grant_consent(
     request: Request,
     current_user: Annotated[AppUser, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
-) -> dict:
+) -> ConsentGrantResponse:
     """Phase 33 CMP-33-04: idempotent ПДн consent grant.
 
     Sets ``app_user.pdn_consent_at = now()`` if not already set; writes an
@@ -141,12 +148,13 @@ async def grant_consent(
 @me_router.delete(
     "/me/consent",
     status_code=status.HTTP_200_OK,
+    response_model=ConsentRevokeResponse,
 )
 async def revoke_consent(
     request: Request,
     current_user: Annotated[AppUser, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
-) -> dict:
+) -> ConsentRevokeResponse:
     """Phase 33 CMP-33-04: revoke consent.
 
     Nulls ``app_user.pdn_consent_at`` + writes audit event ``revoked``.
@@ -170,6 +178,11 @@ async def revoke_consent(
 @me_router.get(
     "/me/export",
     status_code=status.HTTP_200_OK,
+    # Phase 69 (B1): INTENTIONALLY response_model=None. This route returns
+    # an arbitrary nested data-dump (right-of-access export). Synthesising a
+    # Pydantic model would risk reshaping compliance keys (a regression), so
+    # it stays free-form and is EXEMPTED in tests/test_openapi_contract.py.
+    response_model=None,
 )
 async def export_my_data(
     request: Request,
@@ -202,6 +215,8 @@ async def export_my_data(
 @me_router.delete(
     "/me/account",
     status_code=status.HTTP_200_OK,
+    # Phase 69 (B1): fixed structured shape → typed (NOT a free-form dump).
+    response_model=AccountDeleteResponse,
     responses={
         200: {"description": "Soft-delete scheduled; hard-delete in 30 days."},
         410: {"description": "Already deleted."},
@@ -211,7 +226,7 @@ async def delete_my_account(
     request: Request,
     current_user: Annotated[AppUser, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
-) -> dict:
+) -> AccountDeleteResponse:
     """Phase 33 CMP-33-02: account soft-delete (30-day cooling)."""
     from app.services.account_deletion import soft_delete_account
 

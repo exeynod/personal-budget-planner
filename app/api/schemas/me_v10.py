@@ -77,3 +77,57 @@ class MeV10Response(BaseModel):
     ai_spending_cap_cents: int
     # ---- Phase 22 (BE-01) v1.0 extension ----
     income_cents: Optional[int]
+
+
+# ---------- Phase 69 (B1) — typed compliance read-DTOs ----------
+#
+# These mirror the EXACT wire bodies the structured-read /me compliance
+# routes already return (Phase 33 CMP-33-*). Typing them pins the OpenAPI
+# contract (B1) so codegen (B2 web / B3 iOS) gets real schemas instead of
+# free-form `object`. Byte-identical to the previous bare-dict bodies —
+# ``extra="ignore"`` is the response-side default and no key changes.
+#
+# NOTE: ``GET /me/export`` is INTENTIONALLY NOT typed here — it returns an
+# arbitrary nested data-dump (right-of-access export); synthesising a model
+# would risk reshaping compliance keys (a regression). It stays
+# response_model=None and is EXEMPTED by tests/test_openapi_contract.py.
+
+
+class ConsentGrantResponse(BaseModel):
+    """POST /api/v1/me/consent response — idempotent ПДн consent grant.
+
+    ``pdn_consent_at`` is an ISO-8601 wire-string (never None on grant).
+    """
+
+    model_config = ConfigDict(extra="ignore")
+
+    pdn_consent_at: str
+    policy_version: str
+
+
+class ConsentRevokeResponse(BaseModel):
+    """DELETE /api/v1/me/consent response — consent revoke.
+
+    ``pdn_consent_at`` is always None after revoke; ``revoked`` is True when
+    a consent timestamp was actually present (else a no-op revoke).
+    """
+
+    model_config = ConfigDict(extra="ignore")
+
+    pdn_consent_at: Optional[str]
+    revoked: bool
+
+
+class AccountDeleteResponse(BaseModel):
+    """DELETE /api/v1/me/account response — soft-delete scheduled.
+
+    Fixed structured shape (not a free-form dump), so it gets a typed
+    model. ``deleted_at`` is an ISO-8601 wire-string; ``purge_after_days``
+    is the cooling window (30).
+    """
+
+    model_config = ConfigDict(extra="ignore")
+
+    deleted_at: str
+    purge_after_days: int
+    message: str
