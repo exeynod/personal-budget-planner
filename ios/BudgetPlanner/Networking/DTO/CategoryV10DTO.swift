@@ -11,57 +11,57 @@ enum CategoryRollover: String, Codable {
     case savings
 }
 
-/// Phase 25-03 — Decodable mirror of the v1.0 `CategoryRead` surface.
+/// Wire-level enum for `category.tag` (Phase 36). VARCHAR with a CHECK
+/// constraint on DB; the server defaults it to `personal`.
+enum CategoryTag: String, Codable {
+    case personal
+    case business
+    case mixed
+}
+
+/// Decodable read shape for the v1.0 `CategoryRead` surface
+/// (`app/api/schemas/categories.py`). The canonical wire contract is the
+/// generated `Gen.CategoryRead` (Networking/Generated/GeneratedDTO.swift,
+/// Phase 69 B1/B3); this consumer-facing type mirrors it field-for-field
+/// and decodes through the same `APIClient` `JSONDecoder`
+/// (`.convertFromSnakeCase` + MSK date strategy).
 ///
-/// **Schema gap (documented in 25-03 SUMMARY)**: as of Phase 22 the
-/// backend Pydantic `CategoryRead` (`app/api/schemas/categories.py`)
-/// still emits only the v0.x field set (id / name / kind / is_archived /
-/// sort_order / created_at). The ORM `Category` model already has the
-/// v1.0 columns (`code, plan_cents, ord, rollover, paused, parent_id`)
-/// via Phase 22 alembic 0013 — but they are not yet on the wire.
-///
-/// This DTO declares the v1.0 fields as `Optional` so decoding stays
-/// crash-clean both before and after the schema is widened. UI code
-/// MUST defensively default (`planCents ?? 0`, `paused ?? false`,
-/// `rollover ?? .misc`, `code ?? nil`) until the schema lands.
+/// **Required vs optional follows the OpenAPI `required` set** (Phase 69 B4):
+/// - `code` / `ord` / `createdAt` are required on the wire (no server
+///   default) → **non-optional**, plain `decode`.
+/// - `planCents` (=0) / `rollover` (=misc) / `paused` (=false) carry server
+///   defaults → kept as non-optional consumer-facing values with a decode
+///   fallback (the wire always carries them; the fallback only guards
+///   fixtures that omit a defaulted field — drift-report §"required vs
+///   optional"). `parentId` / `tag` are genuinely optional.
 ///
 /// Reuses the existing `CategoryKind` enum from `CommonDTO.swift`
 /// (2-valued — categories are always expense | income).
-///
-/// Decodable conformance is custom (not synthesized) so missing v1.0
-/// keys don't trip `keyNotFound` errors — they fall back to nil/defaults.
 struct CategoryV10DTO: Decodable, Identifiable, Equatable {
     let id: Int
     let name: String
     let kind: CategoryKind
     let isArchived: Bool
     let sortOrder: Int
-    let createdAt: Date?
-
-    // ---- Phase 22 BE-04 fields — pending CategoryRead schema update ----
+    let createdAt: Date
     /// Slug for system categories ('food', 'cafe', 'savings', ...).
-    /// Pending Phase 22 schema update — `nil` until backend exposes it.
-    let code: String?
-    /// Plan limit for the current period in copecks. Defaults to 0.
+    let code: String
+    /// '01'..'99' display ordinal (CHAR(2) on DB).
+    let ord: String
+    /// Plan limit for the current period in copecks (server default 0).
     let planCents: Int
-    /// '01'..'99' display ordinal (CHAR(2) on DB). Defaults to nil.
-    let ord: String?
-    /// Where the leftover goes at period close. Defaults to `.misc`.
+    /// Where the leftover goes at period close (server default `.misc`).
     let rollover: CategoryRollover
-    /// True = excluded from current-period calculations. Defaults to false.
+    /// True = excluded from current-period calculations (server default false).
     let paused: Bool
-    /// Composite self-FK on (parent_id, user_id). Defaults to nil.
+    /// Composite self-FK on (parent_id, user_id). Genuinely optional.
     let parentId: Int?
+    /// Category classification (Phase 36, server default `personal`).
+    let tag: CategoryTag?
 
     private enum CodingKeys: String, CodingKey {
-        // Note: APIClient decoder uses .convertFromSnakeCase, so wire
-        // keys like `is_archived` map to `isArchived` automatically —
-        // BUT once we declare CodingKeys explicitly we must spell each
-        // key in its camelCase form (the strategy still applies because
-        // we're using rawValue identifiers that match the converted
-        // names).
         case id, name, kind, isArchived, sortOrder, createdAt
-        case code, planCents, ord, rollover, paused, parentId
+        case code, planCents, ord, rollover, paused, parentId, tag
     }
 
     init(from decoder: Decoder) throws {
@@ -71,15 +71,17 @@ struct CategoryV10DTO: Decodable, Identifiable, Equatable {
         self.kind = try c.decode(CategoryKind.self, forKey: .kind)
         self.isArchived = try c.decode(Bool.self, forKey: .isArchived)
         self.sortOrder = try c.decode(Int.self, forKey: .sortOrder)
-        self.createdAt = try c.decodeIfPresent(Date.self, forKey: .createdAt)
-
-        // v1.0 fields — defensive defaults until CategoryRead is widened.
-        self.code = try c.decodeIfPresent(String.self, forKey: .code)
+        // Required on the wire (no server default).
+        self.createdAt = try c.decode(Date.self, forKey: .createdAt)
+        self.code = try c.decode(String.self, forKey: .code)
+        self.ord = try c.decode(String.self, forKey: .ord)
+        // Server-defaulted: fallback only guards a fixture that omits them.
         self.planCents = (try? c.decodeIfPresent(Int.self, forKey: .planCents)) ?? 0
-        self.ord = try c.decodeIfPresent(String.self, forKey: .ord)
         self.rollover = (try? c.decodeIfPresent(CategoryRollover.self, forKey: .rollover)) ?? .misc
         self.paused = (try? c.decodeIfPresent(Bool.self, forKey: .paused)) ?? false
+        // Genuinely optional.
         self.parentId = try c.decodeIfPresent(Int.self, forKey: .parentId)
+        self.tag = try c.decodeIfPresent(CategoryTag.self, forKey: .tag)
     }
 }
 
