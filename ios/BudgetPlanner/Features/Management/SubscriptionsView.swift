@@ -178,11 +178,10 @@ struct SubscriptionsView: View {
     @State private var viewModel = SubscriptionsViewModel()
     @State private var editingSub: SubscriptionV10DTO?
     @State private var showingNew = false
-
-    private var isLoading: Bool {
-        if case .loading = viewModel.status { return true }
-        return false
-    }
+    /// Pending post/unpost target — денежная мутация под confirmationDialog
+    /// (T-63-01/05). nil → диалог скрыт.
+    @State private var postSubject: SubscriptionV10DTO?
+    @State private var postIsUnpost = false
 
     private func categoryName(_ id: Int) -> String {
         viewModel.categories.first { $0.id == id }?.name ?? ""
@@ -190,58 +189,17 @@ struct SubscriptionsView: View {
 
     var body: some View {
         List {
-            Section("Сводка") {
-                LabeledContent("В месяц") {
-                    Text(MoneyFormatter.formatWithSymbol(cents: viewModel.monthlyLoadCents))
-                        .monospacedDigit()
-                        .foregroundStyle(.primary)
+            switch viewModel.status {
+            case .idle, .loading:
+                loadingSection
+            case .error(let msg):
+                errorSection(msg)
+            case .ready:
+                if let err = viewModel.mutationError {
+                    mutationErrorBanner(err)
                 }
-                LabeledContent("Активных") {
-                    Text("\(viewModel.activeCount)")
-                        .monospacedDigit()
-                        .foregroundStyle(.secondary)
-                }
-            }
-
-            Section("Подписки") {
-                if isLoading && viewModel.subscriptions.isEmpty {
-                    ProgressView()
-                } else if case .error(let msg) = viewModel.status, viewModel.subscriptions.isEmpty {
-                    ContentUnavailableView(
-                        "Не удалось загрузить",
-                        systemImage: "exclamationmark.triangle",
-                        description: Text(msg)
-                    )
-                    .listRowBackground(Color.clear)
-                } else if viewModel.subscriptions.isEmpty {
-                    ContentUnavailableView(
-                        "Подписок нет",
-                        systemImage: "square.stack.3d.up.slash",
-                        description: Text("Тапните + чтобы добавить.")
-                    )
-                    .listRowBackground(Color.clear)
-                } else {
-                    ForEach(viewModel.subscriptions) { sub in
-                        SubscriptionRow(sub: sub, categoryName: categoryName(sub.categoryId))
-                            .contentShape(Rectangle())
-                            .onTapGesture { editingSub = sub }
-                            .swipeActions(edge: .trailing) {
-                                Button(role: .destructive) {
-                                    Task { await viewModel.delete(sub) }
-                                } label: {
-                                    Label("Удалить", systemImage: "trash")
-                                }
-                                .disabled(viewModel.submitting)
-                            }
-                    }
-                }
-            }
-
-            if let err = viewModel.mutationError {
-                Section {
-                    Label(err, systemImage: "exclamationmark.triangle")
-                        .foregroundStyle(.red)
-                }
+                summarySection
+                subscriptionsSection
             }
         }
         .listStyle(.insetGrouped)
@@ -256,6 +214,32 @@ struct SubscriptionsView: View {
             }
         }
         .refreshable { await viewModel.load() }
+        .confirmationDialog(
+            postIsUnpost ? "Отменить проведение?" : "Провести подписку?",
+            isPresented: postDialogBinding,
+            titleVisibility: .visible
+        ) {
+            if let sub = postSubject {
+                Button(postIsUnpost ? "Отменить проведение" : "Провести", role: postIsUnpost ? .destructive : nil) {
+                    let target = sub
+                    let isUnpost = postIsUnpost
+                    Task {
+                        if isUnpost {
+                            _ = await viewModel.unpost(target)
+                        } else {
+                            _ = await viewModel.post(target)
+                        }
+                        postSubject = nil
+                    }
+                }
+                Button("Отмена", role: .cancel) { postSubject = nil }
+            }
+        } message: {
+            Text(
+                postIsUnpost
+                    ? "Связанная транзакция-списание будет удалена."
+                    : "Будет создана транзакция-списание по подписке.")
+        }
         .task {
             _ = await LocalNotifications.requestAuthorization()
             await viewModel.load()
@@ -286,6 +270,126 @@ struct SubscriptionsView: View {
                 }
             )
         }
+    }
+
+    // MARK: - State sections
+
+    private var loadingSection: some View {
+        Section {
+            ProgressView()
+                .frame(maxWidth: .infinity)
+        }
+    }
+
+    private func errorSection(_ msg: String) -> some View {
+        Section {
+            ContentUnavailableView(
+                "Не удалось загрузить",
+                systemImage: "exclamationmark.triangle",
+                description: Text(msg)
+            )
+            .listRowBackground(Color.clear)
+        }
+    }
+
+    // MARK: - Mutation error banner (T-63-02)
+
+    private func mutationErrorBanner(_ msg: String) -> some View {
+        Section {
+            HStack(spacing: 12) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(.red)
+                Text(msg)
+                    .font(.callout)
+                    .foregroundStyle(.primary)
+                Spacer(minLength: 8)
+                Button {
+                    viewModel.clearMutationError()
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.borderless)
+                .accessibilityLabel("Скрыть ошибку")
+            }
+        }
+    }
+
+    // MARK: - Summary
+
+    private var summarySection: some View {
+        Section("Сводка") {
+            LabeledContent("В месяц") {
+                Text(MoneyFormatter.formatWithSymbol(cents: viewModel.monthlyLoadCents))
+                    .monospacedDigit()
+                    .foregroundStyle(.primary)
+            }
+            LabeledContent("Активных") {
+                Text("\(viewModel.activeCount)")
+                    .monospacedDigit()
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    // MARK: - Subscriptions list
+
+    @ViewBuilder
+    private var subscriptionsSection: some View {
+        Section("Подписки") {
+            if viewModel.subscriptions.isEmpty {
+                ContentUnavailableView(
+                    "Подписок нет",
+                    systemImage: "square.stack.3d.up.slash",
+                    description: Text("Тапните + чтобы добавить.")
+                )
+                .listRowBackground(Color.clear)
+            } else {
+                ForEach(viewModel.subscriptions) { sub in
+                    SubscriptionRow(sub: sub, categoryName: categoryName(sub.categoryId))
+                        .contentShape(Rectangle())
+                        .onTapGesture { editingSub = sub }
+                        .swipeActions(edge: .leading) {
+                            if SubscriptionsViewData.isPosted(sub) {
+                                Button {
+                                    postIsUnpost = true
+                                    postSubject = sub
+                                } label: {
+                                    Label("Отменить проведение", systemImage: "arrow.uturn.backward")
+                                }
+                                .tint(.orange)
+                                .disabled(viewModel.submitting)
+                            } else {
+                                Button {
+                                    postIsUnpost = false
+                                    postSubject = sub
+                                } label: {
+                                    Label("Провести", systemImage: "checkmark.circle")
+                                }
+                                .tint(.green)
+                                .disabled(viewModel.submitting)
+                            }
+                        }
+                        .swipeActions(edge: .trailing) {
+                            Button(role: .destructive) {
+                                Task { await viewModel.delete(sub) }
+                            } label: {
+                                Label("Удалить", systemImage: "trash")
+                            }
+                            .disabled(viewModel.submitting)
+                        }
+                }
+            }
+        }
+    }
+
+    // MARK: - Dialog binding
+
+    private var postDialogBinding: Binding<Bool> {
+        Binding(
+            get: { postSubject != nil },
+            set: { if !$0 { postSubject = nil } }
+        )
     }
 }
 
@@ -318,10 +422,18 @@ private struct SubscriptionRow: View {
                 .background(visual.color.opacity(0.15), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(sub.name)
-                    .font(.body)
-                    .foregroundStyle(.primary)
-                    .lineLimit(1)
+                HStack(spacing: 6) {
+                    Text(sub.name)
+                        .font(.body)
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+                    if SubscriptionsViewData.isPosted(sub) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.caption)
+                            .foregroundStyle(.green)
+                            .accessibilityLabel("Проведено")
+                    }
+                }
                 Text(metaLine)
                     .font(.caption)
                     .foregroundStyle(.secondary)
