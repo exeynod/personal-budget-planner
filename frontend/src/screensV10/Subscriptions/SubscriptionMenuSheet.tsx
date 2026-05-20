@@ -21,6 +21,7 @@ import { useState } from 'react';
 import { PosterSheet } from '../common';
 import { PosterButton } from '../../componentsV10';
 import type { SubscriptionV10Read } from '../../api/v10';
+import { parseRublesToKopecksOr0, sanitizeMoneyInput } from '../../utils/parseMoney';
 import styles from './SubscriptionMenuSheet.module.css';
 
 export interface SubscriptionMenuSheetProps {
@@ -81,8 +82,8 @@ export function SubscriptionMenuSheet(props: SubscriptionMenuSheetProps) {
   };
 
   const handleSavePrice = async () => {
-    const parsed = parseInt(priceRubles, 10);
-    const cents = (Number.isNaN(parsed) ? 0 : parsed) * 100;
+    // P2-10: single money parser — keeps kopecks.
+    const cents = parseRublesToKopecksOr0(priceRubles);
     if (cents <= 0) {
       // Defensive — input field strips non-digits but extra guard against
       // empty / zero submit (T-26-06-03 mitigation).
@@ -176,9 +177,7 @@ export function SubscriptionMenuSheet(props: SubscriptionMenuSheetProps) {
             type="text"
             inputMode="decimal"
             value={priceRubles}
-            onChange={(e) =>
-              setPriceRubles(e.target.value.replace(/[^0-9]/g, ''))
-            }
+            onChange={(e) => setPriceRubles(sanitizeMoneyInput(e.target.value))}
             className={styles.numInput}
             data-testid="sub-price-input"
           />

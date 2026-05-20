@@ -12,6 +12,7 @@ import { useEffect, useState } from 'react';
 import { PosterButton, Chip } from '../../componentsV10';
 import type { AccountResponse, GoalRead } from '../../api/v10';
 import { isValidDepositDraft } from './computeSavings';
+import { parseRublesToKopecksOr0, sanitizeMoneyInput } from '../../utils/parseMoney';
 import styles from './SavingsSheets.module.css';
 
 export interface DepositSheetProps {
@@ -50,11 +51,8 @@ export function DepositSheet(props: DepositSheetProps) {
     }
   }, [props.accounts, accountId]);
 
-  const amountCents = (() => {
-    const parsed = parseInt(amountRubles, 10);
-    if (Number.isNaN(parsed) || parsed <= 0) return 0;
-    return parsed * 100;
-  })();
+  // P2-10: single money parser — keeps kopecks (e.g. «500,50» → 50050).
+  const amountCents = parseRublesToKopecksOr0(amountRubles);
 
   const valid = isValidDepositDraft({
     amount_cents: amountCents,
@@ -78,11 +76,9 @@ export function DepositSheet(props: DepositSheetProps) {
       <label className={styles.fieldLabel}>СУММА (₽)</label>
       <input
         type="text"
-        inputMode="numeric"
+        inputMode="decimal"
         value={amountRubles}
-        onChange={(e) =>
-          setAmountRubles(e.target.value.replace(/[^0-9]/g, ''))
-        }
+        onChange={(e) => setAmountRubles(sanitizeMoneyInput(e.target.value))}
         className={styles.textInput}
         placeholder="500"
         data-testid="deposit-amount-input"

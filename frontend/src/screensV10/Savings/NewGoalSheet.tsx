@@ -12,6 +12,7 @@
 import { useState } from 'react';
 import { PosterButton } from '../../componentsV10';
 import { isValidGoalDraft } from './computeSavings';
+import { parseRublesToKopecksOr0, sanitizeMoneyInput } from '../../utils/parseMoney';
 import styles from './SavingsSheets.module.css';
 
 export interface NewGoalSheetProps {
@@ -32,11 +33,8 @@ export function NewGoalSheet(props: NewGoalSheetProps) {
   const [targetRubles, setTargetRubles] = useState('');
   const [due, setDue] = useState('');
 
-  const targetCents = (() => {
-    const parsed = parseInt(targetRubles, 10);
-    if (Number.isNaN(parsed) || parsed <= 0) return 0;
-    return parsed * 100;
-  })();
+  // P2-10: single money parser — keeps kopecks.
+  const targetCents = parseRublesToKopecksOr0(targetRubles);
 
   const draft = { name, target_cents: targetCents, due: due || null };
   const valid = isValidGoalDraft(draft);
@@ -67,11 +65,9 @@ export function NewGoalSheet(props: NewGoalSheetProps) {
       <label className={styles.fieldLabel}>СУММА (₽)</label>
       <input
         type="text"
-        inputMode="numeric"
+        inputMode="decimal"
         value={targetRubles}
-        onChange={(e) =>
-          setTargetRubles(e.target.value.replace(/[^0-9]/g, ''))
-        }
+        onChange={(e) => setTargetRubles(sanitizeMoneyInput(e.target.value))}
         className={styles.textInput}
         placeholder="100000"
         data-testid="goal-target-input"
