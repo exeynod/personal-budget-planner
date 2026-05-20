@@ -4,8 +4,8 @@ milestone: v1.1.2
 milestone_name: — iOS v06 Native Rebuild)
 current_phase: 68
 status: in-progress
-stopped_at: Phase 68 in progress — 68-01 (A1 pro-gating 402-vs-429) shipped; next 68-02 (A2 seed_category + onboarding 422)
-last_updated: "2026-05-20T22:30:00.000Z"
+stopped_at: Phase 68 in progress — 68-01 (A1) + 68-02 (A2 seed_category + onboarding 422) shipped; next 68-03 (A3 web tsc test-gate)
+last_updated: "2026-05-20T22:45:00.000Z"
 last_activity: 2026-05-20
 progress:
   total_phases: 36
@@ -47,7 +47,7 @@ See: .planning/PROJECT.md (updated 2026-05-09 — v1.0 milestone «Maximal Poste
 ## Current Position
 
 Phase: 68 (tech-debt-cleanup) — in progress
-Plan: 68-01 complete (A1 backend pro-gating 402-vs-429); next 68-02
+Plan: 68-01 + 68-02 complete (A1 pro-gating; A2 seed_category + onboarding 422); next 68-03
 Status: v1.1.2 followup started (CONVERGENCE-AND-DEBT-PLAN.md). Sequence 68 tech-debt -> 69 codegen R4 -> 70 convergence R3/R6/R7. plan-checker ON, worktrees OFF. Phase 67 complete. 68-01: extended seed_user with optional pro_active_until/trial_ends_at (default free, backward-compatible); seeded Pro users (pro_active_until +30d) in all 6 AI spend-cap tests so require_pro (402) passes and enforce_spending_cap (429) fires — tests/test_ai_cap_integration.py (4) + tests/test_spend_cap_concurrent.py (2) all green; gate order require_pro→enforce_spending_cap confirmed intentional, dependencies.py untouched (fixture-fix). Commits eece9ae + 0287eda. 67-10: single-reload subscription create (patchAlreadyReloaded skips redundant onSaved, P2-1); nextChargeDate source-of-truth for monthly day_of_month clamped 1..28 with Stepper/DatePicker bidirectional sync (P2-2); toggleRoundup/selectBase serialized via separate configInFlight guard (P2-3); flaky test_notificationTxnCreated_triggersLoad de-flaked via injected onNotificationLoadComplete seam + withCheckedContinuation, no Task.sleep (P2-12); CLAUDE.md + docs/HLD.md reframed single-tenant -> multi-tenant-via-RLS reality (RLS alembic 0008, owner/member roles, set_tenant_scope per request) as a security asset (R9). 67-05 banner + 67-07 Savings seam preserved; APIClient/backend/web/FeaturesV10 untouched. Full iOS suite 609 green.
 Last activity: 2026-05-20
 
@@ -110,6 +110,7 @@ Last activity: 2026-05-20
 | Phase 67 P07 | ~15min | 3 tasks | 7 files |
 | Phase 67 P09 | 22m | 3 tasks | 15 files |
 | Phase 67 P10 | 9min | 3 tasks | 6 files |
+| Phase 68 P02 | 25min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -119,6 +120,7 @@ Full decision log в PROJECT.md Key Decisions table.
 
 Recent decisions affecting v1.0 planning:
 
+- 68-02 (2026-05-20): seed_category now systemically supplies NOT-NULL code (slugified-name + itertools.count monotonic suffix — collision-resistant on the partial-unique (user_id, code) WHERE NOT is_archived index; NOT f"c{sort_order}") + ord (sort_order clamped 00..99, satisfies CHECK ^[0-9]{2}$; regex is on ord, not code). All inline Category seed hacks removed (test_categories + e2e). onboarding/complete 422 root = the live endpoint is v1.0 onboarding_v10 (income_cents/accounts/category_plans, extra=forbid) — legacy starting_balance_cents body is unmounted; tests migrated to v1.0 contract + pdn_consent grant (9 system categories = 8 defaults + savings). Rule 1 deviation: removed dropped plan_template_item from admin_users._PURGE_TABLES_ORDERED (every user-revoke crashed with UndefinedTableError). 16 tests green. Commits 84b0656 + 81309e3.
 - 67-05 (2026-05-20): SSE 403 also calls onUnauthenticated() — AI chat stream is always authed (= REST !skipAuth), so 403 there is a genuine auth failure; mirrors final 67-03 REST semantics.
 - 67-05 (2026-05-20): `userFacingRu` (UI-only, never surfaces server detail) kept distinct from `errorDescription` (still interpolates detail for logs/dev).
 - v1.0 (2026-05-09): 7-phase split (Backend / Design / Onboarding / Home+Tx+Add / CatDet+PLAN+Subs / AI+Sav+Accts+Anal+Mgmt / Polish) — derived from REQUIREMENTS.md категорий, не imposed structure. Каждая фаза = coherent delivery boundary с verifiable user-observable outcomes.
@@ -241,8 +243,8 @@ v1.0 deferred (acknowledged at planning):
 
 ## Session Continuity
 
-Last session: 2026-05-20T17:54:09.499Z
-Stopped at: Completed 67-09-PLAN.md
+Last session: 2026-05-20T22:45:00.000Z
+Stopped at: Completed 68-02-PLAN.md
 Resume file: None
 
 ## Deferred Items

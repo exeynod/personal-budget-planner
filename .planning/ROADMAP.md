@@ -473,7 +473,7 @@ Plans:
 
 
 - [x] 68-01-PLAN.md — [W1] BE A1: pro-gating 402-vs-429 — seed Pro users (seed_user pro/trial params); 6 cap tests assert 429 on pro-over-cap, non-pro→402 (SHIPPED 2026-05-20, commits eece9ae + 0287eda; gate order unchanged, fixture-fix)
-- [ ] 68-02-PLAN.md — [W2] BE A2: systemic seed_category (code+ord, no inline hacks) + onboarding/complete 422 root-cause fix; test_seed_creates_14_categories + e2e_1/3/4/6 green
+- [x] 68-02-PLAN.md — [W2] BE A2: systemic seed_category (code+ord, no inline hacks) + onboarding/complete 422 root-cause fix; test_categories.py (10) + e2e (6) green (SHIPPED 2026-05-20, commits 84b0656 + 81309e3; 422 root = legacy body vs v1.0 onboarding_v10 contract; Rule 1: removed dropped plan_template_item from admin purge)
 - [ ] 68-03-PLAN.md — [W1] Web A3: @types/node + tsconfig.test.json + typecheck:test; fix prop-drift in 3 .test.tsx; build + test-typecheck + vitest green
 - [ ] 68-04-PLAN.md — [W1] iOS A4: comment-only 0.5→0.35 threshold in AISuggestCategoryAPI.swift + swift-format
 
