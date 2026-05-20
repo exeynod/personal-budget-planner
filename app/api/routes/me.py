@@ -43,6 +43,37 @@ me_router = APIRouter(
 )
 
 
+async def build_me_response(
+    db: AsyncSession, user: AppUser
+) -> MeV10Response:
+    """Single source of truth for the /me payload (Phase 67 P2-6 / R8).
+
+    Both ``GET /me`` (app.api.router.get_me) and ``PATCH /me`` (patch_me below)
+    build their response через этот helper, гарантируя симметрию по
+    ``income_cents`` и любым будущим полям. Previously the two handlers
+    constructed the response independently — GET omitted ``income_cents``
+    while PATCH included it (the asymmetry P2-6 fixes).
+
+    ``ai_spend_cents`` читается через cached spend service (60s TTL).
+    """
+    from app.services.spend_cap import get_user_spend_cents
+
+    spend_cents = await get_user_spend_cents(db, user_id=user.id)
+    return MeV10Response(
+        tg_user_id=user.tg_user_id,
+        tg_chat_id=user.tg_chat_id,
+        cycle_start_day=user.cycle_start_day,
+        onboarded_at=(
+            user.onboarded_at.isoformat() if user.onboarded_at else None
+        ),
+        chat_id_known=user.tg_chat_id is not None,
+        role=user.role.value,
+        ai_spend_cents=int(spend_cents),
+        ai_spending_cap_cents=int(user.spending_cap_cents or 0),
+        income_cents=user.income_cents,
+    )
+
+
 @me_router.patch("/me", response_model=MeV10Response)
 async def patch_me(
     body: MePatchV10,
@@ -65,27 +96,8 @@ async def patch_me(
         current_user.income_cents = body.income_cents
         await db.flush()
 
-    # Build the response in the same shape the legacy GET /me handler
-    # returns + the v1.0 ``income_cents`` extension. Local import to
-    # avoid pulling spend-cap machinery into this module's import graph
-    # at request time (router files are imported once at boot).
-    from app.services.spend_cap import get_user_spend_cents
-
-    spend_cents = await get_user_spend_cents(db, user_id=current_user.id)
-    return MeV10Response(
-        tg_user_id=current_user.tg_user_id,
-        tg_chat_id=current_user.tg_chat_id,
-        cycle_start_day=current_user.cycle_start_day,
-        onboarded_at=(
-            current_user.onboarded_at.isoformat()
-            if current_user.onboarded_at else None
-        ),
-        chat_id_known=current_user.tg_chat_id is not None,
-        role=current_user.role.value,
-        ai_spend_cents=int(spend_cents),
-        ai_spending_cap_cents=int(current_user.spending_cap_cents or 0),
-        income_cents=current_user.income_cents,
-    )
+    # P2-6 / R8: shared builder keeps GET /me и PATCH /me симметричными.
+    return await build_me_response(db, current_user)
 
 
 # ---------- Phase 33 — Compliance endpoints ----------

@@ -29,18 +29,24 @@ from datetime import datetime, timedelta, timezone
 from app.core.auth import validate_init_data
 from app.core.settings import settings
 from app.db.models import AppUser, AuthToken, UserRole
-from app.db.session import AsyncSessionLocal, set_tenant_scope
+# R8 (Phase 67): get_db has a SINGLE canonical definition in app.db.session.
+# Re-export it here so the historical import path
+# ``from app.api.dependencies import get_db`` keeps working while there is only
+# one function object (no duplicate session-lifecycle implementation to drift).
+from app.db.session import AsyncSessionLocal, get_db, set_tenant_scope
 
-
-async def get_db() -> AsyncGenerator[AsyncSession, None]:
-    """Yield an async DB session with automatic commit/rollback."""
-    async with AsyncSessionLocal() as session:
-        try:
-            yield session
-            await session.commit()
-        except Exception:
-            await session.rollback()
-            raise
+__all__ = [
+    "get_db",
+    "get_current_user",
+    "get_current_user_id",
+    "get_db_with_tenant_scope",
+    "require_owner",
+    "require_onboarded",
+    "require_pro",
+    "enforce_spending_cap",
+    "enforce_spending_cap_for_user",
+    "verify_internal_token",
+]
 
 
 async def _resolve_app_user(db: AsyncSession, tg_user_id: int) -> AppUser | None:

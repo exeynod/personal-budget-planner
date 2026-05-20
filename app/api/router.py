@@ -43,17 +43,17 @@ upserts the owner row on first call — no upsert inside the handler.
 # members so the frontend can drive the bot-bind -> balance -> cycle_day flow.
 from __future__ import annotations
 
-from typing import Annotated, Literal
+from typing import Annotated
 
 from fastapi import APIRouter, Depends
-from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_current_user, get_db, verify_internal_token
 from app.api.routes.accounts import accounts_router
 from app.api.routes.actual import actual_router
 from app.api.routes.goals import goals_router
-from app.api.routes.me import me_router
+from app.api.routes.me import build_me_response, me_router
+from app.api.schemas.me_v10 import MeV10Response
 from app.api.routes.savings import savings_router
 from app.api.routes.admin import admin_router
 from app.api.routes.auth import auth_router
@@ -81,23 +81,16 @@ from app.db.models import AppUser, UserRole
 public_router = APIRouter()
 
 
-class MeResponse(BaseModel):
-    tg_user_id: int
-    tg_chat_id: int | None
-    cycle_start_day: int
-    onboarded_at: str | None
-    chat_id_known: bool
-    role: Literal["owner", "member", "revoked"]  # Phase 12 ROLE-05
-    # Phase 15 AICAP-04 (D-15-04): SettingsScreen + AccessScreen self-cap UI.
-    ai_spend_cents: int          # current MSK month spend in USD-cents
-    ai_spending_cap_cents: int   # active cap in USD-cents (0 = AI off)
+# Phase 67 P2-6 / R8: the local ``MeResponse`` model was removed — GET /me now
+# returns the canonical ``MeV10Response`` (income_cents-symmetric) built by the
+# shared ``build_me_response`` helper in app.api.routes.me.
 
 
-@public_router.get("/me", response_model=MeResponse)
+@public_router.get("/me", response_model=MeV10Response)
 async def get_me(
     current_user: Annotated[AppUser, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
-) -> MeResponse:
+) -> MeV10Response:
     """Return current user info (Phase 12 ROLE-05, Phase 15 AICAP-04).
 
     AppUser is resolved by get_current_user (Plan 12-02 refactor).
@@ -112,21 +105,12 @@ async def get_me(
     spend) and `ai_spending_cap_cents` (raw cap from app_user) so SettingsScreen
     can render `$X.XX / $Y.YY` без дополнительного запроса. spend читается через
     cached service (60s TTL).
-    """
-    from app.services.spend_cap import get_user_spend_cents
 
-    spend_cents = await get_user_spend_cents(db, user_id=current_user.id)
-    return MeResponse(
-        tg_user_id=current_user.tg_user_id,
-        tg_chat_id=current_user.tg_chat_id,
-        cycle_start_day=current_user.cycle_start_day,
-        onboarded_at=current_user.onboarded_at.isoformat()
-            if current_user.onboarded_at else None,
-        chat_id_known=current_user.tg_chat_id is not None,
-        role=current_user.role.value,  # UserRole.<x>.value == "owner"|"member"|"revoked"
-        ai_spend_cents=int(spend_cents),
-        ai_spending_cap_cents=int(current_user.spending_cap_cents or 0),
-    )
+    Phase 67 P2-6 / R8: построение ответа делегировано общему
+    ``build_me_response`` (тот же helper, что у PATCH /me) — gives symmetry on
+    ``income_cents`` and removes the duplicated MeResponse builder.
+    """
+    return await build_me_response(db, current_user)
 
 
 # Register Phase 2 sub-routers under the same /api/v1 prefix.
