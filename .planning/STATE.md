@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.1.2
 milestone_name: — iOS v06 Native Rebuild)
 current_phase: 67 (remediation-cleanup)
-status: "67-07 closed (Wave 3 iOS P1-4/R2 + P1-7) — SavingsViewModel/GoalDetailViewModel got an injectable API struct seam (default .live) + reloadPending coalescing on SavingsViewModel.load(); dead lastCreatedGoalId removed. Behavioural money-mutation tests added (deposit/createGoal/deleteGoal success/failure/submitting-guard/optimistic-revert/coalesce; GoalDetail load not-found). APIClient regression-locked via URLProtocol stub: 401->logout+.unauthorized, 403(!skipAuth)->logout+.forbidden (strict, post-67-03), 403(skipAuth)->no logout; MSK yyyy-MM-dd '2027-01-01' decodes to Europe/Moscow midnight + timestamp formats parse. APIClient source untouched. Full suite 609 green (+41)."
-stopped_at: Completed 67-07-PLAN.md
-last_updated: "2026-05-20T20:25:00.000Z"
+status: "67-08 closed (Wave 4 backend P2-4/5/6/7 + R8 hygiene). ChatRequest.message bounded (min=1/max=4000 → 422). suggest-category returns the REAL cosine confidence on a miss; docstring fixed 0.5→0.35. GET /me + PATCH /me symmetric on income_cents via shared build_me_response; legacy MeResponse model removed. get_db single source (app.db.session), dependencies re-exports. ai_usage_log.est_cost_usd Float → cost_cents BIGINT (USD-cents) + alembic 0026 (backfill ceil(usd*100), reversible). spend_cap sums cents directly (no float). Embedding spend now logged to ai_usage_log so the cap sees suggest-category cost (P2-7). KindStr alias left intentionally (active backward-compat). 11 tests added; touched-module pytest green. Pre-existing tier-gating (402) + e2e category.code failures deferred."
+stopped_at: Completed 67-08-PLAN.md
+last_updated: "2026-05-20T20:36:00.000Z"
 last_activity: 2026-05-20
 progress:
   total_phases: 36

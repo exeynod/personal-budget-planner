@@ -455,7 +455,7 @@ Plans:
 - [x] 67-05-PLAN.md — [W2] iOS P1-3/P1-5/R1: APIError→RU mapper (leak cluster), SSE 401/403 split, account-label/banner/LocalNotifications dedup
 - [x] 67-06-PLAN.md — [W2] Web P1-6/R5: split ui.shell vs ui.theme keys + dead-shell inventory
 - [x] 67-07-PLAN.md — [W3] iOS P1-4/P1-7/R2: Savings/GoalDetail API-seam + reload-coalesce + money-mutation tests; APIClient 403/401+MSK-date regression tests
-- [ ] 67-08-PLAN.md — [W4] BE P2-4..7/R8: ChatRequest bounds, suggest confidence/docstring, symmetric /me builder, est_cost float→cost_cents migration, get_db dedup
+- [x] 67-08-PLAN.md — [W4] BE P2-4..7/R8: ChatRequest bounds, suggest confidence/docstring, symmetric /me builder, est_cost float→cost_cents migration, get_db dedup
 - [ ] 67-09-PLAN.md — [W4] Web P2-8..11/R5: useAiCategorize stale-guard, local wire-date parse, single parseRublesToKopecks, window.alert→Toast
 - [ ] 67-10-PLAN.md — [W5] iOS P2-1/2/3/P2-12/R9: single-reload create, day/nextCharge reconcile, config-inFlight guard, de-flake notification test, multi-tenant docs
 
