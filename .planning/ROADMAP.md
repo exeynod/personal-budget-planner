@@ -480,8 +480,8 @@ Plans:
 
 ---
 
-### Phase 69: Contract Codegen — R4 (v1.1.2 followup workstream B) — planned
-**Plans:** 6 plans
+### Phase 69: Contract Codegen — R4 (v1.1.2 followup workstream B) ✅ SHIPPED 2026-05-21
+**Plans:** 6/6 plans complete
 **Goal**: Единый источник истины для API-контракта — генерировать TS и Swift DTO из FastAPI OpenAPI; убрать 3 рукописных набора типов и «pending schema» заглушки (наибольший ROI против дрейфа контракта). Спецификация — `.planning/CONVERGENCE-AND-DEBT-PLAN.md` §ФАЗА 69 (workstream B). Решения владельца: внешние библиотеки разрешены (Apple `swift-openapi-generator` допустим); R4 делать целиком (полный codegen + миграция потребителей). Покрывает B1 (чистый детерминированный `/openapi.json` dump-таргет + артефакт `contract/openapi.json`), B2 (web `openapi-typescript` → `generated/schema.ts`), B3 (iOS codegen — планировщик сравнивает `swift-openapi-generator` vs кастомный скрипт→vanilla Codable, обосновывает выбор; xcodegen подхватывает generated/), B4 (миграция потребителей read-DTO сначала: CategoryRead/V10, Subscription*, Me*, Actual*; убрать pending-schema Optional-заглушки), B5 (CI sync-guard: regen+git-diff пуст).
 **Depends on**: Phase 68 (зелёные тесты как baseline).
 **Success Criteria**:
