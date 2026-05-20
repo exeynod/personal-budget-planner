@@ -1,167 +1,158 @@
 ---
 phase: 62-savings-goals-v06
-verified: 2026-05-20T00:00:00Z
-status: gaps_found
-score: 2/4 must-haves verified
+verified: 2026-05-20T15:00:00Z
+status: human_needed
+score: 4/4 must-haves verified
 overrides_applied: 0
-gaps:
-  - truth: "GoalDetailView показывает детали цели (name + progress + cents/target + due) + Deposit CTA + delete Menu"
-    status: failed
-    reason: "GoalDetailView — чистый stub из 62-01. body показывает только бесконечный ProgressView(\"Загрузка…\"); GoalDetailViewModel.load() — пустой no-op (тело «Plan 62-03 fills this body»), deleteGoal() возвращает false без вызова GoalsAPI.delete. Push с master list работает, но открывается пустой загрузочный экран навсегда."
-    artifacts:
-      - path: "ios/BudgetPlanner/Features/Savings/GoalDetailView.swift"
-        issue: "body = List { ProgressView(\"Загрузка…\") }; нет Hero/progress/cents/due/Deposit CTA/delete Menu"
-      - path: "ios/BudgetPlanner/Features/Savings/GoalDetailViewModel.swift"
-        issue: "load() пустой no-op (комментарий «Plan 62-03 fills this body»); deleteGoal() возвращает false без сетевого вызова; goal остаётся nil"
-    missing:
-      - "GoalDetailViewModel.load() — fetch цели (GoalsAPI.list + filter по goalId или dedicated endpoint) + accounts (AccountsAPI.list), set goal/accounts/status"
-      - "GoalDetailViewModel.deleteGoal() — GoalsAPI.delete(id:) с submitting guard + filtered Russian copy"
-      - "GoalDetailView body — Hero (name + ProgressView + currentCents/targetCents + percentage + due) + «Пополнить» CTA + delete Menu с confirmationDialog + loading/error states"
-  - truth: "NewGoalSheet (Form) даёт создать цель: name + targetCents (MoneyParser) + optional due (DatePicker)"
-    status: failed
-    reason: "SavingsNewGoalSheet — stub из 62-01. body показывает буквальный текст «Plan 62-03 заполнит этот sheet» внутри Form; нет ни одного поля ввода и нет кнопки «Создать». Sheet презентуется из SavingsView Menu «Новая цель», closure onCreate проброшен в рабочий VM.createGoal, но пользователь не может ничего ввести — единственное действие «Отмена»."
-    artifacts:
-      - path: "ios/BudgetPlanner/Features/Savings/SavingsNewGoalSheet.swift"
-        issue: "body = Form { Text(\"Plan 62-03 заполнит этот sheet\") }; нет TextField name, нет MoneyParser target, нет DatePicker due, нет кнопки «Создать»"
-    missing:
-      - "Form body: TextField «Название» (trim ≥1 char), TextField .decimalPad «Целевая сумма» через MoneyParser → cents (≥1 ₽), Toggle+DatePicker optional due"
-      - "Toolbar «Создать» в .confirmationAction, disabled !canCreate || submitting, вызов onCreate; inline-обработка failure"
-  - truth: "DepositSheet (Form) даёт пополнить: amount (MoneyParser) + accountId (Picker required) + optional goalId (Picker, pre-filled)"
-    status: failed
-    reason: "SavingsDepositSheet — stub из 62-01. body показывает буквальный текст «Plan 62-03 заполнит этот sheet»; нет полей amount/account/goal Picker. Sheet презентуется из Menu «Пополнить» и из (будущего) GoalDetail flow, closure onDeposit проброшен в рабочий VM.deposit, но ввод невозможен."
-    artifacts:
-      - path: "ios/BudgetPlanner/Features/Savings/SavingsDepositSheet.swift"
-        issue: "body = Form { Text(\"Plan 62-03 заполнит этот sheet\") }; нет Picker цели, нет MoneyParser amount, нет Picker счёта, нет кнопки «Пополнить»"
-    missing:
-      - "Form body: optional goal Picker (pre-filled initialGoalId), TextField .decimalPad amount → cents (>0), required account Picker (accounts)"
-      - "Toolbar «Пополнить» в .confirmationAction disabled !canDeposit, вызов onDeposit; inline-обработка failure"
-  - truth: "Phase 62 doбавляет недостающий 62-03 plan ИЛИ 62-02 расширен, чтобы покрыть GoalDetailView + 2 sheet — phase закрыта без этого плана"
-    status: failed
-    reason: "Структурный gap: оба SUMMARY (62-01, 62-02) откладывают GoalDetailView + SavingsNewGoalSheet + SavingsDepositSheet на «scope 62-03», но файла 62-03-PLAN.md НЕ существует. Phase имеет ровно 2 плана. 3 из 4 ROADMAP-deliverables ссылаются на несуществующий план — work не deferred (нет later phase, покрывающей Savings goal detail/sheets: Phase 63=Subscriptions, Phase 64=AddSheet), а просто пропущен."
-    artifacts:
-      - path: ".planning/phases/62-savings-goals-v06/"
-        issue: "Только 62-01-PLAN.md и 62-02-PLAN.md; 62-03-PLAN.md отсутствует, хотя оба SUMMARY на него ссылаются как на scope для 3 deliverables"
-    missing:
-      - "Добавить 62-03-PLAN.md (GoalDetailViewModel.load/delete + GoalDetailView body + 2 Form sheet bodies + VM/sheet validation tests) ИЛИ перепланировать scope. Phase 62 не может быть закрыта как достигшая ROADMAP-goal без этого."
+re_verification:
+  previous_status: gaps_found
+  previous_score: 2/4
+  gaps_closed:
+    - "GoalDetailView показывает детали цели (name + progress + cents/target + due) + Deposit CTA + delete Menu"
+    - "NewGoalSheet (Form) даёт создать цель: name + targetCents (MoneyParser) + optional due (DatePicker)"
+    - "DepositSheet (Form) даёт пополнить: amount (MoneyParser) + accountId (Picker required) + optional goalId (Picker, pre-filled)"
+    - "Phase 62 добавляет недостающий 62-03 plan — phase закрыта без этого плана"
+  gaps_remaining: []
+  regressions: []
 human_verification:
-  - test: "Tap Управление → Копилка → master list рендерит Hero/Roundup/Goals с progress bar на реальных данных"
-    expected: "Список целей с зелёным прогресс-баром, процентами, due-датами; пустое состояние ContentUnavailableView «Нет целей»"
-    why_human: "Визуальный рендер и реальный API-фетч требуют запущенного backend + симулятора; verifier не запускает приложение"
-  - test: "Swipe-to-delete на goal row → confirmationDialog «Удалить цель?» → подтверждение удаляет цель и список обновляется"
-    expected: "Диалог появляется, удаление вызывает GoalsAPI.delete и reload"
-    why_human: "Runtime-поведение + сетевой mutation требуют live-окружения"
+  - test: "Tap Управление → Копилка → master list, затем tap goal-row → GoalDetailView LOADS реальную цель (Hero: name + зелёный ProgressView + cents/target + percentage + due), НЕ бесконечный спиннер"
+    expected: "Detail-экран рендерит данные цели; .ready state, не вечный ProgressView()"
+    why_human: "Runtime + реальный GoalsAPI.list/AccountsAPI.list фетч требуют запущенного backend + симулятора; verifier не запускает приложение. Код load() корректен (list+filter-by-id, status .ready), но live round-trip не перепроверяется автоматически."
+  - test: "GoalDetailView → … Menu → «Удалить цель» → confirmationDialog «Удалить цель?» → «Удалить» → цель удаляется и экран dismiss'ится"
+    expected: "Диалог появляется, deleteGoal() вызывает GoalsAPI.delete, на success dismiss(); на failure — mutationError banner"
+    why_human: "Сетевой mutation + навигационный dismiss требуют live-окружения"
+  - test: "GoalDetailView → «Пополнить» CTA → pre-filled SavingsDepositSheet (цель preselected) → ввод суммы + счёт → «Пополнить» → на success hero/progress обновляются"
+    expected: "Депозит идёт через viewModel.deposit (submitting guard, CR-01), POST SavingsAPI.postDeposit + reload (T-62-05); double-tap заблокирован submitting"
+    why_human: "Money-mutation round-trip + reload + submitting-guard поведение требуют live backend"
+  - test: "Menu «Новая цель» → SavingsNewGoalSheet → ввод name + target + optional due (DatePicker) → «Создать» → цель создаётся; due-дата на бэкенде совпадает с выбранным днём (IN-04)"
+    expected: "createGoal POST с yyyy-MM-dd == выбранный календарный день (MSK, без off-by-one)"
+    why_human: "Wire-формат due проверен unit-тестом (WR-03), но end-to-end создание + появление цели в списке требует live backend"
+  - test: "Master list / DepositSheet: попытка пополнить без выбранного счёта или с суммой 0 → кнопка «Пополнить» disabled"
+    expected: "canDeposit gate (amount>0 && accountId>0, WR-05) держит кнопку disabled"
+    why_human: "Логика gate покрыта unit-тестами (accountId 0/-3/nil → false), но визуальный disabled-state требует симулятора"
 ---
 
 # Phase 62: Savings & Goals (v06 native) Verification Report
 
 **Phase Goal:** Копилка. Список целей (List с прогресс-баром), GoalDetailView, NewGoalSheet (Form), DepositSheet (Form). API: GoalsAPI.
 **Verified:** 2026-05-20
-**Status:** gaps_found
-**Re-verification:** No — initial verification
+**Status:** human_needed
+**Re-verification:** Yes — after gap closure (62-03 plan + follow-up code-fix pass CR-01/WR-01/WR-03/WR-04)
 
 ## Goal Achievement
 
-The ROADMAP goal enumerates **four** user-facing deliverables plus the GoalsAPI dependency. Only **one** of the four (the master list) is functionally implemented. The other three (GoalDetailView, NewGoalSheet, DepositSheet) remain the literal 62-01 scaffold stubs, deferred in both SUMMARYs to a "Plan 62-03" that **does not exist**. The phase has exactly two plans (62-01 scaffold, 62-02 core logic of the master view only).
+Re-verification после gap-closure plan 62-03 + follow-up code-fix пасса. Предыдущая верификация (2/4) зафиксировала три stub-экрана (GoalDetailView вечный спиннер, два sheet с placeholder-текстом «Plan 62-03 заполнит этот sheet») и структурный gap (отсутствующий 62-03-PLAN.md). **Все четыре ROADMAP-deliverable теперь функциональны на уровне кода**, structural gap закрыт (62-03-PLAN.md создан и выполнен). Остаются только runtime/live-device smoke-проверки — они классифицированы как human_verification, НЕ как gaps.
 
 ### Observable Truths
 
 | # | Truth | Status | Evidence |
 |---|-------|--------|----------|
-| 1 | Список целей — List с прогресс-баром (master SavingsView) | ✓ VERIFIED | `SavingsView.swift` полностью реализован: 4 render-state, Hero/Roundup/Goals sections, `SavingsGoalRow` с `ProgressView(value:total:).tint(.green)` + percentage + due, swipe-to-delete + confirmationDialog, Menu toolbar, navigationDestination, sheet bindings. VM `load()`/`createGoal`/`deleteGoal`/`deposit`/`toggleRoundup`/`selectBase` все вызывают реальные API (SavingsAPI/GoalsAPI/AccountsAPI) + `await load()`. 32 unit-теста pass. |
-| 2 | GoalDetailView (detail: hero + progress + delete + Deposit CTA) | ✗ FAILED | `GoalDetailView.swift` body = `List { ProgressView("Загрузка…") }`. `GoalDetailViewModel.load()` — пустой no-op; `deleteGoal()` возвращает false без сетевого вызова. Push открывает вечный спиннер. |
-| 3 | NewGoalSheet (Form: name + target + due) | ✗ FAILED | `SavingsNewGoalSheet.swift` body = `Form { Text("Plan 62-03 заполнит этот sheet") }`. Нет полей ввода, нет кнопки «Создать». |
-| 4 | DepositSheet (Form: amount + account + goal) | ✗ FAILED | `SavingsDepositSheet.swift` body = `Form { Text("Plan 62-03 заполнит этот sheet") }`. Нет полей, нет кнопки «Пополнить». |
+| 1 | Список целей — List с прогресс-баром (master SavingsView) | ✓ VERIFIED | `SavingsView.swift` без изменений (вне scope 62-03), остаётся функциональным: `SavingsGoalRow` line 324 `ProgressView(value:total:).tint(.green)` + `progressPercentage` (line 296). 4 render-state, swipe-to-delete, Menu toolbar, navigationDestination, sheet bindings. |
+| 2 | GoalDetailView — load+render цели (не вечный спиннер) + delete + Deposit CTA | ✓ VERIFIED | `GoalDetailViewModel.load()` (lines 46-75) реализован: `inFlight` guard + `async let` parallel `GoalsAPI.list()` + `AccountsAPI.list()`, filter-by-goalId, `status = .ready`, cross-tenant → `.error("Цель не найдена")` (T-62-03), outer catch → `.error("Не удалось загрузить цель")`. `GoalDetailView.swift` (196 lines): 4-state List, heroSection (name + `ProgressView(value:total:).tint(.green)` line 151 + cents/target + percentage + due + achievement seal), `…` Menu → confirmationDialog (lines 74-87) → `deleteGoal()` → `dismiss()`. `deleteGoal()` (lines 103-117) вызывает `GoalsAPI.delete` за submitting guard. Placeholder спиннер УДАЛЁН. |
+| 3 | NewGoalSheet (Form): name + targetCents (MoneyParser) + optional due (DatePicker) | ✓ VERIFIED | `SavingsNewGoalSheet.swift` (119 lines): Form с TextField «Название» (line 72), `.decimalPad` «Целевая сумма» → `MoneyParser.parseToCents` (line 50), Toggle «Добавить срок» + DatePicker (`minDueDate...` MSK, lines 87-96). Toolbar «Создать» (.confirmationAction, `disabled(!canCreate)`) → `onCreate(trimmedName, targetCents, hasDue ? dueDate : nil)`. Placeholder-текст УДАЛЁН. |
+| 4 | DepositSheet (Form): amount (MoneyParser) + accountId (Picker required) + optional goalId (Picker, pre-filled) | ✓ VERIFIED | `SavingsDepositSheet.swift` (127 lines): init seeds `selectedGoalId` из `initialGoalId` + `selectedAccountId` из primary/first. Form: «Цель» Picker (nil=«Общая копилка»+goals, line 74), `.decimalPad` «Сумма» → MoneyParser (line 55), «Счёт списания» Picker required (line 93). Toolbar «Пополнить» (`disabled(!canDeposit)`) → `onDeposit(amountCents, acc, selectedGoalId)`. Placeholder-текст УДАЛЁН. |
 
-**Score:** 2/4 truths verified (truth 1 + GoalsAPI dependency = 2 of 4 weighted items; 3 of the 4 ROADMAP deliverables FAILED).
+**Score:** 4/4 truths verified.
 
 ### Required Artifacts
 
 | Artifact | Expected | Status | Details |
 |----------|----------|--------|---------|
-| `Features/Management/ManagementView.swift` | `.savings` enum + entry «Копилка» + destination | ✓ VERIFIED | line 136 enum case, line 155-157 entry (`banknote.fill`, ownerOnly:false), line 118 `case .savings: SavingsView()` |
-| `Features/Savings/SavingsView.swift` | Functional master list с progress bar | ✓ VERIFIED | 348 lines; полный body + SavingsGoalRow ProgressView |
-| `Features/Savings/SavingsViewModel.swift` | load + 5 mutations, wired to APIs | ✓ VERIFIED | 223 lines; async let parallel fetch, все mutations → API + reload |
-| `Features/Savings/SavingsViewData.swift` | 5 pure helpers | ✓ VERIFIED | 100 lines; progressPercentage/formatDue/sortGoalsForDisplay/isValidGoalDraft/isValidDepositDraft |
-| `Networking/Endpoints/GoalsAPI.swift` | list/create/delete | ✓ VERIFIED | enum GoalsAPI, list/create/delete присутствуют |
-| `Features/Savings/GoalDetailView.swift` | Detail с hero/progress/delete/CTA | ✗ STUB | placeholder ProgressView; no detail body |
-| `Features/Savings/GoalDetailViewModel.swift` | load + delete wired | ✗ STUB | load() no-op, deleteGoal() returns false |
-| `Features/Savings/SavingsNewGoalSheet.swift` | Form name/target/due + Создать | ✗ STUB | литерал «Plan 62-03 заполнит этот sheet» |
-| `Features/Savings/SavingsDepositSheet.swift` | Form amount/account/goal + Пополнить | ✗ STUB | литерал «Plan 62-03 заполнит этот sheet» |
+| `Features/Savings/SavingsView.swift` | Functional master list с progress bar (untouched) | ✓ VERIFIED | progress bar line 324, helpers line 296; вне scope 62-03 — нетронут |
+| `Features/Savings/GoalDetailViewModel.swift` | load() + deleteGoal() + deposit() wired | ✓ VERIFIED | 139 lines; load() filter-by-id, deleteGoal()→GoalsAPI.delete, deposit()→SavingsAPI.postDeposit+reload, DEBUG backdoor |
+| `Features/Savings/GoalDetailView.swift` | Hero/progress/delete Menu/Deposit CTA | ✓ VERIFIED | 196 lines; 4-state body, heroSection, confirmationDialog, pre-filled DepositSheet sheet |
+| `Features/Savings/SavingsNewGoalSheet.swift` | Form name/target/due + Создать | ✓ VERIFIED | 119 lines; full Form + toolbar |
+| `Features/Savings/SavingsDepositSheet.swift` | Form amount/account/goal + Пополнить | ✓ VERIFIED | 127 lines; full Form + init seeding + toolbar |
+| `Features/Savings/SavingsViewData.swift` | helpers + WR-05 fix | ✓ VERIFIED | `isValidDepositDraft` line 101 `amountCents > 0 && accountId > 0` |
+| `Networking/DTO/GoalDTO.swift` | GoalCreateRequest MSK due (IN-04) | ✓ VERIFIED | line 68 `TimeZone(identifier: "Europe/Moscow")`; UTC только как `??` fallback (3 совпадения Europe/Moscow) |
+| `Networking/Endpoints/GoalsAPI.swift` | list/create/delete | ✓ VERIFIED | enum GoalsAPI; list (line 18), create (24), delete (31) |
+| `BudgetPlannerTests/.../GoalDetailViewModelTests.swift` | VM unit tests ≥4 | ✓ VERIFIED | 113 lines; 6 tests (initial idle, ready-backdoor, clearMutationError, 2 deposit-guard, Status equality); registered in pbxproj (4 refs) |
 
 ### Key Link Verification
 
 | From | To | Via | Status | Details |
 |------|-----|-----|--------|---------|
-| ManagementView.destination | SavingsView | case .savings | ✓ WIRED | line 118 |
-| SavingsViewModel.load | SavingsAPI.summary + AccountsAPI.list | async let parallel | ✓ WIRED | lines 71-72 |
-| SavingsViewModel.createGoal/deleteGoal | GoalsAPI.create/delete | request + reload | ✓ WIRED | lines 141, 165 |
-| SavingsViewModel.deposit | SavingsAPI.postDeposit | POST + reload | ✓ WIRED | line 183 |
-| SavingsView | SavingsNewGoalSheet | .sheet(newGoal) | ⚠️ WIRED-TO-STUB | sheet презентуется, но body — placeholder; onCreate closure ведёт в рабочий VM, но ввод невозможен |
-| SavingsView | SavingsDepositSheet | .sheet(deposit) | ⚠️ WIRED-TO-STUB | sheet презентуется, но body — placeholder |
-| SavingsView | GoalDetailView | navigationDestination(SavingsRoute) | ⚠️ WIRED-TO-STUB | push работает, но GoalDetailView — вечный спиннер |
+| GoalDetailViewModel.load | GoalsAPI.list + AccountsAPI.list | async let parallel | ✓ WIRED | lines 56-58 |
+| GoalDetailViewModel.deleteGoal | GoalsAPI.delete | submitting guard + DELETE | ✓ WIRED | line 109 |
+| GoalDetailViewModel.deposit | SavingsAPI.postDeposit | guard + POST + reload | ✓ WIRED | lines 91-94 (CR-01: deposit маршрутизируется через VM) |
+| GoalDetailView «Пополнить» CTA | SavingsDepositSheet | .sheet(isPresented) pre-filled | ✓ WIRED | lines 88-106; onDeposit → viewModel.deposit (submitting guard) |
+| GoalDetailView delete Menu | viewModel.deleteGoal | confirmationDialog → dismiss | ✓ WIRED | lines 74-87 |
+| SavingsNewGoalSheet «Создать» | onCreate closure (→ SavingsViewModel.createGoal) | .confirmationAction | ✓ WIRED | line 109 |
+| SavingsDepositSheet «Пополнить» | onDeposit closure | .confirmationAction | ✓ WIRED | line 115 |
 
 ### Data-Flow Trace (Level 4)
 
 | Artifact | Data Variable | Source | Produces Real Data | Status |
 |----------|---------------|--------|--------------------|--------|
-| SavingsView | viewModel.snapshot/goals/accounts | SavingsAPI.summary + AccountsAPI.list via load() | Yes (real API) | ✓ FLOWING |
-| GoalDetailView | viewModel.goal | load() no-op | No (goal stays nil) | ✗ DISCONNECTED |
-| SavingsNewGoalSheet | (none — no inputs) | — | No | ✗ HOLLOW (no fields) |
-| SavingsDepositSheet | (none — no inputs) | — | No | ✗ HOLLOW (no fields) |
+| GoalDetailView | viewModel.goal | load() → GoalsAPI.list filter-by-id | Yes (real API) | ✓ FLOWING |
+| GoalDetailView | viewModel.accounts | load() → AccountsAPI.list | Yes (real API) | ✓ FLOWING |
+| SavingsNewGoalSheet | name/targetText/dueDate → onCreate | local @State → real createGoal closure | Yes | ✓ FLOWING |
+| SavingsDepositSheet | amountText/selectedAccountId/selectedGoalId → onDeposit | local @State (seeded from props) → real deposit closure | Yes | ✓ FLOWING |
 
 ### Behavioral Spot-Checks
 
-SKIPPED для runtime-поведения (требует симулятора + backend). Build/test статус взят из 62-02-SUMMARY (BUILD SUCCEEDED, 32 tests pass) — не перепроверялся, но не влияет на goal-gap: stubs компилируются именно потому, что они stubs.
+SKIPPED для runtime-поведения (требует симулятора + backend; verifier не запускает приложение). Статический анализ исходников выполнен:
+- Нет placeholder-текста «Plan 62-03 заполнит/fills» (grep = 0).
+- Нет no-op `func load() async {}` (grep = 0).
+- Нет `ProgressView("Загрузка…")` placeholder (grep = 0).
+- WR-05 `accountId > 0` присутствует (line 101).
+- IN-04 `Europe/Moscow` в GoalDTO encoder (3 совпадения).
+- `GoalsAPI.list|delete` в detail VM = 4 совпадения.
+
+Build/test статус из 62-03-SUMMARY (BUILD SUCCEEDED, TEST SUCCEEDED, 488 tests) + follow-up code-fix commits (b86f77a CR-01/WR-01, ebea279 WR-03, 643e6ad WR-04, b4fcde1 IN-03 — добавили deposit-guard tests, ~494 итого). Расхождение 488→494 — это дополнительные тесты follow-up пасса, не регрессия. Не перепроверялся автоматически; компиляция подтверждена косвенно (отсутствие stub-маркеров + test file зарегистрирован в pbxproj).
 
 ### Requirements Coverage
 
-Milestone v1.1.2 использует CONTEXT-derived scope (нет REQ-ID в REQUIREMENTS.md). Покрытие против CONTEXT in-scope:
+Milestone v1.1.2 использует CONTEXT-derived scope. Покрытие против CONTEXT in-scope:
 
 | CONTEXT in-scope item | Status | Evidence |
 |----------------------|--------|----------|
-| ManagementItem registration | ✓ SATISFIED | ManagementView wired |
-| SavingsView master (Hero+Roundup+Goals+progress) | ✓ SATISFIED | full body |
-| GoalDetailView (push, hero, delete, CTA) | ✗ BLOCKED | stub |
-| NewGoalSheet (Form name/target/due) | ✗ BLOCKED | stub |
-| DepositSheet (Form amount/account/goal) | ✗ BLOCKED | stub |
+| ManagementItem registration | ✓ SATISFIED | ManagementView wired (verified ранее) |
+| SavingsView master (Hero+Roundup+Goals+progress) | ✓ SATISFIED | full body, нетронут |
+| GoalDetailView (push, hero, delete, CTA) | ✓ SATISFIED | реализован 62-03 |
+| NewGoalSheet (Form name/target/due) | ✓ SATISFIED | реализован 62-03 |
+| DepositSheet (Form amount/account/goal) | ✓ SATISFIED | реализован 62-03 |
 | GoalsAPI list/create/delete | ✓ SATISFIED | exists, wired |
 | Roundup toggle + segmented base | ✓ SATISFIED | roundupSection |
-| Swipe-to-delete + confirmationDialog | ✓ SATISFIED | goalsSection |
-| Pre-filled DepositSheet flow | ✗ BLOCKED | sheet stub (initialGoalId проброшен, но нет UI) |
-| ViewModel tests для всех 4 экранов | ✗ PARTIAL | только Savings master VM + helpers; GoalDetailVM/sheet validation — 0 tests |
+| Swipe-to-delete + confirmationDialog | ✓ SATISFIED | goalsSection + GoalDetail Menu |
+| Pre-filled DepositSheet flow | ✓ SATISFIED | GoalDetail CTA → initialGoalId проброшен + Picker pre-filled |
+| ViewModel tests для всех 4 экранов | ✓ SATISFIED | Savings master VM + helpers + GoalDetailViewModelTests (6) + deposit-validation cases |
 
 ### Anti-Patterns Found
 
+Нет блокеров. Все stub-маркеры из предыдущей верификации устранены.
+
 | File | Line | Pattern | Severity | Impact |
 |------|------|---------|----------|--------|
-| GoalDetailViewModel.swift | 42-44 | `func load() async { }` no-op | 🛑 Blocker | detail screen не загружает данные |
-| GoalDetailViewModel.swift | 47-50 | `deleteGoal() { return false }` | 🛑 Blocker | удаление из detail не работает |
-| SavingsNewGoalSheet.swift | 21 | placeholder text «Plan 62-03 заполнит этот sheet» | 🛑 Blocker | создание цели невозможно |
-| SavingsDepositSheet.swift | 23 | placeholder text «Plan 62-03 заполнит этот sheet» | 🛑 Blocker | пополнение невозможно |
-| (phase dir) | — | ссылки на несуществующий 62-03 plan в обоих SUMMARY | 🛑 Blocker | scope пропущен, не deferred |
+| — | — | (нет) | — | — |
 
-### Code Review (62-REVIEW.md) Cross-Check
+### Code Review Cross-Check (62-REVIEW + follow-up fixes)
 
-62-REVIEW.md: 0 critical, 6 warnings, 4 info. Оценка против goal achievement:
+- **CR-01** (blocker из 62-03-REVIEW: deposit обходил submitting guard) — ИСПРАВЛЕНО (commit b86f77a): GoalDetailView.onDeposit теперь вызывает `viewModel.deposit(...)` (lines 99-101), который имеет `guard !submitting` (VM line 85) + reload на success.
+- **WR-01** (failure не surface'илась) — ИСПРАВЛЕНО: `viewModel.deposit` ставит `mutationError`, GoalDetailView рендерит mutationErrorBanner (lines 55-57, 113-132).
+- **WR-03** (MSK due encoding pinned тестом) — commit ebea279.
+- **WR-04** (DatePicker calendar = Europe/Moscow, matches encoder) — commit 643e6ad; SavingsNewGoalSheet mskCalendar lines 36-40.
+- **WR-05** (accountId>0 gate) — ИСПРАВЛЕНО, SavingsViewData line 101 + tests.
+- **IN-04** (MSK due-date wire) — ИСПРАВЛЕНО, GoalDTO line 68.
+- **WR-02 / WR-06 и др.** (в master SavingsViewModel mutation paths) — остаются OPEN, вне scope 62-03 (objective явно запрещал трогать SavingsViewModel.swift). Это polish, не блокируют ROADMAP-goal — master deliverable функционален.
 
-- **WR-01..WR-04, WR-06** — quality/robustness дефекты в реализованном master VM/View (stale banner, sheet dismiss on failure, inFlight race, redundant PATCH, missing mutation tests). Это **polish**, не блокируют goal master-list deliverable (он функционален). Рекомендованы к фиксу, но не gate.
-- **WR-05** (`accountId == 0` проходит валидацию) — реальный баг, но проявляется только при работающем DepositSheet, который **сам по себе stub** → перекрыт более крупным gap (truth 4).
-- **IN-01** (dead goalId в GoalDetailView) — внутри stub-файла, разрешится при реализации detail.
-- **IN-04** (UTC due date shift) — латентный, всплывёт при реализации NewGoalSheet DatePicker (truth 3) — связан с тем же missing scope.
+### Human Verification Required
 
-Вывод: ни один REVIEW-warning не является самостоятельным gate; реальные блокеры — отсутствующие 3 deliverables, не качество кода.
+Все 4 ROADMAP-deliverable функциональны на уровне кода. Остаются runtime/live-device smoke-проверки (не gaps):
+
+1. **GoalDetailView загрузка** — tap goal-row → detail рендерит реальную цель (Hero), не вечный спиннер.
+2. **Delete flow** — … Menu → «Удалить цель» → confirmationDialog → удаление + dismiss.
+3. **Deposit flow** — «Пополнить» CTA → pre-filled sheet → POST + reload hero/progress; double-submit заблокирован.
+4. **Create flow + due day** — «Новая цель» → создание; due на бэкенде == выбранный календарный день (IN-04).
+5. **Validation gate** — «Пополнить» disabled без счёта / при сумме 0 (WR-05).
 
 ### Gaps Summary
 
-Phase 62 поставляет **1 из 4** ROADMAP-deliverables: функциональный master-список «Копилка» с прогресс-баром (отлично сделан, wired к реальным API, покрыт тестами). Однако **GoalDetailView, NewGoalSheet и DepositSheet** остаются буквальными stub-заглушками из 62-01 — два sheet показывают текст «Plan 62-03 заполнит этот sheet», а GoalDetailView — вечный спиннер с no-op `load()`.
+**Нет gaps.** Все три ранее зафиксированных stub-экрана реализованы функционально (GoalDetailView 4-state + Hero + delete + Deposit CTA; SavingsNewGoalSheet полный Form; SavingsDepositSheet полный Form с pre-fill), structural gap (отсутствующий 62-03-PLAN.md) закрыт. Code-review блокер CR-01 + WR-01/WR-03/WR-04/WR-05/IN-04 исправлены follow-up пассом. GoalsAPI (list/create/delete) подтверждён. Score 4/4.
 
-Корневая причина — структурная: оба SUMMARY откладывают эти три экрана на «scope 62-03», но **62-03-PLAN.md не существует** и phase имеет ровно 2 плана. Это не deferred work — ни одна последующая фаза milestone (Phase 63 = Subscriptions, Phase 64 = AddSheet) не покрывает Savings goal detail/sheets. Work просто пропущен.
-
-Критично с точки зрения UX: stubs **достижимы** из рабочего master-списка. Tap «Новая цель» / «Пополнить» / любой goal-row выводит пользователя на нефункциональный placeholder. Master VM создан с рабочими createGoal/deposit closures, но без UI-ввода они недостижимы — половина копилки (постановка целей и пополнение) недоступна конечному пользователю.
-
-**Рекомендация:** не закрывать Phase 62 как достигшую goal. Создать 62-03-PLAN.md (GoalDetailViewModel.load/delete + GoalDetailView body + два Form sheet bodies + тесты), затем re-verify. Если намеренно решено сузить scope Phase 62 только до master-списка — это требует override с явным пересмотром ROADMAP-goal, т.к. текущая формулировка goal перечисляет все четыре экрана.
+Статус **human_needed** (не passed), т.к. финальное подтверждение поведения (load round-trip, delete/deposit mutations, due-day на проде, disabled-states) требует запущенного backend + симулятора — verifier не запускает приложение. Это ожидаемо для iOS UI-фазы; ни один из этих пунктов не является кодовым gap.
 
 ---
 
-_Verified: 2026-05-20_
+_Re-verified: 2026-05-20_
 _Verifier: Claude (gsd-verifier)_
