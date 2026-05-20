@@ -432,6 +432,11 @@ Plans:
 ### Phase 66: Settings + AI + Management Polish (v06 native) — planned
 **Goal**: Settings parity с V10 (theme picker, AI cost cap display). AI-чат — оставить v06 AIChatView с подключением v1.0 ai/chat SSE. Management Hub — оставить List как есть, добавить ряды для новых доменов (Accounts, Savings, Plan).
 
+**Plans:** 1 plan
+
+Plans:
+- [ ] 66-01-PLAN.md — Theme picker в v06 SettingsView: чистый ThemeOption helper (selected/rawValue/round-trip + unit-тесты) + designSection 4 selectable ряда (MAXIMAL POSTER / LIQUID GLASS / IOS DEFAULT / СТАРЫЙ IOS) с checkmark, пишущий @AppStorage('ui.theme'). AI cost cap / AI chat SSE / Management rows — verify-only (pre-existing).
+
 ---
 
 ## Dependency Graph (v1.1 / v1.2 / v2.0)
