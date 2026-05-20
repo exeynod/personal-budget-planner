@@ -2,24 +2,24 @@
 gsd_state_version: 1.0
 milestone: v1.1.2
 milestone_name: — iOS v06 Native Rebuild)
-current_phase: 61 — COMPLETE (SHIPPED 2026-05-12)
-status: completed
+current_phase: 62
+status: executing
 stopped_at: Roadmap для v1.0 (Phases 22-28) создан, REQUIREMENTS.md traceability заполнен (92/92 REQs). Awaiting `/gsd-plan-phase 22`.
-last_updated: "2026-05-12T09:55:50.419Z"
-last_activity: 2026-05-12 -- Phase 61 marked complete
+last_updated: "2026-05-20T10:26:49.643Z"
+last_activity: 2026-05-20
 progress:
   total_phases: 35
   completed_phases: 20
-  total_plans: 54
-  completed_plans: 54
-  percent: 100
+  total_plans: 56
+  completed_plans: 55
+  percent: 98
 ---
 
 ## Active Milestone: v1.1.2 — iOS v06 Native Rebuild
 
 User-direction 2026-05-11: вернуть нативный iOS UI (`MainShell`) как полноценную альтернативу `V10MainShell`. Оба шелла сосуществуют через `@AppStorage("ui.theme")` тумблер. Параллельная разработка в ветке `v1.0-maximal-poster`.
 
-**Current Phase:** 61 — COMPLETE (SHIPPED 2026-05-12)
+**Current Phase:** 62
 
 **Next Phases (planned, see ROADMAP.md):**
 
@@ -42,14 +42,14 @@ User-direction 2026-05-11: вернуть нативный iOS UI (`MainShell`) 
 See: .planning/PROJECT.md (updated 2026-05-09 — v1.0 milestone «Maximal Poster Full» started)
 
 **Core value:** В один тап записать факт-трату и видеть актуальную дельту план/факт по категориям бюджета — быстрее, чем открывать Google-таблицу. После v0.3 — conversational AI-помощник + аналитика; после v0.4 — multi-tenant whitelist + AI cost cap; v0.6 — native iOS-клиент. v1.0 — pixel-perfect Maximal Poster дизайн-система + Account/Goal/Recurrent/SavingsConfig + auto-roundup + rollover.
-**Current focus:** Phase 61 — Plan Editor (v06 native) — SHIPPED 2026-05-12
+**Current focus:** Phase 62 — savings-goals-v06
 
 ## Current Position
 
-Phase: 61 — COMPLETE
-Plan: 4 of 4
-Status: Phase 61 complete
-Last activity: 2026-05-12 -- Phase 61 marked complete
+Phase: 62 (savings-goals-v06) — EXECUTING
+Plan: 2 of 2
+Status: Ready to execute
+Last activity: 2026-05-20
 
 ## Milestone v1.0 Phases
 
@@ -94,6 +94,7 @@ Last activity: 2026-05-12 -- Phase 61 marked complete
 | Phase 29 P05 | 6min | 2 tasks | 9 files |
 | Phase 61 P02 | 25min | 3 tasks | 5 files |
 | Phase 61 P04 | 8min | 2 tasks | 1 files |
+| Phase 62 P01 | 2min | 2 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -125,6 +126,7 @@ Recent decisions from v0.6 (preserved for context):
 - [Phase ?]: PlanEditorView routes через typed PlanEditorRoute (enum case row(categoryId:)) — избегает collision с AccountsView Int.self destination в shared ManagementView NavigationStack
 - [Phase ?]: T-61-03 mitigation: load() catch блок → filtered RU copy 'Не удалось загрузить план месяца'; raw error через print() only; 0 occurrences of error.localizedDescription
 - [Phase 61]: PlanEditorIntegrationTests exercises closure chain end-to-end without network — onSaved closure → applyOptimisticUpdate replaces CategoryV10DTO by id; PlanEditorData helpers (computeSurplus, computeRolloverAggregates, sortCategoriesForDisplay) re-validated post-mutation; 7 integration tests добавлены к 18+7+13 unit tests = 45 combined Phase 61 tests pass.
+- [Phase ?]: [Phase 62-01]: SavingsData.swift renamed to SavingsViewData.swift — Xcode/Swift forbids duplicate file basenames in one target (not only type-name collision); v06 file basename uniquified vs FeaturesV10/Savings/SavingsData.swift
 
 ### Pending Todos
 
@@ -209,7 +211,7 @@ v1.0 deferred (acknowledged at planning):
 
 ## Session Continuity
 
-Last session: 2026-05-12T09:49:04.139Z
+Last session: 2026-05-20T10:26:45.576Z
 Stopped at: Roadmap для v1.0 (Phases 22-28) создан, REQUIREMENTS.md traceability заполнен (92/92 REQs). Awaiting `/gsd-plan-phase 22`.
 Resume file: None
 
