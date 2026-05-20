@@ -8,8 +8,18 @@
 DC_TEST = docker compose -f docker-compose.yml -f docker-compose.dev.yml -f docker-compose.test.yml
 contract:
 	@echo "Regenerating contract/openapi.json from the live app (docker api)…"
+	@# Atomic write (WR-02): dump to a temp file first; only mv into place on a
+	@# clean exit. A redirect straight to contract/openapi.json truncates the
+	@# committed source-of-truth at command start, so a mid-stream docker/exec
+	@# failure would corrupt it and silently propagate garbage into schema.ts +
+	@# GeneratedDTO.swift on the next regen. Mirrors the in-process --dump=python
+	@# path, which writes via Path.write_text after a full render (atomic).
 	@$(DC_TEST) exec -T api /app/.venv/bin/python - --stdout \
-	  < contract/dump_openapi.py > contract/openapi.json
+	  < contract/dump_openapi.py > contract/openapi.json.tmp \
+	  && mv contract/openapi.json.tmp contract/openapi.json \
+	  || { rm -f contract/openapi.json.tmp; \
+	       echo "ERROR: openapi dump failed; contract/openapi.json left untouched." >&2; \
+	       exit 1; }
 	@echo "Wrote contract/openapi.json ($$(wc -l < contract/openapi.json) lines)."
 
 # Phase 69 B5 — sync-guard: regenerate all 3 contract artifacts (openapi.json,
