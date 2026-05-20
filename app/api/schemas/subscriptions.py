@@ -122,6 +122,23 @@ class SubscriptionV10Extension(BaseModel):
     posted_txn_id: Optional[int] = None
 
 
+class SubscriptionReadV10(SubscriptionRead, SubscriptionV10Extension):
+    """v1.0 read shape: legacy ``SubscriptionRead`` + day_of_month/account_id/posted_txn_id.
+
+    Closes P0-1 (review-doc BE-F1): the public ``/subscriptions`` GET/POST/PATCH
+    routes previously returned :class:`SubscriptionRead`, which omitted the three
+    v1.0 columns. iOS phase 63 writes ``day_of_month`` / ``account_id`` but read
+    them back as ``nil``, and the posted-badge (``posted_txn_id``) never showed.
+
+    The ORM ``Subscription`` model already carries ``day_of_month``, ``account_id``
+    and ``posted_txn_id`` columns (migration 0014), so ``from_attributes`` proxies
+    them directly. No new writable surface — request bodies keep their own shapes
+    (``SubscriptionCreate`` / ``SubscriptionUpdate`` with ``extra="forbid"``).
+    """
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class SubscriptionPostResponse(BaseModel):
     """POST /api/v1/subscriptions/{id}/post response (BE-13).
 

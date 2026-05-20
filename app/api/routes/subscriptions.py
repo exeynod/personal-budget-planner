@@ -31,6 +31,7 @@ from app.api.schemas.subscriptions import (
     SubscriptionCreate,
     SubscriptionPostResponse,
     SubscriptionRead,
+    SubscriptionReadV10,
     SubscriptionUpdate,
 )
 from app.db.models import AppUser, BudgetPeriod, PeriodStatus
@@ -43,22 +44,26 @@ router = APIRouter(
 )
 
 
-@router.get("", response_model=list[SubscriptionRead])
+@router.get("", response_model=list[SubscriptionReadV10])
 async def list_subs(
     db: Annotated[AsyncSession, Depends(get_db_with_tenant_scope)],
     user_id: Annotated[int, Depends(get_current_user_id)],
-) -> list[SubscriptionRead]:
-    """GET /api/v1/subscriptions — list user's subscriptions sorted by next_charge_date ASC."""
+) -> list[SubscriptionReadV10]:
+    """GET /api/v1/subscriptions — list user's subscriptions sorted by next_charge_date ASC.
+
+    P0-1: returns the v1.0 read shape (``SubscriptionReadV10``) so day_of_month /
+    account_id / posted_txn_id round-trip to the iOS client (phase 63).
+    """
     subs = await sub_service.list_subscriptions(db, user_id=user_id)
-    return [SubscriptionRead.model_validate(s) for s in subs]
+    return [SubscriptionReadV10.model_validate(s) for s in subs]
 
 
-@router.post("", response_model=SubscriptionRead)
+@router.post("", response_model=SubscriptionReadV10)
 async def create_sub(
     payload: SubscriptionCreate,
     db: Annotated[AsyncSession, Depends(get_db_with_tenant_scope)],
     user_id: Annotated[int, Depends(get_current_user_id)],
-) -> SubscriptionRead:
+) -> SubscriptionReadV10:
     """POST /api/v1/subscriptions — create a new subscription.
 
     Status codes:
@@ -93,7 +98,7 @@ async def create_sub(
                 db, sub, active_period.id, user_id=user_id
             )
         await db.commit()
-        return SubscriptionRead.model_validate(sub)
+        return SubscriptionReadV10.model_validate(sub)
     except sub_service.CategoryNotFoundOrArchived as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -101,13 +106,13 @@ async def create_sub(
         ) from exc
 
 
-@router.patch("/{sub_id}", response_model=SubscriptionRead)
+@router.patch("/{sub_id}", response_model=SubscriptionReadV10)
 async def patch_sub(
     sub_id: int,
     payload: SubscriptionUpdate,
     db: Annotated[AsyncSession, Depends(get_db_with_tenant_scope)],
     user_id: Annotated[int, Depends(get_current_user_id)],
-) -> SubscriptionRead:
+) -> SubscriptionReadV10:
     """PATCH /api/v1/subscriptions/{id} — partial update.
 
     Status codes:
@@ -120,7 +125,7 @@ async def patch_sub(
             db, sub_id, payload.model_dump(exclude_unset=True), user_id=user_id
         )
         await db.commit()
-        return SubscriptionRead.model_validate(sub)
+        return SubscriptionReadV10.model_validate(sub)
     except LookupError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
