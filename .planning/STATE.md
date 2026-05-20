@@ -2,17 +2,17 @@
 gsd_state_version: 1.0
 milestone: v1.1.2
 milestone_name: — iOS v06 Native Rebuild)
-current_phase: 66
-status: Plan 66-01 executed (v06 Settings theme picker); build + 568 tests GREEN
-stopped_at: Completed 66-01-PLAN.md
-last_updated: "2026-05-20T15:05:00.597Z"
+current_phase: 67
+status: Plan 67-01 executed (P0-1 SubscriptionReadV10 response_model); subscriptions tests GREEN (19 passed, 1 skipped)
+stopped_at: Completed 67-01-PLAN.md
+last_updated: "2026-05-20T16:42:00.116Z"
 last_activity: 2026-05-20
 progress:
-  total_phases: 35
+  total_phases: 36
   completed_phases: 24
-  total_plans: 62
-  completed_plans: 62
-  percent: 100
+  total_plans: 72
+  completed_plans: 63
+  percent: 88
 ---
 
 ## Active Milestone: v1.1.2 — iOS v06 Native Rebuild
@@ -102,6 +102,7 @@ Last activity: 2026-05-20
 | Phase 64 P01 | 4min | 3 tasks | 5 files |
 | Phase 64 P02 | 3min | 3 tasks | 5 files |
 | Phase 66 P01 | 2min | 2 tasks | 3 files |
+| Phase 67 P01 | 3min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -142,6 +143,7 @@ Recent decisions from v0.6 (preserved for context):
 - [Phase ?]: [Phase 64-01]: account picker «Счёт списания» in-place в TransactionEditor (actual-режимы); accountId через encodeIfPresent в ActualCreate/UpdateRequest; default primary ?? first; AccountPickerLogic pure-helpers; 3 call-site неизменны; 11 тестов green
 - [Phase ?]: [Phase 64-02]: inline AI category hint — AISuggestCategoryAPI silent wrapper (suppressUnauthHandler:true → non-pro 403 не логаутит owner, T-64-02-02); @Observable AISuggestHint debounce/cancel (Task.isCancelled после await — stale-race T-64-02-03); tappable chip create-only, не авто-применять; 11 тестов green
 - [Phase 66-01]: ThemeOption pure helper зеркалит Theme.resolve (неизвестный raw → maximalPoster, sentinel "v06" → legacyV06); v06 Settings «Дизайн» native picker (4 Button-ряда + swatch + checkmark) пишет @AppStorage("ui.theme"), без PosterRouter/.posterSheet (v06 вне poster-контекста); 14 helper-тестов + полный прогон 568 tests green; AI cost cap / AI chat SSE / Management rows подтверждены verify-only (код не тронут)
+- [Phase ?]: [Phase 67-01]: /subscriptions GET/POST/PATCH switched to SubscriptionReadV10 (P0-1/BE-F1 closed); read-only widening via SubscriptionRead+SubscriptionV10Extension mixin, request bodies keep extra=forbid; iOS phase 63 day_of_month/account_id/posted_txn_id now round-trip
 
 ### Pending Todos
 
@@ -226,7 +228,7 @@ v1.0 deferred (acknowledged at planning):
 
 ## Session Continuity
 
-Last session: 2026-05-20T14:57:01.864Z
+Last session: 2026-05-20T16:41:42.350Z
 Stopped at: Completed 66-01-PLAN.md
 Resume file: None
 
