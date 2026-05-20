@@ -2,7 +2,7 @@
 //
 // Backend: app/api/routes/ai_suggest.py — require_pro gated; returns
 // { category_id: Int?, name: String?, confidence: Double }. The server already
-// filters confidence < 0.5 → nulls category_id/name, so the editor shows a chip
+// filters confidence < 0.35 → nulls category_id/name, so the editor shows a chip
 // only when categoryId != nil.
 //
 // Silent contract: the suggest hint is auxiliary, not a critical path. Any
@@ -20,7 +20,7 @@
 import Foundation
 
 /// Response of `GET /api/v1/ai/suggest-category`.
-/// `categoryId`/`name` are nil when the backend confidence is below its 0.5
+/// `categoryId`/`name` are nil when the backend confidence is below its 0.35
 /// threshold; the chip is only shown when `categoryId != nil`.
 struct SuggestCategoryDTO: Decodable {
     let categoryId: Int?
