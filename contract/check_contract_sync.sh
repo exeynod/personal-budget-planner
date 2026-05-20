@@ -97,6 +97,15 @@ log "Regenerating web schema.ts (cd frontend && npm run gen:api)…"
 log "Regenerating iOS GeneratedDTO.swift (python3 contract/gen_swift_dto.py)…"
 python3 contract/gen_swift_dto.py
 
+# --- step 3b: guard the handwritten DTO mirrors (WR-01) ----------------------
+# The iOS read-DTOs (CategoryV10DTO, UserDTO, AccountDTO, ActualV10DTO,
+# SubscriptionV10DTO) are hand-mirrored onto Gen.* (NOT typealiased), so the
+# git-diff guard below cannot see a future field drift between a mirror and its
+# Gen.* source. This asserts their field-NAME sets stay aligned (type-only
+# divergences are intentional/allowlisted — see contract/README.md).
+log "Checking handwritten DTO mirrors vs Gen.* (python3 contract/check_dto_mirrors.py)…"
+python3 contract/check_dto_mirrors.py
+
 # --- step 4: assert nothing drifted ------------------------------------------
 # Diff exactly the generated paths. --dump=skip excludes openapi.json from the
 # diff set (it was not regenerated, so a stale-but-committed file must not fail

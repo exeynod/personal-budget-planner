@@ -15,6 +15,33 @@ output): regenerating on a clean tree produces a byte-identical file. That is
 what makes the sync-guard (below) safe — it only fires on real drift, never on
 key-order noise.
 
+## Handwritten iOS read-DTOs vs `Gen.*` (mirror guard)
+
+The iOS read-DTOs below are **hand-mirrored** onto their generated `Gen.*`
+counterparts (field-for-field), not typealiased to them, so each can keep an
+intentional *type* divergence the consumer code relies on:
+
+| Handwritten mirror | `Gen.*` source | Intentional divergence (benign) |
+|--------------------|----------------|----------------------------------|
+| `UserDTO` (`CommonDTO.swift`) | `Gen.MeV10Response` | `onboardedAt: Date?` vs `String?` (mirror parses the date) |
+| `ActualV10DTO` (`TransactionDTO.swift`) | `Gen.ActualRead` | `createdAt: Date?` (defensive-optional) vs required `Date`; `tag: CategoryTag` (reused enum) vs nested `Gen.ActualRead.Tag` |
+| `CategoryV10DTO` (`CategoryV10DTO.swift`) | `Gen.CategoryRead` | reuses `CommonDTO.CategoryKind` / `CategoryTag` enums |
+| `AccountDTO` (`AccountDTO.swift`) | `Gen.AccountRead` | none beyond enum reuse |
+| `SubscriptionV10DTO` (`SubscriptionV10DTO.swift`) | `Gen.SubscriptionReadV10` | omits the nested `category: Gen.CategoryRead` (resolves via `categoryId` locally) — field-name allowlisted |
+
+These are **type-only** divergences — the property *names* still match `Gen.*`.
+The `git diff --exit-code` sync-guard regenerates only the `Gen.*` file and so
+**cannot** see a future *field* drift between a mirror and `Gen.*` (e.g. a new
+required field added to `Gen.CategoryRead`). To close that gap,
+`contract/check_dto_mirrors.py` (run inside `check_contract_sync.sh`, step 3b)
+asserts each mirror's property-NAME set equals its `Gen.*` source's, modulo a
+per-mirror allowlist of known field-name divergences (only
+`SubscriptionV10DTO.category` today). Type-only divergences never change the
+name set, so they never trip the guard; a new/removed `Gen.*` field does.
+
+If you intentionally diverge a mirror's field *set* from `Gen.*`, add the field
+name to that mirror's `allowed` set in `check_dto_mirrors.py` with a comment.
+
 ## Regen pipeline (run in this order)
 
 The order matters: the web and iOS generators **read** `contract/openapi.json`,
