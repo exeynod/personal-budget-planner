@@ -52,11 +52,9 @@ final class SubscriptionsViewModel {
             self.subscriptions = SubscriptionsViewData.sortForDisplay(subs)
             self.categories = cats.filter { !$0.isArchived }
             self.accounts = accs
-            // NOTE (Phase 63-01 known-gap): LocalNotifications.reschedule принимает
-            // legacy [SubscriptionDTO] (Decodable-only, нет memberwise init), поэтому
-            // V10DTO нельзя смэппить без модификации LocalNotifications/SubscriptionDTO
-            // (вне scope этого плана). Rescheduling нотификаций подписок — follow-up;
-            // CRUD-функционал подписок не регрессирует. TODO(63-02+): overload под V10DTO.
+            // Phase 63-02 — восстановлен rescheduling нотификаций через
+            // V10DTO-overload (63-01 known-gap закрыт).
+            await LocalNotifications.reschedule(subscriptionsV10: self.subscriptions)
             status = .ready
         } catch {
             print("[SubscriptionsViewModel] load failed: \(error)")
@@ -122,11 +120,19 @@ final class SubscriptionsViewModel {
     /// Submitting guard + reload.
     @discardableResult
     func patch(_ sub: SubscriptionV10DTO, payload: SubscriptionV10UpdateRequest) async -> Bool {
+        await patchById(sub.id, payload: payload)
+    }
+
+    /// PATCH по id — used by editor follow-up (create-path: id известен только
+    /// после legacy create; edit-path: id из DTO) для записи V10-extension
+    /// полей `day_of_month`/`account_id` (Plan 63-02). Submitting guard + reload.
+    @discardableResult
+    func patchById(_ id: Int, payload: SubscriptionV10UpdateRequest) async -> Bool {
         guard !submitting else { return false }
         submitting = true
         defer { submitting = false }
         do {
-            _ = try await SubscriptionsV10API.patch(id: sub.id, payload: payload)
+            _ = try await SubscriptionsV10API.patch(id: id, payload: payload)
             mutationError = nil
             await load()
             return true
@@ -242,7 +248,11 @@ struct SubscriptionsView: View {
         .navigationTitle("Подписки")
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                Button { showingNew = true } label: { Image(systemName: "plus") }
+                Button {
+                    showingNew = true
+                } label: {
+                    Image(systemName: "plus")
+                }
             }
         }
         .refreshable { await viewModel.load() }
@@ -257,14 +267,23 @@ struct SubscriptionsView: View {
             SubscriptionEditor(
                 mode: .create,
                 categories: viewModel.categories,
-                onSaved: { await viewModel.load() }
+                accounts: viewModel.accounts,
+                onSaved: { await viewModel.load() },
+                onPatchV10: { id, payload in
+                    await viewModel.patchById(id, payload: payload)
+                }
             )
         }
         .sheet(item: $editingSub) { sub in
             SubscriptionEditor(
                 mode: .edit(sub),
                 categories: viewModel.categories,
-                onSaved: { await viewModel.load() }
+                accounts: viewModel.accounts,
+                onSaved: { await viewModel.load() },
+                onDelete: { await viewModel.delete(sub) },
+                onPatchV10: { id, payload in
+                    await viewModel.patchById(id, payload: payload)
+                }
             )
         }
     }
@@ -352,11 +371,25 @@ enum SubscriptionEditorMode: Identifiable {
 }
 
 /// Native sheet — NavigationStack + Form. Все поля стандартные iOS.
+///
+/// Phase 63-02 — расширен секциями «Счёт списания» (Picker, источник
+/// `accounts`, default = primary) и «День месяца» (Stepper 1...28, только
+/// для `cycle == .monthly`). Save-path:
+///   - `.create`: legacy `SubscriptionsAPI.create` (V10API не имеет create —
+///     резолюция CONTEXT/63-01) → получить созданный id → follow-up
+///     `viewModel.patch` для `day_of_month`/`account_id` (V10-extension поля).
+///   - `.edit`: legacy `SubscriptionsAPI.update` для скаляров+даты
+///     (String `yyyy-MM-dd` через DateFormatters.isoDate — без UTC day-shift,
+///     т.к. APIClient encoder = `.iso8601` UTC и сместил бы DATE-поле) →
+///     follow-up `viewModel.patch` для `day_of_month`/`account_id`.
 struct SubscriptionEditor: View {
     let mode: SubscriptionEditorMode
     let categories: [CategoryDTO]
+    let accounts: [AccountDTO]
     let onSaved: () async -> Void
     var onDelete: (() async -> Void)? = nil
+    /// V10 PATCH seam для follow-up day_of_month/account_id (создание + правка).
+    var onPatchV10: ((_ id: Int, _ payload: SubscriptionV10UpdateRequest) async -> Bool)? = nil
 
     @Environment(\.dismiss) private var dismiss
     @State private var name: String = ""
@@ -366,6 +399,8 @@ struct SubscriptionEditor: View {
     @State private var categoryId: Int?
     @State private var notifyDaysBefore: Int = 2
     @State private var isActive: Bool = true
+    @State private var dayOfMonth: Int = 1
+    @State private var accountId: Int?
     @State private var isSubmitting = false
     @State private var errorMessage: String?
     @State private var showingDeleteConfirm = false
@@ -376,11 +411,17 @@ struct SubscriptionEditor: View {
         categories.filter { !$0.isArchived && $0.kind == .expense }
     }
 
+    private func accountLabel(_ a: AccountDTO) -> String {
+        a.bank + (a.mask.map { " ·\($0)" } ?? "")
+    }
+
     private var canSave: Bool {
-        !name.trimmingCharacters(in: .whitespaces).isEmpty
-            && (amountCents ?? 0) > 0
-            && categoryId != nil
-            && !isSubmitting
+        SubscriptionsViewData.isValidDraft(
+            name: name,
+            amountCents: amountCents ?? 0,
+            categoryId: categoryId,
+            submitting: isSubmitting
+        )
     }
 
     var body: some View {
@@ -404,9 +445,36 @@ struct SubscriptionEditor: View {
                     }
                     .pickerStyle(.segmented)
                 }
+                if cycle == .monthly {
+                    Section {
+                        Stepper(value: $dayOfMonth, in: 1...28) {
+                            LabeledContent("Число списания") {
+                                Text("\(dayOfMonth)").monospacedDigit()
+                            }
+                        }
+                    } header: {
+                        Text("День месяца")
+                    } footer: {
+                        Text("Порядковый день (1–28) для ежемесячного списания.")
+                    }
+                }
                 Section("Следующее списание") {
                     DatePicker("Дата", selection: $nextChargeDate, displayedComponents: .date)
                         .environment(\.locale, Locale(identifier: "ru_RU"))
+                }
+                Section {
+                    Picker(selection: $accountId) {
+                        Text("Не указан").tag(Int?.none)
+                        ForEach(accounts) { a in
+                            Text(accountLabel(a)).tag(Int?.some(a.id))
+                        }
+                    } label: {
+                        Text("Счёт")
+                    }
+                } header: {
+                    Text("Счёт списания")
+                } footer: {
+                    Text("Со счёта спишется сумма при проведении подписки.")
                 }
                 Section("Категория") {
                     if expenseCategories.isEmpty {
@@ -488,9 +556,13 @@ struct SubscriptionEditor: View {
 
     private func populate() {
         let expenses = categories.filter { $0.kind == .expense }
+        // Default account = primary, иначе первый (как SavingsDepositSheet).
+        let defaultAccount = accounts.first(where: { $0.primary })?.id ?? accounts.first?.id
         switch mode {
         case .create:
             categoryId = expenses.first?.id
+            accountId = defaultAccount
+            dayOfMonth = 1
         case .edit(let s):
             name = s.name
             amountText = MoneyFormatter.format(cents: s.amountCents)
@@ -499,6 +571,8 @@ struct SubscriptionEditor: View {
             categoryId = s.categoryId
             notifyDaysBefore = s.notifyDaysBefore
             isActive = s.isActive
+            dayOfMonth = s.dayOfMonth ?? 1
+            accountId = s.accountId
         }
     }
 
@@ -515,32 +589,58 @@ struct SubscriptionEditor: View {
         isSubmitting = true
         errorMessage = nil
         defer { isSubmitting = false }
+
+        // day_of_month — ordinal, только для monthly. account_id — optional.
+        let dayPayload: Int? = (cycle == .monthly) ? dayOfMonth : nil
+        let v10Payload = SubscriptionV10UpdateRequest(dayOfMonth: dayPayload, accountId: accountId)
+        // PATCH нужен только если есть что писать в V10-extension поля.
+        let needsFollowUpPatch = dayPayload != nil || accountId != nil
+
         do {
             switch mode {
             case .create:
-                _ = try await SubscriptionsAPI.create(SubscriptionCreateRequest(
-                    name: name.trimmingCharacters(in: .whitespaces),
-                    amountCents: cents,
-                    cycle: cycle.rawValue,
-                    nextChargeDate: DateFormatters.isoDate.string(from: nextChargeDate),
-                    categoryId: catId,
-                    notifyDaysBefore: notifyDaysBefore
-                ))
+                // V10API не имеет create — legacy create задаёт скаляры+дату
+                // (String yyyy-MM-dd, без UTC day-shift), затем follow-up V10
+                // PATCH дописывает day_of_month/account_id (резолюция 63-01).
+                let created = try await SubscriptionsAPI.create(
+                    SubscriptionCreateRequest(
+                        name: name.trimmingCharacters(in: .whitespaces),
+                        amountCents: cents,
+                        cycle: cycle.rawValue,
+                        nextChargeDate: DateFormatters.isoDate.string(from: nextChargeDate),
+                        categoryId: catId,
+                        notifyDaysBefore: notifyDaysBefore
+                    ))
+                if needsFollowUpPatch, let onPatchV10 {
+                    // T-63-06 (accept): подписка уже создана. Если PATCH упадёт —
+                    // VM выставит mutationError + load() покажет реальное
+                    // состояние; пользователь сможет переоткрыть редактор.
+                    _ = await onPatchV10(created.id, v10Payload)
+                }
             case .edit(let s):
-                _ = try await SubscriptionsAPI.update(id: s.id, SubscriptionUpdateRequest(
-                    name: name,
-                    amountCents: cents,
-                    cycle: cycle.rawValue,
-                    nextChargeDate: DateFormatters.isoDate.string(from: nextChargeDate),
-                    categoryId: catId,
-                    notifyDaysBefore: notifyDaysBefore,
-                    isActive: isActive
-                ))
+                // Скаляры+дата через legacy update (String date — без day-shift),
+                // затем V10 PATCH для day_of_month/account_id.
+                _ = try await SubscriptionsAPI.update(
+                    id: s.id,
+                    SubscriptionUpdateRequest(
+                        name: name,
+                        amountCents: cents,
+                        cycle: cycle.rawValue,
+                        nextChargeDate: DateFormatters.isoDate.string(from: nextChargeDate),
+                        categoryId: catId,
+                        notifyDaysBefore: notifyDaysBefore,
+                        isActive: isActive
+                    ))
+                if let onPatchV10 {
+                    _ = await onPatchV10(s.id, v10Payload)
+                }
             }
             await onSaved()
             dismiss()
         } catch {
-            errorMessage = error.localizedDescription
+            // T-63-02 — фиксированная RU-копия, без утечки raw error.
+            print("[SubscriptionEditor] save failed: \(error)")
+            errorMessage = "Не удалось сохранить подписку"
         }
     }
 }
