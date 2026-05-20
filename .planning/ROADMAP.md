@@ -461,6 +461,48 @@ Plans:
 
 ---
 
+### Phase 68: Tech-Debt Cleanup (v1.1.2 followup workstream A) — planned
+**Plans:** 4 plans
+**Goal**: Устранить pre-existing tech-debt, залогированный в фазе 67 (`deferred-items.md`) + отложенные косметические находки ревью, чтобы получить полностью зелёный baseline всех трёх стеков перед архитектурными фазами 69/70. Спецификация — `.planning/CONVERGENCE-AND-DEBT-PLAN.md` §ФАЗА 68 (workstream A) + `.planning/v1.1.2-MULTILEAD-REVIEW.md`. Покрывает A1 (backend pro-gating 402-vs-429: `require_pro` срабатывает до `enforce_spending_cap` → 5 тестов ждут 429, получают 402), A2 (onboarding/complete 422 + `category.code`/`ord` seed-drift Phase 22 → системный фикс seed-helper, не inline), A3 (web tsc test-gate: `@types/node`, prop-дрейф в 3 `.test.tsx`, вернуть тесты под type-check), A4 (stale doc-комментарий 0.5→0.35 threshold в AISuggestCategoryAPI.swift).
+**Depends on**: — (независимо, можно сразу; baseline для 69).
+**Success Criteria**:
+1. Backend pytest полностью зелёный — нет pre-existing фейлов (`test_ai_cap_integration` 3, `test_spend_cap_concurrent` 2, `test_seed_creates_14_categories`, `test_e2e_multi_user_lifecycle` 4); pro-over-cap→429, non-pro→402 подтверждено.
+2. Seed-helper системно задаёт NOT-NULL `Category.code` (`^[0-9]{2}$`) + `ord`; ни одному будущему тесту не нужен inline seed-фикс.
+3. Web: `npm run build` (prod tsc-гейт) зелёный И тесты проходят type-check (`typecheck:test` или назад в `tsc -b`) И `npx vitest run` зелёный.
+4. A4 косметика закрыта.
+
+
+- [x] 68-01-PLAN.md — [W1] BE A1: pro-gating 402-vs-429 — seed Pro users (seed_user pro/trial params); 6 cap tests assert 429 on pro-over-cap, non-pro→402 (SHIPPED 2026-05-20, commits eece9ae + 0287eda; gate order unchanged, fixture-fix)
+- [ ] 68-02-PLAN.md — [W2] BE A2: systemic seed_category (code+ord, no inline hacks) + onboarding/complete 422 root-cause fix; test_seed_creates_14_categories + e2e_1/3/4/6 green
+- [ ] 68-03-PLAN.md — [W1] Web A3: @types/node + tsconfig.test.json + typecheck:test; fix prop-drift in 3 .test.tsx; build + test-typecheck + vitest green
+- [ ] 68-04-PLAN.md — [W1] iOS A4: comment-only 0.5→0.35 threshold in AISuggestCategoryAPI.swift + swift-format
+
+---
+
+### Phase 69: Contract Codegen — R4 (v1.1.2 followup workstream B) — planned
+**Plans:** TBD
+**Goal**: Единый источник истины для API-контракта — генерировать TS и Swift DTO из FastAPI OpenAPI; убрать 3 рукописных набора типов и «pending schema» заглушки (наибольший ROI против дрейфа контракта). Спецификация — `.planning/CONVERGENCE-AND-DEBT-PLAN.md` §ФАЗА 69 (workstream B). Решения владельца: внешние библиотеки разрешены (Apple `swift-openapi-generator` допустим); R4 делать целиком (полный codegen + миграция потребителей). Покрывает B1 (чистый детерминированный `/openapi.json` dump-таргет + артефакт `contract/openapi.json`), B2 (web `openapi-typescript` → `generated/schema.ts`), B3 (iOS codegen — планировщик сравнивает `swift-openapi-generator` vs кастомный скрипт→vanilla Codable, обосновывает выбор; xcodegen подхватывает generated/), B4 (миграция потребителей read-DTO сначала: CategoryRead/V10, Subscription*, Me*, Actual*; убрать pending-schema Optional-заглушки), B5 (CI sync-guard: regen+git-diff пуст).
+**Depends on**: Phase 68 (зелёные тесты как baseline).
+**Success Criteria**:
+1. `openapi.json` генерируется детерминированно из приложения и покрывает subscriptions/categories/actuals/me/ai/accounts/savings/goals; зафиксирован как регенерируемый артефакт.
+2. TS DTO (`openapi-typescript`) и Swift DTO генерируются идемпотентно; web build и iOS build зелёные на сгенерированных типах.
+3. Ключевые read-DTO мигрированы на сгенерированные; «pending schema» Optional-заглушек нет; ноль behavioral-регрессий; полные test-suites всех 3 стеков зелёные.
+4. CI sync-guard падает, если типы рассинхронизированы со схемой; regen-команда документирована.
+
+---
+
+### Phase 70: Convergence & Abstractions — R3/R6/R7 (v1.1.2 followup workstreams C/D/E) — planned
+**Plans:** TBD
+**Goal**: Поверх стабильного codegen-контракта — свести legacy/V10 API (R3), извлечь общий доменный слой iOS чтобы два шелла не дрейфовали (R6), ввести инъектируемые cross-cutting абстракции (R7). Спецификация — `.planning/CONVERGENCE-AND-DEBT-PLAN.md` §ФАЗА 70 (workstreams C/D/E). **Решение владельца R6: ОСТАВИТЬ ОБА ШЕЛЛА навсегда** (iOS MainShell↔V10MainShell + web v06-shell НЕ удалять) — извлечь общий слой, схождение на уровне API/DTO, НЕ шеллов. Покрывает C/R3 (аудит legacy-enum vs V10API per route, V10=canonical; пометить legacy `@available(deprecated)`; мигрировать доказуемо-эквивалентные call-sites; debt-реестр), D/R6 (инвентарь дублированных экранов; извлечь общие ViewModels/Data/бизнес-логику в shared-слой, Views остаются per-shell; начать с домена наибольшего риска дрейфа — Subscriptions/Savings — по одному за раз с тестами), E/R7 (E1 error-policy injection: APIClient switch → инъектируемая ErrorHandling-стратегия, корневой фикс класса `suppressForbiddenHandler`; E2 BusinessDate тип отдельно от audit-времён, MSK как свойство типа, убирает MSK-decode band-aid).
+**Depends on**: Phase 69 (codegen — фундамент).
+**Success Criteria**:
+1. Legacy-enums помечены `@available(*, deprecated)`; доказуемо-эквивалентные call-sites мигрированы на V10 canonical; неэквивалентные оставлены + тикет; debt-реестр в `.planning/`. Оба шелла продолжают работать. Build без новых warnings-as-errors.
+2. ≥1 iOS-домен (Subscriptions ИЛИ Savings) использует общий VM/Data слой, потребляемый обоими шеллами; поведение идентично; паттерн задан для остальных доменов.
+3. APIClient не содержит per-call auth-флагов (error-policy инъектируема); date-decode без эвристики формата (BusinessDate введён).
+4. Полные test-suites всех затронутых стеков зелёные.
+
+---
+
 ## Dependency Graph (v1.1 / v1.2 / v2.0)
 
 ```

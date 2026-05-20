@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v1.1.2
 milestone_name: — iOS v06 Native Rebuild)
-current_phase: 67
-status: completed
-stopped_at: Completed 67-09-PLAN.md
-last_updated: "2026-05-20T18:02:19.327Z"
+current_phase: 68
+status: in-progress
+stopped_at: Phase 68 in progress — 68-01 (A1 pro-gating 402-vs-429) shipped; next 68-02 (A2 seed_category + onboarding 422)
+last_updated: "2026-05-20T22:30:00.000Z"
 last_activity: 2026-05-20
 progress:
   total_phases: 36
@@ -46,9 +46,9 @@ See: .planning/PROJECT.md (updated 2026-05-09 — v1.0 milestone «Maximal Poste
 
 ## Current Position
 
-Phase: 67 (remediation-cleanup) — COMPLETE (10/10 plans)
-Plan: Not started
-Status: Phase 67 complete. 67-10: single-reload subscription create (patchAlreadyReloaded skips redundant onSaved, P2-1); nextChargeDate source-of-truth for monthly day_of_month clamped 1..28 with Stepper/DatePicker bidirectional sync (P2-2); toggleRoundup/selectBase serialized via separate configInFlight guard (P2-3); flaky test_notificationTxnCreated_triggersLoad de-flaked via injected onNotificationLoadComplete seam + withCheckedContinuation, no Task.sleep (P2-12); CLAUDE.md + docs/HLD.md reframed single-tenant -> multi-tenant-via-RLS reality (RLS alembic 0008, owner/member roles, set_tenant_scope per request) as a security asset (R9). 67-05 banner + 67-07 Savings seam preserved; APIClient/backend/web/FeaturesV10 untouched. Full iOS suite 609 green.
+Phase: 68 (tech-debt-cleanup) — in progress
+Plan: 68-01 complete (A1 backend pro-gating 402-vs-429); next 68-02
+Status: v1.1.2 followup started (CONVERGENCE-AND-DEBT-PLAN.md). Sequence 68 tech-debt -> 69 codegen R4 -> 70 convergence R3/R6/R7. plan-checker ON, worktrees OFF. Phase 67 complete. 68-01: extended seed_user with optional pro_active_until/trial_ends_at (default free, backward-compatible); seeded Pro users (pro_active_until +30d) in all 6 AI spend-cap tests so require_pro (402) passes and enforce_spending_cap (429) fires — tests/test_ai_cap_integration.py (4) + tests/test_spend_cap_concurrent.py (2) all green; gate order require_pro→enforce_spending_cap confirmed intentional, dependencies.py untouched (fixture-fix). Commits eece9ae + 0287eda. 67-10: single-reload subscription create (patchAlreadyReloaded skips redundant onSaved, P2-1); nextChargeDate source-of-truth for monthly day_of_month clamped 1..28 with Stepper/DatePicker bidirectional sync (P2-2); toggleRoundup/selectBase serialized via separate configInFlight guard (P2-3); flaky test_notificationTxnCreated_triggersLoad de-flaked via injected onNotificationLoadComplete seam + withCheckedContinuation, no Task.sleep (P2-12); CLAUDE.md + docs/HLD.md reframed single-tenant -> multi-tenant-via-RLS reality (RLS alembic 0008, owner/member roles, set_tenant_scope per request) as a security asset (R9). 67-05 banner + 67-07 Savings seam preserved; APIClient/backend/web/FeaturesV10 untouched. Full iOS suite 609 green.
 Last activity: 2026-05-20
 
 ## Milestone v1.0 Phases
