@@ -280,7 +280,10 @@ describe('computeCategoryAggregates', () => {
         is_archived: false,
         sort_order: 10,
         created_at: '2026-04-01T00:00:00+00:00',
-        // optional v1.0 fields omitted (back-compat with old wire schema)
+        code: 'cafe',
+        ord: '01',
+        // defaulted-optional v1.0 fields (plan_cents/rollover/paused/parent_id/tag)
+        // omitted on purpose — exercises the consumer's defensive defaulting.
       },
     ];
     const rows = computeCategoryAggregates({ categories, actuals: [] });

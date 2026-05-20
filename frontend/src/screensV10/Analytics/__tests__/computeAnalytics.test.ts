@@ -53,6 +53,7 @@ function mkCategory(over: Partial<CategoryV10> = {}): CategoryV10 {
     sort_order: 10,
     created_at: '2026-04-01T00:00:00Z',
     code: 'food',
+    ord: '01',
     plan_cents: 50000,
     paused: false,
     rollover: 'misc',

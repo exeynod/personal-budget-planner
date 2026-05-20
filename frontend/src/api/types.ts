@@ -79,28 +79,13 @@ export interface OnboardingCompleteResponse {
 }
 
 /**
- * Phase 22 (BE-01) v1.0 extension of /api/v1/me.
+ * Phase 69 B4 — v1.0 `/api/v1/me` response, now sourced from the generated
+ * OpenAPI schema (`generated/adapters.ts` → `components["schemas"]["MeV10Response"]`).
  *
- * Mirrors `MeV10Response` from `app/api/schemas/me_v10.py`. Adds the
- * `income_cents` field (nullable; `null` when user has not yet
- * completed v1.0 onboarding — see DATA-MODEL §1.1 + Phase 22 0012
- * migration).
- *
- * Other fields stay in lock-step with the legacy `MeResponse` so old
- * call sites can swap-cast without re-reading every property.
+ * Field-for-field match with the wire (`income_cents` nullable; `role`
+ * narrowed to the `UserRole` domain union in the adapter).
  */
-export interface MeV10Response {
-  tg_user_id: number;
-  tg_chat_id: number | null;
-  cycle_start_day: number;
-  onboarded_at: string | null;
-  chat_id_known: boolean;
-  role: UserRole;
-  ai_spend_cents: number;
-  ai_spending_cap_cents: number;
-  /** v1.0 added — null when onboarding not complete. */
-  income_cents: number | null;
-}
+export type { MeV10Response } from './generated/adapters';
 
 export interface SettingsRead {
   cycle_start_day: number;
@@ -301,11 +286,10 @@ export interface ChargeNowResponse {
 // ---------- Phase 26-06: V1.0 Subscription Extensions ----------
 
 /**
- * Phase 26-06 — V1.0 ext fields layered onto SubscriptionRead (Phase 22 BE-12).
- *
- * Backend exposes day_of_month/account_id/posted_txn_id когда v1.0 schema
- * landed (Phase 22). Defensive typing — optional + nullable до full schema
- * deploy verification (mirrors CategoryV10 schema-gap pattern).
+ * Phase 26-06 — V1.0 subscription ext fields (day_of_month / account_id /
+ * posted_txn_id). All optional+nullable on the wire (no server default). Kept
+ * as a standalone helper interface for call-sites that pick only the ext set;
+ * the full read DTO (`SubscriptionV10Read`) is generated-backed below.
  */
 export interface SubscriptionV10Ext {
   day_of_month?: number | null;
@@ -313,8 +297,13 @@ export interface SubscriptionV10Ext {
   posted_txn_id?: number | null;
 }
 
-/** Phase 26-06 — extended SubscriptionRead emitted by /api/v1/subscriptions. */
-export type SubscriptionV10Read = SubscriptionRead & SubscriptionV10Ext;
+/**
+ * Phase 69 B4 — v1.0 subscription read shape emitted by GET /api/v1/subscriptions,
+ * now sourced from the generated `components["schemas"]["SubscriptionReadV10"]`
+ * (the CRUD DTO — NOT the same-named tier/billing schema). Its nested `category`
+ * is the generated v1.0 `CategoryRead`; the ext fields are optional+nullable.
+ */
+export type { SubscriptionV10Read } from './generated/adapters';
 
 /**
  * Phase 26-06 — request body for PATCH /subscriptions/{id} (V10 super-set).
@@ -653,37 +642,18 @@ export interface AdminAiUsageResponse {
 // ---------- Phase 25 (plan 25-03): v1.0 typed wire shapes ----------
 
 /**
- * Phase 25-03 — wire-level kind enum for the v1.0 actual surface.
+ * Phase 69 B4 — v1.0 actual surface, now sourced from the generated OpenAPI
+ * schema (`generated/adapters.ts` → `components["schemas"]["ActualRead"]`).
  *
- * Mirrors `ActualKindStr` from `app/api/schemas/actual.py` (4-valued
- * after Phase 25-01 lands). Legacy v0.x ActualRead still uses
- * `CategoryKind` (2-valued); the v10 client wraps a separate
- * ActualV10Read so v0.x consumers keep working untouched.
+ * `kind` is 4-valued (`expense|income|roundup|deposit`). `account_id` /
+ * `parent_txn_id` are optional+nullable on the wire (no server default) — kept
+ * optional to match the wire and avoid a crash on legacy rows that omit them
+ * (drift-report #8 / threat T-69-04-01). `tag` (`string | null`, Phase 36) is
+ * present from the generated source.
  */
-export type ActualV10Kind = 'expense' | 'income' | 'roundup' | 'deposit';
+import type { ActualV10Read, ActualV10Kind } from './generated/adapters';
 
-/**
- * Phase 25-03 — extended ActualRead emitted by `POST /actual` and
- * `GET /periods/{id}/actual` after Phase 25-01.
- *
- * Fields mirror `ActualRead` (`app/api/schemas/actual.py`); `account_id`
- * and `parent_txn_id` are nullable (legacy v0.x rows have NULL).
- */
-export interface ActualV10Read {
-  id: number;
-  period_id: number;
-  kind: ActualV10Kind;
-  amount_cents: number;
-  description: string | null;
-  category_id: number;
-  tx_date: string; // ISO date
-  source: ActualSource;
-  created_at: string; // ISO datetime
-  /** v1.0 added — nullable for legacy v0.x rows. */
-  account_id: number | null;
-  /** v1.0 added — non-null only on roundup children. */
-  parent_txn_id: number | null;
-}
+export type { ActualV10Read, ActualV10Kind };
 
 /**
  * Phase 25-03 — request body for `POST /actual` (v1.0 path).
@@ -740,52 +710,19 @@ export interface AccountCreatePayload {
 }
 
 /**
- * Phase 25-03 — wire-level rollover policy enum.
+ * Phase 69 B4 — v1.0 category wire shape, now sourced from the generated
+ * OpenAPI schema (`generated/adapters.ts` → `components["schemas"]["CategoryRead"]`).
  *
- * Mirrors `RolloverPolicy` (`app.db.models`); the backend stores it as
- * VARCHAR(8) with a CHECK constraint (alembic 0013) and currently
- * exposes it on the ORM `Category` model. **NOTE**: as of Phase 22 BE,
- * the public `CategoryRead` Pydantic schema (`app/api/schemas/
- * categories.py`) does NOT yet emit this field — see `CategoryV10`
- * comment below.
+ * `code`/`ord` are required; `plan_cents`/`rollover`/`paused`/`tag` are
+ * server-defaulted (always present on the wire); `parent_id` is optional+nullable.
+ * `tag` (`"personal"|"business"|"mixed"`, Phase 36) is included from the
+ * generated source. The old stub Optionals are gone — the Phase 25 gap-fix
+ * landed every field on the wire.
  */
-export type CategoryRollover = 'misc' | 'savings';
+import type {
+  CategoryV10,
+  CategoryRollover,
+  CategoryTag,
+} from './generated/adapters';
 
-/**
- * Phase 25-03 — v1.0 category wire shape.
- *
- * **Schema gap (documented in 25-03 SUMMARY)**: as of Phase 22 the
- * public `CategoryRead` Pydantic schema (`app/api/schemas/categories.py`)
- * still emits only the v0.x field set (`id, name, kind, is_archived,
- * sort_order, created_at`). The ORM model already has the v1.0 columns
- * (Phase 22 BE-04 / alembic 0013) — `code, plan_cents, ord, rollover,
- * paused, parent_id` — but they are NOT yet exposed on the wire.
- *
- * Until the response schema is extended (likely Phase 25-04 or a
- * follow-up backend tweak), the v1.0 fields below are typed as optional
- * + nullable so consumers can defensively handle both pre- and
- * post-extension responses without runtime type errors. UI code should
- * fall back to safe defaults (`plan_cents ?? 0`, `paused ?? false`,
- * `rollover ?? 'misc'`, `code ?? null`) until the schema lands.
- */
-export interface CategoryV10 {
-  id: number;
-  name: string;
-  kind: CategoryKind;
-  is_archived: boolean;
-  sort_order: number;
-  created_at: string; // ISO datetime
-
-  /** v1.0 — pending Phase 22 schema update (ORM has it, wire does not). */
-  code?: string | null;
-  /** v1.0 — pending Phase 22 schema update. */
-  plan_cents?: number;
-  /** v1.0 — pending Phase 22 schema update. CHAR(2) on DB ('01'..'99'). */
-  ord?: string;
-  /** v1.0 — pending Phase 22 schema update. */
-  rollover?: CategoryRollover;
-  /** v1.0 — pending Phase 22 schema update. */
-  paused?: boolean;
-  /** v1.0 — pending Phase 22 schema update; null when no parent. */
-  parent_id?: number | null;
-}
+export type { CategoryV10, CategoryRollover, CategoryTag };

@@ -59,6 +59,8 @@ const cat: CategoryV10 = {
   is_archived: false,
   sort_order: 1,
   created_at: '2026-04-01T00:00:00+00:00',
+  code: 'cafe',
+  ord: '01',
 };
 
 const baseProps = {

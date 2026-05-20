@@ -63,6 +63,7 @@ const SAMPLE_CATEGORIES: CategoryV10[] = [
     sort_order: 1,
     created_at: '2026-04-01T00:00:00+00:00',
     code: 'cafe',
+    ord: '01',
     paused: false,
   },
   {
@@ -73,6 +74,7 @@ const SAMPLE_CATEGORIES: CategoryV10[] = [
     sort_order: 2,
     created_at: '2026-04-01T00:00:00+00:00',
     code: 'food',
+    ord: '02',
     paused: false,
   },
   {
@@ -83,6 +85,7 @@ const SAMPLE_CATEGORIES: CategoryV10[] = [
     sort_order: 3,
     created_at: '2026-04-01T00:00:00+00:00',
     code: 'savings', // filtered out
+    ord: '03',
     paused: false,
   },
   {
@@ -93,6 +96,7 @@ const SAMPLE_CATEGORIES: CategoryV10[] = [
     sort_order: 4,
     created_at: '2026-04-01T00:00:00+00:00',
     code: 'old',
+    ord: '04',
     paused: true, // filtered out
   },
 ];
