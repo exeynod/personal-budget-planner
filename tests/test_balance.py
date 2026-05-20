@@ -229,3 +229,127 @@ async def test_balance_no_active_period_404(db_client, auth_headers):
     """No active period → 404."""
     response = await db_client.get("/api/v1/actual/balance", headers=auth_headers)
     assert response.status_code == 404
+
+
+@pytest_asyncio.fixture
+async def savings_balance_setup(db_setup, owner_tg_id):
+    """Period with expense/income PLUS savings deposit & roundup actuals.
+
+    Phase 71 BUG-1 regression: deposit/roundup ActualTransactions (4-valued
+    ActualKind) must NOT leak into compute_balance — they would break the
+    BalanceCategoryRow.kind Literal['expense','income'] schema → 500.
+    """
+    _, SessionLocal = db_setup
+    from sqlalchemy import text
+    from app.db.models import (
+        ActualKind, ActualSource, ActualTransaction, BudgetPeriod, Category,
+        CategoryKind, PeriodStatus, PlannedTransaction, PlanSource,
+    )
+
+    today = date.today()
+    async with SessionLocal() as session:
+        result = await session.execute(
+            text("SELECT id FROM app_user WHERE tg_user_id = :tg"),
+            {"tg": owner_tg_id},
+        )
+        user_id = result.scalar_one()
+
+        from tests.helpers.seed import seed_category
+        exp_cat = await seed_category(session, user_id=user_id, name="Продукты", kind=CategoryKind.expense, is_archived=False, sort_order=10)
+        inc_cat = await seed_category(session, user_id=user_id, name="Зарплата", kind=CategoryKind.income, is_archived=False, sort_order=20)
+        sav_cat = await seed_category(session, user_id=user_id, name="Копилка", kind=CategoryKind.expense, is_archived=False, sort_order=30)
+        await session.flush()
+
+        period = BudgetPeriod(
+            user_id=user_id,
+            period_start=today - timedelta(days=15),
+            period_end=today + timedelta(days=15),
+            starting_balance_cents=50000,
+            status=PeriodStatus.active,
+        )
+        session.add(period)
+        await session.flush()
+
+        session.add_all([
+            PlannedTransaction(
+                user_id=user_id, period_id=period.id, kind=CategoryKind.expense,
+                amount_cents=300000, category_id=exp_cat.id, source=PlanSource.manual,
+            ),
+            PlannedTransaction(
+                user_id=user_id, period_id=period.id, kind=CategoryKind.income,
+                amount_cents=500000, category_id=inc_cat.id, source=PlanSource.manual,
+            ),
+        ])
+
+        # Real expense (kind=expense). A roundup child references it (parent).
+        expense_txn = ActualTransaction(
+            user_id=user_id, period_id=period.id, kind=ActualKind.expense,
+            amount_cents=200000, category_id=exp_cat.id,
+            tx_date=today, source=ActualSource.mini_app,
+        )
+        session.add(expense_txn)
+        await session.flush()
+
+        session.add_all([
+            ActualTransaction(
+                user_id=user_id, period_id=period.id, kind=ActualKind.income,
+                amount_cents=600000, category_id=inc_cat.id,
+                tx_date=today, source=ActualSource.mini_app,
+            ),
+            # Manual savings deposit — must be excluded from balance.
+            ActualTransaction(
+                user_id=user_id, period_id=period.id, kind=ActualKind.deposit,
+                amount_cents=70000, category_id=sav_cat.id,
+                tx_date=today, source=ActualSource.mini_app,
+            ),
+            # Auto roundup child of the expense — must be excluded too.
+            ActualTransaction(
+                user_id=user_id, period_id=period.id, kind=ActualKind.roundup,
+                amount_cents=5000, category_id=sav_cat.id,
+                tx_date=today, source=ActualSource.mini_app,
+                parent_txn_id=expense_txn.id,
+            ),
+        ])
+
+        await session.commit()
+        await session.refresh(period)
+        return {
+            "period_id": period.id,
+            "exp_cat_id": exp_cat.id,
+            "inc_cat_id": inc_cat.id,
+            "sav_cat_id": sav_cat.id,
+        }
+
+
+@pytest.mark.asyncio
+async def test_balance_excludes_deposit_and_roundup(db_client, auth_headers, savings_balance_setup):
+    """Phase 71 BUG-1: deposit/roundup actuals must not break balance (500→200)."""
+    response = await db_client.get("/api/v1/actual/balance", headers=auth_headers)
+    assert response.status_code == 200
+    data = response.json()
+
+    # by_category contains ONLY expense/income kinds — no deposit/roundup.
+    kinds = {row["kind"] for row in data["by_category"]}
+    assert kinds == {"expense", "income"}
+    assert "deposit" not in kinds
+    assert "roundup" not in kinds
+
+    # The savings category (only deposit/roundup actuals, no plan) is absent.
+    cat_ids = {row["category_id"] for row in data["by_category"]}
+    assert savings_balance_setup["sav_cat_id"] not in cat_ids
+    assert len(data["by_category"]) == 2
+
+    # Totals unaffected by the 70000 deposit + 5000 roundup.
+    assert data["starting_balance_cents"] == 50000
+    assert data["planned_total_expense_cents"] == 300000
+    assert data["actual_total_expense_cents"] == 200000
+    assert data["planned_total_income_cents"] == 500000
+    assert data["actual_total_income_cents"] == 600000
+    # balance_now = 50000 + 600000 - 200000 = 450000 (deposit/roundup excluded)
+    assert data["balance_now_cents"] == 450000
+    # delta_total = (300000 - 200000) + (600000 - 500000) = 200000
+    assert data["delta_total_cents"] == 200000
+
+    exp_row = next(r for r in data["by_category"] if r["category_id"] == savings_balance_setup["exp_cat_id"])
+    assert exp_row["actual_cents"] == 200000  # roundup child NOT folded in
+    assert exp_row["delta_cents"] == 100000

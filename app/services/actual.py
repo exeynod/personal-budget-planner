@@ -404,10 +404,12 @@ async def compute_balance(
         income totals — magnitudes only. ``balance_now_cents`` is then
         derived as ``starting + abs(income) − abs(expense)`` which is
         deterministic regardless of how each row was signed.
-        This also keeps deposit/roundup kinds out of the totals (the WHERE
-        clause restricts kind to {expense, income} via the GROUP BY +
-        subsequent filter on ``CategoryKind`` enum members), so rollover
-        deposits never leak into ``act_exp`` / ``act_inc``.
+        Savings ``deposit`` / ``roundup`` kinds are excluded from the actual
+        aggregation entirely via an explicit WHERE filter on
+        ``ActualTransaction.kind IN {expense, income}``. This keeps them out
+        of both ``by_category`` (whose schema only accepts expense/income)
+        and the ``act_exp`` / ``act_inc`` totals, so rollover deposits never
+        leak into the plan-vs-fact balance — they live on the Savings screen.
 
     Returns:
         dict with keys: period_id, period_start, period_end, starting_balance_cents,
@@ -448,6 +450,13 @@ async def compute_balance(
     # CR-01 fix: use func.abs() to make the sum sign-agnostic so a period
     # mixing legacy-positive and v1.0-negative expense rows still produces
     # a meaningful magnitude. delta math below is sign-aware.
+    # Restrict to {expense, income} only: savings ``deposit`` / ``roundup``
+    # kinds are surfaced on the Savings screen / snapshot, NOT in the
+    # plan-vs-fact balance. Without this filter a deposit/roundup row would
+    # leak into ``by_category`` with ``kind="deposit"`` and break the
+    # response schema (BalanceCategoryRow.kind is Literal['expense','income'])
+    # → 500. Totals are unaffected (act_exp/act_inc already filter on the
+    # {expense, income} string values).
     actual_q = (
         select(
             ActualTransaction.category_id,
@@ -457,6 +466,7 @@ async def compute_balance(
         .where(
             ActualTransaction.user_id == user_id,
             ActualTransaction.period_id == period_id,
+            ActualTransaction.kind.in_([ActualKind.expense, ActualKind.income]),
         )
         .group_by(ActualTransaction.category_id, ActualTransaction.kind)
     )
