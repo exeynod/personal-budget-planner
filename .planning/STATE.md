@@ -4,14 +4,14 @@ milestone: v1.1.2
 milestone_name: — iOS v06 Native Rebuild)
 current_phase: 67
 status: completed
-stopped_at: Completed 68-03-PLAN.md
-last_updated: "2026-05-20T19:48:50.637Z"
+stopped_at: Completed 68-04-PLAN.md
+last_updated: "2026-05-20T23:30:00.000Z"
 last_activity: 2026-05-20
 progress:
   total_phases: 39
   completed_phases: 25
-  total_plans: 76
-  completed_plans: 75
+  total_plans: 77
+  completed_plans: 76
   percent: 99
 ---
 
@@ -47,7 +47,7 @@ See: .planning/PROJECT.md (updated 2026-05-09 — v1.0 milestone «Maximal Poste
 ## Current Position
 
 Phase: 68 (tech-debt-cleanup) — in progress
-Plan: 68-01 + 68-02 + 68-03 complete (A1 pro-gating; A2 seed_category + onboarding 422; A3 web tsc test-gate); next 68-04 (iOS A4)
+Plan: 68-01 + 68-02 + 68-03 + 68-04 complete (A1 pro-gating; A2 seed_category + onboarding 422; A3 web tsc test-gate; A4 iOS stale-doc 0.5→0.35); Phase 68 workstream A done
 Status: v1.1.2 followup started (CONVERGENCE-AND-DEBT-PLAN.md). Sequence 68 tech-debt -> 69 codegen R4 -> 70 convergence R3/R6/R7. plan-checker ON, worktrees OFF. Phase 67 complete. 68-03 (A3 web tsc test-gate): added @types/node@^22 + tsconfig.test.json + `typecheck:test` script (tsc -p tsconfig.test.json --noEmit) re-covering test files under type-check WITHOUT slowing the prod `tsc -b` (Phase 67 test-exclude in tsconfig.app.json untouched — two separate gates). Fixed prop-drift: AiView.test baseProps typed to AiViewProps (literal-narrowing was rejecting valid observation/observationError null<->string overrides); SettingsView.test makeProps gained 8 missing required props (homeColor/pickerOpen/onSelectHomeColor/onTogglePicker from Phase 30-07 + theme/themePickerOpen/onSelectTheme/onToggleThemePicker from Phase 54-01). TxV10TabDemote needed no fixture change (node:fs/path resolved by @types/node alone). No @ts-ignore, no production prop-type changes. Three gates green: npm run build (vite ~280ms) + npm run typecheck:test (0 err) + npx vitest run (55 files / 738 tests). Commits dbe8b47 + 1c8b3dd. 68-01: extended seed_user with optional pro_active_until/trial_ends_at (default free, backward-compatible); seeded Pro users (pro_active_until +30d) in all 6 AI spend-cap tests so require_pro (402) passes and enforce_spending_cap (429) fires — tests/test_ai_cap_integration.py (4) + tests/test_spend_cap_concurrent.py (2) all green; gate order require_pro→enforce_spending_cap confirmed intentional, dependencies.py untouched (fixture-fix). Commits eece9ae + 0287eda. 67-10: single-reload subscription create (patchAlreadyReloaded skips redundant onSaved, P2-1); nextChargeDate source-of-truth for monthly day_of_month clamped 1..28 with Stepper/DatePicker bidirectional sync (P2-2); toggleRoundup/selectBase serialized via separate configInFlight guard (P2-3); flaky test_notificationTxnCreated_triggersLoad de-flaked via injected onNotificationLoadComplete seam + withCheckedContinuation, no Task.sleep (P2-12); CLAUDE.md + docs/HLD.md reframed single-tenant -> multi-tenant-via-RLS reality (RLS alembic 0008, owner/member roles, set_tenant_scope per request) as a security asset (R9). 67-05 banner + 67-07 Savings seam preserved; APIClient/backend/web/FeaturesV10 untouched. Full iOS suite 609 green.
 Last activity: 2026-05-20
 
@@ -112,6 +112,7 @@ Last activity: 2026-05-20
 | Phase 67 P10 | 9min | 3 tasks | 6 files |
 | Phase 68 P02 | 25min | 2 tasks | 4 files |
 | Phase 68 P03 | ~12min | 2 tasks | 5 files |
+| Phase 68 P04 | ~5min | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -121,6 +122,7 @@ Full decision log в PROJECT.md Key Decisions table.
 
 Recent decisions affecting v1.0 planning:
 
+- 68-04 (2026-05-20): iOS A4 cosmetic — AISuggestCategoryAPI.swift stale doc-comment 0.5→0.35 (verified live backend SUGGEST_THRESHOLD=0.35 in ai_suggest.py post-P2-5). Fixed BOTH locations: the SuggestCategoryDTO doc-comment AND the file-header "filters confidence < 0.5" note (Rule 1 — same stale value). Comment-only, no logic. `make format` reformatted ~80 unrelated files (pre-existing drift) → reverted; only target file committed (scope boundary). Commit 6bd18b6.
 - 68-02 (2026-05-20): seed_category now systemically supplies NOT-NULL code (slugified-name + itertools.count monotonic suffix — collision-resistant on the partial-unique (user_id, code) WHERE NOT is_archived index; NOT f"c{sort_order}") + ord (sort_order clamped 00..99, satisfies CHECK ^[0-9]{2}$; regex is on ord, not code). All inline Category seed hacks removed (test_categories + e2e). onboarding/complete 422 root = the live endpoint is v1.0 onboarding_v10 (income_cents/accounts/category_plans, extra=forbid) — legacy starting_balance_cents body is unmounted; tests migrated to v1.0 contract + pdn_consent grant (9 system categories = 8 defaults + savings). Rule 1 deviation: removed dropped plan_template_item from admin_users._PURGE_TABLES_ORDERED (every user-revoke crashed with UndefinedTableError). 16 tests green. Commits 84b0656 + 81309e3.
 - 67-05 (2026-05-20): SSE 403 also calls onUnauthenticated() — AI chat stream is always authed (= REST !skipAuth), so 403 there is a genuine auth failure; mirrors final 67-03 REST semantics.
 - 67-05 (2026-05-20): `userFacingRu` (UI-only, never surfaces server detail) kept distinct from `errorDescription` (still interpolates detail for logs/dev).
@@ -244,8 +246,8 @@ v1.0 deferred (acknowledged at planning):
 
 ## Session Continuity
 
-Last session: 2026-05-20T22:45:00.000Z
-Stopped at: Completed 68-02-PLAN.md
+Last session: 2026-05-20T23:30:00.000Z
+Stopped at: Completed 68-04-PLAN.md
 Resume file: None
 
 ## Deferred Items

@@ -475,7 +475,7 @@ Plans:
 - [x] 68-01-PLAN.md — [W1] BE A1: pro-gating 402-vs-429 — seed Pro users (seed_user pro/trial params); 6 cap tests assert 429 on pro-over-cap, non-pro→402 (SHIPPED 2026-05-20, commits eece9ae + 0287eda; gate order unchanged, fixture-fix)
 - [x] 68-02-PLAN.md — [W2] BE A2: systemic seed_category (code+ord, no inline hacks) + onboarding/complete 422 root-cause fix; test_categories.py (10) + e2e (6) green (SHIPPED 2026-05-20, commits 84b0656 + 81309e3; 422 root = legacy body vs v1.0 onboarding_v10 contract; Rule 1: removed dropped plan_template_item from admin purge)
 - [x] 68-03-PLAN.md — [W1] Web A3: @types/node + tsconfig.test.json + typecheck:test; fix prop-drift in 3 .test.tsx; build + test-typecheck + vitest green (SHIPPED 2026-05-20, commits dbe8b47 + 1c8b3dd; separate test project keeps prod tsc -b fast/test-free; AiView baseProps typed to AiViewProps, SettingsView fixture +8 drifted props from Phase 30-07/54-01; build + typecheck:test 0-err + vitest 738 all green)
-- [ ] 68-04-PLAN.md — [W1] iOS A4: comment-only 0.5→0.35 threshold in AISuggestCategoryAPI.swift + swift-format
+- [x] 68-04-PLAN.md — [W1] iOS A4: comment-only 0.5→0.35 threshold in AISuggestCategoryAPI.swift + swift-format (SHIPPED 2026-05-20, commit 6bd18b6; verified backend SUGGEST_THRESHOLD=0.35 in ai_suggest.py; fixed BOTH the SuggestCategoryDTO doc-comment + the file-header note, Rule 1; tree-wide make-format churn on ~80 unrelated files reverted — only target file committed)
 
 ---
 
