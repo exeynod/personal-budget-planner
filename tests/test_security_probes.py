@@ -492,16 +492,9 @@ async def test_sp11_subscription_double_charge_409(sec_env):
     headers = {"X-Telegram-Init-Data": sec_env["make_init"](app_settings.OWNER_TG_ID)}
 
     # Bootstrap owner + onboarding (68-05: v1.0 contract + ПДн consent grant).
-    from datetime import datetime, timezone
-
-    from tests.helpers.onboarding import complete_onboarding_v10
+    from tests.helpers.onboarding import complete_onboarding_v10, grant_pdn_consent
     await client.get("/api/v1/me", headers=headers)
-    async with SessionLocal() as _s:
-        await _s.execute(
-            text("UPDATE app_user SET pdn_consent_at = :ts WHERE tg_user_id = :tg"),
-            {"ts": datetime.now(timezone.utc), "tg": app_settings.OWNER_TG_ID},
-        )
-        await _s.commit()
+    await grant_pdn_consent(SessionLocal, tg_user_id=app_settings.OWNER_TG_ID)
     onb = await complete_onboarding_v10(client, headers)
     assert onb.status_code == 200, onb.text
 
@@ -559,22 +552,14 @@ async def test_sp11_subscription_double_charge_409(sec_env):
 @pytest.mark.asyncio
 async def test_sp12_onboarding_double_completion_409(sec_env):
     """POST /onboarding/complete twice → 2nd = 409 AlreadyOnboardedError."""
-    from sqlalchemy import text
     from app.core.settings import settings as app_settings
     SessionLocal = sec_env["SessionLocal"]
     client = sec_env["client"]
     headers = {"X-Telegram-Init-Data": sec_env["make_init"](app_settings.OWNER_TG_ID)}
 
-    from datetime import datetime, timezone
-
-    from tests.helpers.onboarding import complete_onboarding_v10
+    from tests.helpers.onboarding import complete_onboarding_v10, grant_pdn_consent
     await client.get("/api/v1/me", headers=headers)
-    async with SessionLocal() as _s:
-        await _s.execute(
-            text("UPDATE app_user SET pdn_consent_at = :ts WHERE tg_user_id = :tg"),
-            {"ts": datetime.now(timezone.utc), "tg": app_settings.OWNER_TG_ID},
-        )
-        await _s.commit()
+    await grant_pdn_consent(SessionLocal, tg_user_id=app_settings.OWNER_TG_ID)
 
     # First onboarding (v1.0) creates accounts — the conflict gate's trigger.
     o1 = await complete_onboarding_v10(client, headers)

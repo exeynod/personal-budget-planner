@@ -20,7 +20,7 @@ Tests:
   1. test_rls_blocks_query_without_setting — без SET LOCAL → coalesce -1 → 0 rows
   2. test_rls_filters_by_app_current_user_id — SET LOCAL → видим только user_a
   3. test_rls_setting_resets_after_commit — SET LOCAL = transaction scope
-  4. test_rls_enabled_on_all_nine_tables — pg_class.relrowsecurity == true
+  4. test_rls_enabled_on_all_tenant_tables — pg_class.relrowsecurity == true
 """
 from __future__ import annotations
 
@@ -94,16 +94,30 @@ async def test_rls_setting_resets_after_commit(
     )
 
 
-async def test_rls_enabled_on_all_eight_tables(db_session):
-    """MUL-02: pg_class.relrowsecurity = true на доменных таблицах.
+async def test_rls_enabled_on_all_tenant_tables(db_session):
+    """MUL-02: relrowsecurity + relforcerowsecurity на всех tenant-domain таблицах.
 
     Schema-level check — superuser/role context не влияет.
 
-    68-05 (class E): ``plan_template_item`` was dropped in alembic 0013
-    (CONTEXT D-02), so the historical "nine tables" list is now eight. The
-    remaining tables still carry RLS (FORCE ROW LEVEL SECURITY, alembic 0008).
+    68-05 (WR-01): ``plan_template_item`` was dropped in alembic 0013 (CONTEXT
+    D-02), so the historical "nine tables" list lost it. But the v1.0 schema
+    ALSO added new tenant-scoped tables that all carry FORCE ROW LEVEL SECURITY
+    and a ``*_user_isolation`` policy — they must be covered here so a future
+    migration that forgets RLS on a money-bearing table fails this guard.
+
+    Authoritative source (verified against alembic migrations + app/db):
+      - 0006 RLS enable (8 surviving; plan_template_item dropped in 0013)
+      - 0008 ai_usage_log
+      - 0012 account (money balances)
+      - 0014/0015 goal, savings_config
+      - 0021 payment, subscription_billing (money)
+    => 14 FORCE-RLS tenant-domain tables. ``analytics_event`` (0024) carries a
+    nullable ``user_id`` with ON DELETE SET NULL and is intentionally NOT under
+    RLS; ``admin_audit_log`` is intentionally owner-only outside RLS — both
+    excluded by design.
     """
     domain_tables = (
+        # 0006 RLS enable (plan_template_item dropped in 0013)
         "category",
         "budget_period",
         "planned_transaction",
@@ -112,6 +126,13 @@ async def test_rls_enabled_on_all_eight_tables(db_session):
         "category_embedding",
         "ai_conversation",
         "ai_message",
+        # New v1.0 / later RLS-bearing tenant tables
+        "ai_usage_log",          # 0008
+        "account",               # 0012 — money balances
+        "goal",                  # 0014/0015
+        "savings_config",        # 0014/0015
+        "payment",               # 0021 — money
+        "subscription_billing",  # 0021 — money
     )
 
     result = await db_session.execute(

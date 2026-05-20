@@ -25,7 +25,6 @@ def auth_headers(bot_token, owner_tg_id):
 @pytest_asyncio.fixture
 async def db_client(async_client, bot_token, owner_tg_id):
     _require_db()
-    from sqlalchemy import text
     from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
     from app.api.dependencies import get_db
@@ -54,13 +53,8 @@ async def db_client(async_client, bot_token, owner_tg_id):
     await async_client.get("/api/v1/me", headers={"X-Telegram-Init-Data": init_data})
 
     # 68-05 (class B/C): grant ПДн consent so v1.0 onboarding passes the gate.
-    from datetime import datetime, timezone
-    async with SessionLocal() as _s:
-        await _s.execute(
-            text("UPDATE app_user SET pdn_consent_at = :ts WHERE tg_user_id = :tg"),
-            {"ts": datetime.now(timezone.utc), "tg": owner_tg_id},
-        )
-        await _s.commit()
+    from tests.helpers.onboarding import grant_pdn_consent
+    await grant_pdn_consent(SessionLocal, tg_user_id=owner_tg_id)
 
     yield async_client
     await engine.dispose()

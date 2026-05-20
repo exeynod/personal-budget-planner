@@ -36,10 +36,12 @@ from app.db.models import (
 
 # NOTE: ``PlanTemplateItem`` was dropped in Phase 22 alembic 0013 / models.py
 # (CONTEXT D-02). The legacy ``seed_plan_template_item`` helper used to insert
-# rows into ``plan_template_item``; that table no longer exists. Plan 22.13
-# stubs the seed helper as a deprecated no-op so existing tests that import
-# ``seed_plan_template_item`` still load (they will skip via DATABASE_URL gate
-# or be replaced by ``Category.plan_cents``-based seeds in Phase 23+).
+# rows into ``plan_template_item``; that table no longer exists. The helper is
+# kept as a stub that **raises ``NotImplementedError``** (NOT a silent no-op) so
+# existing tests that import ``seed_plan_template_item`` still load, but any test
+# that actually calls it fails loudly instead of silently inserting nothing.
+# Tests should set the per-category plan via ``Category.plan_cents`` instead.
+# Do NOT "fix" this back into a silent no-op — that would mask real coverage gaps.
 
 
 # Sentinel: callers can explicitly pass onboarded_at=None (invite-flow tests),

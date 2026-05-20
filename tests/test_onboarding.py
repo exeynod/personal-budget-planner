@@ -28,7 +28,6 @@ def auth_headers(bot_token, owner_tg_id):
 @pytest_asyncio.fixture
 async def db_client(async_client, bot_token, owner_tg_id):
     _require_db()
-    from sqlalchemy import text
     from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
     from app.api.dependencies import get_db
@@ -63,13 +62,8 @@ async def db_client(async_client, bot_token, owner_tg_id):
     # passes the Phase 33 CMP-33-04 gate (NULL consent → 403). The legacy body
     # (starting_balance/seed_default_categories) was replaced by the v1.0 body
     # (income_cents/accounts/category_plans) — tests below use the v1.0 contract.
-    from datetime import datetime, timezone
-    async with SessionLocal() as _s:
-        await _s.execute(
-            text("UPDATE app_user SET pdn_consent_at = :ts WHERE tg_user_id = :tg"),
-            {"ts": datetime.now(timezone.utc), "tg": owner_tg_id},
-        )
-        await _s.commit()
+    from tests.helpers.onboarding import grant_pdn_consent
+    await grant_pdn_consent(SessionLocal, tg_user_id=owner_tg_id)
 
     yield async_client
     await engine.dispose()
@@ -121,7 +115,8 @@ async def test_seeds_eight_plus_savings_categories(db_client, auth_headers):
 
     The legacy ``seed_default_categories=False`` opt-out path was removed in the
     v1.0 contract — categories are always seeded. Intent preserved by asserting
-    the deterministic v1.0 category count and that a period is created.
+    the deterministic v1.0 category count and that NO period is created at
+    onboarding (the period is created lazily on the first transaction).
     """
     from tests.helpers.onboarding import complete_onboarding_v10
 
