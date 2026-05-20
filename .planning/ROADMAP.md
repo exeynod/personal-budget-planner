@@ -410,6 +410,12 @@ Plans:
 ### Phase 64: AddSheet нативный (v06) — planned
 **Goal**: Замена `TransactionEditor` modal на расширенный native Form sheet — без custom keypad, используем `keyboardType: .decimalPad`. Picker категории/счёта. Подсказка AI-категории inline.
 
+**Plans:** 2 plans
+
+Plans:
+- [ ] 64-01-PLAN.md — Account Picker «Счёт списания» в TransactionEditor (actual-режимы, default primary?? first, «Не указан»=nil, load в .task) + ActualUpdateRequest.accountId + unit-тесты default-account
+- [ ] 64-02-PLAN.md — Inline AI-подсказка категории: AISuggestCategoryAPI (silent-403 без logout) + @Observable AISuggestHint (debounce/cancel) + tappable chip (не авто-применять) + ≥5 unit-тестов
+
 ### Phase 65: CategoryDetail drill-down (v06 native) ✅
 **Status**: Shipped 2026-05-11.
 **Goal**: NavigationLink с категории → CategoryDetailScreen со списком транзакций по этой категории. Кнопка «увеличить лимит» (PlanMonthAPI) deferred до Phase 61.
