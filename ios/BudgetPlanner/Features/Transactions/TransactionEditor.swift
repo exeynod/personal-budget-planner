@@ -228,13 +228,19 @@ struct TransactionEditor: View {
     // hint afterwards. This is NOT auto-applied — only this tap mutates the
     // user's category choice.
     private func applySuggestion(_ sug: SuggestCategoryDTO) {
-        guard let sid = sug.categoryId else { return }
-        if let cat = categories.first(where: { $0.id == sid }) {
-            if mode.isActual, cat.kind != kind { kind = cat.kind }
-            categoryId = sid
-        } else {
-            categoryId = sid
-        }
+        // WR-03: only apply when the suggested id resolves to a currently-valid
+        // local category (present + non-archived). A stale/archived/foreign id
+        // must NOT be assigned — the kind-filtered Picker can only render
+        // `filteredCategories`, so an absent id would leave an invisible
+        // selection while canSave stays true. Decision lives in the pure
+        // AISuggestApply.resolve helper (single source of truth with tests).
+        let resolution = AISuggestApply.resolve(
+            suggestion: sug,
+            categories: categories,
+            currentKind: kind,
+            isActual: mode.isActual)
+        if let newKind = resolution.alignKind { kind = newKind }
+        if let cid = resolution.categoryId { categoryId = cid }
         aiHint.clear()
     }
 
