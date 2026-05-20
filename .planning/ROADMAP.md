@@ -451,7 +451,7 @@ Plans:
 - [x] 67-01-PLAN.md — [W1] BE P0-1: SubscriptionReadV10 response_model on list/post/patch + round-trip test
 - [x] 67-02-PLAN.md — [W1] Web P0-2: fix tsc build (AnalyticsRange import + bottomRef type) — npm run build green
 - [x] 67-03-PLAN.md — [W1] iOS P0-3: remove suppressForbiddenHandler, restore strict 403→logout (require_pro=402)
-- [ ] 67-04-PLAN.md — [W2] BE P1-1/P1-2/P2-13: embedding user_id+tenant scope; double-post FOR UPDATE+unique index migration; savepoint test
+- [x] 67-04-PLAN.md — [W2] BE P1-1/P1-2/P2-13: embedding user_id+tenant scope; double-post FOR UPDATE+unique index migration; savepoint test
 - [ ] 67-05-PLAN.md — [W2] iOS P1-3/P1-5/R1: APIError→RU mapper (leak cluster), SSE 401/403 split, account-label/banner/LocalNotifications dedup
 - [ ] 67-06-PLAN.md — [W2] Web P1-6/R5: split ui.shell vs ui.theme keys + dead-shell inventory
 - [ ] 67-07-PLAN.md — [W3] iOS P1-4/P1-7/R2: Savings/GoalDetail API-seam + reload-coalesce + money-mutation tests; APIClient 403/401+MSK-date regression tests

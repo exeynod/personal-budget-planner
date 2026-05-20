@@ -3,16 +3,16 @@ gsd_state_version: 1.0
 milestone: v1.1.2
 milestone_name: — iOS v06 Native Rebuild)
 current_phase: 67 (remediation-cleanup)
-status: P0-2 closed — `npm run build` (tsc -b && vite build) GREEN; AnalyticsRange import + AiView bottomRef type fixed; test files excluded from production tsc gate (FE-F3)
-stopped_at: Completed 67-02-PLAN.md
-last_updated: "2026-05-20T16:49:42.574Z"
+status: P0-3 closed — suppressForbiddenHandler removed from APIClient + AISuggestCategoryAPI; strict 403→onUnauthenticated restored (require_pro=402 stays serverError→nil); iOS build + 568 tests GREEN
+stopped_at: Completed 67-04-PLAN.md
+last_updated: "2026-05-20T16:59:36.393Z"
 last_activity: 2026-05-20
 progress:
   total_phases: 36
   completed_phases: 24
   total_plans: 72
-  completed_plans: 65
-  percent: 90
+  completed_plans: 66
+  percent: 92
 ---
 
 ## Active Milestone: v1.1.2 — iOS v06 Native Rebuild
@@ -47,8 +47,8 @@ See: .planning/PROJECT.md (updated 2026-05-09 — v1.0 milestone «Maximal Poste
 ## Current Position
 
 Phase: 67 (remediation-cleanup) — IN PROGRESS
-Plan: 67-03 executed (Wave 1 iOS P0-3)
-Status: P0-3 closed — suppressForbiddenHandler removed from APIClient + AISuggestCategoryAPI; strict 403→onUnauthenticated restored (require_pro=402 stays serverError→nil); iOS build + 568 tests GREEN
+Plan: 67-04 executed (Wave 2 backend P1-1 + P1-2 + P2-13)
+Status: P1-1/P1-2/P2-13 closed — _refresh_embedding threads user_id + set_tenant_scope (user-category embeddings persist; suggest no longer substring-only); post_subscription SELECT … FOR UPDATE + partial unique index uq_subscription_posted_txn_id (migration 0025) + IntegrityError→409; double-post + savepoint-rollback tests green; touched-module pytest green (one pre-existing onboarding/complete 422 deferred)
 Last activity: 2026-05-20
 
 ## Milestone v1.0 Phases
@@ -104,6 +104,7 @@ Last activity: 2026-05-20
 | Phase 66 P01 | 2min | 2 tasks | 3 files |
 | Phase 67 P01 | 3min | 2 tasks | 3 files |
 | Phase 67 P02 | 2min | 1 tasks | 3 files |
+| Phase 67 P04 | 5min | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -145,6 +146,7 @@ Recent decisions from v0.6 (preserved for context):
 - [Phase ?]: [Phase 64-02]: inline AI category hint — AISuggestCategoryAPI silent wrapper (suppressUnauthHandler:true → non-pro 403 не логаутит owner, T-64-02-02); @Observable AISuggestHint debounce/cancel (Task.isCancelled после await — stale-race T-64-02-03); tappable chip create-only, не авто-применять; 11 тестов green
 - [Phase 66-01]: ThemeOption pure helper зеркалит Theme.resolve (неизвестный raw → maximalPoster, sentinel "v06" → legacyV06); v06 Settings «Дизайн» native picker (4 Button-ряда + swatch + checkmark) пишет @AppStorage("ui.theme"), без PosterRouter/.posterSheet (v06 вне poster-контекста); 14 helper-тестов + полный прогон 568 tests green; AI cost cap / AI chat SSE / Management rows подтверждены verify-only (код не тронут)
 - [Phase ?]: [Phase 67-01]: /subscriptions GET/POST/PATCH switched to SubscriptionReadV10 (P0-1/BE-F1 closed); read-only widening via SubscriptionRead+SubscriptionV10Extension mixin, request bodies keep extra=forbid; iOS phase 63 day_of_month/account_id/posted_txn_id now round-trip
+- [Phase ?]: [Phase 67-04]: backend P1-1/P1-2/P2-13 — _refresh_embedding threads user_id + set_tenant_scope (embeddings persist); post_subscription FOR UPDATE + partial unique index uq_subscription_posted_txn_id + IntegrityError->409; savepoint-rollback test proves no orphan; alembic revision ids must be <=32 chars (varchar32)
 
 ### Pending Todos
 
@@ -229,7 +231,7 @@ v1.0 deferred (acknowledged at planning):
 
 ## Session Continuity
 
-Last session: 2026-05-20T16:50:00.000Z
+Last session: 2026-05-20T16:59:24.711Z
 Stopped at: Completed 67-03-PLAN.md
 Resume file: None
 
