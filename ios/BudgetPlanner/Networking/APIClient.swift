@@ -78,12 +78,11 @@ final class APIClient {
         _ path: String,
         query: [String: String]? = nil,
         body: Encodable? = nil,
-        skipAuth: Bool = false,
-        suppressForbiddenHandler: Bool = false
+        skipAuth: Bool = false
     ) async throws -> T {
         let data = try await rawRequest(
             method, path, query: query, body: body,
-            skipAuth: skipAuth, suppressForbiddenHandler: suppressForbiddenHandler)
+            skipAuth: skipAuth)
         if T.self == EmptyResponse.self {
             return EmptyResponse() as! T
         }
@@ -99,12 +98,11 @@ final class APIClient {
         _ path: String,
         query: [String: String]? = nil,
         body: Encodable? = nil,
-        skipAuth: Bool = false,
-        suppressForbiddenHandler: Bool = false
+        skipAuth: Bool = false
     ) async throws {
         _ = try await rawRequest(
             method, path, query: query, body: body,
-            skipAuth: skipAuth, suppressForbiddenHandler: suppressForbiddenHandler)
+            skipAuth: skipAuth)
     }
 
     private func rawRequest(
@@ -112,8 +110,7 @@ final class APIClient {
         _ path: String,
         query: [String: String]?,
         body: Encodable?,
-        skipAuth: Bool,
-        suppressForbiddenHandler: Bool = false
+        skipAuth: Bool
     ) async throws -> Data {
         guard
             var components = URLComponents(
@@ -157,20 +154,19 @@ final class APIClient {
             return data
         case 401:
             // WR-02: a genuine 401 (expired/invalid token) ALWAYS triggers the
-            // global logout — there is no per-call suppression here. Earlier the
-            // AI-suggest call swallowed 401 too via the old suppressUnauthHandler
-            // flag, which was broader than its stated "require_pro 403" intent.
-            // Suppression is now scoped to 403 only (suppressForbiddenHandler).
+            // global logout — there is no per-call suppression here.
             onUnauthenticated?()
             throw APIError.unauthorized
         case 403:
             let detail = decodeErrorDetail(data) ?? "Forbidden"
-            // 64-02 (T-64-02-02): require_pro 403 on /ai/suggest-category MUST
-            // NOT log the owner out — suppressForbiddenHandler gates it (combined
-            // with the existing !skipAuth condition). Additive, default false.
-            // WR-02: this flag is intentionally 403-only; a 401 auth-expiry on
-            // the same endpoint still logs out (see the 401 branch above).
-            if !skipAuth, !suppressForbiddenHandler { onUnauthenticated?() }
+            // P0-3 (T-67-03-01): a 403 is a genuine auth failure (broken/forbidden
+            // owner token) and ALWAYS logs out when !skipAuth — there is no
+            // per-call suppression. The old per-call 403-suppress flag was
+            // removed: require_pro returns 402 (PRO_TIER_REQUIRED), NOT 403, so
+            // the flag guarded a non-existent case while masking real 403s on the
+            // AI path. A non-pro 402 falls through to the default serverError
+            // branch and is swallowed to nil by AISuggestCategoryAPI (no logout).
+            if !skipAuth { onUnauthenticated?() }
             throw APIError.forbidden(detail)
         case 404:
             throw APIError.notFound
