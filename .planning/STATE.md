@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.1.2
 milestone_name: — iOS v06 Native Rebuild)
 current_phase: 70
-status: planning
-stopped_at: Phase 69 (codegen R4) COMPLETE — 6 plans + 2 WR fixes; 4/4 criteria PASS (backend 778, web 738, iOS 609 green; openapi/TS/Swift idempotent; sync-guard + DTO-mirror check). Starting phase 70 (convergence R3/R6/R7).
-last_updated: "2026-05-21T14:00:00.000Z"
+status: in_progress
+stopped_at: Phase 70-01 (C/R3 legacy↔V10 convergence) COMPLETE — deprecate-and-ticket, 0 call-site migration (all 5 pairs non-equivalent). @available(deprecated) on MeAPI/CategoriesAPI (AuthAPI.swift), SubscriptionsAPI (ManagementAPI.swift), ActualAPI.create/.update + CategoriesWriteAPI (TransactionsAPI.swift); ActualAPI.delete kept un-deprecated as canonical-shared. .planning/LEGACY-V10-DEBT-REGISTRY.md (5 DEBT-70-* tickets + comment-debt index). iOS BUILD SUCCEEDED (deprecation warnings ≠ errors) + full suite 609 green (0 regression). Commits e299064 + 21c886a. Next: 70-02 (E2/R7 BusinessDate).
+last_updated: "2026-05-21T16:30:00.000Z"
 last_activity: 2026-05-21
 progress:
   total_phases: 39
