@@ -3,16 +3,16 @@ gsd_state_version: 1.0
 milestone: v1.1.2
 milestone_name: — iOS v06 Native Rebuild)
 current_phase: 67 (remediation-cleanup)
-status: "67-08 closed (Wave 4 backend P2-4/5/6/7 + R8 hygiene). ChatRequest.message bounded (min=1/max=4000 → 422). suggest-category returns the REAL cosine confidence on a miss; docstring fixed 0.5→0.35. GET /me + PATCH /me symmetric on income_cents via shared build_me_response; legacy MeResponse model removed. get_db single source (app.db.session), dependencies re-exports. ai_usage_log.est_cost_usd Float → cost_cents BIGINT (USD-cents) + alembic 0026 (backfill ceil(usd*100), reversible). spend_cap sums cents directly (no float). Embedding spend now logged to ai_usage_log so the cap sees suggest-category cost (P2-7). KindStr alias left intentionally (active backward-compat). 11 tests added; touched-module pytest green. Pre-existing tier-gating (402) + e2e category.code failures deferred."
-stopped_at: Completed 67-08-PLAN.md
-last_updated: "2026-05-20T20:36:00.000Z"
+status: SavingsViewModel/GoalDetailViewModel now take an injectable API struct seam (default .live); SavingsViewModel.load() has reloadPending coalescing (post-deposit reload not dropped during pull-to-refresh); dead lastCreatedGoalId removed. Behavioural seam tests cover deposit/createGoal/deleteGoal success+failure+submitting-guard+optimistic-revert+coalesce and GoalDetail load not-found. APIClient regression-locked via URLProtocol stub (401->logout, 403(!skipAuth)->logout strict post-67-03, 403(skipAuth)->no logout, MSK yyyy-MM-dd decode + timestamp parse). APIClient.swift untouched. Full suite 609 green (+41).
+stopped_at: Completed 67-09-PLAN.md
+last_updated: "2026-05-20T17:47:28.129Z"
 last_activity: 2026-05-20
 progress:
   total_phases: 36
   completed_phases: 24
   total_plans: 72
-  completed_plans: 70
-  percent: 97
+  completed_plans: 71
+  percent: 99
 ---
 
 ## Active Milestone: v1.1.2 — iOS v06 Native Rebuild
@@ -108,6 +108,7 @@ Last activity: 2026-05-20
 | Phase 67 P05 | 12min | 3 tasks | 17 files |
 | Phase 67 P06 | 3min | 2 tasks | 4 files |
 | Phase 67 P07 | ~15min | 3 tasks | 7 files |
+| Phase 67 P09 | 22m | 3 tasks | 15 files |
 
 ## Accumulated Context
 
@@ -153,6 +154,7 @@ Recent decisions from v0.6 (preserved for context):
 - [Phase ?]: [Phase 67-01]: /subscriptions GET/POST/PATCH switched to SubscriptionReadV10 (P0-1/BE-F1 closed); read-only widening via SubscriptionRead+SubscriptionV10Extension mixin, request bodies keep extra=forbid; iOS phase 63 day_of_month/account_id/posted_txn_id now round-trip
 - [Phase ?]: [Phase 67-04]: backend P1-1/P1-2/P2-13 — _refresh_embedding threads user_id + set_tenant_scope (embeddings persist); post_subscription FOR UPDATE + partial unique index uq_subscription_posted_txn_id + IntegrityError->409; savepoint-rollback test proves no orphan; alembic revision ids must be <=32 chars (varchar32)
 - [Phase 67-06]: web P1-6/FE-F4 — split colliding localStorage 'ui.theme' into 'ui.shell' (dispatch v06/v10) + 'ui.theme' (theme); useTheme.ts sole owner of theme key; migration shim adopts legacy ui.theme shell value; VITE_UI_THEME env still wins for shell. R5: v06 web shell KEEP (reachable post-split, maintained); ~50 v06-only files (App.tsx+screens/13+hooks/16+api/6+components/38) deletion DEFERRED pending R6/ARCH-A1 owner decision (DEAD-SHELL-INVENTORY.md)
+- [Phase ?]: parseMoney.ts re-exports canonical parseRublesToKopecks (format.ts), adds Or0 wrapper + sanitizeMoneyInput; no duplicate parser
 
 ### Pending Todos
 
@@ -237,8 +239,8 @@ v1.0 deferred (acknowledged at planning):
 
 ## Session Continuity
 
-Last session: 2026-05-20T17:21:01.007Z
-Stopped at: Completed 67-06-PLAN.md
+Last session: 2026-05-20T17:47:28.125Z
+Stopped at: Completed 67-09-PLAN.md
 Resume file: None
 
 ## Deferred Items
