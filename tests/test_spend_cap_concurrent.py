@@ -32,7 +32,7 @@ from __future__ import annotations
 import asyncio
 import math
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import pytest
 import pytest_asyncio
@@ -161,6 +161,8 @@ async def test_concurrent_ai_chat_at_cap_yields_one_pass_one_429(
         user = await seed_user(
             s, tg_user_id=owner_tg_id, role=UserRole.owner,
             onboarded_at=datetime.now(timezone.utc),
+            # Pro: cap (429) enforcement only reached after require_pro (402) passes.
+            pro_active_until=datetime.now(timezone.utc) + timedelta(days=30),
         )
         await s.execute(
             text("UPDATE app_user SET spending_cap_cents = 100 WHERE id = :uid"),
@@ -256,10 +258,14 @@ async def test_concurrent_ai_chat_different_users_both_pass(
         ua = await seed_user(
             s, tg_user_id=tg_a, role=UserRole.owner,
             onboarded_at=datetime.now(timezone.utc),
+            # Both users Pro so they pass require_pro (402) and the per-user
+            # cap-lock isolation (429-vs-200) is what the test actually exercises.
+            pro_active_until=datetime.now(timezone.utc) + timedelta(days=30),
         )
         ub = await seed_user(
             s, tg_user_id=tg_b, role=UserRole.member,
             onboarded_at=datetime.now(timezone.utc),
+            pro_active_until=datetime.now(timezone.utc) + timedelta(days=30),
         )
         await s.execute(
             text("UPDATE app_user SET spending_cap_cents = 100 WHERE id IN (:a, :b)"),

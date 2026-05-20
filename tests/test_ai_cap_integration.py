@@ -15,7 +15,7 @@ Tests are integration (real DB, real FastAPI ASGI via async_client).
 from __future__ import annotations
 
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import pytest
 import pytest_asyncio
@@ -87,7 +87,10 @@ async def test_chat_blocked_when_at_cap_returns_429(
     async with SessionLocal() as s:
         user = await seed_user(
             s, tg_user_id=owner_tg_id, role=UserRole.owner,
-            onboarded_at=datetime.now(timezone.utc)
+            onboarded_at=datetime.now(timezone.utc),
+            # Pro tier: require_pro (402) precedes enforce_spending_cap (429);
+            # these tests exercise the cap, so the user must be Pro to reach 429.
+            pro_active_until=datetime.now(timezone.utc) + timedelta(days=30),
         )
         await s.execute(
             text("UPDATE app_user SET spending_cap_cents = 100 WHERE id = :uid"),
@@ -138,7 +141,10 @@ async def test_chat_unblocked_after_admin_patches_cap_higher(
     async with SessionLocal() as s:
         user = await seed_user(
             s, tg_user_id=owner_tg_id, role=UserRole.owner,
-            onboarded_at=datetime.now(timezone.utc)
+            onboarded_at=datetime.now(timezone.utc),
+            # Pro tier: require_pro (402) precedes enforce_spending_cap (429);
+            # these tests exercise the cap, so the user must be Pro to reach 429.
+            pro_active_until=datetime.now(timezone.utc) + timedelta(days=30),
         )
         await s.execute(
             text("UPDATE app_user SET spending_cap_cents = 100 WHERE id = :uid"),
@@ -212,7 +218,10 @@ async def test_suggest_category_blocked_when_at_cap(
     async with SessionLocal() as s:
         user = await seed_user(
             s, tg_user_id=owner_tg_id, role=UserRole.owner,
-            onboarded_at=datetime.now(timezone.utc)
+            onboarded_at=datetime.now(timezone.utc),
+            # Pro tier: require_pro (402) precedes enforce_spending_cap (429);
+            # these tests exercise the cap, so the user must be Pro to reach 429.
+            pro_active_until=datetime.now(timezone.utc) + timedelta(days=30),
         )
         await s.execute(
             text("UPDATE app_user SET spending_cap_cents = 10 WHERE id = :uid"),
@@ -252,7 +261,10 @@ async def test_cap_zero_blocks_chat_and_suggest(
     async with SessionLocal() as s:
         user = await seed_user(
             s, tg_user_id=owner_tg_id, role=UserRole.owner,
-            onboarded_at=datetime.now(timezone.utc)
+            onboarded_at=datetime.now(timezone.utc),
+            # Pro tier: require_pro (402) precedes enforce_spending_cap (429);
+            # these tests exercise the cap, so the user must be Pro to reach 429.
+            pro_active_until=datetime.now(timezone.utc) + timedelta(days=30),
         )
         await s.execute(
             text("UPDATE app_user SET spending_cap_cents = 0 WHERE id = :uid"),
