@@ -250,7 +250,7 @@ struct SubscriptionsView: View {
                 errorSection(msg)
             case .ready:
                 if let err = viewModel.mutationError {
-                    mutationErrorBanner(err)
+                    MutationErrorBanner(message: err) { viewModel.clearMutationError() }
                 }
                 summarySection
                 subscriptionsSection
@@ -343,29 +343,6 @@ struct SubscriptionsView: View {
                 description: Text(msg)
             )
             .listRowBackground(Color.clear)
-        }
-    }
-
-    // MARK: - Mutation error banner (T-63-02)
-
-    private func mutationErrorBanner(_ msg: String) -> some View {
-        Section {
-            HStack(spacing: 12) {
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .foregroundStyle(.red)
-                Text(msg)
-                    .font(.callout)
-                    .foregroundStyle(.primary)
-                Spacer(minLength: 8)
-                Button {
-                    viewModel.clearMutationError()
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundStyle(.secondary)
-                }
-                .buttonStyle(.borderless)
-                .accessibilityLabel("Скрыть ошибку")
-            }
         }
     }
 
@@ -581,8 +558,9 @@ struct SubscriptionEditor: View {
         categories.filter { !$0.isArchived && $0.kind == .expense }
     }
 
+    // R1 — single account-label source (was inline " · " drift; canonical " ·").
     private func accountLabel(_ a: AccountDTO) -> String {
-        a.bank + (a.mask.map { " · \($0)" } ?? "")
+        AccountPickerLogic.label(a)
     }
 
     private var canSave: Bool {

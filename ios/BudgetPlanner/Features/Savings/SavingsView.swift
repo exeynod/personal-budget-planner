@@ -42,7 +42,7 @@ struct SavingsView: View {
                 errorSection(msg)
             case .ready:
                 if let errMsg = viewModel.mutationError {
-                    mutationErrorBanner(errMsg)
+                    MutationErrorBanner(message: errMsg) { viewModel.clearMutationError() }
                 }
                 heroSection
                 roundupSection
@@ -113,29 +113,6 @@ struct SavingsView: View {
         Section {
             Label(msg, systemImage: "exclamationmark.triangle")
                 .foregroundStyle(.red)
-        }
-    }
-
-    // MARK: - Mutation error banner (T-62-03)
-
-    private func mutationErrorBanner(_ msg: String) -> some View {
-        Section {
-            HStack(spacing: 12) {
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .foregroundStyle(.red)
-                Text(msg)
-                    .font(.callout)
-                    .foregroundStyle(.primary)
-                Spacer(minLength: 8)
-                Button {
-                    viewModel.clearMutationError()
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundStyle(.secondary)
-                }
-                .buttonStyle(.borderless)
-                .accessibilityLabel("Скрыть ошибку")
-            }
         }
     }
 

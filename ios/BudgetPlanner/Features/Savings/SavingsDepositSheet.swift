@@ -61,8 +61,9 @@ struct SavingsDepositSheet: View {
             && !submitting
     }
 
+    // R1 — single account-label source (AccountPickerLogic.label).
     private func accountLabel(_ a: AccountDTO) -> String {
-        a.bank + (a.mask.map { " ·\($0)" } ?? "")
+        AccountPickerLogic.label(a)
     }
 
     // MARK: - Body

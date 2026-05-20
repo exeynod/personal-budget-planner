@@ -53,7 +53,7 @@ struct GoalDetailView: View {
             case .ready:
                 if let goal = viewModel.goal {
                     if let errMsg = viewModel.mutationError {
-                        mutationErrorBanner(errMsg)
+                        MutationErrorBanner(message: errMsg) { viewModel.clearMutationError() }
                     }
                     heroSection(goal)
                     actionSection
@@ -106,29 +106,6 @@ struct GoalDetailView: View {
         }
         .task { await viewModel.load() }
         .refreshable { await viewModel.load() }
-    }
-
-    // MARK: - Mutation error banner (T-62-03)
-
-    private func mutationErrorBanner(_ msg: String) -> some View {
-        Section {
-            HStack(spacing: 12) {
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .foregroundStyle(.red)
-                Text(msg)
-                    .font(.callout)
-                    .foregroundStyle(.primary)
-                Spacer(minLength: 8)
-                Button {
-                    viewModel.clearMutationError()
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundStyle(.secondary)
-                }
-                .buttonStyle(.borderless)
-                .accessibilityLabel("Скрыть ошибку")
-            }
-        }
     }
 
     // MARK: - Hero
