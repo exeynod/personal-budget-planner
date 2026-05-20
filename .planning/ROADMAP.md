@@ -437,6 +437,17 @@ Plans:
 Plans:
 - [x] 66-01-PLAN.md — Theme picker в v06 SettingsView: чистый ThemeOption helper (selected/rawValue/round-trip + unit-тесты) + designSection 4 selectable ряда (MAXIMAL POSTER / LIQUID GLASS / IOS DEFAULT / СТАРЫЙ IOS) с checkmark, пишущий @AppStorage('ui.theme'). AI cost cap / AI chat SSE / Management rows — verify-only (pre-existing).
 
+### Phase 67: v1.1.2 Remediation & Cleanup (multi-lead review fixes) — planned
+**Goal**: Устранить находки 5-лидового кросс-доменного ревью (`.planning/v1.1.2-MULTILEAD-REVIEW.md`) и провести механический cleanup-рефакторинг. Покрывает P0 (3 блокера: backend SubscriptionReadV10 response_model, web tsc-build, iOS suppressForbiddenHandler revert), P1 (7 major: BE embeddings user_id, BE double-post race, iOS error-leak, iOS Savings/GoalDetail seam+coalesce, iOS SSE auth, web ui.theme split, APIClient auth/date regression-тесты), P2 (13 minor) и cleanup R1/R2/R5/R8/R9 (iOS дедуп + test-seam, мёртвый web v06-shell, backend-гигиена, docs). Спецификация — review-документ. ВНЕ scope (отложено владельцу/спайку): R3 (схождение legacy/V10 API), R4 (OpenAPI codegen), R6 (судьба двух шеллов), R7 (error-policy/BusinessDate абстракции).
+**Depends on**: Phase 62-66 (фиксит их находки).
+**Success Criteria**:
+1. Все 3 P0-блокера закрыты: GET/POST/PATCH /subscriptions отдают day_of_month/account_id/posted_txn_id; `npm run build` (tsc-гейт) зелёный; suppressForbiddenHandler удалён (402-handling корректен, 403→logout восстановлен).
+2. P1 major закрыты с тестами: эмбеддинги пользовательских категорий пишутся; double-post идемпотентен (FOR UPDATE/unique); нет утечки error.localizedDescription в UI; Savings/GoalDetail имеют API-seam + reload-coalesce + поведенческие тесты денежных мутаций; SSE 401/403 согласованы с REST auth; APIClient auth/date покрыты regression-тестами; web ui.theme key разведён.
+3. Cleanup R1/R2/R5/R8/R9 выполнены (дедуп account-label/banner/LocalNotifications, dead code удалён, мёртвый web v06-shell разрешён, backend float→cents/get_db/MeResponse-билдер, docs multi-tenant).
+4. iOS build + полный suite зелёные; backend pytest зелёный; web build зелёный.
+
+**Plans:** TBD
+
 ---
 
 ## Dependency Graph (v1.1 / v1.2 / v2.0)
