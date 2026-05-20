@@ -6,13 +6,16 @@
 // only when categoryId != nil.
 //
 // Silent contract: the suggest hint is auxiliary, not a critical path. Any
-// failure (403 require_pro for a non-pro caller, 404 AI disabled, network,
-// decoding) returns nil — no thrown error, no error banner.
+// thrown failure returns nil — no error, no banner. require_pro returns 402
+// (PRO_TIER_REQUIRED), which APIClient maps to serverError → caught here → nil
+// (hint silently hidden for a non-pro caller). 404 (AI disabled) / network /
+// decoding errors are likewise swallowed to nil.
 //
-// CRITICAL (T-64-02-02): the request passes `suppressForbiddenHandler: true` so
-// a 403 from require_pro does NOT trigger APIClient.onUnauthenticated → global
-// logout. Without this flag a non-pro 403 would log the owner out. WR-02: this
-// suppression is 403-only; a genuine 401 expired-token here still logs out.
+// P0-3 (T-67-03-01): there is NO 403 suppression here anymore. The old
+// per-call 403-suppress flag was removed app-wide — it guarded a 403 that
+// require_pro never returns (it returns 402) while masking real 403s. A genuine
+// 401/403 auth failure on this endpoint now logs the owner out globally via
+// APIClient.onUnauthenticated — correct, because the owner token is broken.
 
 import Foundation
 
@@ -30,21 +33,21 @@ enum AISuggestCategoryAPI {
     /// GET /api/v1/ai/suggest-category?q=<description>
     ///
     /// Non-throwing by design — the silent contract lives in the signature.
-    /// Returns nil on ANY error (403/404/network/decoding). The caller
-    /// guarantees `q.count >= 3` (backend min_length=3); the debounce helper
-    /// never sends shorter queries.
+    /// Returns nil on ANY error (402 require_pro / 404 / network / decoding).
+    /// The caller guarantees `q.count >= 3` (backend min_length=3); the debounce
+    /// helper never sends shorter queries.
     static func suggest(q: String) async -> SuggestCategoryDTO? {
         do {
             let dto: SuggestCategoryDTO = try await APIClient.shared.request(
                 "GET", "/ai/suggest-category",
-                query: ["q": q],
-                suppressForbiddenHandler: true)
+                query: ["q": q])
             return dto
         } catch {
-            // Silent: 403 (non-pro) / 404 (AI off) / network / decoding → nil.
-            // NOTE: suppressForbiddenHandler:true above means a 403 never reached
-            // onUnauthenticated, so the owner is NOT logged out here. A real 401
-            // is NOT suppressed and still triggers the global logout (WR-02).
+            // Silent: 402 (non-pro require_pro → serverError) / 404 (AI off) /
+            // network / decoding → nil. P0-3: there is no 403 suppression here;
+            // a genuine 401/403 auth failure is intentionally NOT caught for
+            // logout purposes — APIClient.onUnauthenticated already fired before
+            // the throw, so a broken owner token correctly logs out globally.
             // IN-01: do NOT interpolate the raw error — a networking error can
             // embed the request URL with the `q=` description (PII). Log only a
             // static category in DEBUG; nothing in release.
