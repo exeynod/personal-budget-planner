@@ -76,8 +76,7 @@ enum LocalNotifications {
         let ourIDs = pending.map(\.identifier).filter { $0.hasPrefix("sub-") }
         center.removePendingNotificationRequests(withIdentifiers: ourIDs)
 
-        let cal = Calendar(identifier: .gregorian)
-        var moscowCal = cal
+        var moscowCal = Calendar(identifier: .gregorian)
         moscowCal.timeZone = TimeZone(identifier: "Europe/Moscow") ?? .current
 
         for sub in subscriptions where sub.isActive {
