@@ -4,14 +4,14 @@ milestone: v1.1.2
 milestone_name: — iOS v06 Native Rebuild)
 current_phase: 62
 status: verifying
-stopped_at: Roadmap для v1.0 (Phases 22-28) создан, REQUIREMENTS.md traceability заполнен (92/92 REQs). Awaiting `/gsd-plan-phase 22`.
-last_updated: "2026-05-20T10:34:16.189Z"
+stopped_at: Completed 62-03-PLAN.md (Savings gap closure)
+last_updated: "2026-05-20T11:05:10.387Z"
 last_activity: 2026-05-20
 progress:
   total_phases: 35
   completed_phases: 21
-  total_plans: 56
-  completed_plans: 56
+  total_plans: 57
+  completed_plans: 57
   percent: 100
 ---
 
@@ -96,6 +96,7 @@ Last activity: 2026-05-20
 | Phase 61 P04 | 8min | 2 tasks | 1 files |
 | Phase 62 P01 | 2min | 2 tasks | 9 files |
 | Phase 62 P02 | 5min | 3 tasks | 5 files |
+| Phase 62 P03 | 12min | 3 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -129,6 +130,7 @@ Recent decisions from v0.6 (preserved for context):
 - [Phase 61]: PlanEditorIntegrationTests exercises closure chain end-to-end without network — onSaved closure → applyOptimisticUpdate replaces CategoryV10DTO by id; PlanEditorData helpers (computeSurplus, computeRolloverAggregates, sortCategoriesForDisplay) re-validated post-mutation; 7 integration tests добавлены к 18+7+13 unit tests = 45 combined Phase 61 tests pass.
 - [Phase ?]: [Phase 62-01]: SavingsData.swift renamed to SavingsViewData.swift — Xcode/Swift forbids duplicate file basenames in one target (not only type-name collision); v06 file basename uniquified vs FeaturesV10/Savings/SavingsData.swift
 - [Phase ?]: [Phase 62-02]: SavingsViewModel optimistic config update + filtered Russian copy + submitting guard (T-62-04/05); 0 error.localizedDescription (T-62-03); SavingsViewData 5 Foundation-only pure helpers; 32 unit tests pass
+- [Phase ?]: [Phase 62-03]: GoalDetail/NewGoal/Deposit stubs closed; WR-05 (accountId>0) + IN-04 (MSK due encoding) fixed; GoalDetail deposit self-contained via SavingsAPI.postDeposit+load; WR-01/02/03/04/06 remain OPEN in master mutation paths (out of scope); 488 tests green
 
 ### Pending Todos
 
@@ -213,8 +215,8 @@ v1.0 deferred (acknowledged at planning):
 
 ## Session Continuity
 
-Last session: 2026-05-20T10:34:12.355Z
-Stopped at: Roadmap для v1.0 (Phases 22-28) создан, REQUIREMENTS.md traceability заполнен (92/92 REQs). Awaiting `/gsd-plan-phase 22`.
+Last session: 2026-05-20T11:05:10.330Z
+Stopped at: Completed 62-03-PLAN.md (Savings gap closure)
 Resume file: None
 
 ## Deferred Items
