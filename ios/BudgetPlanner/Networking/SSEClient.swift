@@ -24,7 +24,8 @@ enum SSEEvent: Decodable {
         switch env.type {
         case "message_delta":
             if let dict = env.data?.value as? [String: Any],
-               let delta = dict["delta"] as? String {
+                let delta = dict["delta"] as? String
+            {
                 self = .messageDelta(delta)
             } else {
                 self = .unknown
@@ -39,7 +40,8 @@ enum SSEEvent: Decodable {
             }
         case "tool_call":
             if let dict = env.data?.value as? [String: Any],
-               let name = dict["name"] as? String {
+                let name = dict["name"] as? String
+            {
                 let argsAny = dict["arguments"] as? [String: Any] ?? [:]
                 let args = argsAny.mapValues { AnyCodable($0) }
                 self = .toolCall(name: name, arguments: args)
@@ -48,7 +50,8 @@ enum SSEEvent: Decodable {
             }
         case "tool_result":
             if let dict = env.data?.value as? [String: Any],
-               let name = dict["name"] as? String {
+                let name = dict["name"] as? String
+            {
                 let resultAny = dict["result"] as? [String: Any] ?? [:]
                 let result = resultAny.mapValues { AnyCodable($0) }
                 self = .toolResult(name: name, result: result)
@@ -57,9 +60,11 @@ enum SSEEvent: Decodable {
             }
         case "propose":
             if let dict = env.data?.value as? [String: Any],
-               let kindStr = dict["kind"] as? String,
-               let kind = ProposeKind(rawValue: kindStr) {
-                let amount = (dict["amount_rub"] as? Double)
+                let kindStr = dict["kind"] as? String,
+                let kind = ProposeKind(rawValue: kindStr)
+            {
+                let amount =
+                    (dict["amount_rub"] as? Double)
                     ?? Double(dict["amount_rub"] as? Int ?? 0)
                 let categoryId = dict["category_id"] as? Int
                 let description = dict["description"] as? String
@@ -81,7 +86,8 @@ enum SSEEvent: Decodable {
             if let s = env.data?.value as? String {
                 self = .error(s)
             } else if let dict = env.data?.value as? [String: Any],
-                      let msg = dict["message"] as? String {
+                let msg = dict["message"] as? String
+            {
                 self = .error(msg)
             } else {
                 self = .error("Unknown error")
@@ -118,8 +124,20 @@ enum AIChatAPI {
 
                     let (bytes, response) = try await URLSession.shared.bytes(for: request)
                     if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
-                        if http.statusCode == 401 || http.statusCode == 403 {
+                        // P1-5 (T-67-05-02): split 401 vs 403 to mirror the final
+                        // post-67-03 REST APIClient auth semantics. The AI chat
+                        // stream is ALWAYS authed (no skipAuth path), so both a
+                        // genuine 401 (expired token) and a 403 (broken/forbidden
+                        // owner token) are auth failures that MUST trigger the
+                        // global logout — otherwise an expired token in chat
+                        // silently fails without re-auth.
+                        if http.statusCode == 401 {
+                            APIClient.shared.onUnauthenticated?()
                             throw APIError.unauthorized
+                        }
+                        if http.statusCode == 403 {
+                            APIClient.shared.onUnauthenticated?()
+                            throw APIError.forbidden("")
                         }
                         if http.statusCode == 429 {
                             let retry = http.value(forHTTPHeaderField: "Retry-After").flatMap(Int.init)
@@ -134,7 +152,8 @@ enum AIChatAPI {
                         let payload = String(line.dropFirst(6))
                         guard !payload.isEmpty else { continue }
                         if let data = payload.data(using: .utf8),
-                           let event = try? decoder.decode(SSEEvent.self, from: data) {
+                            let event = try? decoder.decode(SSEEvent.self, from: data)
+                        {
                             continuation.yield(event)
                         }
                     }
