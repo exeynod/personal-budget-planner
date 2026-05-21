@@ -1,5 +1,20 @@
 # Milestones: TG Budget Planner
 
+## v1.1.2 — iOS v06 Native Rebuild + Architectural Followup (Shipped: 2026-05-21)
+
+**Branch:** `v1.0-maximal-poster` (not yet merged to master). **Phases:** 56–71 (16). Archive: `milestones/v1.1.2-ROADMAP.md` + `v1.1.2-REQUIREMENTS.md`.
+
+**Key accomplishments:**
+- **Native v06 iOS shell rebuilt (56–67):** все экраны заново на нативном SwiftUI под v1.0 API (Onboarding/Home/Transactions/Accounts/Plan/Savings/Subscriptions/AddSheet/CategoryDetail/Settings+AI), сосуществует с Maximal Poster (V10) через `@AppStorage("ui.theme")`. Multi-lead ревью-фиксы (67): P0/P1/P2 + cleanup R1/R2/R5/R8/R9.
+- **68 Tech-Debt:** backend pytest 62 fail/64 err → 0 (системный seed-helper, v1.0 onboarding-контракт), web typecheck-гейт, RLS regression-guard на 14 tenant-таблиц.
+- **69 Contract Codegen (R4):** единый источник истины — `contract/openapi.json` → TS (`openapi-typescript`) + Swift (custom→vanilla Codable) DTO, идемпотентно; CI sync-guard + DTO-mirror check; pending-schema заглушки убраны.
+- **70 Convergence (R3/R6/R7):** legacy-API депрекейт + debt-registry; `BusinessDate` MSK-тип; инъектируемая `ErrorHandling`-политика (корневой фикс `suppressForbiddenHandler`); общий `SubscriptionsDomain`/`Store` для обоих шеллов (оба сохранены).
+- **71 UI/UX & functional polish:** 23 проблемы закрыто (3× P0 — сломанный AI-чат SSE URL, Home balance 500, ПЛАН=0 core-value; income-toggle в MP AddSheet; ACCESS-1 v06 Доступ; темы→2; вся pixel-полировка), проверено на симуляторе/тестами.
+
+**Tests at close:** iOS 686 / backend 787 / web 755 — green. **Followup commits:** 102 (с baseline 3ad115d).
+
+**Pending (не блокеры):** мерж ветки → master; 5 HUMAN-UAT live-smoke (62/63/64/66/67); субъективный pixel-perfect vs web-prototype.
+
 ## v1.0 v1.0 (Shipped: 2026-05-10)
 
 **Phases completed:** 7 phases, 74 plans, 114 tasks
