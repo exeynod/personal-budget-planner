@@ -111,12 +111,15 @@ web (не тронут); pixel-perfect сверка с Maximal Poster рефер
 **P2 (2 fixed + 1 deferred):** BAL-1 wallet total verified (fe02053); WEB-AI-1 web 402 Pro msg (77e69ef); ACCESS-1 v06 Доступ — DEFER (намеренный placeholder).
 **UI/P3:** темы→2 (e96affa); theme-sheet layout (b7c1d84); subscription subtitle clipping (494b9e6); onboarding plan slider readout (a8e3e1d). Leftover dev-данные (Netflix Test, Сервисы) почищены через API.
 **Tests:** backend 786→787 green; iOS 639→663 green; web 738→742 green. Оба iOS-шелла + web отревьюены, визуально вылизаны, ключевой функционал работает. Web build/typecheck/vitest зелёные, бэкенд-фиксы (HOME-1/BUG-1/2) web получает бесплатно.
-**17 проблем закрыто всего** (+ACCESS-1, +web P3-W1/W2 в этой итерации). iOS 669 / backend 787 / web 755 green.
-**Остаток (только by-design / субъективное — не трогаю без решения владельца):**
-- empty-desc «—»(MP editorial) vs «Без описания»(v06 native) — per-shell стиль, вероятно by-design (не дефект).
-- AddSheet MP без явного Доход/Расход тумблера — доход через chip (ЗАРПЛАТА в списке chips), рабочий паттерн; явный тумблер = продуктовое решение.
-- pixel-perfect сверка с Maximal Poster референсом — субъективно; оба шелла визуально вылизаны по обходу.
-Owner = Pro (dev) для AI. NB: full pytest сбросит dev-БД+Pro.
+**23 проблемы закрыто всего.** Финальная итерация (владелец: «реши сам и сделай»):
+- **ADDSHEET-INCOME [FUNCTIONAL] [FIXED+VERIFIED commit 4f208b7]:** MP AddSheet жёстко слал `kind:"expense"` → доход НЕЛЬЗЯ было добавить. Добавлен тумблер Доход/Расход + kind-driven payload + фильтрация chips по kind. VERIFIED: доход 1000 → кошелёк +1000, появился как ЗАРПЛАТА.
+- **P2-SIGN [FIXED+VERIFIED commit 099e172]:** MP Реестр показывал расходы с «+» (неотличимо от дохода) — знак брался из числа, а API отдаёт положительные magnitude. Теперь kind-driven: расход «−», доход «+» (затронуло Transactions/CategoryDetail/AccountDetail). VERIFIED.
+- **P3-TITLE [FIXED+VERIFIED 099e172]:** CategoryDetail-заголовок рвался посреди слова → shrink-to-fit одной строкой. VERIFIED.
+- **P3-STEPPER [FIXED+VERIFIED b14249c]:** MP Настройки −/+ степперы низкоконтрастные → новый ink-stroked PosterStepper. VERIFIED.
+- **P3-STATUSBAR [FIXED+VERIFIED 157842c]:** статус-бар бледный на кремовых MP-экранах. Первая попытка (preferredColorScheme) — no-op в кастомном PosterRouter; пересделано через swizzle root-VC `preferredStatusBarStyle` + observable per-screen onAppear. VERIFIED: cream→dark clock, dark→light clock.
+- **empty-desc [DECIDED leave]:** «—»(MP) vs «Без описания»(v06) — уместный per-shell идиом, не дефект; унификация = риск ухудшить. Оставлено намеренно.
+
+iOS 639→**686** green / backend **787** / web 738→**755** green. Оба шелла + web функционально работают и визуально вылизаны; все конкретные визуальные дефекты из обхода устранены. pixel-perfect vs web-prototype не делался (нет рендера прототипа), но по детальному скрутинизу оба шелла без дефектов. Owner = Pro (dev) для AI. NB: full pytest сбросит dev-БД+Pro.
 
 ---
 
