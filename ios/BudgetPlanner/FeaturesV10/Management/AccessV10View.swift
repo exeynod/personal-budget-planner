@@ -160,13 +160,13 @@ struct AccessV10View: View {
                     .font(.custom(PosterTokens.Font.archivoBlack, size: 13))
                     .tracking(13 * 0.04)
                     .foregroundColor(PosterTokens.Color.paper)
-                Text(user.role.uppercased())
+                Text(AccessFormatting.roleLabel(user.role))
                     .font(.posterMono(size: 11, weight: .semibold))
                     .foregroundColor(roleColor(user.role))
                     .tracking(0.12 * 11)
             }
             Spacer()
-            Text("$\(formatCents(user.spendingCapCents))")
+            Text(AccessFormatting.usdAmount(user.spendingCapCents))
                 .font(.posterMono(size: 13, weight: .semibold))
                 .foregroundColor(PosterTokens.Color.paper.opacity(0.7))
         }
@@ -198,17 +198,17 @@ struct AccessV10View: View {
                     .font(.custom(PosterTokens.Font.archivoBlack, size: 13))
                     .tracking(13 * 0.04)
                     .foregroundColor(PosterTokens.Color.paper)
-                Text(row.role.uppercased())
+                Text(AccessFormatting.roleLabel(row.role))
                     .font(.posterMono(size: 11, weight: .semibold))
                     .foregroundColor(roleColor(row.role))
                     .tracking(0.12 * 11)
             }
             Spacer()
             VStack(alignment: .trailing, spacing: 4) {
-                Text("$\(formatCents(row.estCostCentsCurrentMonth))")
+                Text(AccessFormatting.usdAmount(row.estCostCentsCurrentMonth))
                     .font(.posterMono(size: 13, weight: .semibold))
                     .foregroundColor(PosterTokens.Color.paper)
-                Text("\(Int(row.pctOfCap * 100))% / $\(formatCents(row.spendingCapCents))")
+                Text(AccessFormatting.pctOfCapLine(pct: row.pctOfCap, capCents: row.spendingCapCents))
                     .font(.posterMono(size: 11))
                     .foregroundColor(pctColor(row.pctOfCap))
             }
@@ -224,10 +224,6 @@ struct AccessV10View: View {
     }
 
     // MARK: - Helpers
-
-    private func formatCents(_ cents: Int) -> String {
-        String(format: "%.2f", Double(cents) / 100.0)
-    }
 
     private func roleColor(_ role: String) -> Color {
         switch role {
