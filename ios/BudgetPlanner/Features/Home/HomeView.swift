@@ -6,7 +6,7 @@ final class HomeViewModel {
     enum LoadState: Equatable {
         case idle
         case loading
-        case loaded(period: PeriodDTO, balance: BalanceResponse, categories: [CategoryDTO])
+        case loaded(period: PeriodDTO, balance: BalanceResponse, categories: [CategoryDTO], walletCents: Int)
         case noActivePeriod
         case error(String)
     }
@@ -19,9 +19,17 @@ final class HomeViewModel {
         do {
             async let periodTask = PeriodsAPI.current()
             async let categoriesTask = CategoriesAPI.list()
-            let (period, cats) = try await (periodTask, categoriesTask)
+            async let accountsTask = AccountsAPI.list()
+            let (period, cats, accounts) = try await (periodTask, categoriesTask, accountsTask)
             let balance = try await PeriodsAPI.balance(periodId: period.id)
-            state = .loaded(period: period, balance: balance, categories: cats)
+            // Phase 71 BAL-1: headline "Остаток на счёте" is the wallet total
+            // (Σ account balance_cents), matching the MP shell's "в кошельке"
+            // (HomeData.computeWalletTotal) and the Счета screen. The period
+            // balance_now (starting_balance + income − expense) is NOT the
+            // wallet — v1.0 onboarding creates no starting balance, so it
+            // collapses to pure period net and mislabels the headline.
+            let walletCents = HomeData.computeWalletTotal(accounts)
+            state = .loaded(period: period, balance: balance, categories: cats, walletCents: walletCents)
         } catch APIError.notFound {
             state = .noActivePeriod
         } catch {
@@ -33,7 +41,7 @@ final class HomeViewModel {
     }
 
     var loadedCategories: [CategoryDTO] {
-        if case .loaded(_, _, let cats) = state { return cats }
+        if case .loaded(_, _, let cats, _) = state { return cats }
         return []
     }
 }
@@ -87,11 +95,12 @@ struct HomeView: View {
             ProgressView().controlSize(.large)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-        case .loaded(let period, let balance, let categories):
+        case .loaded(let period, let balance, let categories, let walletCents):
             HomeList(
                 balance: balance,
                 period: period,
                 categories: categories,
+                walletCents: walletCents,
                 kind: $viewModel.activeKind,
                 onRefresh: { await viewModel.load() }
             )
@@ -135,13 +144,14 @@ private struct HomeList: View {
     let balance: BalanceResponse
     let period: PeriodDTO
     let categories: [CategoryDTO]
+    let walletCents: Int
     @Binding var kind: CategoryKind
     var onRefresh: (() async -> Void)? = nil
 
     var body: some View {
         List {
             Section {
-                BalanceHeroRow(balance: balance, period: period, kind: kind)
+                BalanceHeroRow(balance: balance, period: period, walletCents: walletCents, kind: kind)
                     .listRowInsets(EdgeInsets(top: 12, leading: 16, bottom: 12, trailing: 16))
                     .listRowBackground(Color.clear)
                     .listRowSeparator(.hidden)
@@ -190,12 +200,20 @@ private struct HomeList: View {
 private struct BalanceHeroRow: View {
     let balance: BalanceResponse
     let period: PeriodDTO
+    /// Phase 71 BAL-1: Σ account balance_cents (wallet total), the real figure
+    /// behind the "Остаток на счёте" label — matches the MP shell's "в кошельке"
+    /// and the Счета screen total.
+    let walletCents: Int
     let kind: CategoryKind
 
     private var amountCents: Int {
+        // Closed period → "Итог периода" still shows the period ending balance
+        // (a legitimate period figure, not the wallet). Active period → the
+        // headline says "Остаток на счёте", so show the wallet total, not the
+        // period net (balance_now), which mislabelled the figure (BAL-1).
         period.status == .closed
             ? (period.endingBalanceCents ?? 0)
-            : balance.balanceNowCents
+            : walletCents
     }
 
     private var amountLabel: String {
