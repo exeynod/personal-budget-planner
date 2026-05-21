@@ -29,7 +29,9 @@ import {
   listSubscriptionsV10,
   patchSubscriptionV10,
   deleteSubscription,
+  listAccounts,
   type SubscriptionV10Read,
+  type AccountResponse,
 } from '../../api/v10';
 import { SubscriptionsView } from './SubscriptionsView';
 import { SubscriptionMenuSheet } from './SubscriptionMenuSheet';
@@ -51,7 +53,11 @@ function errMessage(err: unknown, fallback: string): string {
 type LoadState =
   | { status: 'loading' }
   | { status: 'error'; message: string }
-  | { status: 'ready'; subs: SubscriptionV10Read[] };
+  | {
+      status: 'ready';
+      subs: SubscriptionV10Read[];
+      accounts: AccountResponse[];
+    };
 
 // ─────────────────── Component ───────────────────
 
@@ -70,9 +76,14 @@ export function SubscriptionsMount() {
 
     (async () => {
       try {
-        const list = await listSubscriptionsV10();
+        // P3-W1: fetch accounts alongside subscriptions so each row can show
+        // its linked charging account and the «СМЕНИТЬ СЧЁТ» picker has rows.
+        const [list, accounts] = await Promise.all([
+          listSubscriptionsV10(),
+          listAccounts(),
+        ]);
         if (cancelled) return;
-        setState({ status: 'ready', subs: list });
+        setState({ status: 'ready', subs: list, accounts });
       } catch (err) {
         if (cancelled) return;
         const message =
@@ -128,6 +139,20 @@ export function SubscriptionsMount() {
         setToastMsg(
           'Не удалось обновить · ' +
             errMessage(err, 'цена не сохранена'),
+        );
+      }
+    },
+    [refresh],
+  );
+
+  const handleChangeAccount = useCallback(
+    async (sub: SubscriptionV10Read, accountId: number) => {
+      try {
+        await patchSubscriptionV10(sub.id, { account_id: accountId });
+        refresh();
+      } catch (err) {
+        setToastMsg(
+          'Не удалось обновить · ' + errMessage(err, 'счёт не сохранён'),
         );
       }
     },
@@ -203,15 +228,18 @@ export function SubscriptionsMount() {
     <>
       <SubscriptionsView
         subs={state.subs}
+        accounts={state.accounts}
         onMenuOpen={(sub) => setMenuSub(sub)}
         onBack={() => router.pop()}
       />
       <SubscriptionMenuSheet
         sub={menuSub}
+        accounts={state.accounts}
         onClose={() => setMenuSub(null)}
         onTogglePause={handleTogglePause}
         onChangeDay={handleChangeDay}
         onChangePrice={handleChangePrice}
+        onChangeAccount={handleChangeAccount}
         onDelete={handleDelete}
       />
       <Toast

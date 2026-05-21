@@ -14,7 +14,20 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, fireEvent, cleanup, screen } from '@testing-library/react';
 import { SubscriptionsView } from '../SubscriptionsView';
 import { SubscriptionMenuSheet } from '../SubscriptionMenuSheet';
-import type { SubscriptionV10Read } from '../../../api/v10';
+import type { SubscriptionV10Read, AccountResponse } from '../../../api/v10';
+
+function mkAccount(over: Partial<AccountResponse> = {}): AccountResponse {
+  return {
+    id: 1,
+    bank: 'Tinkoff',
+    mask: '4242',
+    kind: 'card',
+    balance_cents: 100000,
+    primary: true,
+    created_at: '2026-04-01T00:00:00+00:00',
+    ...over,
+  };
+}
 
 afterEach(cleanup);
 
@@ -166,6 +179,8 @@ describe('SubscriptionMenuSheet', () => {
       <SubscriptionMenuSheet
         sub={null}
         onClose={vi.fn()}
+        accounts={[]}
+        onChangeAccount={vi.fn()}
         onTogglePause={vi.fn()}
         onChangeDay={vi.fn()}
         onChangePrice={vi.fn()}
@@ -181,6 +196,8 @@ describe('SubscriptionMenuSheet', () => {
       <SubscriptionMenuSheet
         sub={sub}
         onClose={vi.fn()}
+        accounts={[]}
+        onChangeAccount={vi.fn()}
         onTogglePause={vi.fn()}
         onChangeDay={vi.fn()}
         onChangePrice={vi.fn()}
@@ -199,6 +216,8 @@ describe('SubscriptionMenuSheet', () => {
       <SubscriptionMenuSheet
         sub={sub}
         onClose={vi.fn()}
+        accounts={[]}
+        onChangeAccount={vi.fn()}
         onTogglePause={vi.fn()}
         onChangeDay={vi.fn()}
         onChangePrice={vi.fn()}
@@ -216,6 +235,8 @@ describe('SubscriptionMenuSheet', () => {
       <SubscriptionMenuSheet
         sub={sub}
         onClose={vi.fn()}
+        accounts={[]}
+        onChangeAccount={vi.fn()}
         onTogglePause={onTogglePause}
         onChangeDay={vi.fn()}
         onChangePrice={vi.fn()}
@@ -233,6 +254,8 @@ describe('SubscriptionMenuSheet', () => {
       <SubscriptionMenuSheet
         sub={sub}
         onClose={vi.fn()}
+        accounts={[]}
+        onChangeAccount={vi.fn()}
         onTogglePause={vi.fn()}
         onChangeDay={onChangeDay}
         onChangePrice={vi.fn()}
@@ -256,6 +279,8 @@ describe('SubscriptionMenuSheet', () => {
       <SubscriptionMenuSheet
         sub={sub}
         onClose={vi.fn()}
+        accounts={[]}
+        onChangeAccount={vi.fn()}
         onTogglePause={vi.fn()}
         onChangeDay={vi.fn()}
         onChangePrice={vi.fn()}
@@ -274,6 +299,8 @@ describe('SubscriptionMenuSheet', () => {
       <SubscriptionMenuSheet
         sub={sub}
         onClose={vi.fn()}
+        accounts={[]}
+        onChangeAccount={vi.fn()}
         onTogglePause={vi.fn()}
         onChangeDay={vi.fn()}
         onChangePrice={vi.fn()}
@@ -293,6 +320,8 @@ describe('SubscriptionMenuSheet', () => {
       <SubscriptionMenuSheet
         sub={sub}
         onClose={vi.fn()}
+        accounts={[]}
+        onChangeAccount={vi.fn()}
         onTogglePause={vi.fn()}
         onChangeDay={vi.fn()}
         onChangePrice={onChangePrice}
@@ -315,6 +344,8 @@ describe('SubscriptionMenuSheet', () => {
       <SubscriptionMenuSheet
         sub={sub}
         onClose={vi.fn()}
+        accounts={[]}
+        onChangeAccount={vi.fn()}
         onTogglePause={vi.fn()}
         onChangeDay={vi.fn()}
         onChangePrice={vi.fn()}
@@ -334,6 +365,8 @@ describe('SubscriptionMenuSheet', () => {
       <SubscriptionMenuSheet
         sub={sub}
         onClose={vi.fn()}
+        accounts={[]}
+        onChangeAccount={vi.fn()}
         onTogglePause={vi.fn()}
         onChangeDay={vi.fn()}
         onChangePrice={onChangePrice}
@@ -355,6 +388,8 @@ describe('SubscriptionMenuSheet', () => {
       <SubscriptionMenuSheet
         sub={sub}
         onClose={vi.fn()}
+        accounts={[]}
+        onChangeAccount={vi.fn()}
         onTogglePause={vi.fn()}
         onChangeDay={vi.fn()}
         onChangePrice={vi.fn()}
@@ -377,6 +412,8 @@ describe('SubscriptionMenuSheet', () => {
       <SubscriptionMenuSheet
         sub={sub}
         onClose={vi.fn()}
+        accounts={[]}
+        onChangeAccount={vi.fn()}
         onTogglePause={vi.fn()}
         onChangeDay={vi.fn()}
         onChangePrice={vi.fn()}
@@ -386,5 +423,81 @@ describe('SubscriptionMenuSheet', () => {
     fireEvent.click(screen.getByText('ОТМЕНИТЬ ПОДПИСКУ'));
     fireEvent.click(screen.getByText('ОТМЕНА'));
     expect(onDelete).not.toHaveBeenCalled();
+  });
+
+  // ─────────── P3-W1: «СМЕНИТЬ СЧЁТ» account picker ───────────
+
+  it('renders «СМЕНИТЬ СЧЁТ» action in the primary menu', () => {
+    render(
+      <SubscriptionMenuSheet
+        sub={mkSub()}
+        onClose={vi.fn()}
+        accounts={[mkAccount()]}
+        onChangeAccount={vi.fn()}
+        onTogglePause={vi.fn()}
+        onChangeDay={vi.fn()}
+        onChangePrice={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    );
+    expect(screen.getByText('СМЕНИТЬ СЧЁТ')).toBeTruthy();
+  });
+
+  it('«СМЕНИТЬ СЧЁТ» opens the picker; selecting a row calls onChangeAccount(sub, id)', async () => {
+    const sub = mkSub({ account_id: 1 });
+    const onChangeAccount = vi.fn().mockResolvedValue(undefined);
+    const accounts = [
+      mkAccount({ id: 1, bank: 'Tinkoff', mask: '4242', primary: true }),
+      mkAccount({ id: 2, bank: 'Sber', mask: '1111', primary: false }),
+    ];
+    render(
+      <SubscriptionMenuSheet
+        sub={sub}
+        onClose={vi.fn()}
+        accounts={accounts}
+        onChangeAccount={onChangeAccount}
+        onTogglePause={vi.fn()}
+        onChangeDay={vi.fn()}
+        onChangePrice={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    );
+    fireEvent.click(screen.getByText('СМЕНИТЬ СЧЁТ'));
+    // Picker rows rendered (AccountPickerSheet testids).
+    fireEvent.click(screen.getByTestId('account-picker-row-2'));
+    await Promise.resolve();
+    expect(onChangeAccount).toHaveBeenCalledWith(sub, 2);
+  });
+});
+
+// ─────────────────── P3-W1: row account display ───────────────────
+
+describe('SubscriptionsView account display', () => {
+  it('renders linked account label «BANK · MASK» on the row', () => {
+    render(
+      <SubscriptionsView
+        subs={[mkSub({ id: 7, account_id: 1 })]}
+        accounts={[mkAccount({ id: 1, bank: 'Tinkoff', mask: '4242' })]}
+        onMenuOpen={vi.fn()}
+        onBack={vi.fn()}
+        bigFigAnimate={false}
+      />,
+    );
+    expect(screen.getByTestId('sub-account-7').textContent).toBe(
+      'TINKOFF · 4242',
+    );
+  });
+
+  it('omits the account line when account_id is null', () => {
+    render(
+      <SubscriptionsView
+        subs={[mkSub({ id: 7, account_id: null })]}
+        accounts={[mkAccount({ id: 1 })]}
+        onMenuOpen={vi.fn()}
+        onBack={vi.fn()}
+        bigFigAnimate={false}
+      />,
+    );
+    expect(screen.queryByTestId('sub-account-7')).toBeNull();
   });
 });

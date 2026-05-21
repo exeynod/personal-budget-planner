@@ -15,11 +15,12 @@
 // pattern from Phase 25-04 / 25-08 / 26-02.
 
 import { Eyebrow, Mass, BigFig } from '../../componentsV10';
-import type { SubscriptionV10Read } from '../../api/v10';
+import type { SubscriptionV10Read, AccountResponse } from '../../api/v10';
 import {
   computeActiveCount,
   computeMonthlyTotal,
   computeYearlyTotalAnnualized,
+  formatAccountLabel,
   formatCadenceRu,
   sortForDisplay,
 } from './computeSubscriptions';
@@ -28,6 +29,11 @@ import styles from './SubscriptionsView.module.css';
 export interface SubscriptionsViewProps {
   /** Subscriptions list (any order — view sorts internally). */
   subs: SubscriptionV10Read[];
+  /**
+   * P3-W1: accounts for resolving each subscription's `account_id` to a
+   * display label («BANK · MASK»). Defaults to [] when not yet loaded.
+   */
+  accounts?: AccountResponse[];
   /** ··· tap → opens bottom-sheet menu for the row. */
   onMenuOpen: (sub: SubscriptionV10Read) => void;
   /** Top-left ← НАЗАД button. */
@@ -96,6 +102,7 @@ export function SubscriptionsView(props: SubscriptionsViewProps) {
         <div className={styles.list}>
           {sorted.map((s) => {
             const priceRubles = Math.floor(s.amount_cents / 100);
+            const accountLabel = formatAccountLabel(s, props.accounts ?? []);
             return (
               <div
                 key={s.id}
@@ -104,6 +111,14 @@ export function SubscriptionsView(props: SubscriptionsViewProps) {
                 <div className={styles.rowLeft}>
                   <div className={styles.subName}>{s.name.toUpperCase()}</div>
                   <div className={styles.subCadence}>{formatCadenceRu(s)}</div>
+                  {accountLabel != null && (
+                    <div
+                      className={styles.subAccount}
+                      data-testid={`sub-account-${s.id}`}
+                    >
+                      {accountLabel}
+                    </div>
+                  )}
                 </div>
                 <div className={styles.rowRight}>
                   <div className={styles.subPrice}>

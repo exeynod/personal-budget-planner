@@ -20,7 +20,8 @@
 import { useState } from 'react';
 import { PosterSheet } from '../common';
 import { PosterButton } from '../../componentsV10';
-import type { SubscriptionV10Read } from '../../api/v10';
+import { AccountPickerSheet } from '../AddSheet';
+import type { SubscriptionV10Read, AccountResponse } from '../../api/v10';
 import { parseRublesToKopecksOr0, sanitizeMoneyInput } from '../../utils/parseMoney';
 import styles from './SubscriptionMenuSheet.module.css';
 
@@ -38,11 +39,21 @@ export interface SubscriptionMenuSheetProps {
     sub: SubscriptionV10Read,
     newAmountCents: number,
   ) => Promise<void>;
+  /**
+   * P3-W1: Update charging account_id. Accounts list is supplied so the picker
+   * can render rows + highlight the current selection.
+   */
+  onChangeAccount: (
+    sub: SubscriptionV10Read,
+    newAccountId: number,
+  ) => Promise<void>;
+  /** P3-W1: accounts for the «СМЕНИТЬ СЧЁТ» picker. */
+  accounts: AccountResponse[];
   /** Hard-delete subscription. */
   onDelete: (sub: SubscriptionV10Read) => Promise<void>;
 }
 
-type EditorMode = 'none' | 'day' | 'price' | 'confirmDelete';
+type EditorMode = 'none' | 'day' | 'price' | 'account' | 'confirmDelete';
 
 /** Clamp helper for the day input (1..28; mirrors backend Field(ge=1, le=28)). */
 function clampDay(raw: number): number {
@@ -78,6 +89,11 @@ export function SubscriptionMenuSheet(props: SubscriptionMenuSheetProps) {
 
   const handleSaveDay = async () => {
     await props.onChangeDay(sub, clampDay(dayValue));
+    closeAll();
+  };
+
+  const handleSelectAccount = async (accountId: number) => {
+    await props.onChangeAccount(sub, accountId);
     closeAll();
   };
 
@@ -118,6 +134,12 @@ export function SubscriptionMenuSheet(props: SubscriptionMenuSheetProps) {
             </PosterButton>
             <PosterButton variant="ghost" onClick={openPrice}>
               ИЗМЕНИТЬ ЦЕНУ
+            </PosterButton>
+            <PosterButton
+              variant="ghost"
+              onClick={() => setEditor('account')}
+            >
+              СМЕНИТЬ СЧЁТ
             </PosterButton>
             <button
               type="button"
@@ -192,6 +214,15 @@ export function SubscriptionMenuSheet(props: SubscriptionMenuSheetProps) {
           </div>
         </div>
       </PosterSheet>
+
+      {/* ─────────── account picker (P3-W1) ─────────── */}
+      <AccountPickerSheet
+        isOpen={editor === 'account'}
+        accounts={props.accounts}
+        selectedAccountId={sub.account_id ?? null}
+        onSelect={handleSelectAccount}
+        onClose={() => setEditor('none')}
+      />
 
       {/* ─────────── confirm delete ─────────── */}
       <PosterSheet

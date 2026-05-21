@@ -14,7 +14,7 @@
 //
 // Mirrors iOS SubscriptionsData.swift (Plan 26-07) — must produce identical numbers.
 
-import type { SubscriptionV10Read } from '../../api/v10';
+import type { SubscriptionV10Read, AccountResponse } from '../../api/v10';
 import { parseWireDate } from '../../utils/parseWireDate';
 import { MONTHS_RU_GENITIVE } from '../common';
 
@@ -63,6 +63,27 @@ export function formatCadenceRu(sub: SubscriptionV10Read): string {
   const d = parseWireDate(sub.next_charge_date);
   if (Number.isNaN(d.getTime())) return 'ежегодно';
   return `${d.getDate()} ${MONTHS_RU_GENITIVE[d.getMonth()]}`;
+}
+
+/**
+ * P3-W1: human-readable label for the subscription's charging account
+ * (`account_id`). Mirrors AccountPickerSheet.formatAccountName («BANK · MASK»).
+ *
+ * - sub.account_id == null  → null (no linked account; caller hides the line)
+ * - account not in map      → null (defensive: deleted / cross-tenant id)
+ * - account with mask       → «BANK · MASK»
+ * - account without mask    → «BANK»
+ */
+export function formatAccountLabel(
+  sub: SubscriptionV10Read,
+  accounts: ReadonlyArray<AccountResponse>,
+): string | null {
+  const id = sub.account_id;
+  if (id == null) return null;
+  const acc = accounts.find((a) => a.id === id);
+  if (acc == null) return null;
+  const bank = (acc.bank ?? '').toUpperCase();
+  return acc.mask ? `${bank} · ${acc.mask}` : bank;
 }
 
 /**

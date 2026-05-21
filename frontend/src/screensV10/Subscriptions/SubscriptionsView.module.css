@@ -116,6 +116,19 @@
   opacity: 0.65;
 }
 
+/* P3-W1: linked charging-account line under the cadence. Slightly fainter
+ * than the cadence so the row hierarchy stays name → cadence → account. */
+.subAccount {
+  font-family: var(--poster-font-jet-brains-mono), ui-monospace, monospace;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: var(--poster-paper);
+  opacity: 0.5;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .rowRight {
   display: flex;
   align-items: center;

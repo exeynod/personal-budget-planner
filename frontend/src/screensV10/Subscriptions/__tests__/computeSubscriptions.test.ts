@@ -14,10 +14,24 @@ import {
   computeActiveCount,
   computeMonthlyTotal,
   computeYearlyTotalAnnualized,
+  formatAccountLabel,
   formatCadenceRu,
   sortForDisplay,
 } from '../computeSubscriptions';
-import type { SubscriptionV10Read } from '../../../api/v10';
+import type { SubscriptionV10Read, AccountResponse } from '../../../api/v10';
+
+function mkAccount(over: Partial<AccountResponse> = {}): AccountResponse {
+  return {
+    id: 1,
+    bank: 'Tinkoff',
+    mask: '4242',
+    kind: 'card',
+    balance_cents: 100000,
+    primary: true,
+    created_at: '2026-04-01T00:00:00+00:00',
+    ...over,
+  };
+}
 
 // ─────────────────── builders ───────────────────
 
@@ -172,6 +186,38 @@ describe('formatCadenceRu', () => {
   it('falls back to «ежегодно» when yearly date is invalid', () => {
     const sub = mkSub({ cycle: 'yearly', next_charge_date: 'not-a-date' });
     expect(formatCadenceRu(sub)).toBe('ежегодно');
+  });
+});
+
+// ─────────────────── formatAccountLabel (P3-W1) ───────────────────
+
+describe('formatAccountLabel', () => {
+  it('returns null when sub.account_id is null', () => {
+    expect(
+      formatAccountLabel(mkSub({ account_id: null }), [mkAccount()]),
+    ).toBeNull();
+  });
+
+  it('returns null when account_id has no matching account', () => {
+    expect(
+      formatAccountLabel(mkSub({ account_id: 99 }), [mkAccount({ id: 1 })]),
+    ).toBeNull();
+  });
+
+  it('formats «BANK · MASK» when account has a mask', () => {
+    expect(
+      formatAccountLabel(mkSub({ account_id: 1 }), [
+        mkAccount({ id: 1, bank: 'Tinkoff', mask: '4242' }),
+      ]),
+    ).toBe('TINKOFF · 4242');
+  });
+
+  it('formats «BANK» (no separator) when account has no mask', () => {
+    expect(
+      formatAccountLabel(mkSub({ account_id: 1 }), [
+        mkAccount({ id: 1, bank: 'Наличные', mask: null }),
+      ]),
+    ).toBe('НАЛИЧНЫЕ');
   });
 });
 
