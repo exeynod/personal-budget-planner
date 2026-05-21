@@ -415,6 +415,193 @@ async def test_post_subscription_exposes_posted_txn_id(
 
 
 # ---------------------------------------------------------------------------
+# BUG-2 (phase 71): WRITE path persists day_of_month / account_id
+#
+# Phase 67 P0-1 exposed day_of_month/account_id on the READ shape
+# (SubscriptionReadV10) but the WRITE path (SubscriptionCreate/Update,
+# extra="forbid") rejected them with 422. iOS v06 (legacy create → V10 patch)
+# could therefore never persist account/charge-day. These tests assert the
+# fields now round-trip through POST and PATCH, with tenant validation on
+# account_id (404) and range validation on day_of_month (422).
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_create_subscription_with_account_and_day(
+    db_client, auth_headers, seed_categories, seed_account
+):
+    """POST /subscriptions with account_id + day_of_month → 200, values round-trip."""
+    payload = _sub_payload(seed_categories["expense_cat"].id)
+    payload["account_id"] = seed_account
+    payload["day_of_month"] = 15
+
+    response = await db_client.post(
+        "/api/v1/subscriptions", json=payload, headers=auth_headers
+    )
+    assert response.status_code in (200, 201), response.text
+    data = response.json()
+    assert data["account_id"] == seed_account
+    assert data["day_of_month"] == 15
+
+    # Read side (GET) echoes the same values.
+    sub_id = data["id"]
+    listing = await db_client.get("/api/v1/subscriptions", headers=auth_headers)
+    item = next(s for s in listing.json() if s["id"] == sub_id)
+    assert item["account_id"] == seed_account
+    assert item["day_of_month"] == 15
+
+
+@pytest.mark.asyncio
+async def test_patch_subscription_account_and_day_round_trip(
+    db_client, auth_headers, seed_categories, seed_account
+):
+    """PATCH /subscriptions/{id} with account_id + day_of_month → 200, round-trips."""
+    cat_id = seed_categories["expense_cat"].id
+    create = await db_client.post(
+        "/api/v1/subscriptions", json=_sub_payload(cat_id), headers=auth_headers
+    )
+    assert create.status_code in (200, 201)
+    sub_id = create.json()["id"]
+    # Plain create → no account/day yet.
+    assert create.json()["account_id"] is None
+    assert create.json()["day_of_month"] is None
+
+    patch = await db_client.patch(
+        f"/api/v1/subscriptions/{sub_id}",
+        json={"account_id": seed_account, "day_of_month": 20},
+        headers=auth_headers,
+    )
+    assert patch.status_code == 200, patch.text
+    body = patch.json()
+    assert body["account_id"] == seed_account
+    assert body["day_of_month"] == 20
+
+    # Persisted: GET echoes back.
+    listing = await db_client.get("/api/v1/subscriptions", headers=auth_headers)
+    item = next(s for s in listing.json() if s["id"] == sub_id)
+    assert item["account_id"] == seed_account
+    assert item["day_of_month"] == 20
+
+
+@pytest.mark.asyncio
+async def test_patch_subscription_clear_account_id(
+    db_client, auth_headers, seed_categories, seed_account
+):
+    """PATCH account_id=null clears the field (no tenant lookup, no 404)."""
+    cat_id = seed_categories["expense_cat"].id
+    create = await db_client.post(
+        "/api/v1/subscriptions", json=_sub_payload(cat_id), headers=auth_headers
+    )
+    sub_id = create.json()["id"]
+
+    # First set it.
+    set_resp = await db_client.patch(
+        f"/api/v1/subscriptions/{sub_id}",
+        json={"account_id": seed_account},
+        headers=auth_headers,
+    )
+    assert set_resp.status_code == 200
+    assert set_resp.json()["account_id"] == seed_account
+
+    # Then clear it.
+    clear = await db_client.patch(
+        f"/api/v1/subscriptions/{sub_id}",
+        json={"account_id": None},
+        headers=auth_headers,
+    )
+    assert clear.status_code == 200, clear.text
+    assert clear.json()["account_id"] is None
+
+
+@pytest.mark.asyncio
+async def test_patch_subscription_cross_tenant_account_404(
+    db_setup, auth_headers, seed_categories
+):
+    """PATCH with an account_id belonging to another tenant → 404 (no leak)."""
+    db_client, SessionLocal = db_setup
+    cat_id = seed_categories["expense_cat"].id
+
+    # Create a second user + their account (cross-tenant).
+    from app.db.models import Account, AccountKind, AppUser
+
+    async with SessionLocal() as session:
+        other = AppUser(tg_user_id=999999001, cycle_start_day=5)
+        session.add(other)
+        await session.flush()
+        other_acct = Account(
+            user_id=other.id,
+            bank="Other",
+            mask="9999",
+            kind=AccountKind.card,
+            balance_cents=0,
+            is_primary=True,
+        )
+        session.add(other_acct)
+        await session.commit()
+        await session.refresh(other_acct)
+        cross_tenant_account_id = other_acct.id
+
+    create = await db_client.post(
+        "/api/v1/subscriptions", json=_sub_payload(cat_id), headers=auth_headers
+    )
+    sub_id = create.json()["id"]
+
+    patch = await db_client.patch(
+        f"/api/v1/subscriptions/{sub_id}",
+        json={"account_id": cross_tenant_account_id},
+        headers=auth_headers,
+    )
+    assert patch.status_code == 404, patch.text
+
+
+@pytest.mark.asyncio
+async def test_create_subscription_missing_account_404(
+    db_client, auth_headers, seed_categories
+):
+    """POST with a nonexistent account_id → 404."""
+    payload = _sub_payload(seed_categories["expense_cat"].id)
+    payload["account_id"] = 999999999  # does not exist
+
+    response = await db_client.post(
+        "/api/v1/subscriptions", json=payload, headers=auth_headers
+    )
+    assert response.status_code == 404, response.text
+
+
+@pytest.mark.asyncio
+async def test_patch_subscription_invalid_day_of_month_422(
+    db_client, auth_headers, seed_categories
+):
+    """PATCH with day_of_month out of 1..28 → 422 (model CHECK / iOS clamp range)."""
+    cat_id = seed_categories["expense_cat"].id
+    create = await db_client.post(
+        "/api/v1/subscriptions", json=_sub_payload(cat_id), headers=auth_headers
+    )
+    sub_id = create.json()["id"]
+
+    for bad in (0, 29, 31):
+        resp = await db_client.patch(
+            f"/api/v1/subscriptions/{sub_id}",
+            json={"day_of_month": bad},
+            headers=auth_headers,
+        )
+        assert resp.status_code == 422, f"day_of_month={bad}: {resp.text}"
+
+
+@pytest.mark.asyncio
+async def test_create_subscription_invalid_day_of_month_422(
+    db_client, auth_headers, seed_categories
+):
+    """POST with day_of_month out of 1..28 → 422."""
+    payload = _sub_payload(seed_categories["expense_cat"].id)
+    payload["day_of_month"] = 31
+    response = await db_client.post(
+        "/api/v1/subscriptions", json=payload, headers=auth_headers
+    )
+    assert response.status_code == 422, response.text
+
+
+# ---------------------------------------------------------------------------
 # P1-2 (BE-F4) double-post idempotency + P2-13 (QA-F10) savepoint rollback
 #
 # - double-post: second POST /{id}/post sees the committed posted_txn_id (the

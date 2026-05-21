@@ -96,12 +96,19 @@ async def create_subscription(
     category_id: int,
     notify_days_before: Optional[int] = None,
     is_active: bool = True,
+    day_of_month: Optional[int] = None,
+    account_id: Optional[int] = None,
 ) -> Subscription:
     """Create and persist a new subscription owned by user_id.
 
     Phase 11: category_id validated в scope user_id (cross-tenant attempts ловятся
     как CategoryNotFoundOrArchived). notify_days_before defaults to
     AppUser.notify_days_before если не передан (D-73).
+
+    BUG-2 (phase 71): optional ``day_of_month`` (1..28) and ``account_id`` are
+    persisted at create. ``account_id`` MUST be tenant-validated by the caller
+    (route layer raises AccountNotFoundError → 404). The DB composite FK
+    ``fk_subscription_account`` enforces tenancy as defense-in-depth.
 
     Raises CategoryNotFoundOrArchived if category_id is invalid, archived, or
     belongs to a different tenant (T-06-02 + T-11-06-08).
@@ -129,6 +136,8 @@ async def create_subscription(
         category_id=category_id,
         notify_days_before=notify_days_before,
         is_active=is_active,
+        day_of_month=day_of_month,
+        account_id=account_id,
     )
     db.add(sub)
     await db.flush()

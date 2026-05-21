@@ -31,12 +31,24 @@ class SubscriptionCreate(BaseModel):
     category_id: int
     notify_days_before: Optional[int] = Field(None, ge=0, le=30)
     is_active: bool = True
+    # v1.0 (BUG-2, phase 71): allow setting day_of_month / account_id at
+    # creation so create-with-account works in one call. day_of_month bounded
+    # to 1..28 (mirrors DB CHECK ck_subscription_day_of_month; iOS clamps too).
+    # account_id is validated against the tenant in the route layer (→ 404 on
+    # cross-tenant / missing, mirroring actuals).
+    day_of_month: Optional[int] = Field(None, ge=1, le=28)
+    account_id: Optional[int] = Field(None, gt=0)
 
 
 class SubscriptionUpdate(BaseModel):
     """PATCH /subscriptions/{id} request body — all fields optional.
 
     WR-10 (Phase 22 review): ``extra="forbid"`` — see SubscriptionCreate.
+
+    v1.0 (BUG-2, phase 71): ``day_of_month`` / ``account_id`` are now writable
+    on the WRITE path. Previously the route was wired to this legacy schema with
+    ``extra="forbid"``, so v1.0 PATCH bodies carrying these fields were rejected
+    with 422 even though ``SubscriptionReadV10`` exposes them on read.
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -48,6 +60,9 @@ class SubscriptionUpdate(BaseModel):
     category_id: Optional[int] = None
     notify_days_before: Optional[int] = Field(None, ge=0, le=30)
     is_active: Optional[bool] = None
+    # v1.0 (BUG-2): day_of_month bounded 1..28; account_id tenant-validated in route.
+    day_of_month: Optional[int] = Field(None, ge=1, le=28)
+    account_id: Optional[int] = Field(None, gt=0)
 
 
 class SubscriptionRead(BaseModel):

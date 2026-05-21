@@ -35,7 +35,9 @@ from app.api.schemas.subscriptions import (
     SubscriptionUpdate,
 )
 from app.db.models import AppUser, BudgetPeriod, PeriodStatus
+from app.services import accounts as account_service
 from app.services import subscriptions as sub_service
+from app.services.accounts import AccountNotFoundError
 
 router = APIRouter(
     prefix="/subscriptions",
@@ -66,12 +68,23 @@ async def create_sub(
 ) -> SubscriptionReadV10:
     """POST /api/v1/subscriptions — create a new subscription.
 
+    BUG-2 (phase 71): accepts optional ``day_of_month`` (1..28) and
+    ``account_id`` so create-with-account works in one call. A cross-tenant or
+    missing ``account_id`` → 404 (mirrors actuals create_actual_v10 dispatch).
+
     Status codes:
         200: created
         400: category_id refers to archived or missing category
+        404: account_id refers to cross-tenant / missing account
         422: Pydantic validation error
     """
     try:
+        # BUG-2: validate account_id against the tenant before persisting
+        # (composite FK is defense-in-depth; explicit check returns 404 cleanly).
+        if payload.account_id is not None:
+            await account_service.get_or_404(
+                db, user_id=user_id, account_id=payload.account_id
+            )
         sub = await sub_service.create_subscription(
             db,
             user_id=user_id,
@@ -82,6 +95,8 @@ async def create_sub(
             category_id=payload.category_id,
             notify_days_before=payload.notify_days_before,
             is_active=payload.is_active,
+            day_of_month=payload.day_of_month,
+            account_id=payload.account_id,
         )
         # If next_charge_date falls in the current active period, add planned row.
         active_period = await db.scalar(
@@ -99,6 +114,10 @@ async def create_sub(
             )
         await db.commit()
         return SubscriptionReadV10.model_validate(sub)
+    except AccountNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
+        ) from exc
     except sub_service.CategoryNotFoundOrArchived as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -115,17 +134,32 @@ async def patch_sub(
 ) -> SubscriptionReadV10:
     """PATCH /api/v1/subscriptions/{id} — partial update.
 
+    BUG-2 (phase 71): now accepts the v1.0 fields ``day_of_month`` (1..28) and
+    ``account_id`` on the write path. A cross-tenant / missing ``account_id``
+    (when explicitly supplied non-null) → 404, mirroring actuals.
+
     Status codes:
         200: updated
-        404: subscription not found
+        404: subscription not found OR account_id cross-tenant / missing
         422: Pydantic validation error
     """
+    patch = payload.model_dump(exclude_unset=True)
     try:
+        # BUG-2: validate a non-null account_id against the tenant before
+        # persisting. (account_id=None is a legitimate clear and skips lookup.)
+        if patch.get("account_id") is not None:
+            await account_service.get_or_404(
+                db, user_id=user_id, account_id=patch["account_id"]
+            )
         sub = await sub_service.update_subscription(
-            db, sub_id, payload.model_dump(exclude_unset=True), user_id=user_id
+            db, sub_id, patch, user_id=user_id
         )
         await db.commit()
         return SubscriptionReadV10.model_validate(sub)
+    except AccountNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
+        ) from exc
     except LookupError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
