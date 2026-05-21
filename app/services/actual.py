@@ -54,7 +54,6 @@ from app.db.models import (
     Category,
     CategoryKind,
     PeriodStatus,
-    PlannedTransaction,
 )
 from app.services import categories as cat_svc
 from app.services.planned import (
@@ -380,19 +379,41 @@ async def compute_balance(
 ) -> dict:
     """Aggregate planned/actual per category + totals for a budget period.
 
-    Phase 11: BudgetPeriod / PlannedTransaction / ActualTransaction / Category
-    queries scoped по user_id. period_id from cross-tenant вернёт PeriodNotFoundError.
+    Phase 11: BudgetPeriod / ActualTransaction / Category queries scoped по
+    user_id. period_id from cross-tenant вернёт PeriodNotFoundError.
+
+    Plan source (Phase 71 HOME-1):
+        The canonical v1.0 monthly plan lives in ``Category.plan_cents`` —
+        written by onboarding_v10 and ``PATCH /plan-month`` — NOT in
+        ``PlannedTransaction`` rows (those are empty in v1.0: they are only
+        created by manual planned-CRUD + subscription materialisation, and
+        summing them here would both miss the real plan AND double-count
+        subscriptions that are already budgeted via the ``subs`` category
+        plan). Per-category EXPENSE ``planned_cents`` is therefore sourced
+        from ``Category.plan_cents`` for active expense categories, EXCLUDING
+        the system ``savings`` category (mirrors the V10
+        ``HomeData.computeCategoryAggregates`` filter — savings is a goal
+        bucket, not a spend budget). ``planned_total_expense_cents`` is the
+        sum of those plans.
+
+        Income has NO per-category plan in v1.0 — per-income-category
+        ``planned_cents`` is 0 and ``planned_total_income_cents`` derives from
+        ``AppUser.income_cents`` (the single monthly post-tax income figure
+        set during onboarding). NULL income → 0.
 
     D-02 sign rule:
         expense delta = plan - act  (positive = under-budget = good)
         income  delta = act - plan  (positive = above-target = good)
 
-    balance_now_cents = starting_balance_cents + actual_income - actual_expense.
+    balance_now_cents = starting_balance_cents + actual_income - actual_expense
+        (actuals-based — unaffected by the plan source).
     delta_total_cents = (plan_exp - act_exp) + (act_inc - plan_inc).
 
     Archived categories:
         - Excluded from by_category list (filter is_archived=False).
-        - Their transactions ARE included in totals (accounting honesty, D-CONTEXT).
+        - Their actual transactions ARE included in totals (accounting
+          honesty, D-CONTEXT). They contribute no plan (plan_cents only read
+          from the active set).
 
     Sign convention (CR-01, Phase 22 review):
         v1.0 storage convention is **signed** — expense ``amount_cents`` is
@@ -431,21 +452,6 @@ async def compute_balance(
     if period is None:
         raise PeriodNotFoundError(period_id)
 
-    # Aggregate planned by (category_id, kind), scoped by user_id.
-    # PlannedTransaction.amount_cents is invariably positive in this codebase
-    # (planned rows never carry sign), so plain sum suffices.
-    planned_q = (
-        select(
-            PlannedTransaction.category_id,
-            PlannedTransaction.kind,
-            func.sum(PlannedTransaction.amount_cents).label("planned_cents"),
-        )
-        .where(
-            PlannedTransaction.user_id == user_id,
-            PlannedTransaction.period_id == period_id,
-        )
-        .group_by(PlannedTransaction.category_id, PlannedTransaction.kind)
-    )
     # Aggregate actual by (category_id, kind), scoped by user_id.
     # CR-01 fix: use func.abs() to make the sum sign-agnostic so a period
     # mixing legacy-positive and v1.0-negative expense rows still produces
@@ -471,21 +477,26 @@ async def compute_balance(
         .group_by(ActualTransaction.category_id, ActualTransaction.kind)
     )
     # Active categories only for by_category display (scoped by user_id).
+    # Carries plan_cents — the v1.0 plan source (Phase 71 HOME-1).
     cats_q = select(Category).where(
         Category.user_id == user_id,
         Category.is_archived.is_(False),
     )
 
-    planned_rows = (await db.execute(planned_q)).all()
     actual_rows = (await db.execute(actual_q)).all()
     cats = {c.id: c for c in (await db.execute(cats_q)).scalars().all()}
 
-    planned_map: dict[tuple, int] = {
-        (r.category_id, r.kind): r.planned_cents for r in planned_rows
-    }
     actual_map: dict[tuple, int] = {
         (r.category_id, r.kind): r.actual_cents for r in actual_rows
     }
+
+    # Plan source = Category.plan_cents (HOME-1). Per active EXPENSE category,
+    # excluding the system 'savings' bucket (mirrors V10
+    # HomeData.computeCategoryAggregates). Income carries no per-category plan.
+    planned_map: dict[tuple, int] = {}
+    for cat in cats.values():
+        if cat.kind == CategoryKind.expense and cat.code != "savings":
+            planned_map[(cat.id, CategoryKind.expense)] = cat.plan_cents or 0
 
     by_category: list[dict] = []
     seen_keys = set(planned_map) | set(actual_map)
@@ -511,16 +522,16 @@ async def compute_balance(
             }
         )
 
-    # Totals include all transactions (including archived categories) for honesty.
-    plan_exp = sum(
-        p for (_, k), p in planned_map.items() if k == CategoryKind.expense
-    )
+    # Expense plan total = Σ Category.plan_cents (active expense, no savings).
+    plan_exp = sum(planned_map.values())
     act_exp = sum(
         a for (_, k), a in actual_map.items() if k == CategoryKind.expense
     )
-    plan_inc = sum(
-        p for (_, k), p in planned_map.items() if k == CategoryKind.income
-    )
+    # Income plan total = AppUser.income_cents (single monthly figure; v1.0 has
+    # no per-income-category plan). NULL income → 0.
+    plan_inc = await db.scalar(
+        select(AppUser.income_cents).where(AppUser.id == user_id)
+    ) or 0
     act_inc = sum(
         a for (_, k), a in actual_map.items() if k == CategoryKind.income
     )
