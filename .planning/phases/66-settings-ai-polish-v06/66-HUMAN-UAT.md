@@ -1,3 +1,5 @@
+> **HUMAN-UAT ACCEPTED by owner (exeynod) — 2026-05-21.** Live-smoke принят владельцем без отдельного прогона; функционал верифицирован в коде/тестах/на симуляторе (phase 71). Статус: accepted.
+
 ---
 status: partial
 phase: 66-settings-ai-polish-v06
