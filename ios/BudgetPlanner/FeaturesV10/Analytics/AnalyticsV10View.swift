@@ -27,6 +27,7 @@ struct AnalyticsV10View: View {
             ThemedBackground(maximal: PosterTokens.Color.cream).ignoresSafeArea()
             content
         }
+        .posterLightStatusBar()  // P3-STATUSBAR: dark status-bar content on cream
         .task { await model.load() }
     }
 

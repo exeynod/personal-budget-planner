@@ -44,6 +44,7 @@ struct SettingsV10View: View {
             ThemedBackground(maximal: PosterTokens.Color.paper).ignoresSafeArea()
             content
         }
+        .posterLightStatusBar()  // P3-STATUSBAR: dark status-bar content on cream
         .task { await model.load() }
         .posterSheet(isPresented: $homeColorPickerOpen) {
             HomeColorPickerSheet(
@@ -161,15 +162,11 @@ struct SettingsV10View: View {
                     .foregroundColor(PosterTokens.Color.ink)
                     .frame(minWidth: 36, alignment: .leading)
                 Spacer()
-                Stepper(
-                    "",
-                    value: Binding(
-                        get: { model.cycleStartDay },
-                        set: { newVal in Task { await model.changeCycleStartDay(newVal) } }
-                    ),
-                    in: SettingsV10ViewModel.cycleMin...SettingsV10ViewModel.cycleMax
+                PosterStepper(
+                    value: model.cycleStartDay,
+                    range: SettingsV10ViewModel.cycleMin...SettingsV10ViewModel.cycleMax,
+                    onChange: { newVal in Task { await model.changeCycleStartDay(newVal) } }
                 )
-                .labelsHidden()
             }
         }
         .padding(.vertical, 12)
@@ -184,15 +181,11 @@ struct SettingsV10View: View {
                     .foregroundColor(PosterTokens.Color.ink)
                     .frame(minWidth: 36, alignment: .leading)
                 Spacer()
-                Stepper(
-                    "",
-                    value: Binding(
-                        get: { model.notifyDaysBefore },
-                        set: { newVal in Task { await model.changeNotifyDaysBefore(newVal) } }
-                    ),
-                    in: SettingsV10ViewModel.notifyMin...SettingsV10ViewModel.notifyMax
+                PosterStepper(
+                    value: model.notifyDaysBefore,
+                    range: SettingsV10ViewModel.notifyMin...SettingsV10ViewModel.notifyMax,
+                    onChange: { newVal in Task { await model.changeNotifyDaysBefore(newVal) } }
                 )
-                .labelsHidden()
             }
         }
         .padding(.vertical, 12)

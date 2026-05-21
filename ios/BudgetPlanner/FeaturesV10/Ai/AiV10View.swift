@@ -44,6 +44,7 @@ struct AiV10View: View {
             ThemedBackground(maximal: PosterTokens.Color.cream).ignoresSafeArea()
             content
         }
+        .posterLightStatusBar()  // P3-STATUSBAR: dark status-bar content on cream
         .task { await model.loadObservation() }
     }
 
@@ -119,7 +120,8 @@ struct AiV10View: View {
     @ViewBuilder
     private var observationBlock: some View {
         switch model.status {
-        case .idle, .loading where model.observation == nil:
+        case .idle,
+            .loading where model.observation == nil:
             HStack(spacing: 10) {
                 ProgressView().controlSize(.small).tint(PosterTokens.Color.ink)
                 Eyebrow("…", opacity: 0.6)
