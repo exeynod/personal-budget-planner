@@ -6,6 +6,7 @@
 // established in HomeDataTests (XCTest, no @MainActor since pure funcs).
 
 import XCTest
+
 @testable import BudgetPlanner
 
 final class AddSheetDataTests: XCTestCase {
@@ -175,6 +176,163 @@ final class AddSheetDataTests: XCTestCase {
             AddSheetData.ctaState(amountCents: 500, categoryId: nil, accountId: nil),
             .noCat
         )
+    }
+
+    // ─────────────── category fixture (Phase 71) ───────────────
+
+    /// JSON-decode fixture, mirroring the production wire contract
+    /// (`.convertFromSnakeCase`). Same pattern as PlanEditorDataTests.
+    private func makeCategory(
+        id: Int,
+        name: String = "Test",
+        kind: String = "expense",
+        paused: Bool = false,
+        code: String = "food"
+    ) -> CategoryV10DTO {
+        let fields: [String] = [
+            "\"id\": \(id)",
+            "\"name\": \"\(name)\"",
+            "\"kind\": \"\(kind)\"",
+            "\"is_archived\": false",
+            "\"sort_order\": 0",
+            "\"created_at\": \"2026-05-09\"",
+            "\"plan_cents\": 0",
+            "\"rollover\": \"misc\"",
+            "\"paused\": \(paused ? "true" : "false")",
+            "\"code\": \"\(code)\"",
+            "\"ord\": \"01\"",
+        ]
+        let json = "{\(fields.joined(separator: ","))}".data(using: .utf8)!
+        let dec = JSONDecoder()
+        dec.keyDecodingStrategy = .convertFromSnakeCase
+        let fmt = DateFormatter()
+        fmt.dateFormat = "yyyy-MM-dd"
+        fmt.timeZone = TimeZone(identifier: "UTC")
+        dec.dateDecodingStrategy = .formatted(fmt)
+        return try! dec.decode(CategoryV10DTO.self, from: json)
+    }
+
+    private var mixedCategories: [CategoryV10DTO] {
+        [
+            makeCategory(id: 1, name: "Продукты", kind: "expense", code: "food"),
+            makeCategory(id: 2, name: "Кафе", kind: "expense", code: "cafe"),
+            makeCategory(id: 3, name: "Зарплата", kind: "income", code: "salary"),
+            makeCategory(id: 4, name: "Подработка", kind: "income", code: "side"),
+            // System savings sink + a paused expense — both must be dropped.
+            makeCategory(id: 5, name: "Накопления", kind: "expense", code: "savings"),
+            makeCategory(id: 6, name: "Спорт", kind: "expense", paused: true, code: "sport"),
+        ]
+    }
+
+    // ─────────────── AddSheetKind ───────────────
+
+    func test_addSheetKind_wire_matches_rawvalue() {
+        XCTAssertEqual(AddSheetKind.expense.wire, "expense")
+        XCTAssertEqual(AddSheetKind.income.wire, "income")
+    }
+
+    func test_addSheetKind_categoryKind_maps() {
+        XCTAssertEqual(AddSheetKind.expense.categoryKind, .expense)
+        XCTAssertEqual(AddSheetKind.income.categoryKind, .income)
+    }
+
+    // ─────────────── visibleCategories(for:) (Phase 71) ───────────────
+
+    func test_visibleCategories_expense_shows_only_expense_buckets() {
+        let result = AddSheetData.visibleCategories(mixedCategories, for: .expense)
+        // Drops savings (id 5) and paused (id 6); keeps expense food/cafe only.
+        XCTAssertEqual(result.map { $0.id }, [1, 2])
+    }
+
+    func test_visibleCategories_income_shows_only_income_buckets() {
+        let result = AddSheetData.visibleCategories(mixedCategories, for: .income)
+        XCTAssertEqual(result.map { $0.id }, [3, 4])
+    }
+
+    func test_visibleCategories_drops_savings_and_paused_for_both_kinds() {
+        let exp = AddSheetData.visibleCategories(mixedCategories, for: .expense)
+        XCTAssertFalse(exp.contains { $0.code == "savings" })
+        XCTAssertFalse(exp.contains { $0.paused })
+    }
+
+    // ─────────────── clearedCategoryIfInvalid (Phase 71) ───────────────
+
+    func test_clearedCategory_keeps_valid_selection_for_kind() {
+        // Expense category 1 stays valid when kind is expense.
+        XCTAssertEqual(
+            AddSheetData.clearedCategoryIfInvalid(1, in: mixedCategories, for: .expense),
+            1
+        )
+    }
+
+    func test_clearedCategory_clears_cross_kind_selection() {
+        // Income category 3 is invalid once kind flips to expense → nil.
+        XCTAssertNil(
+            AddSheetData.clearedCategoryIfInvalid(3, in: mixedCategories, for: .expense)
+        )
+        // And the reverse: expense category 1 invalid under income → nil.
+        XCTAssertNil(
+            AddSheetData.clearedCategoryIfInvalid(1, in: mixedCategories, for: .income)
+        )
+    }
+
+    func test_clearedCategory_clears_savings_and_paused_even_within_kind() {
+        // Savings (5) and paused (6) are expense-kind but never visible → cleared.
+        XCTAssertNil(
+            AddSheetData.clearedCategoryIfInvalid(5, in: mixedCategories, for: .expense)
+        )
+        XCTAssertNil(
+            AddSheetData.clearedCategoryIfInvalid(6, in: mixedCategories, for: .expense)
+        )
+    }
+
+    func test_clearedCategory_nil_input_stays_nil() {
+        XCTAssertNil(
+            AddSheetData.clearedCategoryIfInvalid(nil, in: mixedCategories, for: .income)
+        )
+    }
+
+    // ─────────────── buildPayload (Phase 71) ───────────────
+
+    private func encodedKind(_ req: ActualCreateRequest) -> String? {
+        let enc = JSONEncoder()
+        enc.keyEncodingStrategy = .convertToSnakeCase
+        guard
+            let data = try? enc.encode(req),
+            let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+        else { return nil }
+        return obj["kind"] as? String
+    }
+
+    func test_buildPayload_expense_uses_expense_kind() {
+        let req = AddSheetData.buildPayload(
+            kind: .expense, amountCents: 500, categoryId: 7,
+            txDate: "2026-05-21", description: "кафе", accountId: 3
+        )
+        XCTAssertEqual(req.kind, "expense")
+        XCTAssertEqual(encodedKind(req), "expense")
+    }
+
+    func test_buildPayload_income_uses_income_kind() {
+        // The pre-fix bug: this would have been forced to "expense".
+        let req = AddSheetData.buildPayload(
+            kind: .income, amountCents: 5_000_00, categoryId: 3,
+            txDate: "2026-05-21", description: "зарплата", accountId: 3
+        )
+        XCTAssertEqual(req.kind, "income")
+        XCTAssertEqual(encodedKind(req), "income")
+    }
+
+    func test_buildPayload_carries_form_fields() {
+        let req = AddSheetData.buildPayload(
+            kind: .income, amountCents: 1234, categoryId: 9,
+            txDate: "2026-05-20", description: "", accountId: nil
+        )
+        XCTAssertEqual(req.amountCents, 1234)
+        XCTAssertEqual(req.categoryId, 9)
+        XCTAssertEqual(req.txDate, "2026-05-20")
+        XCTAssertNil(req.description)  // empty string → nil
+        XCTAssertNil(req.accountId)
     }
 
     // ─────────────── defaultDate ───────────────

@@ -32,6 +32,41 @@ enum AddSheetCtaState: Equatable {
     case ready
 }
 
+// MARK: - Kind toggle
+
+/// Phase 71 — Доход/Расход segmented toggle on the Maximal Poster AddSheet.
+///
+/// Mirrors the v06 editor's Расход/Доход segmented control. The MP quick-add
+/// sheet previously HARDCODED `kind: "expense"` in the submit payload, so the
+/// user could never create an income actual. This enum drives both the toggle
+/// state and the category-chip filter.
+///
+/// `wire` matches the backend `ActualKindStr` literals (`app/api/schemas/actual.py`)
+/// and `CategoryKind.rawValue` so the same value filters categories and posts.
+enum AddSheetKind: String, CaseIterable, Equatable {
+    case expense
+    case income
+
+    /// Russian label for the segmented toggle.
+    var label: String {
+        switch self {
+        case .expense: return "Расход"
+        case .income: return "Доход"
+        }
+    }
+
+    /// Wire literal for `ActualCreateRequest.kind`.
+    var wire: String { rawValue }
+
+    /// The matching category kind for chip filtering.
+    var categoryKind: CategoryKind {
+        switch self {
+        case .expense: return .expense
+        case .income: return .income
+        }
+    }
+}
+
 // MARK: - Date chip
 
 /// Three date chips shown above the keypad (ADD-V10-04).
@@ -162,6 +197,68 @@ enum AddSheetData {
         // SERIAL) means "caller did not opt into the WR-25-02 gate".
         if accountId != -1 && accountId == nil { return .noAccount }
         return .ready
+    }
+
+    // ─────────────── category chip filtering (Phase 71) ───────────────
+
+    /// Filter the category list for the chip-scroll, scoped to the selected
+    /// kind (Phase 71). Drops the system 'savings' sink and paused buckets
+    /// (matches `HomeData.computeCategoryAggregates` / the prior
+    /// `visibleCategories` behaviour) AND keeps only categories whose
+    /// `kind` matches the toggle — so Доход shows only income buckets
+    /// (e.g. ЗАРПЛАТА) and Расход shows only expense buckets. Prevents the
+    /// pre-fix bug where an income category could be submitted as expense.
+    static func visibleCategories(
+        _ categories: [CategoryV10DTO],
+        for kind: AddSheetKind
+    ) -> [CategoryV10DTO] {
+        categories.filter {
+            $0.code != "savings"
+                && !$0.paused
+                && $0.kind == kind.categoryKind
+        }
+    }
+
+    /// Returns the currently-selected categoryId if it is still valid for the
+    /// `kind` (present in the kind-scoped visible list), otherwise `nil`.
+    /// Called when the toggle flips so a stale selection from the other kind
+    /// is cleared, forcing a re-pick (you can't submit an income category as
+    /// expense or vice-versa).
+    static func clearedCategoryIfInvalid(
+        _ categoryId: Int?,
+        in categories: [CategoryV10DTO],
+        for kind: AddSheetKind
+    ) -> Int? {
+        guard let id = categoryId else { return nil }
+        let valid = visibleCategories(categories, for: kind).contains { $0.id == id }
+        return valid ? id : nil
+    }
+
+    // ─────────────── build submit payload (Phase 71) ───────────────
+
+    /// Build the `POST /actual` request body from current form state. Pure +
+    /// testable seam extracted from `AddSheetViewModel.submit()` so the
+    /// kind-wiring (Phase 71: income vs expense, previously HARDCODED to
+    /// "expense") can be asserted without a network round-trip.
+    ///
+    /// `kind.wire` matches the backend `ActualKindStr` literal — Доход posts
+    /// `"income"`, Расход posts `"expense"`.
+    static func buildPayload(
+        kind: AddSheetKind,
+        amountCents: Int,
+        categoryId: Int,
+        txDate: String,
+        description: String,
+        accountId: Int?
+    ) -> ActualCreateRequest {
+        ActualCreateRequest(
+            kind: kind.wire,
+            amountCents: amountCents,
+            categoryId: categoryId,
+            txDate: txDate,
+            description: description.isEmpty ? nil : description,
+            accountId: accountId
+        )
     }
 
     // ─────────────── default date for chip ───────────────

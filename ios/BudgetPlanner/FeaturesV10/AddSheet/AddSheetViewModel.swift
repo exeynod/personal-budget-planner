@@ -52,12 +52,18 @@ final class AddSheetViewModel {
 
     // MARK: - Form state (driven by KeypadView + chips + pickers)
 
-    var amountString: String = ""               // built via Keypad; e.g. "12.50"
+    var amountString: String = ""  // built via Keypad; e.g. "12.50"
     var description: String = ""
     var dateChip: AddSheetDateChip = .today
     var customDate: Date = Date()
     var categoryId: Int? = nil
     var accountId: Int? = nil
+
+    /// Phase 71 — Доход/Расход toggle. Default `.expense` preserves the prior
+    /// hardcoded-expense behaviour. Drives both the submit payload `kind` and
+    /// the category-chip filter (`visibleCategories`). Mutate via `setKind`
+    /// (not directly) so a stale cross-kind category selection is cleared.
+    private(set) var kind: AddSheetKind = .expense
 
     // MARK: - Loaded data
 
@@ -92,11 +98,24 @@ final class AddSheetViewModel {
         !amountString.isEmpty || !description.isEmpty || categoryId != nil
     }
 
-    /// Filter category list for the chip-scroll: drop system 'savings'
-    /// and any paused categories (matches HomeV10ViewModel filter so the
-    /// AddSheet can only assign expenses to user-visible buckets).
+    /// Filter category list for the chip-scroll: drop system 'savings' and
+    /// any paused categories, AND scope to the selected `kind` (Phase 71) so
+    /// Расход shows only expense buckets and Доход only income buckets
+    /// (e.g. ЗАРПЛАТА). Delegates to the pure `AddSheetData` helper.
     var visibleCategories: [CategoryV10DTO] {
-        categories.filter { $0.code != "savings" && !$0.paused }
+        AddSheetData.visibleCategories(categories, for: kind)
+    }
+
+    /// Phase 71 — flip the Доход/Расход toggle. If the currently-selected
+    /// category is not valid for the new kind, clear `categoryId` (force a
+    /// re-pick) so an income category can never be posted as expense (and
+    /// vice-versa). No-op if `newKind` equals the current kind.
+    func setKind(_ newKind: AddSheetKind) {
+        guard newKind != kind else { return }
+        kind = newKind
+        categoryId = AddSheetData.clearedCategoryIfInvalid(
+            categoryId, in: categories, for: newKind
+        )
     }
 
     /// Resolved tx_date based on selected chip (today/yesterday/customDate).
@@ -131,7 +150,8 @@ final class AddSheetViewModel {
             self.categories = loadedCats
             self.accounts = loadedAccs
             if accountId == nil {
-                accountId = loadedAccs.first(where: { $0.primary })?.id
+                accountId =
+                    loadedAccs.first(where: { $0.primary })?.id
                     ?? loadedAccs.first?.id
             }
             loadStatus = .ready
@@ -153,12 +173,15 @@ final class AddSheetViewModel {
         submitStatus = .submitting
 
         let txDateString = Self.txDateFormatter.string(from: resolvedTxDate)
-        let request = ActualCreateRequest(
-            kind: "expense",
+        // Phase 71: payload (incl. kind) built via the pure AddSheetData
+        // seam — kind is no longer hardcoded "expense"; it follows the
+        // Доход/Расход toggle.
+        let request = AddSheetData.buildPayload(
+            kind: kind,
             amountCents: amountCents,
             categoryId: catId,
             txDate: txDateString,
-            description: description.isEmpty ? nil : description,
+            description: description,
             accountId: accountId
         )
         do {
@@ -190,6 +213,7 @@ final class AddSheetViewModel {
         dateChip = .today
         customDate = Date()
         categoryId = nil
+        kind = .expense  // Phase 71 — back to the default expense flow.
         // accountId stays — primary account default is sticky across sessions.
         submitStatus = .idle
     }

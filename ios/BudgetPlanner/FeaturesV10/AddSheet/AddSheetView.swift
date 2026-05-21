@@ -35,7 +35,7 @@ struct AddSheetView: View {
         }
         .task { await model.loadFormData() }
         .alert("Отменить запись?", isPresented: $showCancelConfirm) {
-            Button("Продолжить", role: .cancel) { }
+            Button("Продолжить", role: .cancel) {}
             Button("Отменить", role: .destructive) {
                 model.reset()
                 onClose()
@@ -81,11 +81,12 @@ struct AddSheetView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 headerRow
+                kindToggleBar
                 amountBlock
                 KeypadView(
                     onAppendDigit: { d in model.onAppendDigit(d) },
-                    onAppendDot:   { model.onAppendDot() },
-                    onBackspace:   { model.onBackspace() }
+                    onAppendDot: { model.onAppendDot() },
+                    onBackspace: { model.onBackspace() }
                 )
                 descriptionRow
                 dateChipBar
@@ -138,6 +139,36 @@ struct AddSheetView: View {
     }
 
     // MARK: - Sections
+
+    /// Phase 71 — Доход/Расход segmented toggle. Mirrors the v06 editor's
+    /// segmented control and is styled to match the poster `dateChipBar`
+    /// (Archivo Black caps, selected = solid paper-on-ink, unselected = faint
+    /// paper). Default selection = Расход (expense). Flipping it clears any
+    /// cross-kind category selection via `model.setKind`.
+    private var kindToggleBar: some View {
+        HStack(spacing: 8) {
+            ForEach(AddSheetKind.allCases, id: \.self) { k in
+                Button(action: { model.setKind(k) }) {
+                    Text(k.label.uppercased())
+                        .font(.custom(PosterTokens.Font.archivoBlack, size: 11))
+                        .tracking(1.4)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .background(
+                            model.kind == k
+                                ? PosterTokens.Color.paper
+                                : PosterTokens.Color.paper.opacity(0.12)
+                        )
+                        .foregroundColor(
+                            model.kind == k
+                                ? PosterTokens.Color.ink
+                                : PosterTokens.Color.paper)
+                }
+                .buttonStyle(.plain)
+                .accessibilityAddTraits(model.kind == k ? [.isSelected, .isButton] : [.isButton])
+            }
+        }
+    }
 
     private var headerRow: some View {
         HStack {
@@ -208,12 +239,15 @@ struct AddSheetView: View {
                         .tracking(1.4)
                         .padding(.vertical, 8)
                         .padding(.horizontal, 14)
-                        .background(model.dateChip == chip
-                                    ? PosterTokens.Color.paper
-                                    : PosterTokens.Color.paper.opacity(0.12))
-                        .foregroundColor(model.dateChip == chip
-                                         ? PosterTokens.Color.ink
-                                         : PosterTokens.Color.paper)
+                        .background(
+                            model.dateChip == chip
+                                ? PosterTokens.Color.paper
+                                : PosterTokens.Color.paper.opacity(0.12)
+                        )
+                        .foregroundColor(
+                            model.dateChip == chip
+                                ? PosterTokens.Color.ink
+                                : PosterTokens.Color.paper)
                 }
                 .buttonStyle(.plain)
                 .accessibilityAddTraits(model.dateChip == chip ? [.isSelected, .isButton] : [.isButton])
@@ -223,9 +257,9 @@ struct AddSheetView: View {
 
     private func label(for chip: AddSheetDateChip) -> String {
         switch chip {
-        case .today:     return "Сегодня"
+        case .today: return "Сегодня"
         case .yesterday: return "Вчера"
-        case .custom:    return "Своя дата"
+        case .custom: return "Своя дата"
         }
     }
 
@@ -239,12 +273,15 @@ struct AddSheetView: View {
                             .tracking(1.6)
                             .padding(.vertical, 10)
                             .padding(.horizontal, 16)
-                            .background(model.categoryId == cat.id
-                                        ? PosterTokens.Color.yellow
-                                        : PosterTokens.Color.paper.opacity(0.12))
-                            .foregroundColor(model.categoryId == cat.id
-                                             ? PosterTokens.Color.ink
-                                             : PosterTokens.Color.paper)
+                            .background(
+                                model.categoryId == cat.id
+                                    ? PosterTokens.Color.yellow
+                                    : PosterTokens.Color.paper.opacity(0.12)
+                            )
+                            .foregroundColor(
+                                model.categoryId == cat.id
+                                    ? PosterTokens.Color.ink
+                                    : PosterTokens.Color.paper)
                     }
                     .buttonStyle(.plain)
                     .accessibilityAddTraits(model.categoryId == cat.id ? [.isSelected, .isButton] : [.isButton])
@@ -291,12 +328,15 @@ struct AddSheetView: View {
                 .tracking(2.5)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 18)
-                .background(isReady
-                            ? PosterTokens.Color.yellow
-                            : PosterTokens.Color.paper.opacity(0.18))
-                .foregroundColor(isReady
-                                 ? PosterTokens.Color.ink
-                                 : PosterTokens.Color.paper.opacity(0.7))
+                .background(
+                    isReady
+                        ? PosterTokens.Color.yellow
+                        : PosterTokens.Color.paper.opacity(0.18)
+                )
+                .foregroundColor(
+                    isReady
+                        ? PosterTokens.Color.ink
+                        : PosterTokens.Color.paper.opacity(0.7))
         }
         .buttonStyle(.plain)
         .disabled(!isReady || isSubmitting)
@@ -305,10 +345,10 @@ struct AddSheetView: View {
 
     private func ctaLabelAndReady() -> (String, Bool) {
         switch model.ctaState {
-        case .empty:     return ("ВВЕДИТЕ СУММУ", false)
-        case .noCat:     return ("ВЫБЕРИТЕ КАТЕГОРИЮ", false)
+        case .empty: return ("ВВЕДИТЕ СУММУ", false)
+        case .noCat: return ("ВЫБЕРИТЕ КАТЕГОРИЮ", false)
         case .noAccount: return ("НЕТ СЧЁТА", false)
-        case .ready:     return ("СОХРАНИТЬ ↵", true)
+        case .ready: return ("СОХРАНИТЬ ↵", true)
         }
     }
 
