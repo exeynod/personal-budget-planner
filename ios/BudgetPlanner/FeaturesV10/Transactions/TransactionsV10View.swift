@@ -291,7 +291,7 @@ private struct TxRow: View {
                 rowMetaLine
             }
             Spacer(minLength: 6)
-            Text(TransactionsData.formatTxAmount(tx.amountCents))
+            Text(TransactionsData.formatTxAmount(tx.amountCents, kind: tx.kind))
                 .font(.posterMono(size: 16, weight: .semibold))
                 .foregroundColor(amountColor)
                 .lineLimit(1)

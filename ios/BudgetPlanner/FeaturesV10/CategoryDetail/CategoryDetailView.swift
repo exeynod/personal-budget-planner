@@ -117,7 +117,7 @@ struct CategoryDetailView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
                 headerRow(cat: cat)
-                Mass(cat.name, size: 70)  // Mass uppercases for non-italic mode
+                Mass(cat.name, size: 70, fit: true)  // Mass uppercases for non-italic mode; fit: shrink-to-fit single line (no mid-word break)
                 Mass(subtitle, italic: true, size: 28)
                     .opacity(0.85)
                     .padding(.top, 2)
@@ -270,7 +270,7 @@ struct CategoryDetailView: View {
                 .foregroundColor(PosterTokens.Color.paper)
                 .lineLimit(2)
             Spacer(minLength: 6)
-            Text(TransactionsData.formatTxAmount(tx.amountCents))
+            Text(TransactionsData.formatTxAmount(tx.amountCents, kind: tx.kind))
                 .font(.posterMono(size: 13, weight: .semibold))
                 .foregroundColor(amountColor(for: tx.kind))
                 .lineLimit(1)

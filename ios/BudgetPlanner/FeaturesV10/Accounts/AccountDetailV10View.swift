@@ -214,7 +214,7 @@ struct AccountDetailV10View: View {
                     .lineLimit(1)
             }
             Spacer(minLength: 6)
-            Text(TransactionsData.formatTxAmount(tx.amountCents))
+            Text(TransactionsData.formatTxAmount(tx.amountCents, kind: tx.kind))
                 .font(.posterMono(size: 13, weight: .semibold))
                 .foregroundColor(amountColor(for: tx.kind))
                 .lineLimit(1)

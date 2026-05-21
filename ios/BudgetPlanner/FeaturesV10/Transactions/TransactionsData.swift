@@ -202,6 +202,34 @@ enum TransactionsData {
         return "+\(formatted) ₽"
     }
 
+    /// Format a transaction's amount with the **sign driven by `kind`**, not by
+    /// the numeric sign of the stored value.
+    ///
+    /// The API returns `amountCents` as a positive magnitude for every kind
+    /// (expenses are NOT stored negative), so the value-sign overload above
+    /// renders expenses with a misleading "+". The registry / detail rows must
+    /// instead derive direction from `kind` — matching the v0.6 reference
+    /// (`Features/Transactions/TransactionsView.swift` `amountText`):
+    ///
+    ///   - `.income`                      → `"+{abs}\u{00A0}₽"`
+    ///   - `.expense` / `.roundup` / `.deposit` → `"\u{2212}{abs}\u{00A0}₽"`
+    ///
+    /// Zero magnitude always renders `"0 ₽"` regardless of kind.
+    ///
+    /// This is display-only — stored values are never mutated.
+    static func formatTxAmount(_ amountCents: Int, kind: ActualKindV10) -> String {
+        let magnitude = Swift.abs(amountCents)
+        if magnitude == 0 { return "0 ₽" }
+        let formatted = RubleFormatter.format(cents: magnitude)
+        switch kind {
+        case .income:
+            return "+\(formatted) ₽"
+        case .expense, .roundup, .deposit:
+            // U+2212 = MINUS SIGN (the proper typographic sign, not ASCII '-').
+            return "\u{2212}\(formatted) ₽"
+        }
+    }
+
     // MARK: tagFor
 
     /// Spec-tag for the row, if any:

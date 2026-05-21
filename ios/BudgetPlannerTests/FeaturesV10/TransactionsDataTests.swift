@@ -323,6 +323,43 @@ final class TransactionsDataTests: XCTestCase {
             "expected NNBSP-grouped 10 000, got \"\(s)\"")
     }
 
+    // MARK: - formatTxAmount(_:kind:)  (Phase 71 P2-SIGN)
+
+    func test_formatTxAmount_kind_expense_uses_U2212_even_for_positive_value() {
+        // API stores expense magnitude as POSITIVE; sign must come from kind.
+        let s = TransactionsData.formatTxAmount(78_000, kind: .expense)
+        XCTAssertTrue(
+            s.hasPrefix("\u{2212}"),
+            "expense must render U+2212 (MINUS) regardless of positive value, got \"\(s)\"")
+        XCTAssertFalse(s.contains("+"), "expense must NOT show '+', got \"\(s)\"")
+        XCTAssertTrue(s.hasSuffix("₽"))
+    }
+
+    func test_formatTxAmount_kind_income_uses_plus() {
+        let s = TransactionsData.formatTxAmount(3_000_000, kind: .income)
+        XCTAssertTrue(s.hasPrefix("+"), "income must render '+', got \"\(s)\"")
+        XCTAssertFalse(s.contains("\u{2212}"), "income must NOT show minus, got \"\(s)\"")
+    }
+
+    func test_formatTxAmount_kind_deposit_and_roundup_use_minus() {
+        let dep = TransactionsData.formatTxAmount(10_000, kind: .deposit)
+        let rnd = TransactionsData.formatTxAmount(50, kind: .roundup)
+        XCTAssertTrue(dep.hasPrefix("\u{2212}"), "deposit must render U+2212, got \"\(dep)\"")
+        XCTAssertTrue(rnd.hasPrefix("\u{2212}"), "roundup must render U+2212, got \"\(rnd)\"")
+    }
+
+    func test_formatTxAmount_kind_uses_magnitude_for_negative_stored_value() {
+        // Defensive: even if a value arrives negative, magnitude + kind drive output.
+        let s = TransactionsData.formatTxAmount(-10_000, kind: .deposit)
+        XCTAssertTrue(s.hasPrefix("\u{2212}"))
+        XCTAssertTrue(s.contains("100"), "expected magnitude 100 ₽, got \"\(s)\"")
+    }
+
+    func test_formatTxAmount_kind_zero_returns_zero_with_ruble() {
+        XCTAssertEqual(TransactionsData.formatTxAmount(0, kind: .expense), "0 ₽")
+        XCTAssertEqual(TransactionsData.formatTxAmount(0, kind: .income), "0 ₽")
+    }
+
     // MARK: - tagFor
 
     func test_tagFor_returns_roundup_for_kind_roundup() {
