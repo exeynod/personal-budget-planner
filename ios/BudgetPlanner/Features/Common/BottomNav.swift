@@ -31,7 +31,8 @@ final class AppShellState {
 
     init() {
         if let initialRaw = UserDefaults.standard.string(forKey: "InitialTab"),
-           let tab = AppTab(rawValue: initialRaw) {
+            let tab = AppTab(rawValue: initialRaw)
+        {
             self.selectedTab = tab
         } else {
             self.selectedTab = .home

@@ -122,8 +122,9 @@ struct ManagementView: View {
     private func handleDevAutoNav() {
         let defaults = UserDefaults.standard
         if let target = defaults.string(forKey: "DEV_OPEN_MANAGEMENT_SCREEN"),
-           let id = ManagementItem.ID(rawValue: target),
-           path.isEmpty {
+            let id = ManagementItem.ID(rawValue: target),
+            path.isEmpty
+        {
             path.append(id)
         }
     }
@@ -143,32 +144,41 @@ struct ManagementItem: Identifiable, Hashable {
     let ownerOnly: Bool
 
     static let all: [ManagementItem] = [
-        .init(id: .analytics, label: "Аналитика",
-              description: "Тренды и прогноз бюджета",
-              icon: "chart.bar.fill", ownerOnly: false),
-        .init(id: .planEditor, label: "План месяца",
-              description: "Лимиты категорий и rollover",
-              icon: "slider.horizontal.3", ownerOnly: false),
-        .init(id: .subscriptions, label: "Подписки",
-              description: "Регулярные платежи и напоминания",
-              icon: "square.stack.3d.up.fill", ownerOnly: false),
-        .init(id: .savings, label: "Копилка",
-              description: "Цели и накопления",
-              icon: "banknote.fill", ownerOnly: false),
-        .init(id: .template, label: "Шаблон бюджета",
-              description: "Повторяющийся план для нового периода",
-              icon: "list.bullet.rectangle", ownerOnly: false),
-        .init(id: .accounts, label: "Счета",
-              description: "Карты и наличные, основной счёт",
-              icon: "creditcard.fill", ownerOnly: false),
-        .init(id: .categories, label: "Категории",
-              description: "Структура расходов и доходов",
-              icon: "bag.fill", ownerOnly: false),
-        .init(id: .settings, label: "Настройки",
-              description: "День цикла, напоминания",
-              icon: "gearshape.fill", ownerOnly: false),
-        .init(id: .access, label: "Доступ",
-              description: "Whitelist пользователей и AI usage",
-              icon: "person.2.fill", ownerOnly: true),
+        .init(
+            id: .analytics, label: "Аналитика",
+            description: "Тренды и прогноз бюджета",
+            icon: "chart.bar.fill", ownerOnly: false),
+        .init(
+            id: .planEditor, label: "План месяца",
+            description: "Лимиты категорий и rollover",
+            icon: "slider.horizontal.3", ownerOnly: false),
+        .init(
+            id: .subscriptions, label: "Подписки",
+            description: "Регулярные платежи и напоминания",
+            icon: "square.stack.3d.up.fill", ownerOnly: false),
+        .init(
+            id: .savings, label: "Копилка",
+            description: "Цели и накопления",
+            icon: "banknote.fill", ownerOnly: false),
+        .init(
+            id: .template, label: "Шаблон бюджета",
+            description: "Повторяющийся план для нового периода",
+            icon: "list.bullet.rectangle", ownerOnly: false),
+        .init(
+            id: .accounts, label: "Счета",
+            description: "Карты и наличные, основной счёт",
+            icon: "creditcard.fill", ownerOnly: false),
+        .init(
+            id: .categories, label: "Категории",
+            description: "Структура расходов и доходов",
+            icon: "bag.fill", ownerOnly: false),
+        .init(
+            id: .settings, label: "Настройки",
+            description: "День цикла, напоминания",
+            icon: "gearshape.fill", ownerOnly: false),
+        .init(
+            id: .access, label: "Доступ",
+            description: "Whitelist пользователей и AI usage",
+            icon: "person.2.fill", ownerOnly: true),
     ]
 }
