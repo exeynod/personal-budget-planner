@@ -17,7 +17,7 @@ final class AnalyticsViewModel {
         defer { isLoading = false }
         do {
             async let topTask = AnalyticsAPI.topCategories(range: range)
-            async let forecastTask: ForecastResponse? = try? await AnalyticsAPI.forecast()
+            async let forecastTask: ForecastResponse? = try? await AnalyticsAPI.forecast(range: range)
             async let trendTask: TrendResponse? = try? await AnalyticsAPI.trend(range: range)
             self.topCategories = try await topTask
             self.forecast = await forecastTask
@@ -81,24 +81,8 @@ struct AnalyticsView: View {
     @ViewBuilder
     private var forecastSection: some View {
         Section {
-            if let f = viewModel.forecast {
-                LabeledContent("Прогноз баланса") {
-                    Text(MoneyFormatter.formatWithSymbol(cents: f.projectedBalanceCents))
-                        .monospacedDigit()
-                        .foregroundStyle(f.projectedBalanceCents < 0 ? .red : .primary)
-                }
-                LabeledContent("Прогноз расходов") {
-                    Text(MoneyFormatter.formatWithSymbol(cents: f.projectedExpenseCents))
-                        .monospacedDigit()
-                }
-                LabeledContent("Сжигание/день") {
-                    Text(MoneyFormatter.formatWithSymbol(cents: f.runRateCentsPerDay))
-                        .monospacedDigit()
-                }
-                LabeledContent("Дней осталось") {
-                    Text("\(f.daysRemaining)")
-                        .monospacedDigit()
-                }
+            if let f = viewModel.forecast, !f.isEmpty {
+                forecastRows(f)
             } else if !viewModel.isLoading {
                 Text("Нет данных для прогноза")
                     .font(.callout)
@@ -110,16 +94,16 @@ struct AnalyticsView: View {
                     ForEach(Array(trend.points.enumerated()), id: \.offset) { idx, point in
                         LineMark(
                             x: .value("Период", idx),
-                            y: .value("Расход", Double(point.actualExpenseCents) / 100.0),
-                            series: .value("series", "actual")
+                            y: .value("Расход", Double(point.expenseCents) / 100.0),
+                            series: .value("series", "expense")
                         )
                         .foregroundStyle(Tokens.Accent.primary)
                         .interpolationMethod(.catmullRom)
 
                         LineMark(
                             x: .value("Период", idx),
-                            y: .value("План", Double(point.plannedExpenseCents) / 100.0),
-                            series: .value("series", "plan")
+                            y: .value("Доход", Double(point.incomeCents) / 100.0),
+                            series: .value("series", "income")
                         )
                         .foregroundStyle(Color.secondary)
                         .lineStyle(StrokeStyle(lineWidth: 1, dash: [4]))
@@ -131,7 +115,7 @@ struct AnalyticsView: View {
                     AxisMarks(values: .stride(by: 1)) { value in
                         if let idx = value.as(Int.self), idx < trend.points.count {
                             AxisValueLabel {
-                                Text(monthLabel(for: trend.points[idx].periodStart.date))
+                                Text(trend.points[idx].periodLabel)
                                     .font(.caption2)
                             }
                         }
@@ -147,6 +131,61 @@ struct AnalyticsView: View {
             Text("Прогноз")
         } footer: {
             Text("Данные на основе текущего активного периода и истории расходов.")
+        }
+    }
+
+    /// Render the forecast KPI rows for the active `mode`.
+    ///   - `forecast` (range=1M): plan/income/expense + projected end balance.
+    ///   - `cashflow` (range≥3M): net cashflow + monthly average over N periods.
+    @ViewBuilder
+    private func forecastRows(_ f: ForecastResponse) -> some View {
+        if f.mode == "cashflow" {
+            if let net = f.totalNetCents {
+                LabeledContent("Чистый поток") {
+                    Text(MoneyFormatter.formatWithSymbol(cents: net))
+                        .monospacedDigit()
+                        .foregroundStyle(net < 0 ? .red : .primary)
+                }
+            }
+            if let avg = f.monthlyAvgCents {
+                LabeledContent("В среднем/мес") {
+                    Text(MoneyFormatter.formatWithSymbol(cents: avg))
+                        .monospacedDigit()
+                        .foregroundStyle(avg < 0 ? .red : .primary)
+                }
+            }
+            if let count = f.periodsCount {
+                LabeledContent("Периодов учтено") {
+                    Text("\(count)")
+                        .monospacedDigit()
+                }
+            }
+        } else {
+            if let bal = f.projectedEndBalanceCents {
+                LabeledContent("Прогноз баланса") {
+                    Text(MoneyFormatter.formatWithSymbol(cents: bal))
+                        .monospacedDigit()
+                        .foregroundStyle(bal < 0 ? .red : .primary)
+                }
+            }
+            if let expense = f.plannedExpenseCents {
+                LabeledContent("План расходов") {
+                    Text(MoneyFormatter.formatWithSymbol(cents: expense))
+                        .monospacedDigit()
+                }
+            }
+            if let income = f.plannedIncomeCents {
+                LabeledContent("План доходов") {
+                    Text(MoneyFormatter.formatWithSymbol(cents: income))
+                        .monospacedDigit()
+                }
+            }
+            if let start = f.startingBalanceCents {
+                LabeledContent("Стартовый баланс") {
+                    Text(MoneyFormatter.formatWithSymbol(cents: start))
+                        .monospacedDigit()
+                }
+            }
         }
     }
 
@@ -178,12 +217,5 @@ struct AnalyticsView: View {
                 Text("Топ категорий")
             }
         }
-    }
-
-    private func monthLabel(for date: Date) -> String {
-        let fmt = DateFormatter()
-        fmt.locale = Locale(identifier: "ru_RU")
-        fmt.dateFormat = "LLL"
-        return String(fmt.string(from: date).prefix(3)).capitalized
     }
 }

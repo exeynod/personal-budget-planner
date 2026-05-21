@@ -55,8 +55,10 @@ enum AnalyticsAPI {
         )
     }
 
-    static func forecast() async throws -> ForecastResponse {
-        try await APIClient.shared.request("GET", "/analytics/forecast")
+    static func forecast(range: String = "1M") async throws -> ForecastResponse {
+        try await APIClient.shared.request(
+            "GET", "/analytics/forecast", query: ["range": range]
+        )
     }
 
     static func trend(range: String = "3M") async throws -> TrendResponse {
