@@ -130,6 +130,10 @@ struct NewGoalSheet: View {
             .padding(.top, PosterTokens.Space.s8)
         }
         .padding(PosterTokens.Space.s22)
+        // DEP-1 (sibling fix): NewGoalSheet is presented from the same Savings
+        // shell with the bottom tab bar visible, so reserve the same clearance
+        // to keep ОТМЕНА / СОХРАНИТЬ above the bar.
+        .padding(.bottom, PosterSheetLayout.tabBarClearance)
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 }

@@ -147,6 +147,13 @@ struct DepositSheet: View {
             .padding(.top, PosterTokens.Space.s8)
         }
         .padding(PosterTokens.Space.s22)
+        // DEP-1: the Savings shell keeps the bottom tab bar visible while this
+        // posterSheet is up (unlike AddSheet, which hides it). Без этого зазора
+        // ряд ОТМЕНА / СОХРАНИТЬ + чипсы ЦЕЛЬ уходили под таб-бар (y≈798+) и были
+        // недоступны. Поднимаем контент над таб-баром: его видимая высота 68pt +
+        // .padding(.bottom, s18) ≈ 86pt, плюс safe-area home-indicator снизу
+        // (posterSheet рендерится во всю высоту, игнорируя safe area).
+        .padding(.bottom, PosterSheetLayout.tabBarClearance)
         .frame(maxWidth: .infinity, alignment: .leading)
         .onAppear {
             // Auto-pick first / primary account on first appear.

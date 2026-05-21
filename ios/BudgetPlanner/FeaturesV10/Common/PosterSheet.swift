@@ -5,6 +5,19 @@
 
 import SwiftUI
 
+/// Shared layout constants for posterSheets.
+enum PosterSheetLayout {
+    /// Bottom clearance a posterSheet must reserve when it is presented over a
+    /// VISIBLE bottom tab bar (e.g. the Savings DepositSheet / NewGoalSheet —
+    /// unlike AddSheet, which hides the nav while open). The TabBar is a 68pt
+    /// frame with `.padding(.bottom, s18)` rendered inside `.ignoresSafeArea(
+    /// .bottom)`, so it occupies ~86pt above the screen edge plus the home-
+    /// indicator safe area. PosterSheet content renders into the full screen
+    /// height (no safe-area inset), so a fixed clearance keeps the action
+    /// buttons above the bar on every device. (DEP-1.)
+    static let tabBarClearance: CGFloat = 120
+}
+
 /// Slide-up sheet with cubic-bezier(0.32, 0.72, 0, 1) `sheetEase` + backdrop 0.45.
 /// Tap-to-dismiss on backdrop; drag-to-close on the sheet content.
 struct PosterSheet<SheetBody: View>: ViewModifier {
