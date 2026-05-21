@@ -84,15 +84,26 @@ NB: ранее принятые за «v06» светлые экраны (Гла
 dev-note: owner выдан Pro (pro_active_until +1y) для проверки AI; разумно для персонального приложения владельца. NB: full pytest сбросит это вместе с dev-БД → при пересеве заново выдать Pro если нужен AI.
 
 ### Находки выделенного review-агента (оба шелла, полный обход)
-- **AN-1 [P1] [FIXED commit 3583d56]** Аналитика (СТАРЫЙ IOS) сломана: `AnalyticsView.load error: DecodingError.keyNotFound 'categories'` — клиент/сервер контракт-mismatch (ответ без `categories`). Баннер «Что-то пошло не так», нет прогноза/топа несмотря на ~18 транзакций. На всех периодах. (Maximal Poster Аналитика работает — другой decode-путь.)
-- **PLAN-1 [P1] [FIXED commit edb09d2]** PLAN МЕСЯЦА (Maximal Poster) слайдеры в копейках: ПРОДУКТЫ «3 000 000» (надо 30 000 ₽), КАФЕ «1 200 000» и т.д. — значения = рубли×100, без ₽. Хедер «ОСТАЛОСЬ +63 000 ₽» корректен → баг только в слайдер-лейблах.
-- **DEP-1 [P1] [FIXED commit 2361027]** Goal deposit sheet (Maximal Poster) кнопки за таб-баром: «ПОПОЛНЕНИЕ» — ОТМЕНА/СОХРАНИТЬ (y≈809-874) перекрыты таб-баром (y≈798+), недоступны, лист не драг/не expand → депозит нельзя отправить в MP-шелле. (В СТАРЫЙ IOS — нативный sheet, работает.) Тот же класс, что theme-sheet occlusion.
+- **AN-1 [P1] [FIXED+VERIFIED commit 3583d56]** Аналитика (СТАРЫЙ IOS) сломана: `AnalyticsView.load error: DecodingError.keyNotFound 'categories'` — клиент/сервер контракт-mismatch (ответ без `categories`). Баннер «Что-то пошло не так», нет прогноза/топа несмотря на ~18 транзакций. На всех периодах. (Maximal Poster Аналитика работает — другой decode-путь.)
+- **PLAN-1 [P1] [FIXED+VERIFIED commit edb09d2]** PLAN МЕСЯЦА (Maximal Poster) слайдеры в копейках: ПРОДУКТЫ «3 000 000» (надо 30 000 ₽), КАФЕ «1 200 000» и т.д. — значения = рубли×100, без ₽. Хедер «ОСТАЛОСЬ +63 000 ₽» корректен → баг только в слайдер-лейблах.
+- **DEP-1 [P1] [FIXED+VERIFIED commit 2361027]** Goal deposit sheet (Maximal Poster) кнопки за таб-баром: «ПОПОЛНЕНИЕ» — ОТМЕНА/СОХРАНИТЬ (y≈809-874) перекрыты таб-баром (y≈798+), недоступны, лист не драг/не expand → депозит нельзя отправить в MP-шелле. (В СТАРЫЙ IOS — нативный sheet, работает.) Тот же класс, что theme-sheet occlusion.
 - **ACCESS-1 [P2] Доступ (СТАРЫЙ IOS) = заглушка «Будет в следующей фазе»**, тогда как Maximal Poster Доступ реализован полностью (ПОЛЬЗОВАТЕЛИ/AI USAGE). Parity-gap.
 - **BAL-1 [P2] Главная (СТАРЫЙ IOS) «Остаток на счёте» 121 750 ≠ сумма счетов 227 150** (Карта+Наличные). Лейбл обещает баланс счетов, показывает period balance_now. Mislabel vs data — нужно решение (переименовать лейбл ИЛИ показывать сумму счетов).
 - **P3:** AddSheet MP без явного Доход/Расход тумблера (доход через chip ЗАРПЛАТА — возможно by-design); empty-desc «—» (MP) vs «Без описания» (v06) инконсистентно; «Сервисы» Title Case (leftover); NETFLIX TEST leftover + клиппинг сабтайтлов «просро…»; Шаблон плана пуст (unseeded plan_template_item).
 
+### Открытые находки (deferred — решения приняты)
+- **ACCESS-1 [P2] DEFER:** Доступ v06 = намеренный placeholder «будет в следующей фазе»; MP реализован. Полная реализация v06-экрана — отдельная фича низкого приоритета (owner-only admin), не дефект полировки.
+- **BAL-1 [P2] DEFER (нужно продуктовое решение):** v06 «Остаток на счёте» = period `balance_now` (121 750), MP «в кошельке» = сумма счетов (227 150). Расхождение завязано на starting_balance vs seeded account balances. Решить семантику headline (period-баланс vs кошелёк) + сверить data-model перед правкой — не менять вслепую на главном экране.
+- **1M-forecast [P3]:** 1M-прогноз = 0₽ при единственном месяце истории (вероятно корректно — недостаточно данных для проекции; 3M показывает реальные числа).
+- **Step03PlanView [P3]:** onboarding-слайдер плана использует тот же PosterSlider с cents-binding — внешний рублёвый лейбл корректен, но внутренний readout сырой (дубль если включить valueIsCents). Будущая чистка.
+- **P3-набор:** empty-desc «—»(MP) vs «Без описания»(v06); «Сервисы» Title Case (leftover-данные); NETFLIX TEST leftover + клиппинг сабтайтлов; AddSheet MP без явного Доход/Расход тумблера (доход через chip — by-design?).
+- theme persisted across reinstall (incremental install сохраняет UserDefaults) — не регрессия.
+
 ### Остаток тура (для продолжения)
-web; pixel-perfect сверка с референсом; P3-полировка.
+web (не тронут); pixel-perfect сверка с Maximal Poster референсом; уборка leftover dev-данных; P3-полировка.
+
+## Итог сессии (phase 71)
+Найдено+починено+ВЕРИФИЦИРОВАНО 10 проблем (3× P0): BUG-1 Home balance 500, AI-CHAT-1 SSE URL, HOME-1 plan source (P0); BUG-2 subs V10 write, AI-CHAT-2 402 Pro UX, PLAN-1 plan kopecks, DEP-1 deposit occlusion, AN-1 analytics decode (P1); тем→2, theme-sheet layout (UI). Backend suite 786→787 green; iOS suite 639→663 green. Оба шелла собираются. Дефолт-тема Maximal Poster, оба шелла отревьюены — визуально вылизаны. Owner выдан Pro (dev) для AI.
 
 ---
 
