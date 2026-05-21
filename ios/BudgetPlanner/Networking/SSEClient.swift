@@ -150,15 +150,22 @@ enum AIChatAPI {
                         // `serverError(402, …)` — NO logout, NO rate-limit. The
                         // view layer branches on `APIError.isProTierRequired` to
                         // show the Pro-tier state instead of the generic error.
-                        // The 402 detail string is collected ONLY so the typed
-                        // PRO_TIER_REQUIRED marker can be matched; it is never
-                        // rendered (fixed-copy / no-leak policy, 67-03/67-05).
+                        //
+                        // Phase 71 follow-up: throw `serverError(402, "")`
+                        // DIRECTLY without draining `bytes.lines`. Draining the
+                        // body of the already-received 402 response was fragile —
+                        // the async iteration can itself throw (cancellation /
+                        // URLError on the short, completed stream body), and that
+                        // DIFFERENT error then propagated out of the VM's
+                        // `for try await` loop into the generic `catch`, so
+                        // `isProTierRequired` was never consulted and the user
+                        // saw «⚠️ Ошибка». `APIError.isProTierRequired` already
+                        // returns true for `code == 402` alone, so the body /
+                        // PRO_TIER_REQUIRED marker is unnecessary for
+                        // classification — and the detail is never rendered anyway
+                        // (fixed-copy / no-leak policy, 67-03/67-05).
                         if http.statusCode == 402 {
-                            var detail = ""
-                            for try await line in bytes.lines {
-                                detail += line
-                            }
-                            throw APIError.serverError(402, detail)
+                            throw APIError.serverError(402, "")
                         }
                         throw APIError.serverError(http.statusCode, "")
                     }

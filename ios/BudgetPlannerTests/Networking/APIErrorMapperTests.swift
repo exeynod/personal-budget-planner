@@ -107,6 +107,22 @@ final class APIErrorMapperTests: XCTestCase {
         XCTAssertFalse(other.isProTierRequired)
     }
 
+    func test_emptyDetail402_isProTierRequired_doesNotDependOnBody() {
+        // Phase 71 follow-up regression guard: SSEClient now throws
+        // `serverError(402, "")` DIRECTLY without draining the response body
+        // (the drain could throw a different error → generic «⚠️ Ошибка»).
+        // Classification MUST hold on the status code alone, with an EMPTY
+        // detail — proving the fix does not depend on the body / marker.
+        let bodyless: Error = APIError.serverError(402, "")
+        XCTAssertTrue(bodyless.isProTierRequired)
+        if case .serverError(let code, let detail) = (bodyless as? APIError) {
+            XCTAssertEqual(code, 402)
+            XCTAssertTrue(detail.isEmpty, "fix must not rely on a non-empty body")
+        } else {
+            XCTFail("expected serverError(402, \"\")")
+        }
+    }
+
     // MARK: - Error-extension helper (arbitrary Error → RU)
 
     func test_helper_apiError_routesThroughUserFacingRu() {
