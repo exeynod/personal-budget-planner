@@ -16,14 +16,15 @@
 
 ---
 
-### Phase 71: UI/UX & Functional Polish (owner /goal — до идеала) — in progress
-**Plans:** running (screenshot-driven loop)
+### Phase 71: UI/UX & Functional Polish (owner /goal — до идеала) ✅ SHIPPED 2026-05-21
+**Plans:** 23 issues closed (live review-fix loop; findings tracked in `71-FINDINGS.md`, not numbered PLAN files)
 **Goal**: Довести продукт до идеального, вылизанного интерфейса И полностью рабочего функционала. Скриншот-driven цикл на iPhone 17 Pro симуляторе (оба шелла v06 MainShell + V10MainShell) + web: screenshot → findings → fix → rebuild → re-screenshot, до идеала. Реальный backend (docker dev) + засеянный датасет. Источник находок и прогресс — `71-FINDINGS.md`.
 **Depends on**: Phase 68/69/70 (зелёный baseline + единый контракт).
-**Success Criteria**:
-1. Все функциональные баги, найденные при прогоне (начиная с BUG-1 Home/balance 500, BUG-2 subscriptions V10 write), закрыты; ключевые user-flows работают на живом backend.
-2. Каждый экран обоих iOS-шеллов визуально вылизан против Maximal Poster дизайн-референса; ноль очевидных визуальных дефектов на скриншотах.
-3. iOS suite + web build/test зелёные после правок; контракт-sync-guard зелёный.
+**Success Criteria** (все выполнены):
+1. ✅ Все функциональные баги закрыты — 3× P0 (AI-чат сломанный SSE URL, Home balance 500, ПЛАН=0 core-value), 5× P1, BUG-2 subs V10 write, income-toggle (MP AddSheet не давал ввести доход) — ключевые user-flows работают на живом backend.
+2. ✅ Оба iOS-шелла визуально вылизаны: 2 темы (Maximal Poster + СТАРЫЙ IOS), все конкретные визуальные дефекты обхода устранены (знак расхода, перенос заголовка, статус-бар, степперы, layout пикеров/листов).
+3. ✅ iOS suite 686 / backend 787 / web 755 green; sync-guard зелёный.
+**Итог:** 23 проблемы закрыто и проверено на симуляторе/тестами; ACCESS-1 (v06 Доступ) реализован; web (subscription account UI, analytics month-chip, AI 402) допилен. Детали — `71-FINDINGS.md`.
 
 ---
 
