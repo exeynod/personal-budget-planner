@@ -6,7 +6,13 @@
  * clearHistory() удаляет все сообщения.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { clearConversation, getChatHistory, streamChat } from '../api/ai';
+import {
+  clearConversation,
+  getChatHistory,
+  streamChat,
+  PRO_TIER_ERROR_MARKER,
+  PRO_TIER_MESSAGE_RU,
+} from '../api/ai';
 import type {
   AiStreamEvent,
   ChatMessageRead,
@@ -91,7 +97,15 @@ export function useAiConversation(): UseAiConversationResult {
         setError(event.data.message);
         setToolName(null);
       } else if (event.type === 'error') {
-        setError(event.data);
+        // Phase 71 (UX-71): a 402 PRO_TIER_REQUIRED is a paywall, not a generic
+        // failure. streamChat emits the opaque PRO_TIER_ERROR_MARKER for that
+        // case — surface fixed RU copy (no server-detail leak, 67-03/67-05)
+        // instead of the raw "HTTP 402".
+        setError(
+          event.data === PRO_TIER_ERROR_MARKER
+            ? PRO_TIER_MESSAGE_RU
+            : event.data,
+        );
       }
     };
 

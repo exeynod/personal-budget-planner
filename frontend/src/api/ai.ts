@@ -8,6 +8,25 @@ import { apiFetch, getInitDataRaw } from './client';
 import type { AiStreamEvent, AiSuggestResponse, ChatHistoryResponse } from './types';
 
 /**
+ * Phase 71 (UX-71, web parity with iOS AI-CHAT-2): sentinel emitted on the
+ * `{type:'error'}` SSE event when POST /ai/chat returns 402 PRO_TIER_REQUIRED.
+ *
+ * The chat endpoint is a Pro-tier feature; a free-tier user gets a 402 with
+ * body `{"detail":{"error":"PRO_TIER_REQUIRED",...}}`. Rather than leaking the
+ * raw `HTTP 402` (or the server `detail` string) into the UI, streamChat emits
+ * this opaque marker so the view layer can render a fixed, no-leak RU paywall
+ * message (mirrors iOS `APIError.isProTierRequired` → `proTierFacingRu`).
+ */
+export const PRO_TIER_ERROR_MARKER = 'PRO_TIER_REQUIRED';
+
+/**
+ * Fixed RU copy shown when the chat hits the Pro-tier paywall. Matches the iOS
+ * `APIError.proTierFacingRu` string exactly. Fixed copy — never interpolate the
+ * server `detail` (no-leak convention, 67-03/67-05).
+ */
+export const PRO_TIER_MESSAGE_RU = 'Чат-ассистент доступен в Pro-тарифе';
+
+/**
  * Предложить категорию по описанию транзакции (AICAT-02).
  *
  * GET /api/v1/ai/suggest-category?q=<text>
@@ -59,7 +78,31 @@ export function streamChat(
   })
     .then(async (res) => {
       if (!res.ok || !res.body) {
-        onEvent({ type: 'error', data: `HTTP ${res.status}` });
+        // Phase 71 (UX-71): a 402 on the chat stream is the require_pro
+        // paywall (body `{"detail":{"error":"PRO_TIER_REQUIRED",...}}`). Detect
+        // it via the status code AND (belt-and-braces) the typed marker in the
+        // body, then emit the opaque PRO_TIER_ERROR_MARKER so the view renders
+        // fixed paywall copy instead of the raw "HTTP 402". The 402 body must
+        // be drained off-stream (res.body may be present on a 402); guard the
+        // read so a non-JSON / empty body still classifies via the status code.
+        let isProTier = res.status === 402;
+        if (res.status === 402) {
+          try {
+            const text = await res.text();
+            const parsed = JSON.parse(text) as {
+              detail?: { error?: string };
+            } | null;
+            if (parsed?.detail?.error === 'PRO_TIER_REQUIRED') {
+              isProTier = true;
+            }
+          } catch {
+            // Non-JSON / empty 402 body — status code alone classifies it.
+          }
+        }
+        onEvent({
+          type: 'error',
+          data: isProTier ? PRO_TIER_ERROR_MARKER : `HTTP ${res.status}`,
+        });
         onDone();
         return;
       }

@@ -30,7 +30,11 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { fetchObservation } from '../../api/v10';
-import { streamChat } from '../../api/ai';
+import {
+  streamChat,
+  PRO_TIER_ERROR_MARKER,
+  PRO_TIER_MESSAGE_RU,
+} from '../../api/ai';
 import type { AiStreamEvent } from '../../api/types';
 import { usePosterRouter } from '../common';
 import { AiView, type AiMessage } from './AiView';
@@ -110,7 +114,14 @@ export function AiMount() {
               prev.map((m) => (m.id === aiId ? { ...m, text: aiBuf } : m)),
             );
           } else if (event.type === 'error') {
-            const errText = aiBuf || `⚠ Ошибка ответа: ${event.data}`;
+            // Phase 71 (UX-71): a 402 PRO_TIER_REQUIRED is a paywall, not a
+            // generic failure. streamChat emits the opaque PRO_TIER_ERROR_MARKER
+            // for that case — render fixed RU copy (no "⚠ Ошибка ответа:" prefix,
+            // no server-detail interpolation; no-leak convention 67-03/67-05).
+            const errText =
+              event.data === PRO_TIER_ERROR_MARKER
+                ? PRO_TIER_MESSAGE_RU
+                : aiBuf || `⚠ Ошибка ответа: ${event.data}`;
             setMessages((prev) =>
               prev.map((m) => (m.id === aiId ? { ...m, text: errText } : m)),
             );
