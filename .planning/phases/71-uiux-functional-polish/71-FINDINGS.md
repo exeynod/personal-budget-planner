@@ -103,8 +103,13 @@ dev-note: owner выдан Pro (pro_active_until +1y) для проверки AI
 ### Остаток тура (для продолжения)
 web (не тронут); pixel-perfect сверка с Maximal Poster референсом; уборка leftover dev-данных; P3-полировка.
 
-## Итог сессии (phase 71)
-Найдено+починено+ВЕРИФИЦИРОВАНО 10 проблем (3× P0): BUG-1 Home balance 500, AI-CHAT-1 SSE URL, HOME-1 plan source (P0); BUG-2 subs V10 write, AI-CHAT-2 402 Pro UX, PLAN-1 plan kopecks, DEP-1 deposit occlusion, AN-1 analytics decode (P1); тем→2, theme-sheet layout (UI). Backend suite 786→787 green; iOS suite 639→663 green. Оба шелла собираются. Дефолт-тема Maximal Poster, оба шелла отревьюены — визуально вылизаны. Owner выдан Pro (dev) для AI.
+## Итог сессии (phase 71) — 14 проблем закрыто
+**P0 (3, verified):** BUG-1 Home balance 500 (e21aba2); AI-CHAT-1 SSE URL — чат был полностью сломан (e11990f); HOME-1 plan source core-value (8e18b9f).
+**P1 (5, verified):** BUG-2 subs V10 write (b536653); AI-CHAT-2 402 Pro UX (4992fbb+e0d0207); PLAN-1 plan kopecks→rubles (edb09d2); DEP-1 deposit occlusion (2361027); AN-1 analytics decode (3583d56).
+**P2 (2 fixed + 1 deferred):** BAL-1 wallet total verified (fe02053); WEB-AI-1 web 402 Pro msg (77e69ef); ACCESS-1 v06 Доступ — DEFER (намеренный placeholder).
+**UI/P3:** темы→2 (e96affa); theme-sheet layout (b7c1d84); subscription subtitle clipping (494b9e6); onboarding plan slider readout (a8e3e1d). Leftover dev-данные (Netflix Test, Сервисы) почищены через API.
+**Tests:** backend 786→787 green; iOS 639→663 green; web 738→742 green. Оба iOS-шелла + web отревьюены, визуально вылизаны, ключевой функционал работает. Web build/typecheck/vitest зелёные, бэкенд-фиксы (HOME-1/BUG-1/2) web получает бесплатно.
+**Остаток backlog (низкий приоритет):** ACCESS-1 (v06 Доступ feature); web P3 (subscription account_id UI, analytics month-chip); borderline-P3 (empty-desc «—»/«Без описания» cross-shell, AddSheet MP income-toggle — возможно by-design); pixel-perfect сверка с референсом. Owner = Pro (dev) для AI.
 
 ---
 
