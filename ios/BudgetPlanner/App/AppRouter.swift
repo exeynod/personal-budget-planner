@@ -4,11 +4,11 @@ struct AppRouter: View {
     @Environment(AuthStore.self) private var authStore
     @AppStorage("ui.theme") private var themeRaw: String = Theme.maximalPoster.rawValue
 
-    // Phase 56 (v06 Native Rebuild — Foundation): один-единственный special-case.
-    // `"v06"` → native-iOS shell (MainShell). Любое другое значение (включая
-    // три V10 темы: maximal_poster / liquid_glass / ios_default) → V10MainShell;
-    // конкретную V10-тему дальше резолвит `Theme.resolve(themeRaw)` через
-    // `\.appTheme` environment в `BudgetPlannerApp`.
+    // Phase 56 (v06 Native Rebuild — Foundation), Phase 71 (theme cull): один
+    // special-case. `"v06"` → native-iOS shell (MainShell). Любое другое значение
+    // (единственная V10-тема maximal_poster, плюс stale "liquid_glass"/"ios_default"
+    // из прежних версий) → V10MainShell; тему резолвит `Theme.resolve(themeRaw)`
+    // через `\.appTheme` environment в `BudgetPlannerApp`.
     private var isLegacyV06Shell: Bool { themeRaw == "v06" }
 
     var body: some View {

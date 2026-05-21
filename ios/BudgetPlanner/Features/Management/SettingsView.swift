@@ -236,12 +236,6 @@ struct SettingsView: View {
             case .maximalPoster:
                 RoundedRectangle(cornerRadius: 6, style: .continuous)
                     .fill(Color(red: 1.0, green: 90 / 255, blue: 60 / 255))
-            case .liquidGlass:
-                RoundedRectangle(cornerRadius: 6, style: .continuous)
-                    .fill(Color(red: 242 / 255, green: 242 / 255, blue: 247 / 255))
-            case .iosDefault:
-                RoundedRectangle(cornerRadius: 6, style: .continuous)
-                    .fill(Color(red: 229 / 255, green: 229 / 255, blue: 234 / 255))
             case .legacyV06:
                 RoundedRectangle(cornerRadius: 6, style: .continuous)
                     .fill(Color(.systemGroupedBackground))
