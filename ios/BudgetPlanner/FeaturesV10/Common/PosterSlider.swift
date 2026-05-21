@@ -8,26 +8,38 @@ import SwiftUI
 ///  - integer-step snapping (default 500)
 ///  - 300ms debounced `onCommit` after last change
 ///  - tap on the rendered number → switch to TextField (numberPad keyboard)
+///
+/// `valueIsCents` controls the rendered label only — the bound `value`,
+/// `range`, and `step` are always in the slider's native unit. When the bound
+/// value is money in BIGINT cents (e.g. the PLAN МЕСЯЦА category limits) pass
+/// `valueIsCents: true` so the readout shows rubles + «₽» via `RubleFormatter`
+/// instead of printing the raw kopeck integer (PLAN-1 fix). The TextField edit
+/// path stays in the native unit so the saved `plan_cents` value is unchanged.
 struct PosterSlider: View {
     @Binding var value: Int
     let range: ClosedRange<Int>
     var step: Int = 500
     var label: String? = nil
+    var valueIsCents: Bool = false
     var onCommit: ((Int) -> Void)? = nil
 
     @State private var editing: Bool = false
     @State private var commitTask: Task<Void, Never>? = nil
     @FocusState private var focused: Bool
 
-    init(value: Binding<Int>,
-         in range: ClosedRange<Int>,
-         step: Int = 500,
-         label: String? = nil,
-         onCommit: ((Int) -> Void)? = nil) {
+    init(
+        value: Binding<Int>,
+        in range: ClosedRange<Int>,
+        step: Int = 500,
+        label: String? = nil,
+        valueIsCents: Bool = false,
+        onCommit: ((Int) -> Void)? = nil
+    ) {
         self._value = value
         self.range = range
         self.step = step
         self.label = label
+        self.valueIsCents = valueIsCents
         self.onCommit = onCommit
     }
 
@@ -52,7 +64,10 @@ struct PosterSlider: View {
                 .tint(PosterTokens.Color.paper)
 
                 if editing {
-                    TextField("0", value: $value, format: .number)
+                    // Edit in the unit the user reads: rubles when valueIsCents,
+                    // otherwise the native unit. The rubles binding multiplies
+                    // back to cents on write so the saved plan_cents stays exact.
+                    TextField("0", value: editBinding, format: .number)
                         .keyboardType(.numberPad)
                         .focused($focused)
                         .multilineTextAlignment(.trailing)
@@ -88,13 +103,40 @@ struct PosterSlider: View {
         commitTask?.cancel()
         guard let onCommit else { return }
         commitTask = Task {
-            try? await Task.sleep(nanoseconds: 300_000_000)              // 300ms debounce
+            try? await Task.sleep(nanoseconds: 300_000_000)  // 300ms debounce
             guard !Task.isCancelled else { return }
             await MainActor.run { onCommit(next) }
         }
     }
 
+    /// TextField binding in the user-facing edit unit. In cents mode the field
+    /// edits whole rubles and re-multiplies to cents (snapped down to the
+    /// nearest ruble) so `value` — the saved plan_cents — stays well-formed.
+    private var editBinding: Binding<Int> {
+        guard valueIsCents else { return $value }
+        return Binding(
+            get: { value / 100 },
+            set: { rubles in
+                value = max(range.lowerBound, min(range.upperBound, rubles * 100))
+            }
+        )
+    }
+
+    /// Read-only readout. Delegates to the testable static `readout(_:isCents:)`.
     private func formatted(_ n: Int) -> String {
+        Self.readout(n, isCents: valueIsCents)
+    }
+
+    /// Render a slider value for display.
+    ///
+    /// Money (`isCents == true`) renders as rubles + «₽» via the shared
+    /// RubleFormatter (cents→rubles, U+202F grouping) — matches every other
+    /// money label in the maximal-poster shell (PLAN-1 fix). Non-money keeps the
+    /// plain grouped integer (e.g. the onboarding cycle-day slider).
+    static func readout(_ n: Int, isCents: Bool) -> String {
+        if isCents {
+            return "\(RubleFormatter.format(cents: n)) ₽"
+        }
         let f = NumberFormatter()
         f.groupingSeparator = "\u{00A0}"
         f.numberStyle = .decimal

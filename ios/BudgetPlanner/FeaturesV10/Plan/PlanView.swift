@@ -296,7 +296,10 @@ struct PlanView: View {
                     set: { model.updateSlider(categoryId: c.id, cents: $0) }
                 ),
                 in: 0...upper,
-                step: 50_000
+                step: 50_000,
+                // plan limits are BIGINT cents — render the readout as rubles+₽
+                // (PLAN-1) without touching the bound cents value sent to PATCH.
+                valueIsCents: true
             )
             HStack(spacing: 8) {
                 Chip("ПРОЧЕЕ", active: c.rollover == .misc) {
