@@ -82,3 +82,8 @@ frontend/tests/ui-audit-screenshots/
 # =====================================================================
 *-handoff.zip
 *handoff.zip
+
+# Local tooling state (Claude Code / XcodeBuildMCP — per-machine, not shared)
+.claude/settings.local.json
+.claude/scheduled_tasks.lock
+.xcodebuildmcp/
