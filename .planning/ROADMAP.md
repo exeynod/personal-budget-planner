@@ -16,6 +16,17 @@
 
 ---
 
+### Phase 71: UI/UX & Functional Polish (owner /goal — до идеала) — in progress
+**Plans:** running (screenshot-driven loop)
+**Goal**: Довести продукт до идеального, вылизанного интерфейса И полностью рабочего функционала. Скриншот-driven цикл на iPhone 17 Pro симуляторе (оба шелла v06 MainShell + V10MainShell) + web: screenshot → findings → fix → rebuild → re-screenshot, до идеала. Реальный backend (docker dev) + засеянный датасет. Источник находок и прогресс — `71-FINDINGS.md`.
+**Depends on**: Phase 68/69/70 (зелёный baseline + единый контракт).
+**Success Criteria**:
+1. Все функциональные баги, найденные при прогоне (начиная с BUG-1 Home/balance 500, BUG-2 subscriptions V10 write), закрыты; ключевые user-flows работают на живом backend.
+2. Каждый экран обоих iOS-шеллов визуально вылизан против Maximal Poster дизайн-референса; ноль очевидных визуальных дефектов на скриншотах.
+3. iOS suite + web build/test зелёные после правок; контракт-sync-guard зелёный.
+
+---
+
 ## Dependency Graph (v1.1 / v1.2 / v2.0)
 
 ```
