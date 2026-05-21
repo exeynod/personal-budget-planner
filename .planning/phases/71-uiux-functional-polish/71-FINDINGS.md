@@ -55,8 +55,8 @@ Status: OPEN / FIXED / VERIFIED.
 - Было 4 опции в пикере: sentinel «СТАРЫЙ IOS» (v06) + Theme enum {maximalPoster, liquidGlass, iosDefault}. Убраны liquidGlass + iosDefault из enum/пикеров(v06+V10)/токенов/тестов. Stale raw `liquid_glass`/`ios_default` → резолв в maximalPoster (Theme.resolve). Оба шелла build green, suite 639/0.
 - **VERIFIED:** пикер тем показывает ровно 2 ряда — MAXIMAL POSTER (✓ выбрана, «Кораллово-кобальтовая палитра, Archivo Black») + СТАРЫЙ IOS («Нативный SwiftUI: Form, TabView, system colors»).
 - Экраны Maximal Poster (Управление «Управление.» нумерованный список, Настройки) — визуально в editorial-стиле, опрятны.
-- **Minor [P3]:** заголовок sheet «ТЕМА» налезает на статус-бар (часы). 
-- **Minor [P3]:** «AI ЛИМИТ РАСХОДОВ $0.00 / $5.00» — в долларах (AI-косты USD; но в рублёвом UI смотрится инконсистентно — уточнить намерение).
+- **Minor [P3] [FIXED+VERIFIED commit b7c1d84]:** заголовок sheet «ТЕМА» налезал на статус-бар — `ThemePickerSheet` был жадным full-screen ScrollView; сделан компактным bottom-sheet (`.fixedSize` vertical + `maxHeight 360`), теперь заякорен снизу, «ТЕМА» чисто под часами.
+- **Minor [P3] [RESOLVED — не баг]:** «AI ЛИМИТ РАСХОДОВ $0.00 / $5.00» в долларах — КОРРЕКТНО: `cost_cents` = USD-копейки (косты AI-провайдера, Phase 67 R8). Перевод в ₽ был бы вводящим в заблуждение (курс). Оставлено в USD намеренно.
 
 NB: ранее принятые за «v06» светлые экраны (Главная/Транзакции с tab-баром Главная/Транзакции/AI/Управление) — это и есть **СТАРЫЙ IOS** (v06 MainShell). Maximal Poster — чёрно-кремовый editorial. Оба ревьюятся отдельно.
 
