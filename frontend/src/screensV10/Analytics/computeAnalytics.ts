@@ -17,7 +17,11 @@
 //   - T-27-05-03: shouldHighlightRed + computePct guard `plan <= 0` to prevent
 //                 division-by-zero / NaN bar render.
 
-import type { ActualV10Read, CategoryV10 } from '../../api/v10';
+import type {
+  ActualV10Read,
+  CategoryV10,
+  TopCategoryItem,
+} from '../../api/v10';
 
 export type GroupMode = 'day' | 'week' | 'cat';
 
@@ -158,6 +162,47 @@ export function groupActualsByCategory(
       };
     })
     .sort((a, b) => b.sumCents - a.sumCents);
+}
+
+/**
+ * P3-W2: Top-N expense categories for the SELECTED month, derived from the
+ * same month-scoped actuals the bars consume (`groupActualsByCategory`). This
+ * replaces the period-agnostic `fetchTopCategories('1M')` so the month chip
+ * actually drives the «Топ-5» list.
+ *
+ * Output mirrors the backend-backed `TopCategoryItem` (api/v10/analytics.ts):
+ *   category_id  ← category id
+ *   category_name ← category name (or '?' for orphaned actuals)
+ *   sum_cents    ← Σ |amount_cents| of expense actuals in the category
+ *   plan_cents   ← category plan_cents
+ *   pct_of_plan  ← clamp(round(sum/plan * 100), 0..100), null when plan ≤ 0
+ *
+ * Already sorted desc by sum (groupActualsByCategory guarantees this); sliced
+ * to `limit`.
+ */
+export function computeTopCategories(
+  actuals: ReadonlyArray<ActualV10Read>,
+  categories: ReadonlyArray<CategoryV10>,
+  limit = 5,
+): TopCategoryItem[] {
+  return groupActualsByCategory(actuals, categories)
+    .slice(0, limit)
+    .map((b) => {
+      const pct =
+        b.plan_cents > 0
+          ? Math.max(
+              0,
+              Math.min(100, Math.round((b.sumCents / b.plan_cents) * 100)),
+            )
+          : null;
+      return {
+        category_id: b.category_id,
+        category_name: b.category_name,
+        sum_cents: b.sumCents,
+        plan_cents: b.plan_cents,
+        pct_of_plan: pct,
+      };
+    });
 }
 
 /** «ПОТРАЧЕНО» KPI plate model. */

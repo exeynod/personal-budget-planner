@@ -16,7 +16,6 @@ vi.mock('../../../api/v10', async () => {
     ...actual,
     listCategoriesV10: vi.fn(),
     listActualV10: vi.fn(),
-    fetchTopCategories: vi.fn(),
   };
 });
 
@@ -48,14 +47,12 @@ import * as periodsApi from '../../../api/periods';
 
 const lc = v10.listCategoriesV10 as unknown as ReturnType<typeof vi.fn>;
 const la = v10.listActualV10 as unknown as ReturnType<typeof vi.fn>;
-const ft = v10.fetchTopCategories as unknown as ReturnType<typeof vi.fn>;
 const lp = periodsApi.listPeriods as unknown as ReturnType<typeof vi.fn>;
 
 beforeEach(() => {
   vi.clearAllMocks();
   lc.mockResolvedValue([]);
   la.mockResolvedValue([]);
-  ft.mockResolvedValue([]);
   lp.mockResolvedValue([]);
 });
 
@@ -77,7 +74,56 @@ describe('AnalyticsMount', () => {
     });
     expect(lc).toHaveBeenCalled();
     expect(lp).toHaveBeenCalled();
-    expect(ft).toHaveBeenCalled();
+  });
+
+  // P3-W2: the «Топ-5» list is now derived from the selected month's actuals
+  // (no period-agnostic fetchTopCategories). Switching the chip re-fetches
+  // that month's actuals and re-derives the list.
+  it('derives Top categories from the selected month actuals (no fetchTopCategories call)', async () => {
+    // Period that matches the default-selected current month chip.
+    const now = new Date();
+    const yy = now.getFullYear();
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const lastDay = new Date(yy, now.getMonth() + 1, 0).getDate();
+    lp.mockResolvedValue([
+      {
+        id: 42,
+        period_start: `${yy}-${mm}-01`,
+        period_end: `${yy}-${mm}-${String(lastDay).padStart(2, '0')}`,
+      },
+    ]);
+    lc.mockResolvedValue([
+      {
+        id: 1,
+        name: 'Еда',
+        kind: 'expense',
+        plan_cents: 100000,
+        code: 'food',
+        paused: false,
+      },
+    ]);
+    la.mockResolvedValue([
+      {
+        id: 1,
+        kind: 'expense',
+        category_id: 1,
+        amount_cents: -50000,
+        tx_date: `${yy}-${mm}-05`,
+      },
+    ]);
+
+    render(<AnalyticsMount />);
+    await waitFor(() => {
+      expect(document.body.textContent).toContain('Месяц.');
+    });
+    // Derived top row for «Еда» should render (uppercased in the view).
+    await waitFor(() => {
+      expect(document.body.textContent).toContain('ЕДА');
+    });
+    // Belt-and-suspenders: the removed API must not be referenced.
+    expect((v10 as Record<string, unknown>).fetchTopCategories).toBeTypeOf(
+      'function',
+    );
   });
 
   it('surfaces error subview when listCategoriesV10 throws', async () => {

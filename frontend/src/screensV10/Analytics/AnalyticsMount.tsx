@@ -6,22 +6,24 @@
 //        Parallel fetch:
 //          - listCategoriesV10()                          (cat names + plan_cents)
 //          - listPeriods()                                (resolve period_id by month)
-//          - fetchTopCategories('1M', 5)                  (top-5 list)
 //        Then sequential:
 //          - listActualV10(matchingPeriod.id)             (current period actuals)
 //          - listActualV10(prevPeriod.id) when available  (delta vs prev)
-//   2. Compute derived state (KPI, bar data) per group mode.
+//   2. Compute derived state (KPI, bar data, Top-5) per group mode + month.
 //   3. Render <AnalyticsView />.
 //
 // Threat coverage:
 //   - T-27-05-02 (rapid month-switch DoS): cancellation guard on cleanup
 //                 prevents stale fetches landing in setState.
 //
-// API constraint adaptation (Rule 3 deviation from plan draft):
-//   The plan's draft assumed `/analytics/top-categories?period_start=...` —
-//   actual backend (app/api/routes/analytics.py) only accepts `range`. Use
-//   `range='1M'` for current month; older months fall back to the same
-//   endpoint until Phase 28 polish lifts the per-period query.
+// P3-W2 (was Phase-27 deferral): the «Топ-5 категорий» list now reflects the
+//   SELECTED month chip rather than a hardwired `fetchTopCategories('1M')`.
+//   The backend `/analytics/top-categories` only accepts a coarse `range`
+//   (1M/3M/6M/12M) and cannot return a specific past month — so per-chip top
+//   data is derived CLIENT-SIDE from the same month-scoped `actuals` already
+//   fetched for the bars (`groupActualsByCategory`). This keeps the Top list
+//   byte-consistent with the КАТ. bar mode and with the period the chips
+//   resolve via `listPeriods`. (See computeTopCategories below.)
 //   For bar data we rely on `listActualV10(periodId)` (period-scoped).
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -29,7 +31,6 @@ import { usePosterRouter } from '../common';
 import {
   listActualV10,
   listCategoriesV10,
-  fetchTopCategories,
   type ActualV10Read,
   type CategoryV10,
   type TopCategoryItem,
@@ -40,6 +41,7 @@ import { AnalyticsView, type BarDatum } from './AnalyticsView';
 import {
   computeKPISaved,
   computeKPISpent,
+  computeTopCategories,
   groupActualsByCategory,
   groupActualsByDay,
   groupActualsByWeek,
@@ -64,7 +66,6 @@ export function AnalyticsMount() {
   const [categories, setCategories] = useState<CategoryV10[]>([]);
   const [actuals, setActuals] = useState<ActualV10Read[]>([]);
   const [prevActuals, setPrevActuals] = useState<ActualV10Read[]>([]);
-  const [topCategories, setTopCategories] = useState<TopCategoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -76,10 +77,9 @@ export function AnalyticsMount() {
 
     async function load() {
       try {
-        const [cats, periods, top] = await Promise.all([
+        const [cats, periods] = await Promise.all([
           listCategoriesV10(),
           listPeriods(),
-          fetchTopCategories('1M', 5),
         ]);
         if (cancelled) return;
 
@@ -105,7 +105,6 @@ export function AnalyticsMount() {
         setCategories(cats);
         setActuals(acts);
         setPrevActuals(prevs);
-        setTopCategories(top);
         setLoading(false);
       } catch (e) {
         if (cancelled) return;
@@ -154,6 +153,14 @@ export function AnalyticsMount() {
       planCents: b.plan_cents,
     }));
   }, [groupMode, actuals, categories, selectedMonth]);
+
+  // P3-W2: Top-5 derived from the SELECTED month's actuals (same source the
+  // bars use) so the chip drives the list. Re-derives on month switch via
+  // `actuals` dependency.
+  const topCategories: TopCategoryItem[] = useMemo(
+    () => computeTopCategories(actuals, categories, 5),
+    [actuals, categories],
+  );
 
   // ─────────── handlers ───────────
   const handleSelectMonth = useCallback((m: MonthOption) => {

@@ -20,6 +20,7 @@ import {
   groupActualsByCategory,
   computeKPISpent,
   computeKPISaved,
+  computeTopCategories,
   shouldHighlightRed,
   computePct,
 } from '../computeAnalytics';
@@ -337,5 +338,63 @@ describe('computePct', () => {
   it('clamps to [0, 100]', () => {
     expect(computePct(200, 100)).toBe(100);
     expect(computePct(-50, 100)).toBe(0);
+  });
+});
+
+// ─────────────────── computeTopCategories (P3-W2) ───────────────────
+
+describe('computeTopCategories', () => {
+  it('returns [] for no actuals', () => {
+    expect(computeTopCategories([], [mkCategory()], 5)).toEqual([]);
+  });
+
+  it('derives top rows from actuals, sorted desc by sum, sliced to limit', () => {
+    const cats = [
+      mkCategory({ id: 1, name: 'Еда', plan_cents: 100000 }),
+      mkCategory({ id: 2, name: 'Транспорт', plan_cents: 0 }),
+      mkCategory({ id: 3, name: 'Развлечения', plan_cents: 20000 }),
+    ];
+    const actuals = [
+      mkActual({ id: 1, category_id: 1, amount_cents: -30000 }),
+      mkActual({ id: 2, category_id: 2, amount_cents: -90000 }),
+      mkActual({ id: 3, category_id: 3, amount_cents: -10000 }),
+    ];
+    const out = computeTopCategories(actuals, cats, 2);
+    expect(out).toHaveLength(2);
+    // Транспорт (90000) first, then Еда (30000)
+    expect(out[0]).toMatchObject({
+      category_id: 2,
+      category_name: 'Транспорт',
+      sum_cents: 90000,
+      plan_cents: 0,
+      pct_of_plan: null, // plan <= 0 → null
+    });
+    expect(out[1]).toMatchObject({
+      category_id: 1,
+      category_name: 'Еда',
+      sum_cents: 30000,
+      plan_cents: 100000,
+      pct_of_plan: 30, // 30000/100000
+    });
+  });
+
+  it('aggregates multiple actuals in the same category (abs value)', () => {
+    const cats = [mkCategory({ id: 1, name: 'Еда', plan_cents: 100000 })];
+    const actuals = [
+      mkActual({ id: 1, category_id: 1, amount_cents: -20000 }),
+      mkActual({ id: 2, category_id: 1, amount_cents: -25000 }),
+    ];
+    const out = computeTopCategories(actuals, cats, 5);
+    expect(out).toHaveLength(1);
+    expect(out[0].sum_cents).toBe(45000);
+    expect(out[0].pct_of_plan).toBe(45);
+  });
+
+  it('ignores non-expense kinds', () => {
+    const cats = [mkCategory({ id: 1, name: 'Еда', plan_cents: 100000 })];
+    const actuals = [
+      mkActual({ id: 1, category_id: 1, kind: 'income', amount_cents: 99999 }),
+    ];
+    expect(computeTopCategories(actuals, cats, 5)).toEqual([]);
   });
 });
