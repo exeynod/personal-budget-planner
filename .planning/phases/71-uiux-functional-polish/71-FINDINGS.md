@@ -49,9 +49,16 @@ Status: OPEN / FIXED / VERIFIED.
 
 ---
 
-## iOS — V10MainShell (ui.theme toggle)
+## iOS — V10MainShell = Maximal Poster (дефолтная тема; чёрно/кремовый редакторский, serif, таб-бар ГЛАВНАЯ/КОПИЛКА/+/AI/УПР.)
 
-(pending)
+### THEME-REDUCE [DONE+VERIFIED commit e96affa] Оставить 2 темы: Maximal Poster + СТАРЫЙ IOS (owner request)
+- Было 4 опции в пикере: sentinel «СТАРЫЙ IOS» (v06) + Theme enum {maximalPoster, liquidGlass, iosDefault}. Убраны liquidGlass + iosDefault из enum/пикеров(v06+V10)/токенов/тестов. Stale raw `liquid_glass`/`ios_default` → резолв в maximalPoster (Theme.resolve). Оба шелла build green, suite 639/0.
+- **VERIFIED:** пикер тем показывает ровно 2 ряда — MAXIMAL POSTER (✓ выбрана, «Кораллово-кобальтовая палитра, Archivo Black») + СТАРЫЙ IOS («Нативный SwiftUI: Form, TabView, system colors»).
+- Экраны Maximal Poster (Управление «Управление.» нумерованный список, Настройки) — визуально в editorial-стиле, опрятны.
+- **Minor [P3]:** заголовок sheet «ТЕМА» налезает на статус-бар (часы). 
+- **Minor [P3]:** «AI ЛИМИТ РАСХОДОВ $0.00 / $5.00» — в долларах (AI-косты USD; но в рублёвом UI смотрится инконсистентно — уточнить намерение).
+
+NB: ранее принятые за «v06» светлые экраны (Главная/Транзакции с tab-баром Главная/Транзакции/AI/Управление) — это и есть **СТАРЫЙ IOS** (v06 MainShell). Maximal Poster — чёрно-кремовый editorial. Оба ревьюятся отдельно.
 
 ---
 
