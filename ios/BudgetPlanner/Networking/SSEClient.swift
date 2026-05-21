@@ -102,12 +102,26 @@ enum SSEEvent: Decodable {
 
 @MainActor
 enum AIChatAPI {
+    /// Phase 71 (P0 fix): build the SSE chat URL the SAME way `APIClient`
+    /// constructs REST URLs (`baseURL.appendingPathComponent("api/v1\(path)")`).
+    ///
+    /// The previous implementation concatenated `baseURL.absoluteString +
+    /// "api/v1/ai/chat"`. `baseURL` carries NO trailing slash (default
+    /// `URL(string: "http://localhost:8000")`, env `BACKEND_URL=http://host:8000`),
+    /// so the concatenation produced `http://host:8000api/v1/ai/chat` — the `/`
+    /// between port and `api` was missing → the request never reached the
+    /// backend → generic «⚠️ Ошибка». `appendingPathComponent` inserts the path
+    /// separator correctly whether or not `base` ends in a slash, so this is
+    /// safe in both cases (verified by unit test).
+    static func chatURL(base: URL) -> URL {
+        base.appendingPathComponent("api/v1/ai/chat")
+    }
+
     static func stream(message: String) -> AsyncThrowingStream<SSEEvent, Error> {
         AsyncThrowingStream { continuation in
             let task = Task {
                 do {
-                    guard let url = URL(string: APIClient.shared.baseURL.absoluteString + "api/v1/ai/chat")
-                    else { throw APIError.invalidURL }
+                    let url = chatURL(base: APIClient.shared.baseURL)
 
                     var request = URLRequest(url: url)
                     request.httpMethod = "POST"
