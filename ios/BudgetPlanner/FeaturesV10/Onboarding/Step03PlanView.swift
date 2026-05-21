@@ -87,11 +87,13 @@ struct Step03PlanView: View {
                     .kerning(13 * 0.04)
                     .foregroundColor(PosterTokens.Color.paper)
                 Spacer(minLength: 0)
-                Text("\(RubleFormatter.format(cents: current(cat.code))) ₽")
-                    .font(.custom(PosterTokens.Font.jetBrainsMono, size: 13))
-                    .foregroundColor(PosterTokens.Color.paper)
             }
 
+            // P3-B: render the value ONCE via the slider's own rubles+₽ readout
+            // (valueIsCents: true) — matches the corrected PlanView editor. The
+            // former external rubles label above was redundant and sat alongside
+            // the slider's then-raw-kopeck readout (double display). Bound value
+            // stays in cents, so saved plans are unchanged.
             PosterSlider(
                 value: Binding(
                     get: { current(cat.code) },
@@ -99,7 +101,8 @@ struct Step03PlanView: View {
                 ),
                 in: 0...sliderMax,
                 step: DefaultCategories.planStepCents,
-                label: nil
+                label: nil,
+                valueIsCents: true
             )
         }
         .padding(.vertical, 6)
