@@ -122,6 +122,13 @@ final class AiV10ViewModel {
             appendToAi(aiId, " ⚠ Сессия истекла")
         } catch APIError.rateLimited(let retry) {
             appendToAi(aiId, " ⚠ Лимит запросов. Повторите через \(retry ?? 60) сек.")
+        } catch  where error.isProTierRequired {
+            // Phase 71 (UX-71): a 402 PRO_TIER_REQUIRED is a paywall, not a
+            // failure. Replace the empty AI bubble with the clear Pro-tier copy
+            // (no ⚠ glyph — it is not an error). No paywall screen exists yet,
+            // so we surface the fixed message only. Fixed copy, no server
+            // detail interpolation (67-03/67-05 no-leak policy).
+            setAi(aiId, APIError.proTierFacingRu)
         } catch {
             appendToAi(aiId, " ⚠ Ошибка")
         }

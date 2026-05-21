@@ -68,6 +68,45 @@ final class APIErrorMapperTests: XCTestCase {
         XCTAssertFalse(err.userFacingRu.isEmpty)
     }
 
+    // MARK: - Phase 71 (UX-71) — Pro-tier paywall seam
+
+    func test_serverError402_isProTierRequired() {
+        // The SSE chat stream surfaces require_pro as serverError(402, …).
+        XCTAssertTrue(APIError.serverError(402, "").isProTierRequired)
+        XCTAssertTrue(
+            APIError.serverError(402, #"{"error":"PRO_TIER_REQUIRED"}"#).isProTierRequired)
+    }
+
+    func test_serverError_proTierMarker_isProTierRequired_evenWithoutCode402() {
+        // Belt-and-braces: the typed marker classifies even if the code differs.
+        XCTAssertTrue(
+            APIError.serverError(500, "PRO_TIER_REQUIRED").isProTierRequired)
+    }
+
+    func test_genuineServerError_isNotProTierRequired() {
+        XCTAssertFalse(APIError.serverError(500, "boom").isProTierRequired)
+        XCTAssertFalse(APIError.unauthorized.isProTierRequired)
+        XCTAssertFalse(APIError.network(URLError(.timedOut)).isProTierRequired)
+        XCTAssertFalse(APIError.forbidden("x").isProTierRequired)
+    }
+
+    func test_proTier402_mapsToProCopy_notGenericError() {
+        // The whole point: a 402 must reach the Pro-tier state, NOT «Ошибка».
+        let err = APIError.serverError(402, #"{"error":"PRO_TIER_REQUIRED"}"#)
+        XCTAssertTrue(err.isProTierRequired)
+        XCTAssertEqual(APIError.proTierFacingRu, "Чат-ассистент доступен в Pro-тарифе")
+        // And the generic mapper still hides any server detail for this case.
+        XCTAssertEqual(err.userFacingRu, "Что-то пошло не так")
+        XCTAssertFalse(APIError.proTierFacingRu.contains("PRO_TIER_REQUIRED"))
+    }
+
+    func test_proTierSeam_routesThroughErrorExtension() {
+        let err: Error = APIError.serverError(402, "")
+        XCTAssertTrue(err.isProTierRequired)
+        let other: Error = APIError.notFound
+        XCTAssertFalse(other.isProTierRequired)
+    }
+
     // MARK: - Error-extension helper (arbitrary Error → RU)
 
     func test_helper_apiError_routesThroughUserFacingRu() {

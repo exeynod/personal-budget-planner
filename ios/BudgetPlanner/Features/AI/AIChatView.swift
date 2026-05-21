@@ -91,6 +91,13 @@ final class AIChatViewModel {
             errorMessage = APIError.unauthorized.userFacingRu
         } catch APIError.rateLimited(let retry) {
             errorMessage = "Лимит запросов. Повторите через \(retry ?? 60) сек."
+        } catch  where error.isProTierRequired {
+            // Phase 71 (UX-71): a 402 PRO_TIER_REQUIRED is a paywall, not a
+            // failure — show the clear Pro-tier copy instead of «⚠️ Ошибка».
+            // No paywall/upgrade screen exists in the app yet, so we surface
+            // the fixed message only (no deep-link). Fixed copy, no server
+            // detail interpolation (67-03/67-05 no-leak policy).
+            errorMessage = APIError.proTierFacingRu
         } catch {
             #if DEBUG
             print("AIChatView.send error: \(error)")

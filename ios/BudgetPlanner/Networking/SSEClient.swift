@@ -143,6 +143,23 @@ enum AIChatAPI {
                             let retry = http.value(forHTTPHeaderField: "Retry-After").flatMap(Int.init)
                             throw APIError.rateLimited(retryAfter: retry)
                         }
+                        // Phase 71 (UX-71): a 402 on the chat stream is the
+                        // require_pro paywall (body `{"detail":{"error":
+                        // "PRO_TIER_REQUIRED",...}}`). We mirror the REST policy
+                        // (ErrorHandling.default) and surface it as
+                        // `serverError(402, …)` — NO logout, NO rate-limit. The
+                        // view layer branches on `APIError.isProTierRequired` to
+                        // show the Pro-tier state instead of the generic error.
+                        // The 402 detail string is collected ONLY so the typed
+                        // PRO_TIER_REQUIRED marker can be matched; it is never
+                        // rendered (fixed-copy / no-leak policy, 67-03/67-05).
+                        if http.statusCode == 402 {
+                            var detail = ""
+                            for try await line in bytes.lines {
+                                detail += line
+                            }
+                            throw APIError.serverError(402, detail)
+                        }
                         throw APIError.serverError(http.statusCode, "")
                     }
 

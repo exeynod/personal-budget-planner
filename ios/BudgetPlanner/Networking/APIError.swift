@@ -41,6 +41,12 @@ enum APIError: LocalizedError {
         switch self {
         case .unauthorized:
             return "Сессия истекла, войдите снова"
+        // Phase 71 (UX-71): the SSE chat stream surfaces a paywall (402) as
+        // `.serverError(402, …)` — see SSEClient. We deliberately KEEP the
+        // generic fallback here (`serverError` → "Что-то пошло не так") so the
+        // information-leak gate (test_serverError_mapsToGeneric) stays green:
+        // the Pro-tier copy is owned by `proTierFacingRu` and the view layer
+        // branches on `isProTierRequired`, not on `userFacingRu`.
         case .network:
             return "Нет связи с сервером"
         case .notFound:
@@ -56,6 +62,37 @@ enum APIError: LocalizedError {
         case .invalidURL, .invalidResponse, .serverError, .decoding:
             return "Что-то пошло не так"
         }
+    }
+
+    /// Phase 71 (UX-71) — the paywall seam. A `require_pro` gate returns HTTP
+    /// 402 with body `{"detail":{"error":"PRO_TIER_REQUIRED",...}}`. Both the
+    /// REST policy (`ErrorHandling.default`) and the SSE chat stream
+    /// (`SSEClient`) map that to `.serverError(402, …)`. This property lets the
+    /// view layer distinguish a paywall from a genuine server failure WITHOUT
+    /// re-introducing a per-call Bool flag.
+    ///
+    /// Detection is the 402 status code (402 is exclusively the require_pro
+    /// gate in this app) OR the typed `PRO_TIER_REQUIRED` marker in the detail
+    /// — belt-and-braces so a body-less 402 still classifies. The marker is
+    /// matched, never rendered (no-leak policy, 67-03/67-05).
+    var isProTierRequired: Bool {
+        if case .serverError(let code, let detail) = self {
+            return code == 402 || detail.contains("PRO_TIER_REQUIRED")
+        }
+        return false
+    }
+
+    /// Phase 71 (UX-71) — fixed RU copy for the Pro-tier paywall state. Like
+    /// `userFacingRu`, this NEVER interpolates the server `detail` string; it is
+    /// a constant. The view layer shows it only when `isProTierRequired`.
+    static let proTierFacingRu = "Чат-ассистент доступен в Pro-тарифе"
+}
+
+extension Error {
+    /// Phase 71 (UX-71) — route the paywall seam through the `Error` surface
+    /// so view models can branch on any caught error.
+    var isProTierRequired: Bool {
+        (self as? APIError)?.isProTierRequired ?? false
     }
 }
 
