@@ -92,7 +92,9 @@ dev-note: owner выдан Pro (pro_active_until +1y) для проверки AI
 - **P3:** AddSheet MP без явного Доход/Расход тумблера (доход через chip ЗАРПЛАТА — возможно by-design); empty-desc «—» (MP) vs «Без описания» (v06) инконсистентно; «Сервисы» Title Case (leftover); NETFLIX TEST leftover + клиппинг сабтайтлов «просро…»; Шаблон плана пуст (unseeded plan_template_item).
 
 ### Открытые находки (deferred — решения приняты)
-- **ACCESS-1 [P2] DEFER:** Доступ v06 = намеренный placeholder «будет в следующей фазе»; MP реализован. Полная реализация v06-экрана — отдельная фича низкого приоритета (owner-only admin), не дефект полировки.
+- **ACCESS-1 [P2] [FIXED+VERIFIED commit c110e8f]:** реализован нативный v06 «Доступ» (Пользователи + AI Usage), переиспользует `AccessV10ViewModel` + вынесен общий `AccessFormatting` (R6). VERIFIED: owner row ID 123456789/OWNER, AI Usage $0.00/$5.00, оба таба. 669 тестов.
+- **WEB-P3-W1 [P3] [FIXED commit 1474c83]:** web — UI счёта подписки («СМЕНИТЬ СЧЁТ» через AccountPickerSheet + лейбл счёта на строке), PATCH account_id.
+- **WEB-P3-W2 [P3] [FIXED commit 1e7a620]:** web — analytics month-chip управляет Топ-5 (derive из actuals выбранного месяца; backend top-categories только coarse range, потому client-side per-month).
 - **BAL-1 [P2] [FIXED+VERIFIED commit fe02053]:** v06 «Остаток на счёте» теперь = сумма счетов (227 150 ₽, сходится с экраном Счета), переиспользован MP-хелпер `HomeData.computeWalletTotal`. ПЛАН/ФАКТ/В ЗАПАСЕ остались из /actual/balance. (v1.0-онбординг не создаёт starting_balance → старый balance_now был чистым period-net, не соответствовал лейблу.)
 - **WEB-AI-1 [P2] [FIXED commit 77e69ef]:** web AI-чат показывал сырое «HTTP 402» вместо Pro — теперь «Чат-ассистент доступен в Pro-тарифе» (паритет с iOS AI-CHAT-2), no-leak. 742 vitest. Web regression-gate зелёный (build+typecheck+vitest), web Home plan-source/analytics-decode/деньги/AI-URL — OK (бэкенд-фиксы HOME-1/BUG-1/2 web получает бесплатно).
 - **1M-forecast [P3]:** 1M-прогноз = 0₽ при единственном месяце истории (вероятно корректно — недостаточно данных для проекции; 3M показывает реальные числа).
@@ -109,7 +111,12 @@ web (не тронут); pixel-perfect сверка с Maximal Poster рефер
 **P2 (2 fixed + 1 deferred):** BAL-1 wallet total verified (fe02053); WEB-AI-1 web 402 Pro msg (77e69ef); ACCESS-1 v06 Доступ — DEFER (намеренный placeholder).
 **UI/P3:** темы→2 (e96affa); theme-sheet layout (b7c1d84); subscription subtitle clipping (494b9e6); onboarding plan slider readout (a8e3e1d). Leftover dev-данные (Netflix Test, Сервисы) почищены через API.
 **Tests:** backend 786→787 green; iOS 639→663 green; web 738→742 green. Оба iOS-шелла + web отревьюены, визуально вылизаны, ключевой функционал работает. Web build/typecheck/vitest зелёные, бэкенд-фиксы (HOME-1/BUG-1/2) web получает бесплатно.
-**Остаток backlog (низкий приоритет):** ACCESS-1 (v06 Доступ feature); web P3 (subscription account_id UI, analytics month-chip); borderline-P3 (empty-desc «—»/«Без описания» cross-shell, AddSheet MP income-toggle — возможно by-design); pixel-perfect сверка с референсом. Owner = Pro (dev) для AI.
+**17 проблем закрыто всего** (+ACCESS-1, +web P3-W1/W2 в этой итерации). iOS 669 / backend 787 / web 755 green.
+**Остаток (только by-design / субъективное — не трогаю без решения владельца):**
+- empty-desc «—»(MP editorial) vs «Без описания»(v06 native) — per-shell стиль, вероятно by-design (не дефект).
+- AddSheet MP без явного Доход/Расход тумблера — доход через chip (ЗАРПЛАТА в списке chips), рабочий паттерн; явный тумблер = продуктовое решение.
+- pixel-perfect сверка с Maximal Poster референсом — субъективно; оба шелла визуально вылизаны по обходу.
+Owner = Pro (dev) для AI. NB: full pytest сбросит dev-БД+Pro.
 
 ---
 
