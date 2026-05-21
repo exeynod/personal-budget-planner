@@ -66,6 +66,23 @@ NB: ранее принятые за «v06» светлые экраны (Гла
 - **Копилка:** чёрно-жёлтый, НАКОПЛЕНО 48 000 ₽, ОКРУГЛЕНИЕ ВКЛ (10/50/100₽), цели ОТПУСК 23%/ПОДУШКА 7% с прогресс-барами. Опрятно.
 - **Управление / Настройки / План месяца / Транзакции** — editorial-стиль, опрятны, данные корректны.
 
+### AI-CHAT-1 [P0 functional] [FIXED+VERIFIED commit e11990f] AI-чат полностью сломан в приложении — malformed SSE URL
+- **Корень:** `SSEClient.swift:109` строил URL конкатенацией `baseURL.absoluteString + "api/v1/ai/chat"`. `baseURL` без завершающего `/` (`http://192.168.31.117:8000`) → `…8000api/v1/ai/chat` (пропущен слеш) → URLError → запрос НЕ доходил до backend (в api-логе нет `/ai/chat`, есть `/ai/observation` 200 — он через APIClient с корректным `appendingPathComponent`). Чат не работал НИКОГДА в приложении (не из-за тарифа).
+- **Фикс:** `AIChatAPI.chatURL(base:)` через `appendingPathComponent` (как APIClient). +4 unit-теста (no `8000api` mashup, path `/api/v1/ai/chat`). Suite 649/0.
+- **VERIFIED:** после фикса free-tier запрос дошёл до backend → 402.
+
+### AI-CHAT-2 [P1 UX] [FIXED+VERIFIED commits 4992fbb + e0d0207] 402 PRO_TIER_REQUIRED → generic «Ошибка» вместо понятного Pro
+- AI-чат — Pro-фича; free-tier `/ai/chat` → 402. Приложение показывало «⚠️ Ошибка». Фикс: `APIError.isProTierRequired` (code==402) → оба VM (v06 AIChatViewModel + V10 AiV10ViewModel) показывают фикс-копию «Чат-ассистент доступен в Pro-тарифе» (no-leak, без серверного detail). Промежуточный баг: дренаж тела 402 в SSE бросал другую ошибку — убран (e0d0207).
+- **VERIFIED на симуляторе:** free-tier → бабл «Чат-ассистент доступен в Pro-тарифе» (не «Ошибка»). С Pro (выдан owner в dev-БД, 1 год) `/ai/chat` стримит реальный ответ (tool get_category_summary + токены) — подтверждено через API.
+
+### CategoryDetail [TOUR-OK] (Maximal Poster drill-down)
+- ЗДОРОВЬЕ · 07: «на 83% плана · 4 140 ₽ из 5 000», прогресс-бар, ОСТАТОК→ПРОЧЕЕ, действия ПОДНЯТЬ ЛИМИТ/ПАУЗА, операции по категории (Стоматолог +2 800, Аптека +1 340). Опрятно, функционально.
+
+### Аналитика [TOUR-OK]: «Месяц.», ПОТРАЧЕНО 28 250, СЭКОНОМЛЕНО +58 750 от плана (корректно), day-chart + КАТ. bar-chart, ТОП КАТЕГОРИИ. Опрятно.
+### AI home [TOUR-OK]: «За неделю экономия 48 000 ₽» (observation 200) + промпты-подсказки.
+
+dev-note: owner выдан Pro (pro_active_until +1y) для проверки AI; разумно для персонального приложения владельца. NB: full pytest сбросит это вместе с dev-БД → при пересеве заново выдать Pro если нужен AI.
+
 ### Остаток тура (для продолжения)
 СТАРЫЙ IOS шелл (глубже: Счета/Категории/Аналитика/AI-chat/CategoryDetail/GoalDetail), Maximal Poster: Счета/Аналитика/Категории/Доступ/AI-chat/CategoryDetail-drilldown/GoalDetail; web; уборка leftover-данных (NETFLIX TEST, «Сервисы»); pixel-perfect сверка с референсом.
 
