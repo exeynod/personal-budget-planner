@@ -25,9 +25,15 @@ struct ThemePickerSheet: View {
     private let themes: [Theme] = Theme.allCases
 
     var body: some View {
-        // Phase 56 (v06 Native Rebuild — Foundation): обёртка в ScrollView, чтобы
-        // опция СТАРЫЙ IOS не отсекалась таб-баром на компактных экранах. Sheet
-        // всё равно фиксированной высоты, но контент скроллится.
+        // Phase 71 (P3 layout fix): compact bottom-sheet — НЕ full-screen. Раньше
+        // обёртка ScrollView была вертикально-жадной и растягивалась на весь экран
+        // (eyebrow «ТЕМА» уезжал под статус-бар и перекрывал часы). С 2 строками
+        // (Maximal Poster + sentinel СТАРЫЙ IOS) контент короткий и должен лежать
+        // у нижней кромки, как у соседних posterSheet (HomeColorPickerSheet /
+        // DepositSheet): plain VStack + .padding(.horizontal s22) / .padding(.vertical s28).
+        // ScrollView сохранён как fallback, но ограничен .frame(maxHeight:) под
+        // высоту контента — он скроллит только если экран совсем компактный,
+        // и больше никогда не заполняет весь экран.
         ScrollView {
             VStack(alignment: .leading, spacing: PosterTokens.Space.s18) {
                 Eyebrow("ТЕМА", opacity: 0.6, color: PosterTokens.Color.ink)
@@ -113,7 +119,13 @@ struct ThemePickerSheet: View {
             }
             .padding(.horizontal, PosterTokens.Space.s22)
             .padding(.vertical, PosterTokens.Space.s28)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
+        // Bound the ScrollView so it hugs its content instead of filling the
+        // screen. fixedSize collapses the scroll view to its intrinsic height;
+        // maxHeight caps it on compact devices, where scrolling kicks in.
+        .fixedSize(horizontal: false, vertical: true)
+        .frame(maxHeight: 360)
     }
 
     private var legacyV06Value: String { "v06" }
