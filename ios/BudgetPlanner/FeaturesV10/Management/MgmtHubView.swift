@@ -41,12 +41,12 @@ struct MgmtHubView: View {
     }
 
     private let rows: [Row] = [
-        Row(id: .plan,          n: "01", name: "PLAN МЕСЯЦА", ownerOnly: false),
-        Row(id: .accounts,      n: "02", name: "СЧЕТА",        ownerOnly: false),
-        Row(id: .analytics,     n: "03", name: "АНАЛИТИКА",    ownerOnly: false),
-        Row(id: .subscriptions, n: "04", name: "ПОДПИСКИ",     ownerOnly: false),
-        Row(id: .settings,      n: "05", name: "НАСТРОЙКИ",    ownerOnly: false),
-        Row(id: .access,        n: "06", name: "ДОСТУП",       ownerOnly: true),
+        Row(id: .plan, n: "01", name: "PLAN МЕСЯЦА", ownerOnly: false),
+        Row(id: .accounts, n: "02", name: "СЧЕТА", ownerOnly: false),
+        Row(id: .analytics, n: "03", name: "АНАЛИТИКА", ownerOnly: false),
+        Row(id: .subscriptions, n: "04", name: "ПОДПИСКИ", ownerOnly: false),
+        Row(id: .settings, n: "05", name: "НАСТРОЙКИ", ownerOnly: false),
+        Row(id: .access, n: "06", name: "ДОСТУП", ownerOnly: true),
     ]
 
     var body: some View {
@@ -63,6 +63,7 @@ struct MgmtHubView: View {
                 .padding(.bottom, 90)
             }
         }
+        .posterDarkStatusBar()  // P3-STATUSBAR: light status-bar content on black
         .task { await model.load() }
     }
 

@@ -34,6 +34,7 @@ struct AccountDetailV10View: View {
             ThemedBackground(maximal: PosterTokens.Color.black).ignoresSafeArea()
             content
         }
+        .posterDarkStatusBar()  // P3-STATUSBAR: light status-bar content on black
         .task { await model.load() }
     }
 

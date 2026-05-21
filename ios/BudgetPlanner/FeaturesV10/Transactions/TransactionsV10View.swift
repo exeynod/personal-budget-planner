@@ -40,6 +40,7 @@ struct TransactionsV10View: View {
                 deleteErrorBanner(msg)
             }
         }
+        .posterDarkStatusBar()  // P3-STATUSBAR: light status-bar content on cobalt
         .task { await model.load() }
         .posterSheet(
             isPresented: Binding(

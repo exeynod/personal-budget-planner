@@ -43,6 +43,7 @@ struct HomeV10View: View {
             ThemedBackground(maximal: resolvedHomeColor).ignoresSafeArea()
             content
         }
+        .posterDarkStatusBar()  // P3-STATUSBAR: light status-bar content on dark home
         .task { await model.load() }
     }
 

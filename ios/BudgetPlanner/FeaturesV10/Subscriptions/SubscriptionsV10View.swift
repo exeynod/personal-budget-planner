@@ -44,6 +44,7 @@ struct SubscriptionsV10View: View {
             Toast(message: model.toastMessage ?? "", visible: $toastVisible)
                 .padding(.top, 16)
         }
+        .posterDarkStatusBar()  // P3-STATUSBAR: light status-bar content on coral
         .task { await model.load() }
         .onChange(of: model.toastMessage) { _, msg in
             if msg != nil {

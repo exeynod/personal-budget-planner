@@ -43,6 +43,7 @@ struct CategoryDetailView: View {
             ThemedBackground(maximal: backgroundColor).ignoresSafeArea()
             content
         }
+        .posterDarkStatusBar()  // P3-STATUSBAR: light status-bar content on cobalt/red
         .task { await model.load() }
     }
 
