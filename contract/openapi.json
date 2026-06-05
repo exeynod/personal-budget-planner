@@ -2960,6 +2960,18 @@
         "additionalProperties": false,
         "description": "POST /subscriptions request body.\n\nWR-10 (Phase 22 review): ``extra=\"forbid\"`` aligns this legacy schema\nwith the new v1.0 schemas (T-22-12-02 — extra-key state injection).\nService-layer code never splatted unknown keys into ORM kwargs, but\nenforcing forbid at the wire boundary makes the contract explicit.",
         "properties": {
+          "account_id": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Account Id"
+          },
           "amount_cents": {
             "exclusiveMinimum": 0.0,
             "title": "Amount Cents",
@@ -2971,6 +2983,19 @@
           },
           "cycle": {
             "$ref": "#/components/schemas/SubCycle"
+          },
+          "day_of_month": {
+            "anyOf": [
+              {
+                "maximum": 28.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Day Of Month"
           },
           "is_active": {
             "default": true,
@@ -3156,8 +3181,20 @@
       },
       "SubscriptionUpdate": {
         "additionalProperties": false,
-        "description": "PATCH /subscriptions/{id} request body — all fields optional.\n\nWR-10 (Phase 22 review): ``extra=\"forbid\"`` — see SubscriptionCreate.",
+        "description": "PATCH /subscriptions/{id} request body — all fields optional.\n\nWR-10 (Phase 22 review): ``extra=\"forbid\"`` — see SubscriptionCreate.\n\nv1.0 (BUG-2, phase 71): ``day_of_month`` / ``account_id`` are now writable\non the WRITE path. Previously the route was wired to this legacy schema with\n``extra=\"forbid\"``, so v1.0 PATCH bodies carrying these fields were rejected\nwith 422 even though ``SubscriptionReadV10`` exposes them on read.",
         "properties": {
+          "account_id": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Account Id"
+          },
           "amount_cents": {
             "anyOf": [
               {
@@ -3190,6 +3227,19 @@
                 "type": "null"
               }
             ]
+          },
+          "day_of_month": {
+            "anyOf": [
+              {
+                "maximum": 28.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Day Of Month"
           },
           "is_active": {
             "anyOf": [
@@ -9714,7 +9764,7 @@
         ]
       },
       "post": {
-        "description": "POST /api/v1/subscriptions — create a new subscription.\n\nStatus codes:\n    200: created\n    400: category_id refers to archived or missing category\n    422: Pydantic validation error",
+        "description": "POST /api/v1/subscriptions — create a new subscription.\n\nBUG-2 (phase 71): accepts optional ``day_of_month`` (1..28) and\n``account_id`` so create-with-account works in one call. A cross-tenant or\nmissing ``account_id`` → 404 (mirrors actuals create_actual_v10 dispatch).\n\nStatus codes:\n    200: created\n    400: category_id refers to archived or missing category\n    404: account_id refers to cross-tenant / missing account\n    422: Pydantic validation error",
         "operationId": "create_sub_api_v1_subscriptions_post",
         "parameters": [
           {
@@ -9890,7 +9940,7 @@
         ]
       },
       "patch": {
-        "description": "PATCH /api/v1/subscriptions/{id} — partial update.\n\nStatus codes:\n    200: updated\n    404: subscription not found\n    422: Pydantic validation error",
+        "description": "PATCH /api/v1/subscriptions/{id} — partial update.\n\nBUG-2 (phase 71): now accepts the v1.0 fields ``day_of_month`` (1..28) and\n``account_id`` on the write path. A cross-tenant / missing ``account_id``\n(when explicitly supplied non-null) → 404, mirroring actuals.\n\nStatus codes:\n    200: updated\n    404: subscription not found OR account_id cross-tenant / missing\n    422: Pydantic validation error",
         "operationId": "patch_sub_api_v1_subscriptions__sub_id__patch",
         "parameters": [
           {

@@ -1601,9 +1601,14 @@ export interface paths {
          * Create Sub
          * @description POST /api/v1/subscriptions — create a new subscription.
          *
+         *     BUG-2 (phase 71): accepts optional ``day_of_month`` (1..28) and
+         *     ``account_id`` so create-with-account works in one call. A cross-tenant or
+         *     missing ``account_id`` → 404 (mirrors actuals create_actual_v10 dispatch).
+         *
          *     Status codes:
          *         200: created
          *         400: category_id refers to archived or missing category
+         *         404: account_id refers to cross-tenant / missing account
          *         422: Pydantic validation error
          */
         post: operations["create_sub_api_v1_subscriptions_post"];
@@ -1640,9 +1645,13 @@ export interface paths {
          * Patch Sub
          * @description PATCH /api/v1/subscriptions/{id} — partial update.
          *
+         *     BUG-2 (phase 71): now accepts the v1.0 fields ``day_of_month`` (1..28) and
+         *     ``account_id`` on the write path. A cross-tenant / missing ``account_id``
+         *     (when explicitly supplied non-null) → 404, mirroring actuals.
+         *
          *     Status codes:
          *         200: updated
-         *         404: subscription not found
+         *         404: subscription not found OR account_id cross-tenant / missing
          *         422: Pydantic validation error
          */
         patch: operations["patch_sub_api_v1_subscriptions__sub_id__patch"];
@@ -3272,11 +3281,15 @@ export interface components {
          *     enforcing forbid at the wire boundary makes the contract explicit.
          */
         SubscriptionCreate: {
+            /** Account Id */
+            account_id?: number | null;
             /** Amount Cents */
             amount_cents: number;
             /** Category Id */
             category_id: number;
             cycle: components["schemas"]["SubCycle"];
+            /** Day Of Month */
+            day_of_month?: number | null;
             /**
              * Is Active
              * @default true
@@ -3371,13 +3384,22 @@ export interface components {
          * @description PATCH /subscriptions/{id} request body — all fields optional.
          *
          *     WR-10 (Phase 22 review): ``extra="forbid"`` — see SubscriptionCreate.
+         *
+         *     v1.0 (BUG-2, phase 71): ``day_of_month`` / ``account_id`` are now writable
+         *     on the WRITE path. Previously the route was wired to this legacy schema with
+         *     ``extra="forbid"``, so v1.0 PATCH bodies carrying these fields were rejected
+         *     with 422 even though ``SubscriptionReadV10`` exposes them on read.
          */
         SubscriptionUpdate: {
+            /** Account Id */
+            account_id?: number | null;
             /** Amount Cents */
             amount_cents?: number | null;
             /** Category Id */
             category_id?: number | null;
             cycle?: components["schemas"]["SubCycle"] | null;
+            /** Day Of Month */
+            day_of_month?: number | null;
             /** Is Active */
             is_active?: boolean | null;
             /** Name */

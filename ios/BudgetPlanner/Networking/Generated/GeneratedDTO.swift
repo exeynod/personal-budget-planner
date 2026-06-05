@@ -695,9 +695,11 @@ enum Gen {
     }
 
     struct SubscriptionCreate: Codable, Equatable {
+        let accountId: Int?
         let amountCents: Int
         let categoryId: Int
         let cycle: Gen.SubCycle
+        let dayOfMonth: Int?
         let isActive: Bool?
         let name: String
         let nextChargeDate: BusinessDate
@@ -733,9 +735,11 @@ enum Gen {
     }
 
     struct SubscriptionUpdate: Codable, Equatable {
+        let accountId: Int?
         let amountCents: Int?
         let categoryId: Int?
         let cycle: Gen.SubCycle?
+        let dayOfMonth: Int?
         let isActive: Bool?
         let name: String?
         let nextChargeDate: BusinessDate?
