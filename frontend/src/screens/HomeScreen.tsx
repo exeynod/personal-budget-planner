@@ -1,19 +1,19 @@
-import { useEffect, useMemo, useState } from 'react';
-import { applyTemplate } from '../api/planned';
-import type { CategoryKind } from '../api/types';
-import { AuroraBg } from '../components/AuroraBg';
-import { DashboardCategoryRow } from '../components/DashboardCategoryRow';
-import { HeroCard } from '../components/HeroCard';
-import { MainButton } from '../components/MainButton';
-import { PeriodSwitcher } from '../components/PeriodSwitcher';
-import { SubTabBar } from '../components/SubTabBar';
-import { useCategories } from '../hooks/useCategories';
-import { useCurrentPeriod } from '../hooks/useCurrentPeriod';
-import { useDashboard } from '../hooks/useDashboard';
-import { usePeriods } from '../hooks/usePeriods';
-import styles from './HomeScreen.module.css';
+import { useEffect, useMemo, useState } from "react";
+import { applyTemplate } from "../api/planned";
+import type { CategoryKind } from "../api/types";
+import { AuroraBg } from "../components/AuroraBg";
+import { DashboardCategoryRow } from "../components/DashboardCategoryRow";
+import { HeroCard } from "../components/HeroCard";
+import { MainButton } from "../components/MainButton";
+import { PeriodSwitcher } from "../components/PeriodSwitcher";
+import { SubTabBar } from "../components/SubTabBar";
+import { useCategories } from "../hooks/useCategories";
+import { useCurrentPeriod } from "../hooks/useCurrentPeriod";
+import { useDashboard } from "../hooks/useDashboard";
+import { usePeriods } from "../hooks/usePeriods";
+import styles from "./HomeScreen.module.css";
 
-type SubScreen = 'categories' | 'template' | 'planned' | 'settings';
+type SubScreen = "categories" | "template" | "planned" | "settings";
 
 export interface HomeScreenProps {
   onNavigateToSub: (screen: SubScreen) => void;
@@ -24,17 +24,21 @@ export interface HomeScreenProps {
 }
 
 const KIND_TABS: { id: CategoryKind; label: string }[] = [
-  { id: 'expense', label: 'Расходы' },
-  { id: 'income', label: 'Доходы' },
+  { id: "expense", label: "Расходы" },
+  { id: "income", label: "Доходы" },
 ];
 
-export function HomeScreen({ onNavigateToSub, onNavigateToHistory, txMutationKey }: HomeScreenProps) {
+export function HomeScreen({
+  onNavigateToSub,
+  onNavigateToHistory,
+  txMutationKey,
+}: HomeScreenProps) {
   const { period: currentPeriod, loading: curLoading } = useCurrentPeriod();
   const { periods } = usePeriods();
   const { categories } = useCategories(false);
 
   const [selectedPeriodId, setSelectedPeriodId] = useState<number | null>(null);
-  const [activeKind, setActiveKind] = useState<CategoryKind>('expense');
+  const [activeKind, setActiveKind] = useState<CategoryKind>("expense");
   const [toast, setToast] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [mutationError, setMutationError] = useState<string | null>(null);
@@ -51,11 +55,11 @@ export function HomeScreen({ onNavigateToSub, onNavigateToHistory, txMutationKey
   const isActiveCurrent =
     selectedPeriod !== null &&
     selectedPeriod !== undefined &&
-    selectedPeriod.status === 'active' &&
+    selectedPeriod.status === "active" &&
     currentPeriod !== null &&
     selectedPeriod.id === currentPeriod.id;
 
-  const isClosed = selectedPeriod?.status === 'closed';
+  const isClosed = selectedPeriod?.status === "closed";
 
   const {
     balance,
@@ -68,7 +72,7 @@ export function HomeScreen({ onNavigateToSub, onNavigateToHistory, txMutationKey
   useEffect(() => {
     if (txMutationKey === undefined || txMutationKey === 0) return;
     void refetchDashboard();
-    setToast('Транзакция добавлена');
+    setToast("Транзакция добавлена");
     const t = window.setTimeout(() => setToast(null), 2200);
     return () => window.clearTimeout(t);
   }, [txMutationKey, refetchDashboard]);
@@ -80,12 +84,12 @@ export function HomeScreen({ onNavigateToSub, onNavigateToHistory, txMutationKey
 
   const isEmpty =
     balance !== null &&
-    balance.by_category.filter((r) => r.planned_cents > 0).length === 0;
+    (balance.by_category ?? []).filter((r) => r.planned_cents > 0).length === 0;
 
   const visibleRows = useMemo(() => {
     if (!balance) return [];
     const rowsByCatId = new Map(
-      balance.by_category
+      (balance.by_category ?? [])
         .filter((r) => r.kind === activeKind)
         .map((r) => [r.category_id, r]),
     );
@@ -94,8 +98,9 @@ export function HomeScreen({ onNavigateToSub, onNavigateToHistory, txMutationKey
       .map((c) => rowsByCatId.get(c.id)!)
       .filter((r) => r !== undefined);
     const knownIds = new Set(sorted.map((r) => r.category_id));
-    const orphans = balance.by_category
-      .filter((r) => r.kind === activeKind && !knownIds.has(r.category_id));
+    const orphans = (balance.by_category ?? []).filter(
+      (r) => r.kind === activeKind && !knownIds.has(r.category_id),
+    );
     return [...sorted, ...orphans];
   }, [balance, categories, activeKind]);
 
@@ -106,11 +111,11 @@ export function HomeScreen({ onNavigateToSub, onNavigateToHistory, txMutationKey
     try {
       const result = await applyTemplate(currentPeriod.id);
       if (result.created === 0 && result.planned.length === 0) {
-        showToast('Шаблон пуст — нечего применять');
+        showToast("Шаблон пуст — нечего применять");
       } else if (result.created === 0) {
-        showToast('Шаблон уже применён');
+        showToast("Шаблон уже применён");
       } else {
-        showToast('Шаблон применён');
+        showToast("Шаблон применён");
       }
       await refetchDashboard();
     } catch (e) {
@@ -120,7 +125,7 @@ export function HomeScreen({ onNavigateToSub, onNavigateToHistory, txMutationKey
     }
   };
 
-  const handleAddManual = () => onNavigateToSub('planned');
+  const handleAddManual = () => onNavigateToSub("planned");
 
   if (curLoading) {
     return (
@@ -176,7 +181,9 @@ export function HomeScreen({ onNavigateToSub, onNavigateToHistory, txMutationKey
             Не удалось загрузить данные. Попробуй ещё раз.
           </div>
         )}
-        {mutationError && <div className={styles.error}>Ошибка: {mutationError}</div>}
+        {mutationError && (
+          <div className={styles.error}>Ошибка: {mutationError}</div>
+        )}
 
         {!balLoading && balance && isEmpty && (
           <div className={styles.emptyState}>
@@ -190,7 +197,7 @@ export function HomeScreen({ onNavigateToSub, onNavigateToHistory, txMutationKey
               disabled={busy || !isActiveCurrent}
               className={styles.ctaPrimary}
             >
-              {busy ? '…' : 'Применить шаблон'}
+              {busy ? "…" : "Применить шаблон"}
             </button>
             <button
               type="button"
@@ -215,7 +222,8 @@ export function HomeScreen({ onNavigateToSub, onNavigateToHistory, txMutationKey
             ))}
             {visibleRows.length === 0 && (
               <div className={styles.muted}>
-                В этом периоде нет {activeKind === 'expense' ? 'расходов' : 'доходов'}.
+                В этом периоде нет{" "}
+                {activeKind === "expense" ? "расходов" : "доходов"}.
               </div>
             )}
           </div>
