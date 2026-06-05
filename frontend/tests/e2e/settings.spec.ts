@@ -1,6 +1,14 @@
 import { test, expect } from '@playwright/test';
 
 async function mockApi(page: import('@playwright/test').Page) {
+  await page.addInitScript(() => {
+    try {
+      window.localStorage.setItem("ui.shell", "v06");
+      window.localStorage.setItem("cookie_consent_v1", "acknowledged");
+    } catch {
+      /* localStorage unavailable — best effort */
+    }
+  });
   await page.route('**/api/v1/**', (route) => {
     const url = route.request().url();
 

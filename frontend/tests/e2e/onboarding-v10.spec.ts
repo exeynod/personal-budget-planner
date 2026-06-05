@@ -9,13 +9,17 @@
 //   5. 422 validation keeps draft + shows error toast
 //
 // All tests run on Chromium-mobile (Pixel 5 — see playwright.config.ts).
-// Other API endpoints (/accounts, /categories, etc) are unmocked because
-// the onboarding gate never calls them — only /me + /onboarding/complete.
+// The onboarding gate itself only calls /me + /onboarding/complete, but the
+// success-path tests continue past the gate into the REAL <HomeMount/> (the
+// onboarded branch), which fetches /accounts, /categories and the current
+// period — those are mocked via mockHomeDataEmpty so the home renders a clean
+// ready state instead of an error plate (no backend in CI).
 
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Page } from "@playwright/test";
 import {
   mockMe,
   mockMeNotOnboarded,
+  mockHomeDataEmpty,
   mockOnboardingComplete200,
   mockOnboardingComplete409,
   mockOnboardingComplete422,
@@ -23,7 +27,7 @@ import {
   ME_ONBOARDED,
   STEP05_DRAFT,
   STORAGE_KEY,
-} from './fixtures/onboarding-mocks';
+} from "./fixtures/onboarding-mocks";
 
 /**
  * Wipe the draft localStorage key once at the start of a test, NOT on every
@@ -38,9 +42,9 @@ import {
 async function clearDraft(page: Page) {
   await page.addInitScript((key) => {
     try {
-      const FLAG = '__draft_cleared_once__';
-      if (window.sessionStorage.getItem(FLAG) === '1') return;
-      window.sessionStorage.setItem(FLAG, '1');
+      const FLAG = "__draft_cleared_once__";
+      if (window.sessionStorage.getItem(FLAG) === "1") return;
+      window.sessionStorage.setItem(FLAG, "1");
       window.localStorage.removeItem(key);
     } catch {
       /* noop */
@@ -57,9 +61,9 @@ async function seedDraft(page: Page, draft: object) {
   await page.addInitScript(
     ({ key, payload }) => {
       try {
-        const FLAG = '__draft_seeded_once__';
-        if (window.sessionStorage.getItem(FLAG) === '1') return;
-        window.sessionStorage.setItem(FLAG, '1');
+        const FLAG = "__draft_seeded_once__";
+        if (window.sessionStorage.getItem(FLAG) === "1") return;
+        window.sessionStorage.setItem(FLAG, "1");
         window.localStorage.setItem(key, JSON.stringify(payload));
       } catch {
         /* noop */
@@ -73,91 +77,97 @@ async function seedDraft(page: Page, draft: object) {
 // 1. First-time user — Step 01 renders
 // ============================================================
 
-test('onboarding: first-time user sees Step 01 income screen', async ({
+test("onboarding: first-time user sees Step 01 income screen", async ({
   page,
 }) => {
   await clearDraft(page);
   await mockMeNotOnboarded(page);
 
-  await page.goto('/');
+  await page.goto("/");
 
   await expect(
-    page.getByText('ШАГ 01 / 04 · ДОХОД', { exact: false }),
+    page.getByText("ШАГ 01 / 04 · ДОХОД", { exact: false }),
   ).toBeVisible({ timeout: 5000 });
-  await expect(
-    page.getByLabel('Доход в месяц, рубли'),
-  ).toBeVisible();
+  await expect(page.getByLabel("Доход в месяц, рубли")).toBeVisible();
 });
 
 // ============================================================
 // 2. Full happy path — 4 steps + Final → 200 → home placeholder
 // ============================================================
 
-test('onboarding: full happy path → 200 → draft cleared → home placeholder', async ({
+test("onboarding: full happy path → 200 → draft cleared → home placeholder", async ({
   page,
 }) => {
   await clearDraft(page);
-  // React 18 StrictMode triggers useEffect twice on mount in dev → 2 /me
-  // calls. Subsequent refetch (after successful submit) is call 3+, which
-  // must return onboarded so the gate flips to HomePlaceholder.
+  // /me must return not-onboarded until onboarding/complete is POSTed, then
+  // the post-submit refetch must return onboarded so the gate flips to
+  // HomePlaceholder. Flip on the actual POST rather than a fixed /me call
+  // count — the mount-time call count varies with React StrictMode double
+  // effects and query dedup, which made the old `flipAfterCall: 2` brittle.
+  let submitted = false;
+  // Catch-all first (lowest priority) so HomeMount renders cleanly post-flip;
+  // /me + /onboarding/complete are registered after → they win for their URLs.
+  await mockHomeDataEmpty(page);
   await mockMe(page, {
     initial: ME_NOT_ONBOARDED,
-    flipAfterCall: 2,
+    flipWhen: () => submitted,
     flipTo: ME_ONBOARDED,
   });
-  await mockOnboardingComplete200(page);
+  await mockOnboardingComplete200(page, () => {
+    submitted = true;
+  });
 
-  await page.goto('/');
+  await page.goto("/");
 
   // Step 01 — fill income, click ДАЛЕЕ →
   await expect(
-    page.getByText('ШАГ 01 / 04 · ДОХОД', { exact: false }),
+    page.getByText("ШАГ 01 / 04 · ДОХОД", { exact: false }),
   ).toBeVisible({ timeout: 5000 });
-  await page.getByLabel('Доход в месяц, рубли').fill('120000');
-  await page.getByRole('button', { name: /^ДАЛЕЕ →$/ }).click();
+  await page.getByLabel("Доход в месяц, рубли").fill("120000");
+  await page.getByRole("button", { name: /^ДАЛЕЕ →$/ }).click();
 
   // Step 02 — Т-Банк chip → balance form → ДОБАВИТЬ → ДАЛЕЕ →
   await expect(
-    page.getByText('ШАГ 02 / 04 · СЧЕТА', { exact: false }),
+    page.getByText("ШАГ 02 / 04 · СЧЕТА", { exact: false }),
   ).toBeVisible({ timeout: 5000 });
-  await page.getByRole('button', { name: 'Т-Банк' }).click();
-  await page.getByLabel('Баланс счёта, рубли').fill('50000');
-  await page.getByRole('button', { name: /^ДОБАВИТЬ$/ }).click();
+  await page.getByRole("button", { name: "Т-Банк" }).click();
+  await page.getByLabel("Баланс счёта, рубли").fill("50000");
+  await page.getByRole("button", { name: /^ДОБАВИТЬ$/ }).click();
   // Wait until the row appears in the list before advancing — exact match
   // on uppercase row name to avoid colliding with the «Т-Банк» chip
   // (Playwright text matchers are case-insensitive by default).
-  await expect(page.getByText('Т-БАНК', { exact: true })).toBeVisible();
-  await page.getByRole('button', { name: /^ДАЛЕЕ →$/ }).click();
+  await expect(page.getByText("Т-БАНК", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: /^ДАЛЕЕ →$/ }).click();
 
   // Step 03 — default allocation already valid (Σshares = 0.83 < income).
   // Just hit ДАЛЕЕ →. Wait for chrome label first to assert we got here.
   await expect(
-    page.getByText('ШАГ 03 / 04 · ПЛАН', { exact: false }),
+    page.getByText("ШАГ 03 / 04 · ПЛАН", { exact: false }),
   ).toBeVisible({ timeout: 5000 });
   // NEXT enabled because reducer auto-allocates default plan with Σ < income.
-  await page.getByRole('button', { name: /^ДАЛЕЕ →$/ }).click();
+  await page.getByRole("button", { name: /^ДАЛЕЕ →$/ }).click();
 
   // Step 04 — click ПРОПУСТИТЬ to skip the goal.
   await expect(
-    page.getByText('ШАГ 04 / 04 · ЦЕЛЬ', { exact: false }),
+    page.getByText("ШАГ 04 / 04 · ЦЕЛЬ", { exact: false }),
   ).toBeVisible({ timeout: 5000 });
-  await page.getByRole('button', { name: 'Пропустить' }).click();
+  await page.getByRole("button", { name: "Пропустить" }).click();
 
   // Final — assert hero copy + click НАЧАТЬ →
-  await expect(page.getByText('ВСЁ.', { exact: false })).toBeVisible({
+  await expect(page.getByText("ВСЁ.", { exact: false })).toBeVisible({
     timeout: 5000,
   });
   await expect(
-    page.getByText('деньги — под контролем.', { exact: false }),
+    page.getByText("деньги — под контролем.", { exact: false }),
   ).toBeVisible();
 
   // Click submit and wait for the response.
   const responsePromise = page.waitForResponse(
     (resp) =>
-      resp.url().includes('/api/v1/onboarding/complete') &&
-      resp.request().method() === 'POST',
+      resp.url().includes("/api/v1/onboarding/complete") &&
+      resp.request().method() === "POST",
   );
-  await page.getByRole('button', { name: /^НАЧАТЬ →$/ }).click();
+  await page.getByRole("button", { name: /^НАЧАТЬ →$/ }).click();
   const submitResponse = await responsePromise;
   expect(submitResponse.status()).toBe(200);
 
@@ -171,7 +181,7 @@ test('onboarding: full happy path → 200 → draft cleared → home placeholder
     .toBeNull();
 
   // Home placeholder rendered after refetch flips /me to onboarded.
-  await expect(page.getByTestId('home-placeholder')).toBeVisible({
+  await expect(page.getByTestId("home-plan-plate")).toBeVisible({
     timeout: 5000,
   });
 });
@@ -180,31 +190,31 @@ test('onboarding: full happy path → 200 → draft cleared → home placeholder
 // 3. Draft persistence across mid-flight reload
 // ============================================================
 
-test('onboarding: draft persists across reload mid-flight', async ({
+test("onboarding: draft persists across reload mid-flight", async ({
   page,
 }) => {
   await clearDraft(page);
   await mockMeNotOnboarded(page);
 
-  await page.goto('/');
+  await page.goto("/");
 
   // Step 01
-  await page.getByLabel('Доход в месяц, рубли').fill('80000');
-  await page.getByRole('button', { name: /^ДАЛЕЕ →$/ }).click();
+  await page.getByLabel("Доход в месяц, рубли").fill("80000");
+  await page.getByRole("button", { name: /^ДАЛЕЕ →$/ }).click();
 
   // Step 02 — add an account.
   await expect(
-    page.getByText('ШАГ 02 / 04 · СЧЕТА', { exact: false }),
+    page.getByText("ШАГ 02 / 04 · СЧЕТА", { exact: false }),
   ).toBeVisible({ timeout: 5000 });
-  await page.getByRole('button', { name: 'Т-Банк' }).click();
-  await page.getByLabel('Баланс счёта, рубли').fill('40000');
-  await page.getByRole('button', { name: /^ДОБАВИТЬ$/ }).click();
-  await expect(page.getByText('Т-БАНК', { exact: true })).toBeVisible();
-  await page.getByRole('button', { name: /^ДАЛЕЕ →$/ }).click();
+  await page.getByRole("button", { name: "Т-Банк" }).click();
+  await page.getByLabel("Баланс счёта, рубли").fill("40000");
+  await page.getByRole("button", { name: /^ДОБАВИТЬ$/ }).click();
+  await expect(page.getByText("Т-БАНК", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: /^ДАЛЕЕ →$/ }).click();
 
   // Step 03 reached.
   await expect(
-    page.getByText('ШАГ 03 / 04 · ПЛАН', { exact: false }),
+    page.getByText("ШАГ 03 / 04 · ПЛАН", { exact: false }),
   ).toBeVisible({ timeout: 5000 });
 
   // Verify draft saved to localStorage with step >= 3.
@@ -222,7 +232,7 @@ test('onboarding: draft persists across reload mid-flight', async ({
   await page.reload();
 
   await expect(
-    page.getByText('ШАГ 03 / 04 · ПЛАН', { exact: false }),
+    page.getByText("ШАГ 03 / 04 · ПЛАН", { exact: false }),
   ).toBeVisible({ timeout: 5000 });
 
   // Draft still present.
@@ -237,41 +247,48 @@ test('onboarding: draft persists across reload mid-flight', async ({
 // 4. 409 conflict — wipes draft, lands on home placeholder
 // ============================================================
 
-test('onboarding: 409 wipes draft + transitions to home placeholder', async ({
+test("onboarding: 409 wipes draft + transitions to home placeholder", async ({
   page,
 }) => {
   // Pre-seed a finished draft so Final renders directly.
   await seedDraft(page, STEP05_DRAFT);
-  // First 2 /me calls (StrictMode double-effect on mount) return
-  // not-onboarded → Final renders. Call 3+ (post-409 refetch) returns
-  // onboarded so the gate flips to HomePlaceholder.
+  // /me returns not-onboarded → Final renders. After the 409 POST (already
+  // onboarded), the refetch returns onboarded so the gate flips to
+  // HomePlaceholder. Flip on the actual POST rather than a fixed /me call
+  // count (StrictMode/query-dedup made the old `flipAfterCall: 2` brittle).
+  let submitted = false;
+  // Catch-all first (lowest priority) so HomeMount renders cleanly post-flip;
+  // /me + /onboarding/complete are registered after → they win for their URLs.
+  await mockHomeDataEmpty(page);
   await mockMe(page, {
     initial: ME_NOT_ONBOARDED,
-    flipAfterCall: 2,
+    flipWhen: () => submitted,
     flipTo: ME_ONBOARDED,
   });
-  await mockOnboardingComplete409(page);
+  await mockOnboardingComplete409(page, () => {
+    submitted = true;
+  });
 
-  await page.goto('/');
+  await page.goto("/");
 
   // Final view should render directly (step=5 in seeded draft).
-  await expect(page.getByText('ВСЁ.', { exact: false })).toBeVisible({
+  await expect(page.getByText("ВСЁ.", { exact: false })).toBeVisible({
     timeout: 5000,
   });
 
   // Click submit — server returns 409.
   const responsePromise = page.waitForResponse(
     (resp) =>
-      resp.url().includes('/api/v1/onboarding/complete') &&
-      resp.request().method() === 'POST',
+      resp.url().includes("/api/v1/onboarding/complete") &&
+      resp.request().method() === "POST",
   );
-  await page.getByRole('button', { name: /^НАЧАТЬ →$/ }).click();
+  await page.getByRole("button", { name: /^НАЧАТЬ →$/ }).click();
   const submitResponse = await responsePromise;
   expect(submitResponse.status()).toBe(409);
 
   // Toast: «вы уже завершили онбординг»
   await expect(
-    page.getByRole('status').filter({ hasText: /уже завершили онбординг/i }),
+    page.getByRole("status").filter({ hasText: /уже завершили онбординг/i }),
   ).toBeVisible({ timeout: 3000 });
 
   // Draft cleared on 409 path (Final.onStart → draft.clear() before
@@ -286,7 +303,7 @@ test('onboarding: 409 wipes draft + transitions to home placeholder', async ({
 
   // After 1500ms onComplete(null) fires → mount refetches /me → onboarded
   // → home placeholder renders.
-  await expect(page.getByTestId('home-placeholder')).toBeVisible({
+  await expect(page.getByTestId("home-plan-plate")).toBeVisible({
     timeout: 6000,
   });
 });
@@ -295,31 +312,31 @@ test('onboarding: 409 wipes draft + transitions to home placeholder', async ({
 // 5. 422 validation — keeps draft + shows error
 // ============================================================
 
-test('onboarding: 422 keeps draft + shows error toast', async ({ page }) => {
+test("onboarding: 422 keeps draft + shows error toast", async ({ page }) => {
   await seedDraft(page, STEP05_DRAFT);
   await mockMeNotOnboarded(page);
   await mockOnboardingComplete422(page);
 
-  await page.goto('/');
+  await page.goto("/");
 
   // Final renders directly.
-  await expect(page.getByText('ВСЁ.', { exact: false })).toBeVisible({
+  await expect(page.getByText("ВСЁ.", { exact: false })).toBeVisible({
     timeout: 5000,
   });
 
   const responsePromise = page.waitForResponse(
     (resp) =>
-      resp.url().includes('/api/v1/onboarding/complete') &&
-      resp.request().method() === 'POST',
+      resp.url().includes("/api/v1/onboarding/complete") &&
+      resp.request().method() === "POST",
   );
-  await page.getByRole('button', { name: /^НАЧАТЬ →$/ }).click();
+  await page.getByRole("button", { name: /^НАЧАТЬ →$/ }).click();
   const submitResponse = await responsePromise;
   expect(submitResponse.status()).toBe(422);
 
   // Error toast — Final shows fixed russian copy: «Проверьте план: сумма
   // не может превышать доход»
   await expect(
-    page.getByRole('status').filter({ hasText: /Проверьте план/i }),
+    page.getByRole("status").filter({ hasText: /Проверьте план/i }),
   ).toBeVisible({ timeout: 3000 });
 
   // Draft NOT cleared on 422.
@@ -330,5 +347,5 @@ test('onboarding: 422 keeps draft + shows error toast', async ({ page }) => {
   expect(draftAfter).not.toBeNull();
 
   // Still on Final view (no transition to home).
-  await expect(page.getByText('ВСЁ.', { exact: false })).toBeVisible();
+  await expect(page.getByText("ВСЁ.", { exact: false })).toBeVisible();
 });

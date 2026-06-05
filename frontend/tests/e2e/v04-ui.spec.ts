@@ -51,6 +51,14 @@ const PERIOD_RESPONSE = {
 };
 
 async function mockApi(page: Page, options: { me: typeof OWNER_ME | typeof MEMBER_ME | typeof MEMBER_NOT_ONBOARDED_ME }) {
+  await page.addInitScript(() => {
+    try {
+      window.localStorage.setItem("ui.shell", "v06");
+      window.localStorage.setItem("cookie_consent_v1", "acknowledged");
+    } catch {
+      /* localStorage unavailable — best effort */
+    }
+  });
   await page.route('**/api/v1/**', (route) => {
     const url = route.request().url();
     const method = route.request().method();
