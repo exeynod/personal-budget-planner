@@ -16,21 +16,32 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Toast } from '../../componentsV10';
-import { StatePlate, usePosterRouter } from '../common';
+import {
+  StatePlate,
+  usePosterRouter,
+  useSelectedPeriodOptional,
+} from '../common';
 import {
   listCategoriesV10,
   listSubscriptionsV10,
   postSubscription,
   unpostSubscription,
   patchPlanMonth,
+  listPlanned,
+  createPlanned,
+  postPlanned,
+  unpostPlanned,
+  postPlannedBatch,
   type CategoryV10,
   type SubscriptionV10Read,
+  type PlannedV11Read,
 } from '../../api/v10';
+import { getCurrentPeriod } from '../../api/periods';
 import { getMeV10 } from '../../api/me';
 import { ApiError } from '../../api/client';
 import type { PlanMonthItem } from '../../api/types';
 import { PlanView } from './PlanView';
-import { NativePlanView } from './NativePlanView';
+import { NativePlanView, type AddPlannedDraft } from './NativePlanView';
 import { useShellVariant } from '../native/ShellVariant';
 import {
   applyPlanEdit,
@@ -39,6 +50,21 @@ import {
   computeSurplus,
   plansFromCategories,
 } from './computePlan';
+import {
+  groupPlannedByCategory,
+  computeLadder,
+  bulkPostManualIds,
+  bulkPostSubscriptionIds,
+  type PlanDetailRow,
+} from './computePlanDetail';
+
+/** Today as ISO `YYYY-MM-DD` in local wall-clock (post fallback date). */
+function todayIso(): string {
+  const d = new Date();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${d.getFullYear()}-${mm}-${dd}`;
+}
 
 // ─────────── Props ───────────
 
@@ -52,11 +78,14 @@ export interface PlanMountProps {
 export function PlanMount({ focusCategoryId = null }: PlanMountProps = {}) {
   const router = usePosterRouter();
   const variant = useShellVariant();
+  const sel = useSelectedPeriodOptional();
 
   const [income, setIncome] = useState<number>(0);
   const [categories, setCategories] = useState<CategoryV10[]>([]);
   const [subs, setSubs] = useState<SubscriptionV10Read[]>([]);
   const [plans, setPlans] = useState<PlanMonthItem[]>([]);
+  const [periodId, setPeriodId] = useState<number | null>(null);
+  const [planned, setPlanned] = useState<PlannedV11Read[]>([]);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>(
     'loading',
   );
@@ -73,10 +102,19 @@ export function PlanMount({ focusCategoryId = null }: PlanMountProps = {}) {
 
     async function load() {
       try {
-        const [cats, subsList, me] = await Promise.all([
+        // Resolve the period whose plan we're editing: the shell's selected
+        // period when available (newest-first), else the active period.
+        const resolvedPeriod =
+          (sel?.periods.find((p) => p.id === sel.selectedPeriodId) ??
+            sel?.periods[0]) ||
+          (await getCurrentPeriod());
+        const pid = resolvedPeriod?.id ?? null;
+
+        const [cats, subsList, me, plannedList] = await Promise.all([
           listCategoriesV10(),
           listSubscriptionsV10(),
           getMeV10(),
+          pid != null ? listPlanned(pid) : Promise.resolve([]),
         ]);
         if (cancelled) return;
 
@@ -88,6 +126,8 @@ export function PlanMount({ focusCategoryId = null }: PlanMountProps = {}) {
         setCategories(visible);
         setSubs(subsList);
         setIncome(me.income_cents ?? 0);
+        setPeriodId(pid);
+        setPlanned(plannedList);
         // Initial draft = current persisted plans for visible categories.
         setPlans(plansFromCategories(visible));
         setStatus('ready');
@@ -104,7 +144,7 @@ export function PlanMount({ focusCategoryId = null }: PlanMountProps = {}) {
     return () => {
       cancelled = true;
     };
-  }, [reloadToken]);
+  }, [reloadToken, sel?.selectedPeriodId, sel]);
 
   // ─────────── slider drag handler ───────────
   const handleSliderChange = useCallback((catId: number, cents: number) => {
@@ -153,6 +193,85 @@ export function PlanMount({ focusCategoryId = null }: PlanMountProps = {}) {
     }
   }, [plans, router]);
 
+  // ─────────── detail surface handlers (v1.1) ───────────
+  // Post a single detail row: subscription-derived rows post via their own
+  // /subscriptions/{id}/post endpoint (planned post-route 400s on them); manual
+  // rows post via /planned/{id}/post on their planned_date (fallback today).
+  const handlePostDetail = useCallback(
+    async (row: PlanDetailRow) => {
+      try {
+        if (row.subscriptionId != null) {
+          await postSubscription(row.subscriptionId);
+        } else if (periodId != null) {
+          await postPlanned(periodId, row.id, row.plannedDate ?? todayIso());
+        }
+        setToastMsg('✓ ПРОВЕДЕНО · → реестр');
+        setReloadToken((n) => n + 1);
+      } catch {
+        setToastMsg('Не удалось провести');
+      }
+    },
+    [periodId],
+  );
+
+  const handleUnpostDetail = useCallback(
+    async (row: PlanDetailRow) => {
+      try {
+        if (row.subscriptionId != null) {
+          await unpostSubscription(row.subscriptionId);
+        } else if (periodId != null) {
+          await unpostPlanned(periodId, row.id);
+        }
+        setToastMsg('Отменено');
+        setReloadToken((n) => n + 1);
+      } catch {
+        setToastMsg('Не удалось отменить проводку');
+      }
+    },
+    [periodId],
+  );
+
+  const handleAddPlanned = useCallback(
+    async (draft: AddPlannedDraft) => {
+      if (periodId == null) return;
+      try {
+        await createPlanned(periodId, {
+          category_id: draft.categoryId,
+          kind: draft.kind,
+          amount_cents: draft.amountCents,
+          description: draft.title,
+          planned_date: draft.plannedDate,
+        });
+        setToastMsg('✓ Запланировано');
+        setReloadToken((n) => n + 1);
+      } catch {
+        setToastMsg('Не удалось добавить трату');
+      }
+    },
+    [periodId],
+  );
+
+  // Bulk-post: manual rows via post-batch (each on its planned_date), then any
+  // unposted subscription rows one-by-one via /subscriptions/{id}/post.
+  const handlePostAllPlanned = useCallback(async () => {
+    if (periodId == null) return;
+    const manualIds = bulkPostManualIds(planned);
+    const subIds = bulkPostSubscriptionIds(planned);
+    if (manualIds.length === 0 && subIds.length === 0) return;
+    try {
+      if (manualIds.length > 0) {
+        await postPlannedBatch(periodId, manualIds);
+      }
+      for (const sid of subIds) {
+        await postSubscription(sid);
+      }
+      setToastMsg(`✓ Проведено ${manualIds.length + subIds.length} · → реестр`);
+      setReloadToken((n) => n + 1);
+    } catch {
+      setToastMsg('Не удалось провести все');
+    }
+  }, [periodId, planned]);
+
   // ─────────── derived view-model ───────────
   // Memoised so slider drags (which only bump `plans`) don't recompute the
   // regulars list (subs×categories) every render, and a parent re-render with
@@ -162,6 +281,25 @@ export function PlanMount({ focusCategoryId = null }: PlanMountProps = {}) {
   const regulars = useMemo(
     () => computeRegularsList(subs, categories),
     [subs, categories],
+  );
+
+  // Detail surface: group planned rows + per-category ladder using the live
+  // draft limit (plans) so the «Свободно» figure tracks the edited limit.
+  const detailByCat = useMemo(() => groupPlannedByCategory(planned), [planned]);
+  const ladderByCat = useMemo(() => {
+    const limitByCat = new Map(plans.map((p) => [p.category_id, p.plan_cents]));
+    const out = new Map<number, ReturnType<typeof computeLadder>>();
+    for (const c of categories) {
+      const limit = limitByCat.get(c.id) ?? c.plan_cents ?? 0;
+      out.set(c.id, computeLadder(limit, detailByCat.get(c.id) ?? []));
+    }
+    return out;
+  }, [categories, plans, detailByCat]);
+  const bulkDueCount = useMemo(
+    () =>
+      bulkPostManualIds(planned).length +
+      bulkPostSubscriptionIds(planned).length,
+    [planned],
   );
 
   if (status === 'loading') {
@@ -199,7 +337,16 @@ export function PlanMount({ focusCategoryId = null }: PlanMountProps = {}) {
   return (
     <>
       {variant === 'native' ? (
-        <NativePlanView {...viewProps} />
+        <NativePlanView
+          {...viewProps}
+          detailByCat={detailByCat}
+          ladderByCat={ladderByCat}
+          bulkDueCount={bulkDueCount}
+          onPostDetail={handlePostDetail}
+          onUnpostDetail={handleUnpostDetail}
+          onAddPlanned={handleAddPlanned}
+          onPostAllPlanned={handlePostAllPlanned}
+        />
       ) : (
         <PlanView {...viewProps} />
       )}

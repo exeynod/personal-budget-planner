@@ -1,0 +1,110 @@
+// v1.1 planning rework — pure helpers for the month-plan DETAIL surface.
+//
+// The «Детализация лимита» disclosure per category needs three numbers
+// (ladder) and a flat list of planned rows (manual + subscription-derived,
+// ONE surface). All math is deterministic + side-effect-free so it unit-tests
+// cleanly and stays in sync with the iOS port.
+
+import type { PlannedV11Read } from '../../api/v10';
+
+/** A planned row enriched for the detail list (manual or subscription). */
+export interface PlanDetailRow {
+  /** planned_transaction id (React key + post/unpost arg). */
+  id: number;
+  /** Display title (description, fallback «План»). */
+  title: string;
+  amountCents: number;
+  /** ISO date `YYYY-MM-DD` or null (no scheduled day). */
+  plannedDate: string | null;
+  kind: 'expense' | 'income';
+  /** True once posted to a real actual (toggle source for «Провести»/«Отмена»). */
+  posted: boolean;
+  /** Non-null for subscription-derived rows → post via /subscriptions/{id}. */
+  subscriptionId: number | null;
+}
+
+/** Per-category ladder: Лимит / Расписано (Σ unposted) / Свободно. */
+export interface PlanLadder {
+  limitCents: number;
+  /** Σ of UNPOSTED planned rows for the category (manual + subscription). */
+  scheduledCents: number;
+  /** limit − scheduled (may be negative → soft overflow warning). */
+  freeCents: number;
+  /** True when scheduled > limit (soft warning, not a block). */
+  overflow: boolean;
+}
+
+/** Group planned rows by category_id for O(1) disclosure lookup. */
+export function groupPlannedByCategory(
+  planned: ReadonlyArray<PlannedV11Read>,
+): Map<number, PlanDetailRow[]> {
+  const out = new Map<number, PlanDetailRow[]>();
+  for (const p of planned) {
+    const row: PlanDetailRow = {
+      id: p.id,
+      title: p.description?.trim() || 'План',
+      amountCents: Math.abs(p.amount_cents),
+      plannedDate: p.planned_date,
+      kind: p.kind,
+      posted: p.posted_txn_id != null,
+      subscriptionId: p.subscription_id ?? null,
+    };
+    const list = out.get(p.category_id);
+    if (list) list.push(row);
+    else out.set(p.category_id, [row]);
+  }
+  return out;
+}
+
+/**
+ * Ladder for one category. `scheduled` sums only UNPOSTED rows (posted rows are
+ * already fact, so they don't count toward «расписано»).
+ */
+export function computeLadder(
+  limitCents: number,
+  rows: ReadonlyArray<PlanDetailRow>,
+): PlanLadder {
+  const scheduled = rows
+    .filter((r) => !r.posted)
+    .reduce((s, r) => s + r.amountCents, 0);
+  const free = limitCents - scheduled;
+  return {
+    limitCents,
+    scheduledCents: scheduled,
+    freeCents: free,
+    overflow: scheduled > limitCents,
+  };
+}
+
+/**
+ * Collect the planned-row ids that are due for bulk-posting: every UNPOSTED,
+ * NON-subscription (manual) row across all categories. Subscription rows post
+ * via their own endpoint and are returned separately by `subscriptionPostIds`.
+ */
+export function bulkPostManualIds(
+  planned: ReadonlyArray<PlannedV11Read>,
+): number[] {
+  return planned
+    .filter((p) => p.posted_txn_id == null && p.source !== 'subscription_auto')
+    .map((p) => p.id);
+}
+
+/**
+ * Subscription ids of UNPOSTED subscription-derived planned rows — posted one
+ * by one via /subscriptions/{id}/post during the bulk action.
+ */
+export function bulkPostSubscriptionIds(
+  planned: ReadonlyArray<PlannedV11Read>,
+): number[] {
+  const ids: number[] = [];
+  for (const p of planned) {
+    if (
+      p.posted_txn_id == null &&
+      p.source === 'subscription_auto' &&
+      p.subscription_id != null
+    ) {
+      ids.push(p.subscription_id);
+    }
+  }
+  return ids;
+}

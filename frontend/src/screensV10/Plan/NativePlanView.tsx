@@ -21,7 +21,7 @@
 //   - «Категории · N» inset rows: CategoryIcon + name + inline ₽ input
 //   - inline save error + total «Σ план» row
 
-import { memo, useEffect, useRef } from 'react';
+import { memo, useEffect, useRef, useState } from 'react';
 import {
   NativeNavBar,
   SectionHeader,
@@ -33,9 +33,19 @@ import { formatMoneyNative, formatSignedMoneyNative } from '../native/money';
 import type { CategoryV10 } from '../../api/v10';
 import type { PlanMonthItem } from '../../api/types';
 import type { RegularRow } from './computePlan';
+import type { PlanDetailRow, PlanLadder } from './computePlanDetail';
 import styles from './NativePlanView.module.css';
 
-// ─────────── Props (mirror poster PlanView) ───────────
+// ─────────── Props (mirror poster PlanView + v1.1 detail surface) ───────────
+
+/** Payload emitted by «+ добавить запланированную трату». */
+export interface AddPlannedDraft {
+  categoryId: number;
+  kind: 'expense' | 'income';
+  title: string;
+  amountCents: number;
+  plannedDate: string | null;
+}
 
 export interface NativePlanViewProps {
   incomeCents: number;
@@ -54,6 +64,22 @@ export interface NativePlanViewProps {
   onUnpostRegular: (subId: number) => void;
   onSubmit: () => void;
   onBack: () => void;
+
+  // ── v1.1 month-plan detail surface (native only) ──
+  /** Planned rows grouped by category_id (manual + subscription, one surface). */
+  detailByCat?: Map<number, PlanDetailRow[]>;
+  /** Per-category ladder Лимит/Расписано/Свободно keyed by category_id. */
+  ladderByCat?: Map<number, PlanLadder>;
+  /** Count of unposted planned rows due → enables the bulk «Провести» button. */
+  bulkDueCount?: number;
+  /** Post a single detail row (manual or subscription — Mount routes it). */
+  onPostDetail?: (row: PlanDetailRow) => void;
+  /** Unpost a single detail row. */
+  onUnpostDetail?: (row: PlanDetailRow) => void;
+  /** Create a new manual planned row. */
+  onAddPlanned?: (draft: AddPlannedDraft) => void;
+  /** Bulk-post every due (unposted) planned row. */
+  onPostAllPlanned?: () => void;
 }
 
 // ─────────── Inline rubles → cents parsing (IDENTICAL semantics to slider) ───────────
@@ -81,6 +107,13 @@ function centsToRublesInput(cents: number): string {
 
 // ─────────── Component ───────────
 
+/** ISO `YYYY-MM-DD` → «5 числа» style short label, or «—» when null. */
+function formatPlannedDay(iso: string | null): string {
+  if (!iso) return 'без даты';
+  const day = Number(iso.slice(8, 10));
+  return Number.isFinite(day) && day > 0 ? `${day} числа` : iso;
+}
+
 function NativePlanViewInner(props: NativePlanViewProps) {
   const {
     incomeCents,
@@ -97,7 +130,23 @@ function NativePlanViewInner(props: NativePlanViewProps) {
     onUnpostRegular,
     onSubmit,
     onBack,
+    detailByCat,
+    ladderByCat,
+    bulkDueCount = 0,
+    onPostDetail,
+    onUnpostDetail,
+    onAddPlanned,
+    onPostAllPlanned,
   } = props;
+
+  // Which category's «Детализация» disclosure is open (single-open accordion).
+  const [openCatId, setOpenCatId] = useState<number | null>(null);
+  // Inline add-planned draft state, scoped to the open category.
+  const [addTitle, setAddTitle] = useState('');
+  const [addAmount, setAddAmount] = useState('');
+  const [addDate, setAddDate] = useState('');
+
+  const detailEnabled = detailByCat != null && onPostDetail != null;
 
   const focusRowRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
@@ -128,6 +177,156 @@ function NativePlanViewInner(props: NativePlanViewProps) {
     </button>
   );
 
+  // ── Detail disclosure renderer (per category) ──
+  function renderDetail(
+    catId: number,
+    kind: CategoryV10['kind'],
+    limitCents: number,
+  ) {
+    const rows = detailByCat?.get(catId) ?? [];
+    const ladder = ladderByCat?.get(catId);
+    const open = openCatId === catId;
+    return (
+      <div className={styles.detailWrap}>
+        <button
+          type="button"
+          className={styles.detailToggle}
+          onClick={() => setOpenCatId(open ? null : catId)}
+          data-testid={`native-plan-detail-toggle-${catId}`}
+        >
+          {open ? '▾' : '▸'} Детализация
+          {rows.length > 0 ? ` · ${rows.length}` : ''}
+        </button>
+
+        {open && (
+          <div
+            className={styles.detailBody}
+            data-testid={`native-plan-detail-${catId}`}
+          >
+            {/* Ladder: Лимит / Расписано / Свободно */}
+            <div className={styles.ladder}>
+              <span className={styles.ladderCell}>
+                <span className={styles.ladderLabel}>Лимит</span>
+                <span className={styles.ladderValue}>
+                  {formatMoneyNative(limitCents)}
+                </span>
+              </span>
+              <span className={styles.ladderCell}>
+                <span className={styles.ladderLabel}>Расписано</span>
+                <span className={styles.ladderValue}>
+                  {formatMoneyNative(ladder?.scheduledCents ?? 0)}
+                </span>
+              </span>
+              <span className={styles.ladderCell}>
+                <span className={styles.ladderLabel}>Свободно</span>
+                <span
+                  className={`${styles.ladderValue} ${
+                    ladder?.overflow ? styles.ladderOver : ''
+                  }`}
+                >
+                  {formatSignedMoneyNative(ladder?.freeCents ?? limitCents)}
+                </span>
+              </span>
+            </div>
+            {ladder?.overflow && (
+              <div
+                className={styles.detailWarn}
+                data-testid={`native-plan-detail-warn-${catId}`}
+              >
+                Детализация превышает лимит
+              </div>
+            )}
+
+            {/* Planned rows (manual + subscription, one surface) */}
+            {rows.map((r) => (
+              <div
+                key={r.id}
+                className={styles.detailRow}
+                data-testid={`native-plan-detail-row-${r.id}`}
+              >
+                <span className={styles.detailRowMain}>
+                  <span className={styles.detailRowTitle}>{r.title}</span>
+                  <span className={styles.detailRowSub}>
+                    {formatMoneyNative(r.amountCents)} ₽ ·{' '}
+                    {formatPlannedDay(r.plannedDate)}
+                    {r.subscriptionId != null ? ' · подписка' : ''}
+                  </span>
+                </span>
+                <button
+                  type="button"
+                  className={`${styles.regularCta} ${
+                    r.posted ? styles.regularCtaUndo : ''
+                  }`}
+                  onClick={() =>
+                    r.posted ? onUnpostDetail?.(r) : onPostDetail?.(r)
+                  }
+                  data-testid={`native-plan-detail-cta-${r.id}`}
+                >
+                  {r.posted ? 'Отмена' : 'Провести'}
+                </button>
+              </div>
+            ))}
+
+            {/* + добавить запланированную трату */}
+            {onAddPlanned && (
+              <div className={styles.addPlanned}>
+                <input
+                  type="text"
+                  className={styles.addInput}
+                  placeholder="Название"
+                  value={open ? addTitle : ''}
+                  onChange={(e) => setAddTitle(e.target.value)}
+                  data-testid={`native-plan-add-title-${catId}`}
+                />
+                <div className={styles.addRow}>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    className={styles.addInputSm}
+                    placeholder="₽"
+                    value={addAmount}
+                    onChange={(e) => setAddAmount(e.target.value)}
+                    data-testid={`native-plan-add-amount-${catId}`}
+                  />
+                  <input
+                    type="date"
+                    className={styles.addInputSm}
+                    value={addDate}
+                    onChange={(e) => setAddDate(e.target.value)}
+                    data-testid={`native-plan-add-date-${catId}`}
+                  />
+                  <button
+                    type="button"
+                    className={styles.addBtn}
+                    disabled={
+                      addTitle.trim() === '' ||
+                      rublesInputToCents(addAmount) <= 0
+                    }
+                    onClick={() => {
+                      onAddPlanned({
+                        categoryId: catId,
+                        kind,
+                        title: addTitle.trim(),
+                        amountCents: rublesInputToCents(addAmount),
+                        plannedDate: addDate || null,
+                      });
+                      setAddTitle('');
+                      setAddAmount('');
+                      setAddDate('');
+                    }}
+                    data-testid={`native-plan-add-submit-${catId}`}
+                  >
+                    Добавить
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className={styles.root}>
       <NativeNavBar title="План месяца" onBack={onBack} trailing={saveButton} />
@@ -151,6 +350,21 @@ function NativePlanViewInner(props: NativePlanViewProps) {
           {isOverflow ? 'Превышено' : 'OK'}
         </span>
       </div>
+
+      {/* ───── bulk «Провести запланированное» ───── */}
+      {detailEnabled && onPostAllPlanned && (
+        <button
+          type="button"
+          className={styles.bulkBtn}
+          onClick={onPostAllPlanned}
+          disabled={bulkDueCount === 0}
+          data-testid="native-plan-post-all"
+        >
+          {bulkDueCount === 0
+            ? 'Нет запланированного к проведению'
+            : `Провести запланированное · ${bulkDueCount}`}
+        </button>
+      )}
 
       {/* ───── regulars block ───── */}
       <SectionHeader>Регулярные · провести в факт</SectionHeader>
@@ -224,6 +438,9 @@ function NativePlanViewInner(props: NativePlanViewProps) {
                   <span className={styles.catCur}>₽</span>
                 </span>
               </div>
+
+              {/* ── v1.1 «Детализация лимита» disclosure ── */}
+              {detailEnabled && renderDetail(c.id, c.kind, planCents)}
             </div>
           );
         })}
