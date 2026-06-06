@@ -4,6 +4,7 @@ Uses a dedicated minimal fixture (export_test_user) to avoid the
 pre-existing-broken two_tenants fixture (Phase 22 Category.code NOT NULL
 mismatch in conftest; out of scope here).
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -24,9 +25,7 @@ async def api_client():
     from main_api import app
 
     transport = ASGITransport(app=app)
-    async with AsyncClient(
-        transport=transport, base_url="http://test"
-    ) as client:
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
         yield client
 
 
@@ -57,13 +56,9 @@ async def export_test_user():
             row = result.first()
             if row:
                 uid = row[0]
-                uid_hash = hashlib.sha256(
-                    str(uid).encode("utf-8")
-                ).hexdigest()
+                uid_hash = hashlib.sha256(str(uid).encode("utf-8")).hexdigest()
                 await conn.execute(
-                    text(
-                        "DELETE FROM pdn_audit_log WHERE user_id_hash = :h"
-                    ),
+                    text("DELETE FROM pdn_audit_log WHERE user_id_hash = :h"),
                     {"h": uid_hash},
                 )
                 await conn.execute(
@@ -112,8 +107,6 @@ async def test_export_returns_user_data_dict(api_client, export_test_user):
         "subscriptions",
         "ai_conversations",
         "ai_messages",
-        "goals",
-        "savings_config",
         "audit_log",
         "_meta",
     )
@@ -150,9 +143,7 @@ async def test_export_writes_audit_event(
     assert last is not None
     # Audit row references hash(user_id), not raw id (CMP-33-01).
     body = r.json()
-    expected_hash = hashlib.sha256(
-        str(body["user"]["id"]).encode("utf-8")
-    ).hexdigest()
+    expected_hash = hashlib.sha256(str(body["user"]["id"]).encode("utf-8")).hexdigest()
     assert last.user_id_hash == expected_hash
 
 

@@ -9,6 +9,7 @@
 Fixture pattern зеркалит ``test_tax_reserve.py`` — dedicated engine + RLS
 bypass через ``SET LOCAL row_security = off``, fully isolated cleanup.
 """
+
 from __future__ import annotations
 
 import csv
@@ -33,9 +34,7 @@ async def db_check_session():
     if not db_url:
         pytest.skip("DATABASE_URL not set — integration test requires DB")
     engine = create_async_engine(db_url, echo=False, pool_pre_ping=True)
-    Session = async_sessionmaker(
-        engine, class_=AsyncSession, expire_on_commit=False
-    )
+    Session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
     async with Session() as s:
         yield s
     await engine.dispose()
@@ -66,10 +65,9 @@ async def test_csv_export_with_transactions(db_check_session):
     rc = await db_check_session.execute(
         text(
             "INSERT INTO category "
-            "(user_id, name, kind, sort_order, plan_cents, code, ord, "
-            " rollover, paused, tag) "
+            "(user_id, name, kind, sort_order, plan_cents, code, ord, tag) "
             "VALUES (:u, 'Еда', 'expense', 1, 10000, 'food_p36_03', '01', "
-            " 'misc', false, 'personal') "
+            " 'personal') "
             "RETURNING id"
         ),
         {"u": user_id},

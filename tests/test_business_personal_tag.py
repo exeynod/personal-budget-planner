@@ -11,6 +11,7 @@ Fixture pattern mirrors `test_pdn_consent_flow.py` — dedicated engine + RLS
 bypass via `SET LOCAL row_security = off`, fully isolated cleanup so the test
 никак не зависит от глобального `db_session` rollback timing.
 """
+
 from __future__ import annotations
 
 import os
@@ -63,9 +64,8 @@ async def seeded_user_with_categories():
             r = await conn.execute(
                 text(
                     "INSERT INTO category "
-                    "(user_id, name, kind, sort_order, plan_cents, code, ord, "
-                    " rollover, paused, tag) "
-                    "VALUES (:u, :n, 'expense', 10, 10000, :c, :o, 'misc', false, :t) "
+                    "(user_id, name, kind, sort_order, plan_cents, code, ord, tag) "
+                    "VALUES (:u, :n, 'expense', 10, 10000, :c, :o, :t) "
                     "RETURNING id"
                 ),
                 {"u": user_id, "n": code, "c": code, "o": ord_, "t": tag},
@@ -83,9 +83,7 @@ async def seeded_user_with_categories():
         await conn.execute(
             text("DELETE FROM category WHERE user_id = :u"), {"u": user_id}
         )
-        await conn.execute(
-            text("DELETE FROM app_user WHERE id = :u"), {"u": user_id}
-        )
+        await conn.execute(text("DELETE FROM app_user WHERE id = :u"), {"u": user_id})
     await engine.dispose()
 
 
@@ -114,9 +112,7 @@ async def test_category_default_tag_personal(
     await db_check_session.execute(text("SET LOCAL row_security = off"))
     rows = (
         await db_check_session.execute(
-            text(
-                "SELECT code, tag FROM category WHERE user_id = :u ORDER BY ord"
-            ),
+            text("SELECT code, tag FROM category WHERE user_id = :u ORDER BY ord"),
             {"u": user_id},
         )
     ).all()
@@ -152,10 +148,8 @@ async def test_category_tag_db_default_is_personal(db_check_session):
             c = await conn.execute(
                 text(
                     "INSERT INTO category "
-                    "(user_id, name, kind, sort_order, plan_cents, code, ord, "
-                    " rollover, paused) "
-                    "VALUES (:u, 'noTag', 'expense', 10, 0, 'no_tag_p36', '03', "
-                    " 'misc', false) "
+                    "(user_id, name, kind, sort_order, plan_cents, code, ord) "
+                    "VALUES (:u, 'noTag', 'expense', 10, 0, 'no_tag_p36', '03') "
                     "RETURNING id, tag"
                 ),
                 {"u": user_id},

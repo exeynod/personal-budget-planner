@@ -11,6 +11,7 @@ Pattern mirrors tests/test_admin_users_api.py: pytest_asyncio fixture
 creates an httpx async_client, overrides get_db with a fresh
 SessionLocal pointing at DATABASE_URL, truncates before yield.
 """
+
 from __future__ import annotations
 
 import os
@@ -27,6 +28,7 @@ def _require_db():
 @pytest.fixture(autouse=True)
 def _disable_dev_mode(monkeypatch):
     from app.core.settings import settings
+
     monkeypatch.setattr(settings, "DEV_MODE", False)
 
 
@@ -66,6 +68,7 @@ def member_tg_user_id() -> int:
 @pytest.fixture
 def member_headers(bot_token, member_tg_user_id):
     from tests.conftest import make_init_data
+
     return {"X-Telegram-Init-Data": make_init_data(member_tg_user_id, bot_token)}
 
 
@@ -93,9 +96,12 @@ async def _seed_member(SessionLocal, *, tg_user_id: int, tg_chat_id: int | None 
     from sqlalchemy import text
 
     from tests.helpers.seed import seed_member_not_onboarded
+
     async with SessionLocal() as session:
         user = await seed_member_not_onboarded(
-            session, tg_user_id=tg_user_id, tg_chat_id=tg_chat_id,
+            session,
+            tg_user_id=tg_user_id,
+            tg_chat_id=tg_chat_id,
         )
         # 68-05 (class B/C): grant ПДн consent so v1.0 /onboarding/complete
         # passes the Phase 33 CMP-33-04 gate (NULL → 403). Member stays
@@ -119,16 +125,29 @@ GATED_ENDPOINTS = [
     ("GET", "/api/v1/ai/history", None),
     ("GET", "/api/v1/ai/suggest-category?q=кофе", None),
     ("GET", "/api/v1/settings", None),
-    ("POST", "/api/v1/actual",
-     {"kind": "expense", "amount_cents": 100, "category_id": 1, "tx_date": "2026-05-07"}),
-    ("POST", "/api/v1/periods/1/planned",
-     {"kind": "expense", "amount_cents": 100, "category_id": 1}),
+    (
+        "POST",
+        "/api/v1/actual",
+        {
+            "kind": "expense",
+            "amount_cents": 100,
+            "category_id": 1,
+            "tx_date": "2026-05-07",
+        },
+    ),
+    (
+        "POST",
+        "/api/v1/periods/1/planned",
+        {"kind": "expense", "amount_cents": 100, "category_id": 1},
+    ),
 ]
 
 
 @pytest.mark.asyncio
 async def test_member_pre_onboarding_categories_blocked_with_409(
-    db_client, member_headers, member_tg_user_id,
+    db_client,
+    member_headers,
+    member_tg_user_id,
 ):
     """Pre-onboarding GET /categories returns 409 with onboarding_required."""
     async_client, SessionLocal = db_client
@@ -145,7 +164,9 @@ async def test_member_pre_onboarding_categories_blocked_with_409(
 
 @pytest.mark.asyncio
 async def test_member_pre_onboarding_can_reach_me_and_onboarding_endpoints(
-    db_client, member_headers, member_tg_user_id,
+    db_client,
+    member_headers,
+    member_tg_user_id,
 ):
     """Pre-onboarding: /me → 200; /onboarding/complete → NOT 409 (gate not applied)."""
     async_client, SessionLocal = db_client
@@ -153,7 +174,9 @@ async def test_member_pre_onboarding_can_reach_me_and_onboarding_endpoints(
 
     # /me is not gated
     resp = await async_client.get("/api/v1/me", headers=member_headers)
-    assert resp.status_code == 200, f"/me expected 200, got {resp.status_code}: {resp.text}"
+    assert resp.status_code == 200, (
+        f"/me expected 200, got {resp.status_code}: {resp.text}"
+    )
     body = resp.json()
     assert body["onboarded_at"] is None
     assert body["role"] == "member"
@@ -180,7 +203,9 @@ async def test_member_pre_onboarding_can_reach_me_and_onboarding_endpoints(
 
 @pytest.mark.asyncio
 async def test_member_gate_matrix_409_on_all_gated_routers(
-    db_client, member_headers, member_tg_user_id,
+    db_client,
+    member_headers,
+    member_tg_user_id,
 ):
     """All 10 gated endpoints return 409 onboarding_required for unboarded member."""
     async_client, SessionLocal = db_client
@@ -201,7 +226,10 @@ async def test_member_gate_matrix_409_on_all_gated_routers(
 
 @pytest.mark.asyncio
 async def test_full_member_onboarding_flow_creates_categories_periods_embeddings(
-    db_client, member_headers, embed_mock, member_tg_user_id,
+    db_client,
+    member_headers,
+    embed_mock,
+    member_tg_user_id,
 ):
     """Full lifecycle: seed → /onboarding/complete → categories gated unlocked → embeddings."""
     async_client, SessionLocal = db_client
@@ -227,12 +255,19 @@ async def test_full_member_onboarding_flow_creates_categories_periods_embeddings
     body = resp.json()
     # v1.0 response shape: 8 default expense codes + savings_category_id.
     assert set(body["category_ids_by_code"].keys()) == {
-        "food", "cafe", "home", "transit", "fun", "gifts", "health", "subs"
+        "food",
+        "cafe",
+        "home",
+        "transit",
+        "fun",
+        "gifts",
+        "health",
+        "subs",
     }
-    assert isinstance(body["savings_category_id"], int)
+    assert isinstance(body["adjustment_category_id"], int)
 
     # 4. Post-onboarding /categories returns the gate-unlocked rows (9 total:
-    #    8 default expense + 1 system savings).
+    #    8 default expense + 1 system adjustment).
     resp = await async_client.get("/api/v1/categories", headers=member_headers)
     assert resp.status_code == 200, (
         f"categories expected 200 post-onboarding, got {resp.status_code}: {resp.text}"
@@ -247,9 +282,11 @@ async def test_full_member_onboarding_flow_creates_categories_periods_embeddings
     from app.db.models import AppUser, CategoryEmbedding
 
     async with SessionLocal() as session:
-        user = (await session.execute(
-            select(AppUser).where(AppUser.tg_user_id == member_tg_user_id)
-        )).scalar_one()
+        user = (
+            await session.execute(
+                select(AppUser).where(AppUser.tg_user_id == member_tg_user_id)
+            )
+        ).scalar_one()
         count = await session.scalar(
             select(func.count())
             .select_from(CategoryEmbedding)
@@ -265,7 +302,9 @@ async def test_full_member_onboarding_flow_creates_categories_periods_embeddings
 
 @pytest.mark.asyncio
 async def test_two_members_onboarding_isolation(
-    db_client, bot_token, embed_mock,
+    db_client,
+    bot_token,
+    embed_mock,
 ):
     """Member A onboarding does not affect member B (cross-tenant isolation)."""
     async_client, SessionLocal = db_client
@@ -303,18 +342,26 @@ async def test_two_members_onboarding_isolation(
     from app.db.models import AppUser, Category, CategoryEmbedding
 
     async with SessionLocal() as session:
-        user_a = (await session.execute(
-            select(AppUser).where(AppUser.tg_user_id == member_a_tg_id)
-        )).scalar_one()
-        user_b = (await session.execute(
-            select(AppUser).where(AppUser.tg_user_id == member_b_tg_id)
-        )).scalar_one()
+        user_a = (
+            await session.execute(
+                select(AppUser).where(AppUser.tg_user_id == member_a_tg_id)
+            )
+        ).scalar_one()
+        user_b = (
+            await session.execute(
+                select(AppUser).where(AppUser.tg_user_id == member_b_tg_id)
+            )
+        ).scalar_one()
 
         count_cats_a = await session.scalar(
-            select(func.count()).select_from(Category).where(Category.user_id == user_a.id)
+            select(func.count())
+            .select_from(Category)
+            .where(Category.user_id == user_a.id)
         )
         count_cats_b = await session.scalar(
-            select(func.count()).select_from(Category).where(Category.user_id == user_b.id)
+            select(func.count())
+            .select_from(Category)
+            .where(Category.user_id == user_b.id)
         )
         count_emb_a = await session.scalar(
             select(func.count())
@@ -332,5 +379,7 @@ async def test_two_members_onboarding_isolation(
         # decoupled from onboarding in v1.0, so neither has embeddings here.
         assert count_cats_a == 9, f"member A: expected 9 categories, got {count_cats_a}"
         assert count_cats_b == 0, f"member B: expected 0 categories, got {count_cats_b}"
-        assert count_emb_a == 0, f"member A: v1.0 onboarding creates no embeddings, got {count_emb_a}"
+        assert count_emb_a == 0, (
+            f"member A: v1.0 onboarding creates no embeddings, got {count_emb_a}"
+        )
         assert count_emb_b == 0, f"member B: expected 0 embeddings, got {count_emb_b}"

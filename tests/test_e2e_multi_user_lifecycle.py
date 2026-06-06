@@ -145,7 +145,7 @@ async def test_e2e_1_owner_happy_path(e2e_env):
     onb_body = onb.json()
     assert onb_body["income_cents"] == 1_000_000
     assert len(onb_body["category_ids_by_code"]) == 8  # 8 default codes
-    assert onb_body["savings_category_id"] > 0  # system 'savings' category
+    assert onb_body["adjustment_category_id"] > 0  # system 'savings' category
     assert onb_body["onboarded_at"] is not None
 
     # 3. List categories — 8 defaults + 1 'savings' = 9.
@@ -315,7 +315,7 @@ async def test_e2e_3_member_onboarding_seeds_and_embeddings(e2e_env):
         await session.commit()
 
     assert len(result["category_ids_by_code"]) == 8  # 8 default codes (MTONB-02)
-    assert result["savings_category_id"] > 0  # system 'savings' category
+    assert result["adjustment_category_id"] > 0  # system 'savings' category
     assert embeddings_created >= 1  # MTONB-03 (real backfill ran)
 
     # Verify DB state

@@ -41,6 +41,7 @@ from app.db.models import (
 from app.db.session import AsyncSessionLocal, set_tenant_scope
 from app.services.actual import compute_balance
 from app.services.periods import _today_in_app_tz
+from app.services.planned import apply_template_to_period
 from app.services.subscriptions import add_subscription_to_period
 
 logger = structlog.get_logger(__name__)

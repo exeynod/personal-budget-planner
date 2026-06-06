@@ -19,6 +19,7 @@ The guard runs against the LIVE schema (``app.openapi()``) rather than the
 committed file so a code change that breaks the contract fails CI immediately,
 before the artifact is regenerated.
 """
+
 from __future__ import annotations
 
 from main_api import app
@@ -32,8 +33,9 @@ DOMAIN_PREFIXES: dict[str, str] = {
     "me": "/api/v1/me",
     "ai": "/api/v1/ai",
     "accounts": "/api/v1/accounts",
-    "savings": "/api/v1/savings",
-    "goals": "/api/v1/goals",
+    # v1.1: savings/goals removed; template + balance added (AGREED §B/§G/§H).
+    "template": "/api/v1/template",
+    "balance": "/api/v1/balance",
 }
 
 # Free-form data-dump / compliance routes intentionally left response_model=None
@@ -144,7 +146,8 @@ def test_category_read_required_vs_optional_split():
         )
 
     # Server-defaulted fields: present but NOT required → optional in codegen.
-    for field in ("plan_cents", "rollover", "paused", "parent_id", "tag"):
+    # v1.1: rollover/paused removed from CategoryRead.
+    for field in ("plan_cents", "parent_id", "tag"):
         assert field in props, f"CategoryRead.{field} missing from properties"
         assert field not in required, (
             f"CategoryRead.{field} has a server default → must NOT be required"
