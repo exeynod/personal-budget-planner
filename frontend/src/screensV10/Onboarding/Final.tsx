@@ -3,7 +3,7 @@
 // Owns:
 //   - Hero block: eyebrow «VOL.04 · ГОТОВО», Mass «ВСЁ.», DM Serif italic
 //     subtitle «деньги — под контролем.»
-//   - Summary plate (4 rows): ДОХОД / СЧЕТА / ПЛАН / ЦЕЛЬ
+//   - Summary plate (3 rows): ДОХОД / СЧЕТА / ПЛАН
 //   - «НАЧАТЬ →» CTA → POST /api/v1/onboarding/complete via
 //     postOnboardingComplete(serialiseDraft(state))
 //
@@ -74,10 +74,6 @@ export function Final({ state, onComplete }: FinalProps) {
   const incomeRubles = formatRubles(state.income_cents);
   const balancesRubles = formatRubles(sumAccountBalances(state));
   const planRubles = formatRubles(sumPlanCents(state));
-  const goalLabel =
-    state.goal === null
-      ? 'без цели'
-      : `${state.goal.name} · ${formatRubles(state.goal.target_cents)} ₽`;
 
   async function onStart() {
     if (submitting) return;
@@ -127,7 +123,6 @@ export function Final({ state, onComplete }: FinalProps) {
           value={`${state.accounts.length} · ${balancesRubles} ₽`}
         />
         <SummaryRow label="ПЛАН" value={`${planRubles} ₽ распределено`} />
-        <SummaryRow label="ЦЕЛЬ" value={goalLabel} />
       </div>
 
       <button

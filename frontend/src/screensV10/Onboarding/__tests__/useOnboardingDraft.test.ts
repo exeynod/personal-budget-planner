@@ -69,7 +69,6 @@ describe('useOnboardingDraft — sanitiser', () => {
       income_cents: 0,
       accounts: [],
       category_plans: {},
-      goal: null,
       savings_config: null,
       __evil: 'pwn',
       another: 42,
@@ -81,18 +80,25 @@ describe('useOnboardingDraft — sanitiser', () => {
     const obj = loaded as unknown as Record<string, unknown>;
     expect(obj.__evil).toBeUndefined();
     expect(obj.another).toBeUndefined();
+    // goal was removed in v1.1 (накопления выпилены) — must not be preserved.
+    expect(obj.goal).toBeUndefined();
     expect(Object.keys(obj).sort()).toEqual(
-      ['accounts', 'category_plans', 'goal', 'income_cents', 'savings_config', 'step'].sort(),
+      [
+        'accounts',
+        'category_plans',
+        'income_cents',
+        'savings_config',
+        'step',
+      ].sort(),
     );
   });
 
-  it('rejects entire payload when step out of 1..5 range (returns null)', () => {
+  it('rejects entire payload when step out of 1..4 range (returns null)', () => {
     const bad = {
       step: 99,
       income_cents: 0,
       accounts: [],
       category_plans: {},
-      goal: null,
       savings_config: null,
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(bad));
@@ -137,7 +143,9 @@ describe('useOnboardingDraft — sanitiser', () => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(dirty));
     const loaded = useOnboardingDraft().load();
     expect(loaded?.category_plans).toEqual({ food: 1000, cafe: 500 });
-    expect((loaded?.category_plans as Record<string, number>).gambling).toBeUndefined();
+    expect(
+      (loaded?.category_plans as Record<string, number>).gambling,
+    ).toBeUndefined();
   });
 
   it('rejects malformed JSON and clears the bad key (T-24-01-04)', () => {
@@ -148,17 +156,19 @@ describe('useOnboardingDraft — sanitiser', () => {
     expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
   });
 
-  it('rejects payload with goal of wrong shape', () => {
-    const bad = {
+  it('ignores legacy goal field (v1.1 — накопления выпилены)', () => {
+    const legacy = {
       step: 1,
       income_cents: 0,
       accounts: [],
       category_plans: {},
-      goal: { name: 'X' /* missing target_cents */ },
+      goal: { name: 'X', target_cents: 100 },
       savings_config: null,
     };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(bad));
-    expect(useOnboardingDraft().load()).toBeNull();
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(legacy));
+    const loaded = useOnboardingDraft().load();
+    expect(loaded).not.toBeNull();
+    expect((loaded as unknown as Record<string, unknown>).goal).toBeUndefined();
   });
 
   it('strips per-account unknown fields', () => {
@@ -166,7 +176,13 @@ describe('useOnboardingDraft — sanitiser', () => {
       step: 1,
       income_cents: 0,
       accounts: [
-        { bank: 'X', kind: 'card', balance_cents: 1, primary: true, evil: 'no' },
+        {
+          bank: 'X',
+          kind: 'card',
+          balance_cents: 1,
+          primary: true,
+          evil: 'no',
+        },
       ],
       category_plans: {},
       goal: null,

@@ -1,10 +1,11 @@
-// Phase 24-02: Reusable poster-style scaffold for the 4 onboarding steps + Final.
+// Phase 24-02: Reusable poster-style scaffold for the 3 onboarding steps + Final.
 // Locks the visual contract every step consumes:
 //   - header row (back arrow, eyebrow, optional skip)
 //   - body slot (children, flex:1)
-//   - footer (optional hint, 4-dot progress, NEXT CTA)
+//   - footer (optional hint, 3-dot progress, NEXT CTA)
 //
-// Hidden chrome on step=5 (Final has its own CTA layout — plan 24-08).
+// Hidden chrome on the Final step (step=4) — Final has its own CTA layout
+// (plan 24-08). v1.1 (AGREED §G1): the «ЦЕЛЬ»/goal step was removed.
 // Disabled back-arrow renders muted (opacity 0.25) when `onBack` undefined,
 // matching prototype Step 01 where there is no previous step.
 
@@ -14,15 +15,15 @@ import styles from './OnboardingChrome.module.css';
 import type { OnboardingStep } from './types';
 
 export interface OnboardingChromeProps {
-  /** Current step 1..5 — controls dot fill and CTA visibility. */
+  /** Current step 1..4 — controls dot fill and CTA visibility. */
   step: OnboardingStep;
-  /** Total dots; default 4 (steps 01..04). */
+  /** Total dots; default 3 (steps 01..03). */
   total?: number;
-  /** Eyebrow label, e.g. «ШАГ 01 / 04 · ДОХОД». */
+  /** Eyebrow label, e.g. «ШАГ 01 / 03 · ДОХОД». */
   label: string;
   /** Back handler — when undefined the arrow renders disabled/muted. */
   onBack?: () => void;
-  /** Skip handler — when undefined the link is hidden (Step 04 only). */
+  /** Skip handler — when undefined the link is hidden. */
   onSkip?: () => void;
   /** Next handler — gated by `nextDisabled`. */
   onNext?: () => void;
@@ -46,7 +47,7 @@ const FALLBACK_NEXT_LABEL = 'ДАЛЕЕ →';
 
 export function OnboardingChrome({
   step,
-  total = 4,
+  total = 3,
   label,
   onBack,
   onSkip,
@@ -57,7 +58,7 @@ export function OnboardingChrome({
   hintTone = 'normal',
   children,
 }: OnboardingChromeProps) {
-  const isFinal = step === 5;
+  const isFinal = step === 4;
   const showCta = !isFinal;
   const showDots = !isFinal;
 

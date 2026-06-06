@@ -12,7 +12,6 @@ import {
 import type {
   OnboardingAccount,
   OnboardingDraft,
-  OnboardingGoal,
   OnboardingSavingsConfig,
   OnboardingStep,
 } from './types';
@@ -31,8 +30,6 @@ export type OnboardingAction =
   | { type: 'REMOVE_ACCOUNT'; payload: { index: number } }
   | { type: 'SET_PRIMARY'; payload: { index: number } }
   | { type: 'SET_PLAN'; payload: { code: string; cents: number } }
-  | { type: 'SET_GOAL'; payload: OnboardingGoal }
-  | { type: 'SKIP_GOAL' }
   | { type: 'SET_SAVINGS_CONFIG'; payload: OnboardingSavingsConfig }
   | { type: 'NEXT' }
   | { type: 'BACK' }
@@ -43,12 +40,11 @@ export const INITIAL_STATE: OnboardingDraft = Object.freeze({
   income_cents: 0,
   accounts: [],
   category_plans: {},
-  goal: null,
   savings_config: null,
 }) as OnboardingDraft;
 
 const MIN_STEP: OnboardingStep = 1;
-const MAX_STEP: OnboardingStep = 5;
+const MAX_STEP: OnboardingStep = 4;
 
 function clampStep(step: number): OnboardingStep {
   if (step < MIN_STEP) return MIN_STEP;
@@ -98,7 +94,11 @@ export function onboardingReducer(
       if (index < 0 || index >= state.accounts.length) return state;
       const wasPrimary = state.accounts[index].primary;
       const remaining = state.accounts.filter((_, i) => i !== index);
-      if (wasPrimary && remaining.length > 0 && !remaining.some((a) => a.primary)) {
+      if (
+        wasPrimary &&
+        remaining.length > 0 &&
+        !remaining.some((a) => a.primary)
+      ) {
         // Promote new accounts[0] when primary removed.
         remaining[0] = { ...remaining[0], primary: true };
       }
@@ -134,12 +134,6 @@ export function onboardingReducer(
       };
     }
 
-    case 'SET_GOAL':
-      return { ...state, goal: { ...action.payload } };
-
-    case 'SKIP_GOAL':
-      return { ...state, goal: null };
-
     case 'SET_SAVINGS_CONFIG':
       return { ...state, savings_config: { ...action.payload } };
 
@@ -157,7 +151,6 @@ export function onboardingReducer(
         income_cents: 0,
         accounts: [],
         category_plans: {},
-        goal: null,
         savings_config: null,
       };
 

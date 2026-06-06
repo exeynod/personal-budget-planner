@@ -9,7 +9,7 @@
 // All shapes mirror MeV10Response (app/api/schemas/me_v10.py) and
 // OnboardingV10Response (app/api/schemas/onboarding_v10.py).
 
-import type { Page } from "@playwright/test";
+import type { Page } from '@playwright/test';
 
 export const ME_NOT_ONBOARDED = {
   tg_user_id: 100_000_001,
@@ -17,7 +17,7 @@ export const ME_NOT_ONBOARDED = {
   cycle_start_day: 5,
   onboarded_at: null as string | null,
   chat_id_known: true,
-  role: "owner" as const,
+  role: 'owner' as const,
   ai_spend_cents: 0,
   ai_spending_cap_cents: 46_500,
   income_cents: null as number | null,
@@ -25,7 +25,7 @@ export const ME_NOT_ONBOARDED = {
 
 export const ME_ONBOARDED = {
   ...ME_NOT_ONBOARDED,
-  onboarded_at: "2026-05-10T12:00:00+00:00",
+  onboarded_at: '2026-05-10T12:00:00+00:00',
   income_cents: 12_000_000, // 120 000 ₽ in cents
 };
 
@@ -49,7 +49,7 @@ export const ONBOARDING_COMPLETE_RESPONSE = {
     roundup_enabled: false,
     roundup_base: 50,
   },
-  onboarded_at: "2026-05-10T12:00:00+00:00",
+  onboarded_at: '2026-05-10T12:00:00+00:00',
 };
 
 /**
@@ -72,7 +72,7 @@ export async function mockMe(
   },
 ) {
   let callCount = 0;
-  await page.route("**/api/v1/me", async (route) => {
+  await page.route('**/api/v1/me', async (route) => {
     callCount += 1;
     const shouldFlip =
       (options.flipAfterCall !== undefined &&
@@ -82,7 +82,7 @@ export async function mockMe(
       shouldFlip && options.flipTo ? options.flipTo : options.initial;
     await route.fulfill({
       status: 200,
-      contentType: "application/json",
+      contentType: 'application/json',
       body: JSON.stringify(body),
     });
   });
@@ -106,20 +106,20 @@ export async function mockMeNotOnboarded(page: Page) {
  * resolves to null and HomeMount renders an empty-but-ready home.
  */
 export async function mockHomeDataEmpty(page: Page) {
-  await page.route("**/api/v1/**", async (route) => {
+  await page.route('**/api/v1/**', async (route) => {
     const url = route.request().url();
     if (/\/api\/v1\/periods\/current\b/.test(url)) {
       await route.fulfill({
         status: 404,
-        contentType: "application/json",
-        body: JSON.stringify({ detail: "no active period" }),
+        contentType: 'application/json',
+        body: JSON.stringify({ detail: 'no active period' }),
       });
       return;
     }
     await route.fulfill({
       status: 200,
-      contentType: "application/json",
-      body: "[]",
+      contentType: 'application/json',
+      body: '[]',
     });
   });
 }
@@ -129,11 +129,11 @@ export async function mockOnboardingComplete200(
   page: Page,
   onCalled?: () => void,
 ) {
-  await page.route("**/api/v1/onboarding/complete", async (route) => {
+  await page.route('**/api/v1/onboarding/complete', async (route) => {
     onCalled?.();
     await route.fulfill({
       status: 200,
-      contentType: "application/json",
+      contentType: 'application/json',
       body: JSON.stringify(ONBOARDING_COMPLETE_RESPONSE),
     });
   });
@@ -144,28 +144,28 @@ export async function mockOnboardingComplete409(
   page: Page,
   onCalled?: () => void,
 ) {
-  await page.route("**/api/v1/onboarding/complete", async (route) => {
+  await page.route('**/api/v1/onboarding/complete', async (route) => {
     onCalled?.();
     await route.fulfill({
       status: 409,
-      contentType: "application/json",
-      body: JSON.stringify({ detail: "AlreadyOnboardedError" }),
+      contentType: 'application/json',
+      body: JSON.stringify({ detail: 'AlreadyOnboardedError' }),
     });
   });
 }
 
 /** Mock /onboarding/complete returning 422 (validation error). */
 export async function mockOnboardingComplete422(page: Page) {
-  await page.route("**/api/v1/onboarding/complete", async (route) => {
+  await page.route('**/api/v1/onboarding/complete', async (route) => {
     await route.fulfill({
       status: 422,
-      contentType: "application/json",
+      contentType: 'application/json',
       body: JSON.stringify({
         detail: [
           {
-            loc: ["body", "category_plans"],
-            msg: "sum exceeds income",
-            type: "value_error",
+            loc: ['body', 'category_plans'],
+            msg: 'sum exceeds income',
+            type: 'value_error',
           },
         ],
       }),
@@ -173,15 +173,18 @@ export async function mockOnboardingComplete422(page: Page) {
   });
 }
 
-/** A pre-filled draft useful for tests that pre-populate localStorage. */
-export const STEP05_DRAFT = {
-  step: 5,
+/**
+ * A pre-filled draft useful for tests that pre-populate localStorage.
+ * v1.1: the goal step was removed, so the Final view is step 4 (was 5).
+ */
+export const FINAL_DRAFT = {
+  step: 4,
   income_cents: 8_000_000, // 80_000 ₽
   accounts: [
     {
-      bank: "Т-БАНК",
+      bank: 'Т-БАНК',
       mask: null,
-      kind: "card" as const,
+      kind: 'card' as const,
       balance_cents: 5_000_000,
       primary: true,
     },
@@ -196,8 +199,7 @@ export const STEP05_DRAFT = {
     health: 400_000,
     subs: 240_000,
   },
-  goal: null,
   savings_config: null,
 };
 
-export const STORAGE_KEY = "onboarding.v10.draft";
+export const STORAGE_KEY = 'onboarding.v10.draft';

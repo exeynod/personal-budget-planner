@@ -1,4 +1,4 @@
-// Phase 24-02: Root component for V10 4-step onboarding.
+// Phase 24-02: Root component for V10 3-step onboarding.
 //
 // Owns the `useReducer(onboardingReducer)` state machine and persistence
 // glue (`useOnboardingDraft.save` on every state change). Rehydrates from
@@ -7,9 +7,11 @@
 // initial state.
 //
 // Each step number renders its own dedicated component inside a single
-// `<OnboardingChrome>`. For Phase 24-02 only Step 01 has a real impl;
-// steps 02..05 use `<PlaceholderStep>` and will be filled in by plans
-// 24-04 / 24-06 / 24-08.
+// `<OnboardingChrome>`: 1 = Income, 2 = Accounts, 3 = Plan. Step 4 is the
+// <Final> summary which renders without chrome.
+//
+// v1.1 (AGREED §G1): the «ЦЕЛЬ»/goal step (накопления) was removed — the
+// poster flow is now 3 collect-steps + Final.
 
 import { useEffect, useReducer, useRef } from 'react';
 import { onboardingReducer, INITIAL_STATE } from './onboardingReducer';
@@ -20,19 +22,17 @@ import { OnboardingChrome } from './OnboardingChrome';
 import { Step01Income } from './Step01Income';
 import { Step02Accounts } from './Step02Accounts';
 import { Step03Plan, computePlanFooter } from './Step03Plan';
-import { Step04Goal, isGoalValid } from './Step04Goal';
 import { Final } from './Final';
 import { pluraliseHint } from './format';
-import type { OnboardingDraft, OnboardingStep } from './types';
+import type { OnboardingDraft } from './types';
 import type { OnboardingV10Response } from '../../api/onboardingV10';
 import styles from './OnboardingFlow.module.css';
 
-/** Eyebrow text for steps 1..4. Step 5 (Final) draws its own headline. */
-const STEP_LABELS: Record<1 | 2 | 3 | 4, string> = {
-  1: 'ШАГ 01 / 04 · ДОХОД',
-  2: 'ШАГ 02 / 04 · СЧЕТА',
-  3: 'ШАГ 03 / 04 · ПЛАН',
-  4: 'ШАГ 04 / 04 · ЦЕЛЬ',
+/** Eyebrow text for steps 1..3. Step 4 (Final) draws its own headline. */
+const STEP_LABELS: Record<1 | 2 | 3, string> = {
+  1: 'ШАГ 01 / 03 · ДОХОД',
+  2: 'ШАГ 02 / 03 · СЧЕТА',
+  3: 'ШАГ 03 / 03 · ПЛАН',
 };
 
 // Re-export so existing callers `import { OnboardingV10Response } from
@@ -49,20 +49,6 @@ export interface OnboardingFlowProps {
    * on screen so they can retry.
    */
   onComplete: (response: OnboardingV10Response | null) => void;
-}
-
-interface PlaceholderStepProps {
-  step: OnboardingStep;
-}
-
-function PlaceholderStep({ step }: PlaceholderStepProps) {
-  return (
-    <div className={styles.placeholder}>
-      <span className={styles.placeholderText}>
-        Step {step} — coming next plan
-      </span>
-    </div>
-  );
 }
 
 export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
@@ -85,16 +71,16 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
     draftRef.current.save(state);
   }, [state]);
 
-  const isFinal = state.step === 5;
-  const label = isFinal ? '' : STEP_LABELS[state.step as 1 | 2 | 3 | 4];
+  const isFinal = state.step === 4;
+  const label = isFinal ? '' : STEP_LABELS[state.step as 1 | 2 | 3];
 
   const onBack =
     state.step > 1
       ? () => dispatch({ type: 'BACK' } satisfies OnboardingAction)
       : undefined;
 
-  // For now, NEXT advances the reducer; plan 24-08 swaps Step 04→Final
-  // for the actual submit handler.
+  // NEXT advances the reducer; Step 03 → Final (step 4) is the last hop
+  // before the submit handler in <Final>.
   const onNext = !isFinal
     ? () => dispatch({ type: 'NEXT' } satisfies OnboardingAction)
     : undefined;
@@ -111,20 +97,8 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
     if (state.step === 1) return state.income_cents <= 0;
     if (state.step === 2) return state.accounts.length === 0;
     if (state.step === 3) return step03Footer?.nextDisabled ?? true;
-    // Step 4: NEXT enabled when goal valid; SKIP path bypasses NEXT.
-    if (state.step === 4) return !isGoalValid(state.goal);
     return true;
   })();
-
-  // Step 04 has a custom CTA label and exposes the chrome's ПРОПУСТИТЬ link.
-  const nextLabel = state.step === 4 ? 'ГОТОВО →' : undefined;
-  const onSkip =
-    state.step === 4
-      ? () => {
-          dispatch({ type: 'SKIP_GOAL' } satisfies OnboardingAction);
-          dispatch({ type: 'NEXT' } satisfies OnboardingAction);
-        }
-      : undefined;
 
   // Step 01 explicitly hides the back arrow (no previous screen).
   // Other steps allow back-stepping.
@@ -145,33 +119,22 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
   const renderStepBody = () => {
     if (state.step === 1) {
       return (
-        <Step01Income
-          incomeCents={state.income_cents}
-          dispatch={dispatch}
-        />
+        <Step01Income incomeCents={state.income_cents} dispatch={dispatch} />
       );
     }
     if (state.step === 2) {
-      return (
-        <Step02Accounts accounts={state.accounts} dispatch={dispatch} />
-      );
+      return <Step02Accounts accounts={state.accounts} dispatch={dispatch} />;
     }
-    if (state.step === 3) {
-      return (
-        <Step03Plan
-          incomeCents={state.income_cents}
-          categoryPlans={state.category_plans}
-          dispatch={dispatch}
-        />
-      );
-    }
-    if (state.step === 4) {
-      return <Step04Goal goal={state.goal} dispatch={dispatch} />;
-    }
-    return <PlaceholderStep step={state.step} />;
+    return (
+      <Step03Plan
+        incomeCents={state.income_cents}
+        categoryPlans={state.category_plans}
+        dispatch={dispatch}
+      />
+    );
   };
 
-  // Step 5 (Final) renders without OnboardingChrome — it owns its own
+  // Step 4 (Final) renders without OnboardingChrome — it owns its own
   // hero/plate/CTA layout per plan 24-08 §case 5.
   if (isFinal) {
     return (
@@ -185,11 +148,10 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
     <div className={styles.flow}>
       <OnboardingChrome
         step={state.step}
+        total={3}
         label={label}
         onBack={state.step === 1 ? step01Back : onBack}
-        onSkip={onSkip}
         onNext={onNext}
-        nextLabel={nextLabel}
         nextDisabled={nextDisabled}
         hint={hint}
         hintTone={hintTone}

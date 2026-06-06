@@ -48,7 +48,7 @@ beforeEach(() => {
 });
 
 const SAMPLE_STATE: OnboardingDraft = {
-  step: 5,
+  step: 4,
   income_cents: 12_000_000, // 120 000 ₽
   accounts: [
     {
@@ -67,7 +67,6 @@ const SAMPLE_STATE: OnboardingDraft = {
     },
   ],
   category_plans: { food: 4_000_000, home: 6_000_000 },
-  goal: { name: 'Грузия', target_cents: 200_000_00 },
   savings_config: null,
 };
 
@@ -76,9 +75,7 @@ const SAMPLE_RESPONSE = {
   income_cents: 12_000_000,
   account_ids: [11, 22],
   category_ids_by_code: { food: 1, home: 2 },
-  savings_category_id: 9,
-  goal_id: 7,
-  savings_config: { roundup_enabled: false, roundup_base: 100 },
+  adjustment_category_id: 9,
   onboarded_at: '2026-05-09T00:00:00Z',
 };
 
@@ -86,30 +83,26 @@ const post = postOnboardingComplete as ReturnType<typeof vi.fn>;
 const startBtn = () => screen.getByRole('button', { name: /НАЧАТЬ/ });
 
 describe('Final — render', () => {
-  it('smoke: headers, 4 summary rows with formatted values, «без цели» when goal null', () => {
-    const { rerender } = render(
-      <Final state={SAMPLE_STATE} onComplete={vi.fn()} />,
-    );
+  it('smoke: headers, 3 summary rows with formatted values (no ЦЕЛЬ row)', () => {
+    render(<Final state={SAMPLE_STATE} onComplete={vi.fn()} />);
     expect(screen.getByText('VOL.04 · ГОТОВО')).toBeInTheDocument();
     expect(screen.getByText('ВСЁ.')).toBeInTheDocument();
     expect(screen.getByText(/под контролем/)).toBeInTheDocument();
-    for (const label of ['ДОХОД', 'СЧЕТА', 'ПЛАН', 'ЦЕЛЬ']) {
+    for (const label of ['ДОХОД', 'СЧЕТА', 'ПЛАН']) {
       expect(screen.getByText(label)).toBeInTheDocument();
     }
+    // v1.1 (накопления выпилены): the goal summary row is gone.
+    expect(screen.queryByText('ЦЕЛЬ')).not.toBeInTheDocument();
+    expect(screen.queryByText('без цели')).not.toBeInTheDocument();
     expect(screen.getByText(/120.000 ₽ \/ мес/)).toBeInTheDocument(); // income
     expect(screen.getByText(/2 · 80.000 ₽/)).toBeInTheDocument(); // accounts count + sum
     expect(screen.getByText(/100.000 ₽ распределено/)).toBeInTheDocument(); // plan Σ
-    expect(screen.getByText(/Грузия · 200.000 ₽/)).toBeInTheDocument(); // goal
     expect(startBtn()).toBeInTheDocument();
-    rerender(
-      <Final state={{ ...SAMPLE_STATE, goal: null }} onComplete={vi.fn()} />,
-    );
-    expect(screen.getByText('без цели')).toBeInTheDocument();
   });
 });
 
 describe('Final — submit handler', () => {
-  it('200 OK → serialised body (no step/goal-when-null), clears draft, onComplete(response)', async () => {
+  it('200 OK → serialised body (no step, no goal), clears draft, onComplete(response)', async () => {
     const onComplete = vi.fn();
     post.mockResolvedValue(SAMPLE_RESPONSE);
     render(<Final state={SAMPLE_STATE} onComplete={onComplete} />);
@@ -117,21 +110,16 @@ describe('Final — submit handler', () => {
     await waitFor(() => expect(post).toHaveBeenCalledTimes(1));
     const body = post.mock.calls[0][0];
     expect(body).not.toHaveProperty('step');
+    // v1.1 (накопления выпилены): goal is never sent — backend forbids it.
+    expect(body).not.toHaveProperty('goal');
     expect(body.income_cents).toBe(12_000_000);
-    expect(body.goal).toEqual({ name: 'Грузия', target_cents: 200_000_00 });
+    expect(Object.keys(body).sort()).toEqual(
+      ['accounts', 'category_plans', 'income_cents'].sort(),
+    );
     await waitFor(() => {
       expect(mockClear).toHaveBeenCalledTimes(1);
       expect(onComplete).toHaveBeenCalledWith(SAMPLE_RESPONSE);
     });
-    // goal=null → body omits goal key
-    cleanup();
-    post.mockClear();
-    render(
-      <Final state={{ ...SAMPLE_STATE, goal: null }} onComplete={vi.fn()} />,
-    );
-    fireEvent.click(startBtn());
-    await waitFor(() => expect(post).toHaveBeenCalled());
-    expect(post.mock.calls.at(-1)?.[0]).not.toHaveProperty('goal');
   });
 
   it('409 → clears draft, shows «уже завершили», eventually onComplete(null) (T-24-08-05)', async () => {

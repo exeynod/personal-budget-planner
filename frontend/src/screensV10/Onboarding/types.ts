@@ -6,12 +6,12 @@
 //
 // Snake_case is intentional: Python schema is the source of truth, and
 // the wire layer must not silently camelCase. The `step` field is UI-only
-// (step counter 1..5) and is stripped by `serialiseDraft` before POST.
+// (step counter 1..4) and is stripped by `serialiseDraft` before POST.
 
 export type AccountKind = 'card' | 'cash' | 'savings';
 
-/** Step counter — 1..4 collect, 5 = Final summary. */
-export type OnboardingStep = 1 | 2 | 3 | 4 | 5;
+/** Step counter — 1..3 collect, 4 = Final summary. */
+export type OnboardingStep = 1 | 2 | 3 | 4;
 
 export interface OnboardingAccount {
   bank: string;
@@ -20,13 +20,6 @@ export interface OnboardingAccount {
   kind: AccountKind;
   balance_cents: number;
   primary: boolean;
-}
-
-export interface OnboardingGoal {
-  name: string;
-  target_cents: number;
-  /** ISO yyyy-MM-dd; optional, must be strictly future when set. */
-  due?: string | null;
 }
 
 export interface OnboardingSavingsConfig {
@@ -46,6 +39,5 @@ export interface OnboardingDraft {
   income_cents: number;
   accounts: OnboardingAccount[];
   category_plans: Record<string, number>;
-  goal: OnboardingGoal | null;
   savings_config: OnboardingSavingsConfig | null;
 }

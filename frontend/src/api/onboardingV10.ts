@@ -6,8 +6,12 @@
 // (UI-only), no camelCase keys.
 //
 // The `serialiseDraft` helper is the single chokepoint converting the
-// localStorage draft into the wire body. Tests assert it strips `step`
-// and tolerates `goal === null` (Optional on Pydantic — omit key).
+// localStorage draft into the wire body. Tests assert it strips `step`.
+//
+// v1.1 (AGREED §G1): накопления/цели выпилены — the backend
+// `OnboardingV10Body` no longer accepts `goal` (extra="forbid"), so the
+// wire body carries exactly {income_cents, accounts, category_plans}
+// (+ optional savings_config, which the poster flow never sets).
 
 import { apiFetch } from './client';
 import { clearCache } from './cache';
@@ -24,12 +28,6 @@ export interface OnboardingV10AccountWire {
   primary: boolean;
 }
 
-export interface OnboardingV10GoalWire {
-  name: string;
-  target_cents: number;
-  due?: string;
-}
-
 export interface OnboardingV10SavingsConfigWire {
   roundup_enabled: boolean;
   base: 10 | 50 | 100;
@@ -38,39 +36,34 @@ export interface OnboardingV10SavingsConfigWire {
 /**
  * Request body for POST /api/v1/onboarding/complete.
  *
- * Optional keys (`goal`, `savings_config`) MUST be omitted entirely when
- * not set — server uses Optional with default None, but extra="forbid"
- * does not punish missing keys; sending `null` is also accepted by
- * Pydantic v2 with Optional[...]. We choose to omit when null to keep
- * payloads small + diagnostic.
+ * The optional `savings_config` key MUST be omitted entirely when not set
+ * — server uses Optional with default None, but extra="forbid" does not
+ * punish missing keys. We omit when null to keep payloads small +
+ * diagnostic. The poster flow never sets it, so the body is effectively
+ * {income_cents, accounts, category_plans}.
  */
 export interface OnboardingV10Body {
   income_cents: number;
   accounts: OnboardingV10AccountWire[];
   category_plans: Record<string, number>;
-  goal?: OnboardingV10GoalWire | null;
   savings_config?: OnboardingV10SavingsConfigWire | null;
 }
 
-/** Mirrors `OnboardingV10Response` + `OnboardingV10SavingsConfigRead`. */
+/** Mirrors backend `OnboardingV10Response` (v1.1 — savings/goal removed). */
 export interface OnboardingV10Response {
   user_id: number;
   income_cents: number;
   account_ids: number[];
   category_ids_by_code: Record<string, number>;
-  savings_category_id: number;
-  goal_id: number | null;
-  savings_config: {
-    roundup_enabled: boolean;
-    roundup_base: number;
-  };
+  // v1.1: adjustment system category id (replaces savings_category_id).
+  adjustment_category_id: number;
   onboarded_at: string; // ISO-8601
 }
 
 /**
- * Convert local draft → wire body. Strips UI-only `step`; omits
- * `goal` / `savings_config` keys when null so server logs don't show
- * meaningless `null`-only fields.
+ * Convert local draft → wire body. Strips UI-only `step`; omits the
+ * `savings_config` key when null so server logs don't show meaningless
+ * `null`-only fields.
  */
 export function serialiseDraft(draft: OnboardingDraft): OnboardingV10Body {
   const accounts: OnboardingV10AccountWire[] = draft.accounts.map(
@@ -93,17 +86,6 @@ export function serialiseDraft(draft: OnboardingDraft): OnboardingV10Body {
     accounts,
     category_plans: { ...draft.category_plans },
   };
-
-  if (draft.goal !== null) {
-    const g: OnboardingV10GoalWire = {
-      name: draft.goal.name,
-      target_cents: draft.goal.target_cents,
-    };
-    if (draft.goal.due !== undefined && draft.goal.due !== null) {
-      g.due = draft.goal.due;
-    }
-    body.goal = g;
-  }
 
   if (draft.savings_config !== null) {
     body.savings_config = {

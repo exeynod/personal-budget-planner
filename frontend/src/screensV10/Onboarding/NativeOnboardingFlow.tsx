@@ -109,7 +109,7 @@ export function NativeOnboardingFlow({
     // Build the SAME draft shape the poster collects. `step` is UI-only and
     // stripped by serialiseDraft (never reaches the wire).
     const draft: OnboardingDraft = {
-      step: 5,
+      step: 4,
       income_cents: incomeCents,
       accounts: [
         {
@@ -121,7 +121,6 @@ export function NativeOnboardingFlow({
         },
       ],
       category_plans: presetsOn ? defaultPlanFromIncome(incomeCents) : {},
-      goal: null,
       savings_config: null,
     };
 

@@ -16,7 +16,6 @@ describe('onboardingReducer — INITIAL_STATE', () => {
       income_cents: 0,
       accounts: [],
       category_plans: {},
-      goal: null,
       savings_config: null,
     });
   });
@@ -187,49 +186,26 @@ describe('onboardingReducer — SET_PLAN', () => {
   });
 });
 
-describe('onboardingReducer — goal', () => {
-  it('SET_GOAL sets the goal slot', () => {
-    const next = onboardingReducer(INITIAL_STATE, {
-      type: 'SET_GOAL',
-      payload: { name: 'Отпуск', target_cents: 200_000_00, due: '2026-12-31' },
-    });
-    expect(next.goal).toEqual({
-      name: 'Отпуск',
-      target_cents: 200_000_00,
-      due: '2026-12-31',
-    });
-  });
-
-  it('SKIP_GOAL clears goal to null', () => {
-    let s = onboardingReducer(INITIAL_STATE, {
-      type: 'SET_GOAL',
-      payload: { name: 'X', target_cents: 1, due: null },
-    });
-    s = onboardingReducer(s, { type: 'SKIP_GOAL' });
-    expect(s.goal).toBeNull();
-  });
-});
-
 describe('onboardingReducer — step transitions', () => {
   it('NEXT increments step', () => {
     const a = onboardingReducer(INITIAL_STATE, { type: 'NEXT' });
     expect(a.step).toBe(2);
   });
 
-  it('NEXT caps at 5', () => {
+  it('NEXT caps at 4', () => {
     let s = INITIAL_STATE;
     for (let i = 0; i < 10; i++) {
       s = onboardingReducer(s, { type: 'NEXT' });
     }
-    expect(s.step).toBe(5);
+    expect(s.step).toBe(4);
   });
 
   it('BACK decrements step floored at 1', () => {
     let s = INITIAL_STATE;
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < 4; i++) {
       s = onboardingReducer(s, { type: 'NEXT' });
     }
-    expect(s.step).toBe(5);
+    expect(s.step).toBe(4);
     for (let i = 0; i < 10; i++) {
       s = onboardingReducer(s, { type: 'BACK' });
     }
