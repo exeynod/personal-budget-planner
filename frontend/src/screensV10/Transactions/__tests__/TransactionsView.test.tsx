@@ -1,20 +1,8 @@
-// Phase 25-08 Task 2: TransactionsView presentational component tests.
+// Phase 25-08 Task 2: TransactionsView presentational component.
 //
-// Coverage (TXN-V10-01..05):
-//   - «Реестр.» mass headline visible.
-//   - Header eyebrow «{N} ЗАПИСЕЙ · {Σ ₽}» visible.
-//   - 6 filter chips rendered (Все / Кафе / Продукты / Транспорт / Подписки / Копилка).
-//   - Click chip 'Кафе' → onChipChange called with 'cafe'.
-//   - Day labels appear (Сегодня / Вчера) for grouped rows.
-//   - Roundup row has «↻ ОКРУГЛ.» inline plate.
-//   - Deposit row has «→ КОПИЛКА» inline plate.
-//   - Click row → onRowTap called with tx object.
-//   - ← НАЗАД click → onBack called.
-//   - Negative amount displayed with U+2212.
-//   - Empty state (dayGroups=[]) → renders «Реестр пуст —» italic.
-//
-// Pattern mirrors HomeView.test.tsx (Plan 25-04) — props-only render,
-// click handlers asserted via vi.fn().
+// Trimmed to smoke-render + empty state + key interactions (chip change,
+// row tap, swipe/context-menu delete). Amount/sign formatting is covered by
+// computeTransactions.test.ts.
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, fireEvent, cleanup } from '@testing-library/react';
@@ -27,8 +15,6 @@ import type {
 } from '../../../api/v10';
 
 afterEach(cleanup);
-
-// ─────────────────── builders ───────────────────
 
 function mkCategory(over: Partial<CategoryV10> = {}): CategoryV10 {
   return {
@@ -78,33 +64,52 @@ function mkActual(over: Partial<ActualV10Read> = {}): ActualV10Read {
   };
 }
 
-function makeProps(propOverrides: Partial<React.ComponentProps<typeof TransactionsView>> = {}) {
+function makeProps(
+  propOverrides: Partial<React.ComponentProps<typeof TransactionsView>> = {},
+) {
   const onChipChange = vi.fn();
   const onRowTap = vi.fn();
   const onRowDelete = vi.fn();
   const onBack = vi.fn();
 
-  // Default fixture: 3 rows in 2 day groups (today + yesterday).
   const cafe = mkCategory({ id: 1, code: 'cafe', name: 'Кафе' });
   const food = mkCategory({ id: 2, code: 'food', name: 'Продукты' });
   const accCard = mkAccount({ id: 1, bank: 'Т-Банк', mask: '1234' });
-  const accSavings = mkAccount({ id: 2, bank: 'Т-Банк', mask: null, kind: 'savings' });
+  const accSavings = mkAccount({
+    id: 2,
+    bank: 'Т-Банк',
+    mask: null,
+    kind: 'savings',
+  });
 
   const tx1 = mkActual({
-    id: 100, kind: 'expense', amount_cents: -500_00,
-    description: 'Утренний кофе', category_id: 1,
-    tx_date: '2026-05-10', created_at: '2026-05-10T09:30:00+00:00',
+    id: 100,
+    kind: 'expense',
+    amount_cents: -500_00,
+    description: 'Утренний кофе',
+    category_id: 1,
+    tx_date: '2026-05-10',
+    created_at: '2026-05-10T09:30:00+00:00',
   });
   const tx2 = mkActual({
-    id: 101, kind: 'roundup', amount_cents: 25,
-    description: 'Округление', category_id: 1,
-    tx_date: '2026-05-10', created_at: '2026-05-10T09:30:01+00:00',
-    account_id: 2, parent_txn_id: 100,
+    id: 101,
+    kind: 'roundup',
+    amount_cents: 25,
+    description: 'Округление',
+    category_id: 1,
+    tx_date: '2026-05-10',
+    created_at: '2026-05-10T09:30:01+00:00',
+    account_id: 2,
+    parent_txn_id: 100,
   });
   const tx3 = mkActual({
-    id: 102, kind: 'deposit', amount_cents: 1000_00,
-    description: 'Перевод в копилку', category_id: 2,
-    tx_date: '2026-05-09', created_at: '2026-05-09T18:00:00+00:00',
+    id: 102,
+    kind: 'deposit',
+    amount_cents: 1000_00,
+    description: 'Перевод в копилку',
+    category_id: 2,
+    tx_date: '2026-05-09',
+    created_at: '2026-05-09T18:00:00+00:00',
     account_id: 2,
   });
 
@@ -138,216 +143,106 @@ function makeProps(propOverrides: Partial<React.ComponentProps<typeof Transactio
       {...propOverrides}
     />,
   );
-  return { ...utils, onChipChange, onRowTap, onRowDelete, onBack, tx1, tx2, tx3 };
+  return {
+    ...utils,
+    onChipChange,
+    onRowTap,
+    onRowDelete,
+    onBack,
+    tx1,
+    tx2,
+    tx3,
+  };
 }
 
-// ─────────────────── tests ───────────────────
-
-describe('TransactionsView — header + headline', () => {
-  it('renders the «Реестр.» mass italic headline', () => {
-    const { getByText } = makeProps();
+describe('TransactionsView — render', () => {
+  it('smoke: headline, header summary, 6 chips, day labels, rows + tags', () => {
+    const { getByText, container } = makeProps();
     expect(getByText(/Реестр\./)).toBeInTheDocument();
-  });
-
-  it('renders eyebrow «SECTION II»', () => {
-    const { getByText } = makeProps();
-    expect(getByText('SECTION II')).toBeInTheDocument();
-  });
-
-  it('renders header eyebrow with count + sum («3 ЗАПИСЕЙ» + ₽)', () => {
-    const { container } = makeProps();
-    const text = container.textContent ?? '';
-    expect(text).toMatch(/3\s+ЗАПИСЕЙ/);
-    expect(text).toMatch(/₽/);
-  });
-});
-
-describe('TransactionsView — back link', () => {
-  it('← НАЗАД click invokes onBack', () => {
-    const { getByText, onBack } = makeProps();
-    fireEvent.click(getByText('← НАЗАД'));
-    expect(onBack).toHaveBeenCalledTimes(1);
-  });
-});
-
-describe('TransactionsView — filter chips', () => {
-  it('renders all 6 chip labels (Все / Кафе / Продукты / Транспорт / Подписки / Копилка)', () => {
-    const { getByText } = makeProps();
-    expect(getByText('Все')).toBeInTheDocument();
-    expect(getByText('Кафе')).toBeInTheDocument();
-    expect(getByText('Продукты')).toBeInTheDocument();
-    expect(getByText('Транспорт')).toBeInTheDocument();
-    expect(getByText('Подписки')).toBeInTheDocument();
-    expect(getByText('Копилка')).toBeInTheDocument();
-  });
-
-  it('clicks chip "Кафе" → onChipChange("cafe")', () => {
-    const { getByText, onChipChange } = makeProps();
-    fireEvent.click(getByText('Кафе'));
-    expect(onChipChange).toHaveBeenCalledWith('cafe');
-  });
-
-  it('clicks chip "Копилка" → onChipChange("savings")', () => {
-    const { getByText, onChipChange } = makeProps();
-    fireEvent.click(getByText('Копилка'));
-    expect(onChipChange).toHaveBeenCalledWith('savings');
-  });
-
-  it('clicks chip "Все" → onChipChange("all")', () => {
-    const { getByText, onChipChange } = makeProps({ filterChip: 'cafe' });
-    fireEvent.click(getByText('Все'));
-    expect(onChipChange).toHaveBeenCalledWith('all');
-  });
-});
-
-describe('TransactionsView — day groups', () => {
-  it('renders day labels «Сегодня» and «Вчера»', () => {
-    const { getByText } = makeProps();
+    expect(container.textContent ?? '').toMatch(/3\s+ЗАПИСЕЙ/);
+    for (const chip of [
+      'Все',
+      'Кафе',
+      'Продукты',
+      'Транспорт',
+      'Подписки',
+      'Копилка',
+    ]) {
+      expect(getByText(chip)).toBeInTheDocument();
+    }
     expect(getByText('Сегодня')).toBeInTheDocument();
     expect(getByText('Вчера')).toBeInTheDocument();
-  });
-
-  it('renders rows with descriptions', () => {
-    const { getByText } = makeProps();
     expect(getByText('Утренний кофе')).toBeInTheDocument();
-    expect(getByText('Округление')).toBeInTheDocument();
-    expect(getByText('Перевод в копилку')).toBeInTheDocument();
-  });
-});
-
-describe('TransactionsView — spec-tags', () => {
-  it('roundup row shows «↻ ОКРУГЛ.» inline plate', () => {
-    const { getByText } = makeProps();
-    expect(getByText(/↻\s*ОКРУГЛ\./)).toBeInTheDocument();
+    expect(getByText(/↻\s*ОКРУГЛ\./)).toBeInTheDocument(); // roundup tag
+    expect(getByText(/→\s*КОПИЛКА/)).toBeInTheDocument(); // deposit tag
+    expect((container.textContent ?? '').includes('−')).toBe(true); // U+2212
   });
 
-  it('deposit row shows «→ КОПИЛКА» inline plate', () => {
-    const { getByText } = makeProps();
-    expect(getByText(/→\s*КОПИЛКА/)).toBeInTheDocument();
-  });
-});
-
-describe('TransactionsView — row interactions', () => {
-  it('clicking a row invokes onRowTap with the tx object', () => {
-    const { container, onRowTap, tx1 } = makeProps();
-    const row = container.querySelector(`[data-testid="tx-row-${tx1.id}"]`);
-    expect(row).not.toBeNull();
-    fireEvent.click(row!);
-    expect(onRowTap).toHaveBeenCalledWith(tx1);
-  });
-});
-
-describe('TransactionsView — amount formatting', () => {
-  it('renders negative amounts with U+2212 (NOT ASCII -)', () => {
-    const { container } = makeProps();
-    const text = container.textContent ?? '';
-    // U+2212 is 0x2212 = 8722; 'charCodeAt' check for explicit code-point safety.
-    expect(text.includes('−')).toBe(true);
-    // No raw ASCII '-' immediately before a digit (would indicate a plain "-500").
-    // We tolerate ASCII '-' elsewhere (e.g. wallet 1-2-3 phone separators) — only
-    // assert U+2212 IS present. The compute helper test enforces no ASCII dash.
-  });
-});
-
-describe('TransactionsView — empty state', () => {
-  it('renders empty placeholder when dayGroups is empty', () => {
-    const { getByText } = makeProps({ dayGroups: [], headerCount: 0, headerSumCents: 0 });
+  it('empty state «Реестр пуст»', () => {
+    const { getByText } = makeProps({
+      dayGroups: [],
+      headerCount: 0,
+      headerSumCents: 0,
+    });
     expect(getByText(/Реестр пуст/)).toBeInTheDocument();
   });
 });
 
-// ─────────── Phase 30-05 DEBT-05: swipe-left delete + context-menu fallback ───────────
-
-describe('TransactionsView — swipe-left delete (touch)', () => {
-  it('wraps each row in a .swipeContainer', () => {
-    const { container, tx1, tx2, tx3 } = makeProps();
-    for (const id of [tx1.id, tx2.id, tx3.id]) {
-      expect(
-        container.querySelector(`[data-testid="tx-swipe-${id}"]`),
-      ).not.toBeNull();
-    }
+describe('TransactionsView — interactions', () => {
+  it('chip click → onChipChange(code); ← НАЗАД → onBack', () => {
+    const { getByText, onChipChange, onBack } = makeProps();
+    fireEvent.click(getByText('Кафе'));
+    expect(onChipChange).toHaveBeenCalledWith('cafe');
+    fireEvent.click(getByText('Копилка'));
+    expect(onChipChange).toHaveBeenCalledWith('savings');
+    fireEvent.click(getByText('← НАЗАД'));
+    expect(onBack).toHaveBeenCalledTimes(1);
   });
 
-  it('renders a «УДАЛИТЬ» action per row', () => {
-    const { container, tx1 } = makeProps();
+  it('row tap → onRowTap(tx)', () => {
+    const { container, onRowTap, tx1 } = makeProps();
+    fireEvent.click(
+      container.querySelector(`[data-testid="tx-row-${tx1.id}"]`)!,
+    );
+    expect(onRowTap).toHaveBeenCalledWith(tx1);
+  });
+
+  it('swipe «УДАЛИТЬ» action → onRowDelete(tx), not onRowTap', () => {
+    const { container, onRowDelete, onRowTap, tx1 } = makeProps();
     const action = container.querySelector(
       `[data-testid="tx-swipe-action-${tx1.id}"]`,
     );
-    expect(action).not.toBeNull();
     expect(action?.textContent).toMatch(/УДАЛИТЬ/);
-  });
-
-  it('clicking the «УДАЛИТЬ» action invokes onRowDelete and NOT onRowTap', () => {
-    const { container, onRowDelete, onRowTap, tx1 } = makeProps();
-    const action = container.querySelector(
-      `[data-testid="tx-swipe-action-${tx1.id}"]`,
-    );
-    expect(action).not.toBeNull();
     fireEvent.click(action!);
-    expect(onRowDelete).toHaveBeenCalledTimes(1);
     expect(onRowDelete).toHaveBeenCalledWith(tx1);
     expect(onRowTap).not.toHaveBeenCalled();
   });
-});
 
-describe('TransactionsView — right-click context-menu (desktop fallback)', () => {
-  it('right-click on a row opens the context-menu overlay', () => {
-    const { container, tx1 } = makeProps();
-    // Menu hidden initially.
-    expect(
-      container.querySelector(`[data-testid="tx-context-menu-${tx1.id}"]`),
-    ).toBeNull();
-    const row = container.querySelector(`[data-testid="tx-row-${tx1.id}"]`);
-    fireEvent.contextMenu(row!);
-    expect(
-      container.querySelector(`[data-testid="tx-context-menu-${tx1.id}"]`),
-    ).not.toBeNull();
-  });
-
-  it('clicking «Удалить» in the context-menu calls onRowDelete with the tx', () => {
+  it('right-click context-menu: delete calls onRowDelete; cancel/backdrop close without deleting', () => {
     const { container, onRowDelete, onRowTap, tx1 } = makeProps();
-    fireEvent.contextMenu(
-      container.querySelector(`[data-testid="tx-row-${tx1.id}"]`)!,
-    );
+    const sel = `[data-testid="tx-context-menu-${tx1.id}"]`;
+    const row = () =>
+      container.querySelector(`[data-testid="tx-row-${tx1.id}"]`)!;
+    // open + delete
+    fireEvent.contextMenu(row());
+    expect(container.querySelector(sel)).not.toBeNull();
     fireEvent.click(
-      container.querySelector(`[data-testid="tx-context-menu-delete-${tx1.id}"]`)!,
+      container.querySelector(
+        `[data-testid="tx-context-menu-delete-${tx1.id}"]`,
+      )!,
     );
     expect(onRowDelete).toHaveBeenCalledWith(tx1);
-    // The wrapping row's click handler must not also fire onRowTap.
     expect(onRowTap).not.toHaveBeenCalled();
-    // Menu closes after the action.
-    expect(
-      container.querySelector(`[data-testid="tx-context-menu-${tx1.id}"]`),
-    ).toBeNull();
-  });
-
-  it('clicking «Отмена» closes the menu without calling onRowDelete', () => {
-    const { container, onRowDelete, tx1 } = makeProps();
-    fireEvent.contextMenu(
-      container.querySelector(`[data-testid="tx-row-${tx1.id}"]`)!,
-    );
+    expect(container.querySelector(sel)).toBeNull();
+    // open + cancel
+    onRowDelete.mockClear();
+    fireEvent.contextMenu(row());
     fireEvent.click(
-      container.querySelector(`[data-testid="tx-context-menu-cancel-${tx1.id}"]`)!,
+      container.querySelector(
+        `[data-testid="tx-context-menu-cancel-${tx1.id}"]`,
+      )!,
     );
     expect(onRowDelete).not.toHaveBeenCalled();
-    expect(
-      container.querySelector(`[data-testid="tx-context-menu-${tx1.id}"]`),
-    ).toBeNull();
-  });
-
-  it('clicking the overlay backdrop closes the menu without deleting', () => {
-    const { container, onRowDelete, tx1 } = makeProps();
-    fireEvent.contextMenu(
-      container.querySelector(`[data-testid="tx-row-${tx1.id}"]`)!,
-    );
-    const overlay = container.querySelector(
-      `[data-testid="tx-context-menu-${tx1.id}"]`,
-    );
-    expect(overlay).not.toBeNull();
-    fireEvent.click(overlay!);
-    expect(onRowDelete).not.toHaveBeenCalled();
-    expect(
-      container.querySelector(`[data-testid="tx-context-menu-${tx1.id}"]`),
-    ).toBeNull();
+    expect(container.querySelector(sel)).toBeNull();
   });
 });

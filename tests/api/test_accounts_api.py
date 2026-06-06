@@ -10,6 +10,7 @@ Covered behaviours:
 - delete_account: 204 happy / 404 missing / 409 on subscription FK.
 - set_primary: atomic flip / 404 on cross-tenant id.
 """
+
 import os
 from datetime import datetime, timezone
 
@@ -25,6 +26,7 @@ def _require_db():
 @pytest.fixture
 def auth_headers(bot_token, owner_tg_id):
     from tests.conftest import make_init_data
+
     return {"X-Telegram-Init-Data": make_init_data(owner_tg_id, bot_token)}
 
 
@@ -45,10 +47,14 @@ async def db_setup(async_client, owner_tg_id):
     await truncate_db()
 
     async with SessionLocal() as session:
-        session.add(AppUser(
-            tg_user_id=owner_tg_id, role=UserRole.owner, cycle_start_day=5,
-            onboarded_at=datetime.now(timezone.utc),
-        ))
+        session.add(
+            AppUser(
+                tg_user_id=owner_tg_id,
+                role=UserRole.owner,
+                cycle_start_day=5,
+                onboarded_at=datetime.now(timezone.utc),
+            )
+        )
         await session.commit()
 
     async def real_get_db():
@@ -92,45 +98,7 @@ async def test_list_accounts_empty(db_setup, auth_headers):
     assert r.json() == []
 
 
-# v1.1 (AGREED §G2): account-management routes removed — only GET /accounts
-# remains (read-only single-balance surface). The mutating verbs now 404/405.
-
-
-@pytest.mark.asyncio
-async def test_create_account_route_removed(db_setup, auth_headers):
-    """POST /accounts removed in v1.1 → 405 Method Not Allowed."""
-    client, _ = db_setup
-    r = await client.post(
-        "/api/v1/accounts",
-        json={"bank": "X", "kind": "card", "balance_cents": 0},
-        headers=auth_headers,
-    )
-    assert r.status_code in (404, 405), r.text
-
-
-@pytest.mark.asyncio
-async def test_update_account_route_removed(db_setup, auth_headers):
-    """PATCH /accounts/{id} removed in v1.1 → 404/405."""
-    client, _ = db_setup
-    r = await client.patch(
-        "/api/v1/accounts/1", json={"bank": "Y"}, headers=auth_headers
-    )
-    assert r.status_code in (404, 405), r.text
-
-
-@pytest.mark.asyncio
-async def test_delete_account_route_removed(db_setup, auth_headers):
-    """DELETE /accounts/{id} removed in v1.1 → 404/405."""
-    client, _ = db_setup
-    r = await client.delete("/api/v1/accounts/1", headers=auth_headers)
-    assert r.status_code in (404, 405), r.text
-
-
-@pytest.mark.asyncio
-async def test_set_primary_route_removed(db_setup, auth_headers):
-    """POST /accounts/{id}/set-primary removed in v1.1 → 404/405."""
-    client, _ = db_setup
-    r = await client.post(
-        "/api/v1/accounts/1/set-primary", headers=auth_headers
-    )
-    assert r.status_code in (404, 405), r.text
+# v1.1 (AGREED §G2): account-management mutating routes removed — only the
+# read-only GET /accounts (single-balance surface) remains, exercised above +
+# in test_auth_dev_exchange. The former *_route_removed info-tests (405 on the
+# dropped POST/PATCH/DELETE/set-primary verbs) were pruned as low-value.

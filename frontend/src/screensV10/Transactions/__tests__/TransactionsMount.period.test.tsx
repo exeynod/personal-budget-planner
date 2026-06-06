@@ -3,11 +3,13 @@
 
 import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
 import { render, cleanup, screen, act } from '@testing-library/react';
+import { useState } from 'react';
 import { TransactionsMount } from '../TransactionsMount';
 import {
   SelectedPeriodProvider,
   PosterRouterProvider,
   PosterRouterView,
+  RefetchTokenProvider,
   useSelectedPeriod,
 } from '../../common';
 import type { PeriodRead } from '../../../api/types';
@@ -114,5 +116,51 @@ describe('TransactionsMount — period switching re-fetch (Phase P2)', () => {
     await flushPromises();
 
     expect(listActualV10Mock).toHaveBeenCalledWith(5);
+  });
+});
+
+// Merged from former TransactionsMount.refetch.test.tsx (DEBT-02): bumping the
+// RefetchTokenProvider value re-runs the registry fetch effect and updates the
+// `parent-refetched` sentinel.
+function RefetchHarness() {
+  const [token, setToken] = useState(0);
+  return (
+    <RefetchTokenProvider value={token}>
+      <SelectedPeriodProvider>
+        <PosterRouterProvider root={<TransactionsMount />}>
+          <PosterRouterView />
+          <button
+            type="button"
+            data-testid="bump-token"
+            onClick={() => setToken((t) => t + 1)}
+          >
+            bump
+          </button>
+        </PosterRouterProvider>
+      </SelectedPeriodProvider>
+    </RefetchTokenProvider>
+  );
+}
+
+describe('TransactionsMount — refetch token wiring (DEBT-02)', () => {
+  it('re-runs the fetch effect + surfaces the new token when refetchToken bumps', async () => {
+    render(<RefetchHarness />);
+    await flushPromises();
+    const initialActualCalls = listActualV10Mock.mock.calls.length;
+    expect(
+      screen.getByTestId('parent-refetched').getAttribute('data-refetch-token'),
+    ).toBe('0');
+
+    await act(async () => {
+      screen.getByTestId('bump-token').click();
+    });
+    await flushPromises();
+
+    expect(listActualV10Mock.mock.calls.length).toBeGreaterThan(
+      initialActualCalls,
+    );
+    expect(
+      screen.getByTestId('parent-refetched').getAttribute('data-refetch-token'),
+    ).toBe('1');
   });
 });

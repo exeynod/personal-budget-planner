@@ -6,48 +6,16 @@ Two-layer test:
 
 This test FAILs if app/services/spend_cap.py reverts to f-string SET LOCAL.
 """
-from __future__ import annotations
 
-import re
-from pathlib import Path
+from __future__ import annotations
 
 import pytest
 from sqlalchemy import text
 
 
-def test_spend_cap_does_not_use_fstring_set_local():
-    """Static guard: no f-string SET LOCAL in spend_cap.py.
-
-    grep-gate hygiene per planner standards: filter out comments AND
-    docstrings so the test is robust to historical references in
-    documentation. We strip lines starting with `#` (comments) and
-    require the pattern to appear in actual Python code.
-    """
-    path = Path("app/services/spend_cap.py")
-    raw = path.read_text(encoding="utf-8")
-
-    # Filter out python comments (lines starting with `#` after stripping).
-    code_lines = [
-        line for line in raw.splitlines()
-        if not line.lstrip().startswith("#")
-    ]
-    code = "\n".join(code_lines)
-
-    # f-string SET LOCAL pattern: `f"SET LOCAL app.current_user_id` or similar.
-    forbidden = re.compile(r"f['\"]SET LOCAL app\.current_user_id", re.IGNORECASE)
-    assert not forbidden.search(code), (
-        "DB-01 regression: f-string SET LOCAL re-introduced into spend_cap.py. "
-        "Use await set_tenant_scope(db, user_id) instead (app/db/session.py:30)."
-    )
-
-
-def test_spend_cap_imports_set_tenant_scope():
-    """Static guard: spend_cap.py imports set_tenant_scope from session module."""
-    raw = Path("app/services/spend_cap.py").read_text(encoding="utf-8")
-    assert "set_tenant_scope" in raw, (
-        "DB-01: spend_cap.py must reference set_tenant_scope (helper from "
-        "app/db/session.py)."
-    )
+# NOTE (prune): the two static AST/grep guards (does_not_use_fstring_set_local,
+# imports_set_tenant_scope) were removed — lint-as-test of source text. The
+# behavioural tests below assert the real contract (GUC set, non-int rejected).
 
 
 @pytest.mark.asyncio

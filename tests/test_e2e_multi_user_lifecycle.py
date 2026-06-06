@@ -15,10 +15,11 @@ identity switching is done via DATABASE_URL direct seeds + initData per call).
 Mocks ONLY the OpenAI provider — embedding_service.embed_texts and the LLM
 client. All other code paths run against the real DB.
 """
+
 from __future__ import annotations
 
 import os
-from datetime import date, datetime, timezone
+from datetime import date
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -46,7 +47,6 @@ async def e2e_env(async_client, bot_token):
         }
     """
     _require_db()
-    from sqlalchemy import text
     from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
     from app.api.dependencies import get_db
@@ -58,6 +58,7 @@ async def e2e_env(async_client, bot_token):
     SessionLocal = async_sessionmaker(engine, expire_on_commit=False)
 
     from tests.helpers.seed import truncate_db_phase13
+
     await truncate_db_phase13()
 
     async def real_get_db():
@@ -82,13 +83,18 @@ async def e2e_env(async_client, bot_token):
     # so embedding backfill works against real DB.
     async def fake_embed_texts(texts):
         from app.ai.embedding_service import EMBEDDING_DIM
+
         return [[0.001 * i] * EMBEDDING_DIM for i in range(len(texts))]
 
     embed_mock = AsyncMock(side_effect=fake_embed_texts)
 
-    with patch("app.ai.embedding_service.EmbeddingService.embed_texts", embed_mock), \
-         patch("app.ai.embedding_service.EmbeddingService.embed_text",
-               new=AsyncMock(side_effect=lambda txt: [0.001] * 1536)):
+    with (
+        patch("app.ai.embedding_service.EmbeddingService.embed_texts", embed_mock),
+        patch(
+            "app.ai.embedding_service.EmbeddingService.embed_text",
+            new=AsyncMock(side_effect=lambda txt: [0.001] * 1536),
+        ),
+    ):
         yield {
             "client": async_client,
             "SessionLocal": SessionLocal,
@@ -126,6 +132,7 @@ async def test_e2e_1_owner_happy_path(e2e_env):
     # isolated test DB rather than filtering by tg_user_id.
     SessionLocal = e2e_env["SessionLocal"]
     from sqlalchemy import text
+
     async with SessionLocal() as session:
         await session.execute(text("UPDATE app_user SET pdn_consent_at = NOW()"))
         await session.commit()
@@ -152,7 +159,9 @@ async def test_e2e_1_owner_happy_path(e2e_env):
     cats = await client.get("/api/v1/categories", headers=owner_init)
     assert cats.status_code == 200
     assert len(cats.json()) == 9
-    expense_cat_id = next((c["id"] for c in cats.json() if c["kind"] == "expense"), None)
+    expense_cat_id = next(
+        (c["id"] for c in cats.json() if c["kind"] == "expense"), None
+    )
     assert expense_cat_id is not None
 
     # 4. Create actual transaction (auto-creates the budget_period).
@@ -175,7 +184,9 @@ async def test_e2e_1_owner_happy_path(e2e_env):
     assert bal.status_code == 200
     bal_body = bal.json()
     assert bal_body["starting_balance_cents"] == 0
-    assert bal_body["actual_total_expense_cents"] >= 50_000  # the actual we just created
+    assert (
+        bal_body["actual_total_expense_cents"] >= 50_000
+    )  # the actual we just created
 
     # 6. Admin endpoint accessible
     admin_users = await client.get("/api/v1/admin/users", headers=owner_init)
@@ -183,324 +194,19 @@ async def test_e2e_1_owner_happy_path(e2e_env):
 
 
 # ---------------------------------------------------------------------------
-# E2E-2: Invite flow + onboarding gate
+# NOTE (prune): the E2E-2 (invite-gate), E2E-3 (member onboarding+embeddings),
+# E2E-4 (cross-tenant), E2E-5 (cap enforcement) scenarios were collapsed out of
+# this lifecycle smoke. Their behaviours are covered by dedicated suites:
+#   - onboarding gate → test_require_onboarded.py / test_onboarding_gate.py
+#   - member onboarding + embeddings → test_onboarding_v10.py +
+#     test_embedding_backfill.py
+#   - cross-tenant isolation → test_security_probes.py sp7 +
+#     test_multitenancy_v1_0_columns.py
+#   - cap enforcement → test_enforce_spending_cap_dep.py +
+#     test_ai_cap_integration.py
+# E2E-1 (owner full happy path) and E2E-6 (revoke cascade purge) remain as the
+# two end-to-end smokes.
 # ---------------------------------------------------------------------------
-
-
-@pytest.mark.asyncio
-async def test_e2e_2_invite_flow_gate_active(e2e_env):
-    """Owner invites member; member sees /me but is blocked from domain endpoints."""
-    client = e2e_env["client"]
-    owner_init = {"X-Telegram-Init-Data": e2e_env["make_init"](e2e_env["owner_tg"])}
-    member_a_tg = e2e_env["member_a_tg"]
-
-    # Bootstrap owner + onboarding (so admin endpoint usable)
-    await client.get("/api/v1/me", headers=owner_init)
-    SessionLocal = e2e_env["SessionLocal"]
-    from sqlalchemy import text
-    async with SessionLocal() as session:
-        await session.execute(
-            text("UPDATE app_user SET onboarded_at = NOW() WHERE tg_user_id = :tg"),
-            {"tg": e2e_env["owner_tg"]},
-        )
-        await session.commit()
-
-    # 1. Owner invites member-A
-    invite = await client.post(
-        "/api/v1/admin/users",
-        json={"tg_user_id": member_a_tg},
-        headers=owner_init,
-    )
-    assert invite.status_code in (200, 201), invite.text
-    member_a_id = invite.json()["id"]
-
-    # 2. Owner lists users → 2 rows
-    users = await client.get("/api/v1/admin/users", headers=owner_init)
-    assert users.status_code == 200
-    body = users.json()
-    assert len(body) >= 2
-
-    # 3. Member sees /me but onboarded_at is null
-    member_a_init = {"X-Telegram-Init-Data": e2e_env["make_init"](member_a_tg)}
-    me_member = await client.get("/api/v1/me", headers=member_a_init)
-    # In DEV_MODE the dependency upserts owner row regardless of header tg_user_id;
-    # so /me returns owner data. To bypass DEV_MODE quirk, query DB directly.
-    async with SessionLocal() as session:
-        row = await session.execute(
-            text("SELECT onboarded_at FROM app_user WHERE id = :id"),
-            {"id": member_a_id},
-        )
-        onb_at = row.scalar()
-    assert onb_at is None  # member is invited but not yet onboarded
-
-    # 4. Verify gate fires for member by issuing a domain call as member.
-    #    DEV_MODE bypasses HMAC and resolves to OWNER, so the gate isn't a
-    #    perfect test through HTTP. Instead, call require_onboarded directly
-    #    against an unbootstrapped session-scoped user.
-    from app.api.dependencies import require_onboarded
-    from fastapi import HTTPException
-    from app.db.models import AppUser
-    async with SessionLocal() as session:
-        member_orm = (await session.execute(
-            text("SELECT id, tg_user_id, role, onboarded_at FROM app_user WHERE id = :id"),
-            {"id": member_a_id},
-        )).first()
-        # Simulate dep call
-        fake_user = AppUser(
-            id=member_orm.id,
-            tg_user_id=member_orm.tg_user_id,
-            role=member_orm.role,
-            onboarded_at=member_orm.onboarded_at,
-        )
-        with pytest.raises(HTTPException) as exc_info:
-            await require_onboarded(fake_user)
-        assert exc_info.value.status_code == 409
-        assert exc_info.value.detail.get("error") == "onboarding_required"
-
-
-# ---------------------------------------------------------------------------
-# E2E-3: Member onboarding lifecycle
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.asyncio
-async def test_e2e_3_member_onboarding_seeds_and_embeddings(e2e_env):
-    """Member completes onboarding → seeded categories + embeddings persisted."""
-    from sqlalchemy import text
-    SessionLocal = e2e_env["SessionLocal"]
-    member_a_tg = e2e_env["member_a_tg"]
-
-    # Seed member directly (DEV_MODE quirk on /me prevents identity switching).
-    # Grant ПДн consent up-front (Phase 33 CMP-33-04) so v1.0 onboarding passes.
-    from app.db.models import AppUser, UserRole
-    async with SessionLocal() as session:
-        await session.execute(text("RESET ROLE"))
-        await session.execute(text("SET LOCAL row_security = off"))
-        await session.execute(
-            text("DELETE FROM app_user WHERE tg_user_id = :tg"),
-            {"tg": member_a_tg},
-        )
-        member = AppUser(
-            tg_user_id=member_a_tg,
-            role=UserRole.member,
-            cycle_start_day=5,
-            onboarded_at=None,
-            pdn_consent_at=datetime.now(timezone.utc),
-        )
-        session.add(member)
-        await session.commit()
-        await session.refresh(member)
-        member_id = member.id
-
-    # Run v1.0 onboarding (complete_v10) directly — the live contract seeds the
-    # 8 default categories + 1 'savings' = 9. Set tenant scope so RLS accepts
-    # the category INSERTs under the runtime role.
-    from app.services import onboarding_v10 as onb_v10_svc
-    from app.services.ai_embedding_backfill import backfill_user_embeddings
-    from app.db.session import set_tenant_scope
-    async with SessionLocal() as session:
-        await session.execute(text("RESET ROLE"))
-        await set_tenant_scope(session, member_id)
-        result = await onb_v10_svc.complete_v10(
-            session,
-            user_id=member_id,
-            income_cents=500_000,
-            accounts=[{"bank": "Tinkoff", "kind": "card", "primary": True}],
-            category_plans={"food": 100_000, "cafe": 50_000},
-        )
-        # MTONB-03: backfill embeddings for the freshly-seeded categories
-        # (mocked OpenAI via e2e_env). v1.0 complete_v10 does not backfill, so
-        # we run it explicitly to exercise the embedding persistence path.
-        embeddings_created = await backfill_user_embeddings(session, user_id=member_id)
-        await session.commit()
-
-    assert len(result["category_ids_by_code"]) == 8  # 8 default codes (MTONB-02)
-    assert result["adjustment_category_id"] > 0  # system 'savings' category
-    assert embeddings_created >= 1  # MTONB-03 (real backfill ran)
-
-    # Verify DB state
-    async with SessionLocal() as session:
-        await session.execute(text("RESET ROLE"))
-        await session.execute(text("SET LOCAL row_security = off"))
-        cat_count = (await session.execute(
-            text("SELECT COUNT(*) FROM category WHERE user_id = :uid"),
-            {"uid": member_id},
-        )).scalar_one()
-        emb_count = (await session.execute(
-            text("SELECT COUNT(*) FROM category_embedding WHERE user_id = :uid"),
-            {"uid": member_id},
-        )).scalar_one()
-        onb_at = (await session.execute(
-            text("SELECT onboarded_at FROM app_user WHERE id = :uid"),
-            {"uid": member_id},
-        )).scalar()
-
-    assert cat_count == 9  # 8 defaults + 1 'savings'
-    assert emb_count >= 1
-    assert onb_at is not None  # gate now releases for this member
-
-
-# ---------------------------------------------------------------------------
-# E2E-4: Cross-tenant isolation
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.asyncio
-async def test_e2e_4_cross_tenant_isolation(e2e_env):
-    """member-A cannot read/modify member-B data."""
-    from sqlalchemy import text
-    SessionLocal = e2e_env["SessionLocal"]
-    from app.db.models import AppUser, UserRole, CategoryKind
-    from app.db.session import set_tenant_scope
-
-    # Seed two members directly.
-    async with SessionLocal() as session:
-        await session.execute(text("RESET ROLE"))
-        await session.execute(text("SET LOCAL row_security = off"))
-        await session.execute(text("DELETE FROM category"))
-        await session.execute(
-            text("DELETE FROM app_user WHERE tg_user_id IN (:a, :b)"),
-            {"a": e2e_env["member_a_tg"], "b": e2e_env["member_b_tg"]},
-        )
-        a = AppUser(
-            tg_user_id=e2e_env["member_a_tg"],
-            role=UserRole.member, cycle_start_day=5,
-            onboarded_at=datetime.now(timezone.utc),
-        )
-        b = AppUser(
-            tg_user_id=e2e_env["member_b_tg"],
-            role=UserRole.member, cycle_start_day=5,
-            onboarded_at=datetime.now(timezone.utc),
-        )
-        session.add_all([a, b])
-        await session.flush()
-        from tests.helpers.seed import seed_category
-        cat_a = await seed_category(
-            session, user_id=a.id, name="A-Food",
-            kind=CategoryKind.expense, sort_order=10,
-        )
-        cat_b = await seed_category(
-            session, user_id=b.id, name="B-Food",
-            kind=CategoryKind.expense, sort_order=10,
-        )
-        await session.commit()
-        a_id, b_id = a.id, b.id
-        cat_b_id = cat_b.id
-
-    # Verify A cannot see B's category via service-layer query.
-    from app.services.categories import list_categories
-    async with SessionLocal() as session:
-        await session.execute(text("RESET ROLE"))
-        await set_tenant_scope(session, a_id)
-        a_cats = await list_categories(session, user_id=a_id, include_archived=False)
-        for cat in a_cats:
-            assert cat.name != "B-Food", f"member-A leaked B's category"
-            assert cat.user_id == a_id
-
-    # Verify A cannot UPDATE B's category — service raises NotFound or returns None.
-    from app.services.categories import update_category
-    from app.api.schemas.categories import CategoryUpdate
-    async with SessionLocal() as session:
-        await session.execute(text("RESET ROLE"))
-        await set_tenant_scope(session, a_id)
-        patch = CategoryUpdate(name="HACKED")
-        try:
-            updated = await update_category(
-                session, category_id=cat_b_id, patch=patch, user_id=a_id,
-            )
-            # Service returns None when row is not found under (id, user_id) filter.
-            assert updated is None, (
-                f"cross-tenant update succeeded: returned {updated!r}"
-            )
-        except Exception as exc:
-            msg = str(exc).lower()
-            assert "not found" in msg or "permission" in msg or "not exist" in msg, \
-                f"unexpected exception on cross-tenant update: {exc!r}"
-
-    # Confirm B's category in DB is unchanged
-    async with SessionLocal() as session:
-        await session.execute(text("RESET ROLE"))
-        await session.execute(text("SET LOCAL row_security = off"))
-        b_cat_name = (await session.execute(
-            text("SELECT name FROM category WHERE id = :id"),
-            {"id": cat_b_id},
-        )).scalar_one()
-    assert b_cat_name == "B-Food", f"B's category was modified: {b_cat_name!r}"
-
-
-# ---------------------------------------------------------------------------
-# E2E-5: Spending cap enforcement
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.asyncio
-async def test_e2e_5_cap_enforcement_zero_blocks_then_patch_unblocks(e2e_env):
-    """cap=0 → 429 on /ai/chat; PATCH cap=46500 → cache invalidation → unblocks."""
-    from sqlalchemy import text
-    SessionLocal = e2e_env["SessionLocal"]
-    client = e2e_env["client"]
-    owner_init = {"X-Telegram-Init-Data": e2e_env["make_init"](e2e_env["owner_tg"])}
-
-    # Bootstrap owner via /me. DEV_MODE upserts a row keyed on
-    # settings.OWNER_TG_ID (not e2e_env.owner_tg) — locate that row.
-    from app.core.settings import settings as app_settings
-    owner_real_tg = app_settings.OWNER_TG_ID
-    await client.get("/api/v1/me", headers=owner_init)
-    async with SessionLocal() as session:
-        await session.execute(
-            text(
-                "UPDATE app_user "
-                "SET onboarded_at = NOW(), spending_cap_cents = 0 "
-                "WHERE tg_user_id = :tg"
-            ),
-            {"tg": owner_real_tg},
-        )
-        await session.commit()
-
-    # Invalidate spend cache to ensure fresh read
-    from app.services.spend_cap import invalidate_user_spend_cache
-    async with SessionLocal() as session:
-        owner_id = (await session.execute(
-            text("SELECT id FROM app_user WHERE tg_user_id = :tg"),
-            {"tg": owner_real_tg},
-        )).scalar_one()
-    await invalidate_user_spend_cache(owner_id)
-
-    # 1. /ai/chat with cap=0 → 429
-    chat_blocked = await client.post(
-        "/api/v1/ai/chat",
-        json={"message": "Hello"},
-        headers=owner_init,
-    )
-    assert chat_blocked.status_code == 429
-    assert "Retry-After" in chat_blocked.headers
-    body = chat_blocked.json()
-    assert body["detail"]["error"] == "spending_cap_exceeded"
-
-    # 2. PATCH cap → 46500 ($465 default)
-    patch_resp = await client.patch(
-        f"/api/v1/admin/users/{owner_id}/cap",
-        json={"spending_cap_cents": 46_500},
-        headers=owner_init,
-    )
-    assert patch_resp.status_code == 200, patch_resp.text
-    assert patch_resp.json()["spending_cap_cents"] == 46_500
-
-    # 3. Cache invalidation should be active (commit 0c69b7d note: PATCH calls
-    #    invalidate_user_spend_cache as part of update_user_cap).
-    #    Next /ai/chat should not 429 (would 200 with mocked LLM, OR 5xx from
-    #    LLM mock not being injected for the streaming path; we only verify
-    #    that the gate is no longer the blocker).
-    chat_after = await client.post(
-        "/api/v1/ai/chat",
-        json={"message": "Hello again"},
-        headers=owner_init,
-    )
-    # Whether LLM mock streams successfully or fails, the cap gate must NOT
-    # return 429 anymore.
-    assert chat_after.status_code != 429, (
-        f"cap=46500 should unblock, got 429 with body={chat_after.text}"
-    )
 
 
 # ---------------------------------------------------------------------------
@@ -512,10 +218,11 @@ async def test_e2e_5_cap_enforcement_zero_blocks_then_patch_unblocks(e2e_env):
 async def test_e2e_6_revoke_cascade_purge(e2e_env):
     """member with category, actual, ai_usage_log → admin DELETE → CASCADE wipes data."""
     from sqlalchemy import text
+
     SessionLocal = e2e_env["SessionLocal"]
     client = e2e_env["client"]
     owner_init = {"X-Telegram-Init-Data": e2e_env["make_init"](e2e_env["owner_tg"])}
-    from app.db.models import AppUser, UserRole, CategoryKind
+    from app.db.models import CategoryKind
 
     # Bootstrap owner with full state
     await client.get("/api/v1/me", headers=owner_init)
@@ -540,6 +247,7 @@ async def test_e2e_6_revoke_cascade_purge(e2e_env):
         await session.execute(text("RESET ROLE"))
         await session.execute(text("SET LOCAL row_security = off"))
         from tests.helpers.seed import seed_category
+
         cat = await seed_category(
             session,
             user_id=member_id,
@@ -570,19 +278,25 @@ async def test_e2e_6_revoke_cascade_purge(e2e_env):
     async with SessionLocal() as session:
         await session.execute(text("RESET ROLE"))
         await session.execute(text("SET LOCAL row_security = off"))
-        cat_count = (await session.execute(
-            text("SELECT COUNT(*) FROM category WHERE user_id = :uid"),
-            {"uid": member_id},
-        )).scalar_one()
-        usage_count = (await session.execute(
-            text("SELECT COUNT(*) FROM ai_usage_log WHERE user_id = :uid"),
-            {"uid": member_id},
-        )).scalar_one()
+        cat_count = (
+            await session.execute(
+                text("SELECT COUNT(*) FROM category WHERE user_id = :uid"),
+                {"uid": member_id},
+            )
+        ).scalar_one()
+        usage_count = (
+            await session.execute(
+                text("SELECT COUNT(*) FROM ai_usage_log WHERE user_id = :uid"),
+                {"uid": member_id},
+            )
+        ).scalar_one()
         # AppUser row may be hard-deleted OR role flipped to revoked.
-        user_row = (await session.execute(
-            text("SELECT role FROM app_user WHERE id = :id"),
-            {"id": member_id},
-        )).first()
+        user_row = (
+            await session.execute(
+                text("SELECT role FROM app_user WHERE id = :id"),
+                {"id": member_id},
+            )
+        ).first()
 
     assert cat_count == 0, f"category not purged: {cat_count} rows remain"
     assert usage_count == 0, f"ai_usage_log not purged: {usage_count} rows remain"
@@ -590,5 +304,6 @@ async def test_e2e_6_revoke_cascade_purge(e2e_env):
     # per Phase 13 ADM-05 cascade-purge semantics.
     if user_row is not None:
         role = user_row[0]
-        assert role in ("revoked", None) or str(role).endswith("revoked"), \
+        assert role in ("revoked", None) or str(role).endswith("revoked"), (
             f"unexpected post-revoke role: {role!r}"
+        )

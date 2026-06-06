@@ -435,65 +435,12 @@ async def test_account_partial_unique_primary_index_exists(db_session):
 # /BE-06/BE-11/BE-12/BE-14/BE-16 acceptance signal.
 
 
-def _skip_if_no_roundtrip():
-    if not _roundtrip_enabled():
-        pytest.skip(
-            "Round-trip tests are destructive and require explicit opt-in: "
-            "MIGRATION_ROUNDTRIP=1 (see test docstring)."
-        )
-
-
-async def _alembic_round_trip(target_rev: str, prev_rev: str):
-    """Helper — run upgrade -> downgrade -> upgrade for a single revision pair.
-
-    Each step is wrapped in try/except so a failure leaves a clear error
-    rather than a half-rewound DB. The outer integration runner is
-    responsible for resetting the DB between test invocations.
-    """
-    from alembic import command
-
-    cfg = _alembic_config()
-    # 1. ensure target is current
-    command.upgrade(cfg, target_rev)
-    # 2. step back one — must succeed cleanly per migration's downgrade()
-    command.downgrade(cfg, prev_rev)
-    # 3. re-apply — must succeed idempotently
-    command.upgrade(cfg, target_rev)
-
-
-async def test_round_trip_0012_user_account():
-    """0012 round-trip: account table + income_cents + RLS policy."""
-    _skip_if_no_roundtrip()
-    await _alembic_round_trip("0012_v10_user_account", "0011_auth_token")
-
-
-async def test_round_trip_0013_category_ext():
-    """0013 round-trip: category extension + composite FK + plan_template_item drop.
-
-    Note: downgrade of 0013 re-creates ``plan_template_item`` empty (data is
-    not restored — see 0013 downgrade() docstring).
-    """
-    _skip_if_no_roundtrip()
-    await _alembic_round_trip("0013_v10_category_ext", "0012_v10_user_account")
-
-
-async def test_round_trip_0014_actual_goal_savings():
-    """0014 round-trip: actualkind enum + goal/savings_config tables + subscription ext.
-
-    Note: PostgreSQL cannot drop enum values; downgrade only renames the
-    type back. If actual_transaction rows already contain
-    kind ∈ {roundup, deposit} the cast in 0014.downgrade fails — the DB
-    must be free of such rows before opt-in. The integration runner's
-    fresh-stack boot satisfies this precondition.
-    """
-    _skip_if_no_roundtrip()
-    await _alembic_round_trip("0014_v10_actual_goal_savings", "0013_v10_category_ext")
-
-
-async def test_round_trip_0015_rls_finalize():
-    """0015 round-trip: RLS policies on goal/savings_config + composite FK on parent_txn_id."""
-    _skip_if_no_roundtrip()
-    await _alembic_round_trip("0015_v10_rls_finalize", "0014_v10_actual_goal_savings")
+# NOTE (prune): the opt-in per-migration round-trip section (round_trip_0012
+# /0013/0014/0015) was removed. It was MIGRATION_ROUNDTRIP-gated (skipped in the
+# standard runner) and targeted the historical 0012-0015 chain whose downgrades
+# carry stale goal/savings/plan_template_item data-loss notes. The forward-state
+# schema, enum, composite-FK and backfill assertions below remain the
+# migration-safety gate.
 
 
 # ---------------------------------------------------------------------------

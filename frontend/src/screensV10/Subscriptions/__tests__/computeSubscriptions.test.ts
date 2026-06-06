@@ -1,13 +1,6 @@
 // Phase 26-06 Task 1: pure compute helpers for SubscriptionsView (SUBS-V10-01..04).
 //
-// Surface:
-//   - computeActiveCount(subs) → number of is_active=true subscriptions
-//   - computeMonthlyTotal(subs) → Σ amount_cents WHERE is_active=true AND cycle='monthly'
-//   - computeYearlyTotalAnnualized(subs) → monthly*12 + Σ yearly amounts (cents)
-//   - formatCadenceRu(sub) → human-readable Russian cadence string
-//   - sortForDisplay(subs) → active-first, amount-desc, name-asc
-//
-// All deterministic, side-effect-free.
+// One behaviour test per helper; money (kopeks) and active/cycle filters protected.
 
 import { describe, it, expect } from 'vitest';
 import {
@@ -32,8 +25,6 @@ function mkAccount(over: Partial<AccountResponse> = {}): AccountResponse {
     ...over,
   };
 }
-
-// ─────────────────── builders ───────────────────
 
 function mkSub(over: Partial<SubscriptionV10Read> = {}): SubscriptionV10Read {
   return {
@@ -66,153 +57,109 @@ function mkSub(over: Partial<SubscriptionV10Read> = {}): SubscriptionV10Read {
   };
 }
 
-// ─────────────────── computeActiveCount ───────────────────
-
 describe('computeActiveCount', () => {
-  it('returns 0 for empty list', () => {
+  it('counts only is_active=true; empty → 0', () => {
     expect(computeActiveCount([])).toBe(0);
-  });
-
-  it('counts only is_active=true', () => {
-    const subs = [
-      mkSub({ id: 1, is_active: true }),
-      mkSub({ id: 2, is_active: false }),
-      mkSub({ id: 3, is_active: true }),
-    ];
-    expect(computeActiveCount(subs)).toBe(2);
-  });
-
-  it('returns 0 when all inactive', () => {
-    const subs = [
-      mkSub({ id: 1, is_active: false }),
-      mkSub({ id: 2, is_active: false }),
-    ];
-    expect(computeActiveCount(subs)).toBe(0);
+    expect(
+      computeActiveCount([
+        mkSub({ id: 1, is_active: true }),
+        mkSub({ id: 2, is_active: false }),
+        mkSub({ id: 3, is_active: true }),
+      ]),
+    ).toBe(2);
   });
 });
-
-// ─────────────────── computeMonthlyTotal ───────────────────
 
 describe('computeMonthlyTotal', () => {
-  it('returns 0 for empty list', () => {
+  it('sums active monthly only (excludes inactive + yearly); empty → 0', () => {
     expect(computeMonthlyTotal([])).toBe(0);
-  });
-
-  it('sums monthly active amounts', () => {
-    const subs = [
-      mkSub({ id: 1, cycle: 'monthly', amount_cents: 79900, is_active: true }),
-      mkSub({ id: 2, cycle: 'monthly', amount_cents: 19900, is_active: true }),
-    ];
-    expect(computeMonthlyTotal(subs)).toBe(99800);
-  });
-
-  it('excludes inactive monthly subs', () => {
-    const subs = [
-      mkSub({ id: 1, cycle: 'monthly', amount_cents: 79900, is_active: true }),
-      mkSub({ id: 2, cycle: 'monthly', amount_cents: 50000, is_active: false }),
-    ];
-    expect(computeMonthlyTotal(subs)).toBe(79900);
-  });
-
-  it('excludes yearly cycle subs', () => {
-    const subs = [
-      mkSub({ id: 1, cycle: 'monthly', amount_cents: 79900, is_active: true }),
-      mkSub({ id: 2, cycle: 'yearly', amount_cents: 599900, is_active: true }),
-    ];
-    expect(computeMonthlyTotal(subs)).toBe(79900);
+    expect(
+      computeMonthlyTotal([
+        mkSub({
+          id: 1,
+          cycle: 'monthly',
+          amount_cents: 79900,
+          is_active: true,
+        }),
+        mkSub({
+          id: 2,
+          cycle: 'monthly',
+          amount_cents: 50000,
+          is_active: false,
+        }),
+        mkSub({
+          id: 3,
+          cycle: 'yearly',
+          amount_cents: 599900,
+          is_active: true,
+        }),
+      ]),
+    ).toBe(79900);
   });
 });
-
-// ─────────────────── computeYearlyTotalAnnualized ───────────────────
 
 describe('computeYearlyTotalAnnualized', () => {
-  it('returns 0 for empty list', () => {
+  it('monthly*12 + yearly, active-only; empty → 0', () => {
     expect(computeYearlyTotalAnnualized([])).toBe(0);
-  });
-
-  it('annualizes monthly + adds yearly amounts', () => {
-    const subs = [
-      mkSub({ id: 1, cycle: 'monthly', amount_cents: 10000, is_active: true }),
-      mkSub({ id: 2, cycle: 'yearly', amount_cents: 500000, is_active: true }),
-    ];
-    // monthly: 10000*12=120000; yearly: 500000 → total = 620000
-    expect(computeYearlyTotalAnnualized(subs)).toBe(620000);
-  });
-
-  it('excludes inactive subs from annualization', () => {
-    const subs = [
-      mkSub({ id: 1, cycle: 'monthly', amount_cents: 10000, is_active: true }),
-      mkSub({ id: 2, cycle: 'monthly', amount_cents: 99999, is_active: false }),
-      mkSub({ id: 3, cycle: 'yearly', amount_cents: 500000, is_active: false }),
-    ];
-    // only first counts: 10000*12 = 120000
-    expect(computeYearlyTotalAnnualized(subs)).toBe(120000);
-  });
-
-  it('handles only-yearly mix', () => {
-    const subs = [
-      mkSub({ id: 1, cycle: 'yearly', amount_cents: 100000, is_active: true }),
-      mkSub({ id: 2, cycle: 'yearly', amount_cents: 250000, is_active: true }),
-    ];
-    expect(computeYearlyTotalAnnualized(subs)).toBe(350000);
+    expect(
+      computeYearlyTotalAnnualized([
+        mkSub({
+          id: 1,
+          cycle: 'monthly',
+          amount_cents: 10000,
+          is_active: true,
+        }),
+        mkSub({
+          id: 2,
+          cycle: 'yearly',
+          amount_cents: 500000,
+          is_active: true,
+        }),
+        mkSub({
+          id: 3,
+          cycle: 'yearly',
+          amount_cents: 99999,
+          is_active: false,
+        }),
+      ]),
+    ).toBe(620000); // 10000*12 + 500000
   });
 });
 
-// ─────────────────── formatCadenceRu ───────────────────
-
 describe('formatCadenceRu', () => {
-  it('formats monthly with day_of_month → «каждое N число»', () => {
+  it('monthly (day / no day), yearly (date / fallback)', () => {
     expect(formatCadenceRu(mkSub({ cycle: 'monthly', day_of_month: 15 }))).toBe(
       'каждое 15 число',
     );
-  });
-
-  it('formats monthly without day_of_month → «ежемесячно»', () => {
-    expect(formatCadenceRu(mkSub({ cycle: 'monthly', day_of_month: null }))).toBe(
-      'ежемесячно',
-    );
-  });
-
-  it('formats yearly → «N {month_genitive}»', () => {
-    const sub = mkSub({ cycle: 'yearly', next_charge_date: '2026-05-15' });
-    expect(formatCadenceRu(sub)).toBe('15 мая');
-  });
-
-  it('formats yearly for December correctly', () => {
-    const sub = mkSub({ cycle: 'yearly', next_charge_date: '2026-12-31' });
-    expect(formatCadenceRu(sub)).toBe('31 декабря');
-  });
-
-  it('falls back to «ежегодно» when yearly date is invalid', () => {
-    const sub = mkSub({ cycle: 'yearly', next_charge_date: 'not-a-date' });
-    expect(formatCadenceRu(sub)).toBe('ежегодно');
+    expect(
+      formatCadenceRu(mkSub({ cycle: 'monthly', day_of_month: null })),
+    ).toBe('ежемесячно');
+    expect(
+      formatCadenceRu(
+        mkSub({ cycle: 'yearly', next_charge_date: '2026-12-31' }),
+      ),
+    ).toBe('31 декабря');
+    expect(
+      formatCadenceRu(
+        mkSub({ cycle: 'yearly', next_charge_date: 'not-a-date' }),
+      ),
+    ).toBe('ежегодно');
   });
 });
 
-// ─────────────────── formatAccountLabel (P3-W1) ───────────────────
-
 describe('formatAccountLabel', () => {
-  it('returns null when sub.account_id is null', () => {
+  it('«BANK · MASK», «BANK» w/o mask, null when missing/unmatched', () => {
     expect(
       formatAccountLabel(mkSub({ account_id: null }), [mkAccount()]),
     ).toBeNull();
-  });
-
-  it('returns null when account_id has no matching account', () => {
     expect(
       formatAccountLabel(mkSub({ account_id: 99 }), [mkAccount({ id: 1 })]),
     ).toBeNull();
-  });
-
-  it('formats «BANK · MASK» when account has a mask', () => {
     expect(
       formatAccountLabel(mkSub({ account_id: 1 }), [
         mkAccount({ id: 1, bank: 'Tinkoff', mask: '4242' }),
       ]),
     ).toBe('TINKOFF · 4242');
-  });
-
-  it('formats «BANK» (no separator) when account has no mask', () => {
     expect(
       formatAccountLabel(mkSub({ account_id: 1 }), [
         mkAccount({ id: 1, bank: 'Наличные', mask: null }),
@@ -221,40 +168,17 @@ describe('formatAccountLabel', () => {
   });
 });
 
-// ─────────────────── sortForDisplay ───────────────────
-
 describe('sortForDisplay', () => {
-  it('returns empty for empty input', () => {
+  it('active-first, amount DESC, name ASC tie-break, no mutation; empty → []', () => {
     expect(sortForDisplay([])).toEqual([]);
-  });
-
-  it('sorts active first', () => {
-    const subs = [
-      mkSub({ id: 1, name: 'A', is_active: false }),
-      mkSub({ id: 2, name: 'B', is_active: true }),
-    ];
-    const out = sortForDisplay(subs);
-    expect(out[0].id).toBe(2);
-    expect(out[1].id).toBe(1);
-  });
-
-  it('within active bucket: amount DESC, then name ASC', () => {
     const subs = [
       mkSub({ id: 1, name: 'Brave', amount_cents: 50000, is_active: true }),
       mkSub({ id: 2, name: 'Apple', amount_cents: 50000, is_active: true }),
       mkSub({ id: 3, name: 'Costly', amount_cents: 99999, is_active: true }),
-    ];
-    const out = sortForDisplay(subs);
-    expect(out.map((s) => s.id)).toEqual([3, 2, 1]); // 99999 first; tie → Apple before Brave
-  });
-
-  it('does not mutate input', () => {
-    const subs = [
-      mkSub({ id: 1, is_active: false }),
-      mkSub({ id: 2, is_active: true }),
+      mkSub({ id: 4, name: 'Off', amount_cents: 99999, is_active: false }),
     ];
     const before = subs.map((s) => s.id);
-    sortForDisplay(subs);
-    expect(subs.map((s) => s.id)).toEqual(before);
+    expect(sortForDisplay(subs).map((s) => s.id)).toEqual([3, 2, 1, 4]);
+    expect(subs.map((s) => s.id)).toEqual(before); // not mutated
   });
 });

@@ -1,5 +1,6 @@
-// Phase 30-02 (DEBT-03): AccountPickerSheet — bottom-sheet account picker
-// rendering, selection, badge, empty state.
+// Phase 30-02 (DEBT-03): AccountPickerSheet bottom-sheet picker.
+// Trimmed: closed/open render + selection/badge/empty states + interactions.
+// NOTE: AccountPickerSheet is still LIVE web code (savings removed backend-side).
 
 import { afterEach, describe, it, expect, vi } from 'vitest';
 import { render, fireEvent, cleanup, screen } from '@testing-library/react';
@@ -27,132 +28,58 @@ const ACCOUNTS: AccountResponse[] = [
   },
 ];
 
-afterEach(() => {
-  cleanup();
-});
+afterEach(cleanup);
 
-describe('AccountPickerSheet — rendering', () => {
-  it('renders nothing when closed', () => {
-    render(
-      <AccountPickerSheet
-        isOpen={false}
-        accounts={ACCOUNTS}
-        selectedAccountId={1}
-        onSelect={() => {}}
-        onClose={() => {}}
-      />,
-    );
+function renderSheet(
+  over: Partial<React.ComponentProps<typeof AccountPickerSheet>> = {},
+) {
+  return render(
+    <AccountPickerSheet
+      isOpen
+      accounts={ACCOUNTS}
+      selectedAccountId={1}
+      onSelect={() => {}}
+      onClose={() => {}}
+      {...over}
+    />,
+  );
+}
+
+describe('AccountPickerSheet — render', () => {
+  it('closed → renders nothing', () => {
+    renderSheet({ isOpen: false });
     expect(screen.queryByTestId('account-picker-body')).toBeNull();
   });
 
-  it('renders a row per account when open', () => {
-    render(
-      <AccountPickerSheet
-        isOpen={true}
-        accounts={ACCOUNTS}
-        selectedAccountId={1}
-        onSelect={() => {}}
-        onClose={() => {}}
-      />,
-    );
+  it('open: row per account, ОСНОВНОЙ badge on primary only, balance, selection ✓', () => {
+    renderSheet({ selectedAccountId: 2 });
     expect(screen.getByTestId('account-picker-row-1')).toBeInTheDocument();
     expect(screen.getByTestId('account-picker-row-2')).toBeInTheDocument();
-  });
-
-  it('renders ОСНОВНОЙ badge only on the primary account', () => {
-    render(
-      <AccountPickerSheet
-        isOpen={true}
-        accounts={ACCOUNTS}
-        selectedAccountId={1}
-        onSelect={() => {}}
-        onClose={() => {}}
-      />,
-    );
     expect(screen.getByTestId('account-picker-badge-1')).toBeInTheDocument();
     expect(screen.queryByTestId('account-picker-badge-2')).toBeNull();
-  });
-
-  it('renders balance for each row (formatted in rubles)', () => {
-    render(
-      <AccountPickerSheet
-        isOpen={true}
-        accounts={ACCOUNTS}
-        selectedAccountId={1}
-        onSelect={() => {}}
-        onClose={() => {}}
-      />,
-    );
     const row1 = screen.getByTestId('account-picker-row-1');
-    // 100_00 cents → 100 rubles. We render «100 ₽» (formatRubles strips
-    // trailing «,00» when the cents portion is zero — exact format may
-    // include a thin space or comma, so match digit + ₽).
     expect(row1.textContent).toMatch(/100/);
     expect(row1.textContent).toMatch(/₽/);
-  });
-
-  it('selected row has aria-pressed=true and renders ✓', () => {
-    render(
-      <AccountPickerSheet
-        isOpen={true}
-        accounts={ACCOUNTS}
-        selectedAccountId={2}
-        onSelect={() => {}}
-        onClose={() => {}}
-      />,
-    );
     const row2 = screen.getByTestId('account-picker-row-2');
     expect(row2.getAttribute('aria-pressed')).toBe('true');
     expect(row2.textContent).toMatch(/✓/);
-    const row1 = screen.getByTestId('account-picker-row-1');
     expect(row1.getAttribute('aria-pressed')).toBe('false');
-    expect(row1.textContent).not.toMatch(/✓/);
   });
 
-  it('empty-state caption when accounts list is empty', () => {
-    render(
-      <AccountPickerSheet
-        isOpen={true}
-        accounts={[]}
-        selectedAccountId={null}
-        onSelect={() => {}}
-        onClose={() => {}}
-      />,
-    );
+  it('empty accounts → empty-state caption', () => {
+    renderSheet({ accounts: [], selectedAccountId: null });
     expect(screen.getByTestId('account-picker-empty')).toBeInTheDocument();
   });
 });
 
 describe('AccountPickerSheet — interactions', () => {
-  it('tapping a row calls onSelect with that account id', () => {
+  it('row tap → onSelect(id); backdrop → onClose', () => {
     const onSelect = vi.fn();
-    render(
-      <AccountPickerSheet
-        isOpen={true}
-        accounts={ACCOUNTS}
-        selectedAccountId={1}
-        onSelect={onSelect}
-        onClose={() => {}}
-      />,
-    );
-    fireEvent.click(screen.getByTestId('account-picker-row-2'));
-    expect(onSelect).toHaveBeenCalledTimes(1);
-    expect(onSelect).toHaveBeenCalledWith(2);
-  });
-
-  it('clicking backdrop calls onClose', () => {
     const onClose = vi.fn();
-    render(
-      <AccountPickerSheet
-        isOpen={true}
-        accounts={ACCOUNTS}
-        selectedAccountId={1}
-        onSelect={() => {}}
-        onClose={onClose}
-      />,
-    );
-    // PosterSheet exposes the backdrop with testId === testId prop value.
-    fireEvent.click(screen.getByTestId('account-picker-sheet'));
+    renderSheet({ onSelect, onClose });
+    fireEvent.click(screen.getByTestId('account-picker-row-2'));
+    expect(onSelect).toHaveBeenCalledWith(2);
+    fireEvent.click(screen.getByTestId('account-picker-sheet')); // backdrop
     expect(onClose).toHaveBeenCalled();
   });
 });

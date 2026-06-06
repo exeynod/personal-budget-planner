@@ -8,11 +8,13 @@
 
 import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
 import { render, cleanup, screen, act } from '@testing-library/react';
+import { useState } from 'react';
 import { HomeMount } from '../HomeMount';
 import {
   SelectedPeriodProvider,
   PosterRouterProvider,
   PosterRouterView,
+  RefetchTokenProvider,
   useSelectedPeriod,
 } from '../../common';
 import type { PeriodRead, BalanceResponse } from '../../../api/types';
@@ -190,5 +192,50 @@ describe('HomeMount — period switching re-fetch (Phase P2)', () => {
 
     // Eyebrow reflects the VIEWED (May) period, not today's month.
     expect(screen.getByText(/MAY 2026/)).toBeTruthy();
+  });
+});
+
+// Merged from former HomeMount.refetch.test.tsx (DEBT-02): when V10MainShell
+// bumps the RefetchTokenProvider value (e.g. after AddSheet submit), HomeMount
+// re-runs its fetch effect and surfaces the new token via the sentinel.
+function RefetchHarness() {
+  const [token, setToken] = useState(0);
+  return (
+    <RefetchTokenProvider value={token}>
+      <SelectedPeriodProvider>
+        <PosterRouterProvider root={<HomeMount />}>
+          <PosterRouterView />
+          <button
+            type="button"
+            data-testid="bump-token"
+            onClick={() => setToken((t) => t + 1)}
+          >
+            bump
+          </button>
+        </PosterRouterProvider>
+      </SelectedPeriodProvider>
+    </RefetchTokenProvider>
+  );
+}
+
+describe('HomeMount — refetch token wiring (DEBT-02)', () => {
+  it('re-runs the fetch effect + surfaces the new token when refetchToken bumps', async () => {
+    render(<RefetchHarness />);
+    await flushPromises();
+    const initialHomeCalls = getHomeMock.mock.calls.length;
+    expect(initialHomeCalls).toBeGreaterThan(0);
+    expect(
+      screen.getByTestId('parent-refetched').getAttribute('data-refetch-token'),
+    ).toBe('0');
+
+    await act(async () => {
+      screen.getByTestId('bump-token').click();
+    });
+    await flushPromises();
+
+    expect(getHomeMock.mock.calls.length).toBeGreaterThan(initialHomeCalls);
+    expect(
+      screen.getByTestId('parent-refetched').getAttribute('data-refetch-token'),
+    ).toBe('1');
   });
 });

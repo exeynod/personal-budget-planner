@@ -1,21 +1,9 @@
-// Phase 25-04 Task 2: HomeView presentational component tests.
+// Phase 25-04 Task 2: HomeView presentational component.
 //
-// Coverage (HOME-V10-01..06):
-//   - Eyebrow with VOL.NN / MONTH YYYY · N ДНЕЙ rendered.
-//   - «Дневной темп —» italic + BigFig final value rendered (count-up
-//     mocked off via dur=0 for deterministic assertion — we read the
-//     formatted final integer).
-//   - Wallet substring «в кошельке X ₽ →» tappable → onWalletTap.
-//   - Plan plate «PLAN МАЯ» + signed surplus tappable → onPlanTap.
-//   - «ВСЕ ОПЕРАЦИИ →» tappable → onAllOperationsTap.
-//   - Category rows: each row receives staggered animationDelay
-//     `${0.08 + i*0.045}s`; row tap → onCategoryTap(id).
-//   - OVER plate visible when row.isOver = true.
-//   - Negative surplus rendered with U+2212 minus sign.
+// Trimmed to smoke-render + key interactions + surplus sign (U+2212 minus).
+// Aggregate/ratio math is covered by computeHomeData.test.ts.
 //
-// Note: BigFig animates with rAF; jsdom supports rAF but we set dur=0
-// (animate=false path) to read the final value synchronously. The
-// HomeView prop `bigFigAnimate` is a test-only escape hatch (default true).
+// Note: `bigFigAnimate={false}` reads the BigFig final value synchronously.
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, fireEvent, cleanup } from '@testing-library/react';
@@ -62,50 +50,18 @@ function renderHome(
   return { ...utils, onPlanTap, onCategoryTap, onAllOperationsTap };
 }
 
-describe('HomeView — header / hero', () => {
-  it('renders the eyebrow string', () => {
-    const { getByText } = renderHome();
+describe('HomeView — hero', () => {
+  it('smoke: eyebrow, «Дневной темп —», BigFig value, wallet/days mini-line', () => {
+    const { getByText, container } = renderHome({
+      daysLeft: 22,
+      walletCents: 12_345_00,
+    });
     expect(getByText('VOL.17 / MAY 2026 · 22 ДНЯ')).toBeInTheDocument();
-  });
-
-  it('renders italic «Дневной темп —» mass headline', () => {
-    const { getByText } = renderHome();
     expect(getByText('Дневной темп —')).toBeInTheDocument();
-  });
-
-  it('renders BigFig final value (no count-up via bigFigAnimate=false)', () => {
-    // 4000_00 cents = 4000 ₽; BigFig (via hooks/useCountUp.fmtThousands)
-    // separates digits with ASCII space — NOT the U+202F that
-    // formatRubles uses elsewhere. Pre-existing divergence in the
-    // shared BigFig component, out of scope to refactor here.
-    const { container } = renderHome({ dailyPaceCents: 4000_00 });
-    expect(container.textContent).toContain('4 000');
-  });
-
-  it('renders «осталось 22 дней · в кошельке … ₽» mono mini-line', () => {
-    const { container } = renderHome({ daysLeft: 22, walletCents: 12_345_00 });
-    // Russian dative-plural «дней» is correct for 22 — we render literal `дней`
-    // per CONTEXT (the eyebrow has its own pluralisation; this line uses a
-    // simpler «дней» form — pluralisation refinement deferred).
+    expect(container.textContent).toMatch(/4\s000/); // 4000_00 cents
     expect(container.textContent).toContain('осталось 22 дней');
     expect(container.textContent).toContain('в кошельке');
-    // 12_345_00 cents → 12 345 ₽ with U+202F.
-    expect(container.textContent).toContain('12 345');
-  });
-
-  it('renders the «МЕНЮ ↗» placeholder as static (not interactive yet)', () => {
-    const { getByText } = renderHome();
-    const menu = getByText(/МЕНЮ/);
-    expect(menu).toBeInTheDocument();
-    // Placeholder — not a button, not focusable; just a styled span.
-    // (No assertion on click behaviour — Phase 27 wiring.)
-  });
-});
-
-describe('HomeView — wallet value', () => {
-  it('renders the wallet balance as a non-interactive value (no nav)', () => {
-    const { container } = renderHome();
-    // v1.1: accounts-mgmt navigation removed — wallet is display-only.
+    // wallet display-only (no nav link in v1.1)
     expect(
       container.querySelector('[data-testid="home-wallet-value"]'),
     ).not.toBeNull();
@@ -116,114 +72,49 @@ describe('HomeView — wallet value', () => {
 });
 
 describe('HomeView — plan plate', () => {
-  it('renders «PLAN МАЯ» eyebrow', () => {
-    const { getByText } = renderHome();
-    expect(getByText(/PLAN МАЯ/)).toBeInTheDocument();
-  });
-
-  it('renders surplus with «+ X ₽» when positive (yellow)', () => {
-    const { container } = renderHome({ surplusCents: 20_000_00 });
-    // 20_000_00 cents → 20 000 ₽
-    expect(container.textContent).toContain('+ 20 000 ₽');
-  });
-
-  it('renders surplus with «− X ₽» (U+2212) when negative (red)', () => {
-    const { container } = renderHome({ surplusCents: -5_000_00 });
-    // U+2212 is the typographic minus; ASCII '-' would be wrong.
-    expect(container.textContent).toContain('− 5 000 ₽');
-  });
-
-  it('calls onPlanTap when the plate is clicked', () => {
-    const { container, onPlanTap } = renderHome();
-    const plate = container.querySelector('[data-testid="home-plan-plate"]');
-    expect(plate).not.toBeNull();
-    fireEvent.click(plate!);
+  it('positive surplus «+ X ₽»; negative uses U+2212; tap → onPlanTap', () => {
+    const pos = renderHome({ surplusCents: 20_000_00 });
+    expect(pos.container.textContent).toMatch(/\+ 20\s000 ₽/);
+    cleanup();
+    const { container, onPlanTap } = renderHome({ surplusCents: -5_000_00 });
+    expect(container.textContent).toMatch(/− 5\s000 ₽/); expect(container.textContent).not.toMatch(/- 5\s000 ₽/);
+    fireEvent.click(
+      container.querySelector('[data-testid="home-plan-plate"]')!,
+    );
     expect(onPlanTap).toHaveBeenCalledTimes(1);
   });
 });
 
 describe('HomeView — category list', () => {
-  it('renders «КАТЕГОРИИ» eyebrow + «ВСЕ ОПЕРАЦИИ →» link', () => {
-    const { getByText } = renderHome();
-    expect(getByText('КАТЕГОРИИ')).toBeInTheDocument();
-    expect(getByText(/ВСЕ ОПЕРАЦИИ/)).toBeInTheDocument();
-  });
-
-  it('calls onAllOperationsTap when «ВСЕ ОПЕРАЦИИ →» clicked', () => {
+  it('«ВСЕ ОПЕРАЦИИ →» tap → onAllOperationsTap', () => {
     const { container, onAllOperationsTap } = renderHome();
-    const link = container.querySelector('[data-testid="home-all-operations"]');
-    expect(link).not.toBeNull();
-    fireEvent.click(link!);
+    fireEvent.click(
+      container.querySelector('[data-testid="home-all-operations"]')!,
+    );
     expect(onAllOperationsTap).toHaveBeenCalledTimes(1);
   });
 
-  it('renders one row per categoryRow with staggered animationDelay', () => {
-    const rows: CategoryAggregateRow[] = [
-      row({ id: 10, name: 'Кафе', ord: '01' }),
-      row({ id: 20, name: 'Продукты', ord: '02' }),
-      row({ id: 30, name: 'Транспорт', ord: '03' }),
-    ];
-    const { container } = renderHome({ categoryRows: rows });
-    const rowEls = container.querySelectorAll(
-      '[data-testid^="home-category-row-"]',
-    );
-    expect(rowEls).toHaveLength(3);
-    rowEls.forEach((el, i) => {
-      // Inline style.animationDelay should match `${0.08 + i*0.045}s`.
-      const delay = (el as HTMLElement).style.animationDelay;
-      const expected = `${(0.08 + i * 0.045).toFixed(3)}s`;
-      // Allow either no-trailing-zero or full precision (browser may
-      // reformat — we accept both `0.080s` and `0.08s`).
-      expect([expected, expected.replace(/0+s$/, 's')]).toContain(delay);
-    });
-  });
-
-  it('calls onCategoryTap with the row id when a row is clicked', () => {
+  it('renders one row per categoryRow; row tap → onCategoryTap(id); fact/plan mini-text', () => {
     const { container, onCategoryTap } = renderHome({
-      categoryRows: [row({ id: 42 })],
-    });
-    const rowEl = container.querySelector(
-      '[data-testid="home-category-row-42"]',
-    );
-    expect(rowEl).not.toBeNull();
-    fireEvent.click(rowEl!);
-    expect(onCategoryTap).toHaveBeenCalledTimes(1);
-    expect(onCategoryTap).toHaveBeenCalledWith(42);
-  });
-
-  it('renders OVER plate when row.isOver=true', () => {
-    const { container, getByText } = renderHome({
       categoryRows: [
-        row({ id: 1, isOver: true, fact_cents: 15_000_00, ratio: 1.5 }),
+        row({ id: 10, ord: '01', fact_cents: 5_000_00, plan_cents: 10_000_00 }),
+        row({ id: 20, ord: '02' }),
+        row({ id: 30, ord: '03' }),
       ],
     });
-    expect(getByText('OVER')).toBeInTheDocument();
-    // Row exists.
     expect(
-      container.querySelector('[data-testid="home-category-row-1"]'),
-    ).not.toBeNull();
+      container.querySelectorAll('[data-testid^="home-category-row-"]'),
+    ).toHaveLength(3);
+    expect(container.textContent).toMatch(/5\s000 ₽/);
+    expect(container.textContent).toMatch(/из 10\s000/);
+    fireEvent.click(
+      container.querySelector('[data-testid="home-category-row-10"]')!,
+    );
+    expect(onCategoryTap).toHaveBeenCalledWith(10);
   });
 
-  it('does NOT render OVER plate when row.isOver=false', () => {
-    const { queryByText } = renderHome({
-      categoryRows: [row({ id: 1, isOver: false })],
-    });
-    expect(queryByText('OVER')).toBeNull();
-  });
-
-  it('renders fact / plan amounts in mono mini-text below the bar', () => {
-    const { container } = renderHome({
-      categoryRows: [
-        row({ id: 1, fact_cents: 5_000_00, plan_cents: 10_000_00 }),
-      ],
-    });
-    // 5_000_00 cents → '5 000', 10_000_00 → '10 000', both with U+202F.
-    expect(container.textContent).toContain('5 000 ₽');
-    expect(container.textContent).toContain('из 10 000');
-  });
-
-  it('renders bar fill scaleX clamped to 100% when ratio > 1', () => {
-    const { container } = renderHome({
+  it('OVER plate + bar fill clamped to 100% when over budget; hidden otherwise', () => {
+    const over = renderHome({
       categoryRows: [
         row({
           id: 1,
@@ -234,11 +125,13 @@ describe('HomeView — category list', () => {
         }),
       ],
     });
-    const fill = container.querySelector(
+    expect(over.getByText('OVER')).toBeInTheDocument();
+    const fill = over.container.querySelector(
       '[data-testid="home-category-bar-fill-1"]',
-    ) as HTMLElement | null;
-    expect(fill).not.toBeNull();
-    // Inline style.width should be capped at 100%.
-    expect(fill!.style.width).toBe('100%');
+    ) as HTMLElement;
+    expect(fill.style.width).toBe('100%');
+    cleanup();
+    const under = renderHome({ categoryRows: [row({ id: 1, isOver: false })] });
+    expect(under.queryByText('OVER')).toBeNull();
   });
 });

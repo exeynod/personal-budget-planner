@@ -12,6 +12,7 @@ Pattern: mock app.api.routes.ai._get_llm_client (or similar stub entry point).
 
 Tests are integration (real DB, real FastAPI ASGI via async_client).
 """
+
 from __future__ import annotations
 
 import os
@@ -40,11 +41,15 @@ async def db_client(async_client):
     async with admin_engine.begin() as conn:
         try:
             await conn.execute(
-                text(f"TRUNCATE TABLE {_PHASE13_TRUNCATE_TABLES} RESTART IDENTITY CASCADE")
+                text(
+                    f"TRUNCATE TABLE {_PHASE13_TRUNCATE_TABLES} RESTART IDENTITY CASCADE"
+                )
             )
         except Exception:
             await conn.execute(
-                text(f"TRUNCATE TABLE {_DEFAULT_TRUNCATE_TABLES} RESTART IDENTITY CASCADE")
+                text(
+                    f"TRUNCATE TABLE {_DEFAULT_TRUNCATE_TABLES} RESTART IDENTITY CASCADE"
+                )
             )
     await admin_engine.dispose()
 
@@ -73,6 +78,7 @@ async def _stub_llm_stream(messages, tools=None):
 
 # ── Tests ─────────────────────────────────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_chat_blocked_when_at_cap_returns_429(
     db_client, bot_token, owner_tg_id, monkeypatch
@@ -86,7 +92,9 @@ async def test_chat_blocked_when_at_cap_returns_429(
     client, SessionLocal = db_client
     async with SessionLocal() as s:
         user = await seed_user(
-            s, tg_user_id=owner_tg_id, role=UserRole.owner,
+            s,
+            tg_user_id=owner_tg_id,
+            role=UserRole.owner,
             onboarded_at=datetime.now(timezone.utc),
             # Pro tier: require_pro (402) precedes enforce_spending_cap (429);
             # these tests exercise the cap, so the user must be Pro to reach 429.
@@ -106,6 +114,7 @@ async def test_chat_blocked_when_at_cap_returns_429(
     # Mock LLM so POST /ai/chat doesn't need real OpenAI key
     try:
         import app.api.routes.ai as ai_module
+
         monkeypatch.setattr(ai_module, "_stream_llm", _stub_llm_stream, raising=False)
     except (ImportError, AttributeError):
         pass  # Fine — enforce_spending_cap gate fires before LLM is reached
@@ -140,7 +149,9 @@ async def test_chat_unblocked_after_admin_patches_cap_higher(
     client, SessionLocal = db_client
     async with SessionLocal() as s:
         user = await seed_user(
-            s, tg_user_id=owner_tg_id, role=UserRole.owner,
+            s,
+            tg_user_id=owner_tg_id,
+            role=UserRole.owner,
             onboarded_at=datetime.now(timezone.utc),
             # Pro tier: require_pro (402) precedes enforce_spending_cap (429);
             # these tests exercise the cap, so the user must be Pro to reach 429.
@@ -159,6 +170,7 @@ async def test_chat_unblocked_after_admin_patches_cap_higher(
 
     try:
         import app.api.routes.ai as ai_module
+
         monkeypatch.setattr(ai_module, "_stream_llm", _stub_llm_stream, raising=False)
     except (ImportError, AttributeError):
         pass
@@ -187,7 +199,10 @@ async def test_chat_unblocked_after_admin_patches_cap_higher(
 
     # Step 3: invalidate cache explicitly (in case Plan 15-04 doesn't auto-invalidate)
     try:
-        from app.services.spend_cap import invalidate_user_spend_cache  # RED until 15-02
+        from app.services.spend_cap import (
+            invalidate_user_spend_cache,
+        )  # RED until 15-02
+
         await invalidate_user_spend_cache(owner_pk)
     except ImportError:
         pass  # Module not yet created; that's expected in RED phase
@@ -204,47 +219,10 @@ async def test_chat_unblocked_after_admin_patches_cap_higher(
     )
 
 
-@pytest.mark.asyncio
-async def test_suggest_category_blocked_when_at_cap(
-    db_client, bot_token, owner_tg_id, monkeypatch
-):
-    """cap=10, spend=50 → GET /ai/suggest-category returns 429."""
-    from tests.conftest import make_init_data
-    from tests.helpers.seed import seed_user, seed_ai_usage_log
-    from app.db.models import UserRole
-    from sqlalchemy import text
-
-    client, SessionLocal = db_client
-    async with SessionLocal() as s:
-        user = await seed_user(
-            s, tg_user_id=owner_tg_id, role=UserRole.owner,
-            onboarded_at=datetime.now(timezone.utc),
-            # Pro tier: require_pro (402) precedes enforce_spending_cap (429);
-            # these tests exercise the cap, so the user must be Pro to reach 429.
-            pro_active_until=datetime.now(timezone.utc) + timedelta(days=30),
-        )
-        await s.execute(
-            text("UPDATE app_user SET spending_cap_cents = 10 WHERE id = :uid"),
-            {"uid": user.id},
-        )
-        await s.commit()
-        user_id = user.id
-
-    async with SessionLocal() as s:
-        # 0.50 USD → 50 cents >> cap of 10
-        await seed_ai_usage_log(s, user_id=user_id, est_cost_usd=0.50)
-
-    init_data = make_init_data(owner_tg_id, bot_token)
-    resp = await client.get(
-        "/api/v1/ai/suggest-category",
-        params={"q": "кофе"},
-        headers={"X-Telegram-Init-Data": init_data},
-    )
-    # RED: 404/200 until Plan 15-03 wires enforce_spending_cap to ai_suggest router
-    assert resp.status_code == 429, (
-        f"spend=50 cents > cap=10 must block /ai/suggest-category (429), "
-        f"got {resp.status_code}: {resp.text}"
-    )
+# NOTE (prune): test_suggest_category_blocked_when_at_cap removed — the
+# at-cap→429 path is covered by test_chat_blocked_when_at_cap, and
+# /ai/suggest-category cap enforcement is still asserted by
+# test_cap_zero_blocks_chat_and_suggest below.
 
 
 @pytest.mark.asyncio
@@ -260,7 +238,9 @@ async def test_cap_zero_blocks_chat_and_suggest(
     client, SessionLocal = db_client
     async with SessionLocal() as s:
         user = await seed_user(
-            s, tg_user_id=owner_tg_id, role=UserRole.owner,
+            s,
+            tg_user_id=owner_tg_id,
+            role=UserRole.owner,
             onboarded_at=datetime.now(timezone.utc),
             # Pro tier: require_pro (402) precedes enforce_spending_cap (429);
             # these tests exercise the cap, so the user must be Pro to reach 429.
@@ -274,6 +254,7 @@ async def test_cap_zero_blocks_chat_and_suggest(
 
     try:
         import app.api.routes.ai as ai_module
+
         monkeypatch.setattr(ai_module, "_stream_llm", _stub_llm_stream, raising=False)
     except (ImportError, AttributeError):
         pass

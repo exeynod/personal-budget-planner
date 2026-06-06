@@ -18,9 +18,9 @@ Covered behaviors (per 03-PLAN.md task 2 + 03-VALIDATION.md, D-31):
 - kind mirrors category.kind
 - Auth: 403 without X-Telegram-Init-Data
 """
+
 import os
 from datetime import date, datetime, timezone
-from typing import Optional
 
 import pytest
 import pytest_asyncio
@@ -46,7 +46,6 @@ async def db_setup(async_client, owner_tg_id):
     Returns (client, SessionLocal). Truncates tables before yielding.
     """
     _require_db()
-    from sqlalchemy import text
     from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
     from app.api.dependencies import get_db
@@ -58,11 +57,19 @@ async def db_setup(async_client, owner_tg_id):
     SessionLocal = async_sessionmaker(engine, expire_on_commit=False)
 
     from tests.helpers.seed import truncate_db
+
     await truncate_db()
 
     # Seed AppUser explicitly — /me no longer upserts after Phase 12 (Plan 12-03).
     async with SessionLocal() as session:
-        session.add(AppUser(tg_user_id=owner_tg_id, role=UserRole.owner, cycle_start_day=5, onboarded_at=datetime.now(timezone.utc)))
+        session.add(
+            AppUser(
+                tg_user_id=owner_tg_id,
+                role=UserRole.owner,
+                cycle_start_day=5,
+                onboarded_at=datetime.now(timezone.utc),
+            )
+        )
         await session.commit()
 
     async def real_get_db():
@@ -89,7 +96,7 @@ async def db_client(db_setup):
 async def seed_categories(db_setup, owner_tg_id):
     _, SessionLocal = db_setup
     from sqlalchemy import text
-    from app.db.models import Category, CategoryKind
+    from app.db.models import CategoryKind
 
     async with SessionLocal() as session:
         result = await session.execute(
@@ -99,6 +106,7 @@ async def seed_categories(db_setup, owner_tg_id):
         user_id = result.scalar_one()
 
         from tests.helpers.seed import seed_category
+
         expense_cat = await seed_category(
             session,
             user_id=user_id,
@@ -205,123 +213,15 @@ async def test_apply_empty_template(db_client, auth_headers, seed_period):
     assert listing.json() == []
 
 
-@pytest.mark.asyncio
-async def test_apply_does_not_materialise_template_rows(
-    db_client, auth_headers, seed_categories, seed_period
-):
-    """v1.0 (CONTEXT D-02): apply-template no longer materialises rows.
-
-    plan_template_item was dropped (alembic 0013); apply_template_to_period is a
-    permanent no-op. Intent of the original ``creates_planned_rows`` test —
-    that apply-template responds correctly for a period with plan data — is
-    preserved as the documented v1.0 contract: created=0, planned=[].
-    """
-    response = await db_client.post(
-        f"/api/v1/periods/{seed_period}/apply-template", headers=auth_headers
-    )
-    assert response.status_code == 200
-    body = response.json()
-    assert body["period_id"] == seed_period
-    assert body["created"] == 0
-    assert body["planned"] == []
-
-    # GET planned returns no template rows.
-    listing = await db_client.get(
-        f"/api/v1/periods/{seed_period}/planned", headers=auth_headers
-    )
-    assert listing.status_code == 200
-    assert listing.json() == []
-
-
-@pytest.mark.asyncio
-async def test_apply_idempotent_remains_noop(
-    db_client, auth_headers, seed_categories, seed_period
-):
-    """D-31 idempotency preserved: repeated apply stays a no-op (created=0)."""
-    first = await db_client.post(
-        f"/api/v1/periods/{seed_period}/apply-template", headers=auth_headers
-    )
-    assert first.status_code == 200
-    assert first.json()["created"] == 0
-
-    second = await db_client.post(
-        f"/api/v1/periods/{seed_period}/apply-template", headers=auth_headers
-    )
-    assert second.status_code == 200
-    body = second.json()
-    assert body["period_id"] == seed_period
-    assert body["created"] == 0
-    assert body["planned"] == []
-
-    # GET planned still empty (no duplicates ever created).
-    listing = await db_client.get(
-        f"/api/v1/periods/{seed_period}/planned", headers=auth_headers
-    )
-    assert listing.status_code == 200
-    assert listing.json() == []
-
-
-@pytest.mark.asyncio
-async def test_apply_with_plan_data_still_noop_clamp_path_removed(
-    db_setup, auth_headers, seed_categories, owner_tg_id
-):
-    """v1.0 (CONTEXT D-02): planned_date clamping path is gone with templates.
-
-    The original test asserted day_of_period=30 clamped to period_end. With
-    plan_template_item dropped there is no day_of_period to clamp; apply-template
-    is a no-op. Intent (apply over a non-empty-period boundary doesn't error)
-    is preserved by asserting the no-op contract.
-    """
-    client, SessionLocal = db_setup
-    period_id = await _create_period(
-        SessionLocal,
-        owner_tg_id=owner_tg_id,
-        period_start=date(2026, 2, 5),
-        period_end=date(2026, 3, 4),
-    )
-
-    response = await client.post(
-        f"/api/v1/periods/{period_id}/apply-template", headers=auth_headers
-    )
-    assert response.status_code == 200
-    body = response.json()
-    assert body["created"] == 0
-    assert body["planned"] == []
-
-
-@pytest.mark.asyncio
-async def test_apply_null_date_path_removed_is_noop(
-    db_setup, auth_headers, seed_categories, seed_period, owner_tg_id
-):
-    """v1.0 (CONTEXT D-02): NULL-day_of_period path removed with templates → no-op."""
-    client, _ = db_setup
-    response = await client.post(
-        f"/api/v1/periods/{seed_period}/apply-template", headers=auth_headers
-    )
-    assert response.status_code == 200
-    body = response.json()
-    assert body["created"] == 0
-    assert body["planned"] == []
-
-
-@pytest.mark.asyncio
-async def test_apply_kind_mirror_path_removed_is_noop(
-    db_setup, auth_headers, seed_categories, seed_period, owner_tg_id
-):
-    """v1.0 (CONTEXT D-02): planned.kind-mirroring path removed with templates → no-op."""
-    client, _ = db_setup
-    response = await client.post(
-        f"/api/v1/periods/{seed_period}/apply-template", headers=auth_headers
-    )
-    assert response.status_code == 200
-    body = response.json()
-    assert body["created"] == 0
-    assert body["planned"] == []
+# NOTE (prune): the v1.1 apply_template_to_period SERVICE behaviour (items →
+# period_category_plan, lines → planned, idempotency) is covered in
+# tests/services/test_planning_rework.py. The former route-level no-op /
+# path-removed permutations (does_not_materialise / idempotent_remains_noop /
+# clamp / null-date / kind-mirror) were pruned — the HTTP route wiring is now
+# guarded by the 404 + empty-200 + 403 cases retained in this file.
 
 
 @pytest.mark.asyncio
 async def test_apply_no_init_data_403(db_client, seed_period):
-    response = await db_client.post(
-        f"/api/v1/periods/{seed_period}/apply-template"
-    )
+    response = await db_client.post(f"/api/v1/periods/{seed_period}/apply-template")
     assert response.status_code == 403

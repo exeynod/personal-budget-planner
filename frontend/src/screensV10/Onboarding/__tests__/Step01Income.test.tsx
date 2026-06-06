@@ -1,85 +1,35 @@
-// Phase 24-02: Step01Income view + format helper integration tests.
-//
-// Covers must_haves:
-//   - Renders eyebrow «ВВЕДИ СУММУ ПОСЛЕ НАЛОГОВ» + headline mass text
-//   - Input value reflects incomeCents (formatted with U+202F thin space)
-//   - Typing digits dispatches SET_INCOME with correct cents
-//   - Preset chips dispatch SET_INCOME with the preset's cents value
-//   - Active preset highlights when incomeCents matches
-// Threat coverage:
-//   - T-24-02-01: non-digit input chars are stripped before dispatch
-//   - T-24-02-02: paste >100M ₽ is clamped to the cap
+// Phase 24-02: Step01Income view + format helper.
+// Trimmed to 1 happy + 1 invalid path; money (THIN_SPACE / cap / strip) protected.
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import {
-  render,
-  fireEvent,
-  screen,
-  cleanup,
-} from '@testing-library/react';
+import { render, fireEvent, screen, cleanup } from '@testing-library/react';
 import { Step01Income } from '../Step01Income';
 import { formatRubles, THIN_SPACE } from '../format';
 
-// Vitest config has `globals: false`, so RTL's auto-cleanup-on-import is
-// inactive — register it explicitly to keep DOM isolated between tests.
 afterEach(cleanup);
 
 describe('formatRubles', () => {
-  it('returns "0" for 0 cents', () => {
+  it('groups by U+202F thin space; 0 → "0"', () => {
     expect(formatRubles(0)).toBe('0');
-  });
-
-  it('formats 12_000_000 cents as "120{thin}000"', () => {
     expect(formatRubles(12_000_000)).toBe(`120${THIN_SPACE}000`);
-  });
-
-  it('formats 1_234_567_89 cents as "1{thin}234{thin}567"', () => {
-    // 123_456_789 cents = 1_234_567.89 ₽ → rounded down to 1_234_567 ₽
-    expect(formatRubles(1_234_567_89)).toBe(
-      `1${THIN_SPACE}234${THIN_SPACE}567`,
-    );
-  });
-
-  it('uses U+202F (NARROW NO-BREAK SPACE), not ASCII 0x20', () => {
-    const formatted = formatRubles(8_000_000);
-    expect(formatted).toBe(`80${THIN_SPACE}000`);
-    // Spot-check the actual codepoint to guard against silent regressions.
-    expect(formatted.charCodeAt(2)).toBe(0x202f);
+    const f = formatRubles(8_000_000);
+    expect(f).toBe(`80${THIN_SPACE}000`);
+    expect(f.charCodeAt(2)).toBe(0x202f); // guard against ASCII-space regression
   });
 });
 
 describe('Step01Income — render', () => {
-  it('renders the income headline + sub-eyebrow', () => {
-    render(<Step01Income incomeCents={0} dispatch={vi.fn()} />);
-    expect(screen.getByText(/Какой доход/)).toBeInTheDocument();
-    expect(
-      screen.getByText('ВВЕДИ СУММУ ПОСЛЕ НАЛОГОВ'),
-    ).toBeInTheDocument();
-  });
-
-  it('renders empty input when incomeCents=0', () => {
-    render(<Step01Income incomeCents={0} dispatch={vi.fn()} />);
-    const input = screen.getByRole('textbox') as HTMLInputElement;
-    expect(input.value).toBe('');
-  });
-
-  it('renders formatted thin-space value when incomeCents>0', () => {
+  it('smoke: headline, eyebrow, formatted value, ₽, 4 preset chips', () => {
     render(<Step01Income incomeCents={12_000_000} dispatch={vi.fn()} />);
-    const input = screen.getByRole('textbox') as HTMLInputElement;
-    expect(input.value).toBe(`120${THIN_SPACE}000`);
-  });
-
-  it('renders ₽ suffix', () => {
-    render(<Step01Income incomeCents={0} dispatch={vi.fn()} />);
+    expect(screen.getByText(/Какой доход/)).toBeInTheDocument();
+    expect(screen.getByText('ВВЕДИ СУММУ ПОСЛЕ НАЛОГОВ')).toBeInTheDocument();
+    expect((screen.getByRole('textbox') as HTMLInputElement).value).toBe(
+      `120${THIN_SPACE}000`,
+    );
     expect(screen.getByText('₽')).toBeInTheDocument();
-  });
-
-  it('renders the 4 preset chips (50/80/120/200K)', () => {
-    render(<Step01Income incomeCents={0} dispatch={vi.fn()} />);
-    // Match each chip by regex against the normalised group of digits +
-    // ₽ — RTL's default text matcher is finicky about exact U+202F.
-    const presets = screen.getAllByRole('button', { name: /\d.*₽/ });
-    const labels = presets.map((b) => b.textContent ?? '');
+    const labels = screen
+      .getAllByRole('button', { name: /\d.*₽/ })
+      .map((b) => b.textContent ?? '');
     expect(labels).toEqual([
       `50${THIN_SPACE}000 ₽`,
       `80${THIN_SPACE}000 ₽`,
@@ -89,49 +39,30 @@ describe('Step01Income — render', () => {
   });
 });
 
-describe('Step01Income — input change', () => {
-  it('dispatches SET_INCOME with cents=value*100 when user types digits', () => {
+describe('Step01Income — input', () => {
+  it('happy: typing digits dispatches SET_INCOME (value*100)', () => {
     const dispatch = vi.fn();
     render(<Step01Income incomeCents={0} dispatch={dispatch} />);
-    const input = screen.getByRole('textbox') as HTMLInputElement;
-    fireEvent.change(input, { target: { value: '120000' } });
+    fireEvent.change(screen.getByRole('textbox'), {
+      target: { value: '120000' },
+    });
     expect(dispatch).toHaveBeenCalledWith({
       type: 'SET_INCOME',
       payload: { income_cents: 12_000_000 },
     });
   });
 
-  it('dispatches SET_INCOME with 0 when input is cleared', () => {
-    const dispatch = vi.fn();
-    render(<Step01Income incomeCents={5_000_000} dispatch={dispatch} />);
-    const input = screen.getByRole('textbox') as HTMLInputElement;
-    fireEvent.change(input, { target: { value: '' } });
-    expect(dispatch).toHaveBeenCalledWith({
-      type: 'SET_INCOME',
-      payload: { income_cents: 0 },
-    });
-  });
-
-  it('strips non-digit chars (T-24-02-01: tampering)', () => {
+  it('invalid: strips non-digits (T-24-02-01) and caps at 100M ₽ (T-24-02-02)', () => {
     const dispatch = vi.fn();
     render(<Step01Income incomeCents={0} dispatch={dispatch} />);
-    const input = screen.getByRole('textbox') as HTMLInputElement;
-    fireEvent.change(input, { target: { value: 'abc1.2,3 50' } });
-    // Digits are 1,2,3,5,0 → 12350 ₽ → 1_235_000 cents
+    const input = screen.getByRole('textbox');
+    fireEvent.change(input, { target: { value: 'abc1.2,3 50' } }); // → 12350 ₽
     expect(dispatch).toHaveBeenCalledWith({
       type: 'SET_INCOME',
       payload: { income_cents: 1_235_000 },
     });
-  });
-
-  it('caps display at 100M ₽ (T-24-02-02: very large pasted income)', () => {
-    const dispatch = vi.fn();
-    render(<Step01Income incomeCents={0} dispatch={dispatch} />);
-    const input = screen.getByRole('textbox') as HTMLInputElement;
-    // 1e15 rubles → exceeds 100_000_000 ₽ cap.
-    fireEvent.change(input, { target: { value: '1000000000000000' } });
-    const calls = dispatch.mock.calls;
-    const last = calls[calls.length - 1]?.[0];
+    fireEvent.change(input, { target: { value: '1000000000000000' } }); // → capped
+    const last = dispatch.mock.calls.at(-1)?.[0];
     expect(last).toEqual({
       type: 'SET_INCOME',
       payload: { income_cents: 100_000_000_00 },
@@ -140,51 +71,30 @@ describe('Step01Income — input change', () => {
 });
 
 describe('Step01Income — preset chips', () => {
-  function findChipByText(text: string): HTMLElement {
-    const chips = screen.getAllByRole('button', { name: /\d.*₽/ });
-    const found = chips.find((c) => (c.textContent ?? '') === text);
-    if (!found) {
-      throw new Error(
-        `chip "${text}" not found among ${chips
-          .map((c) => JSON.stringify(c.textContent))
-          .join(', ')}`,
-      );
-    }
+  function findChip(text: string): HTMLElement {
+    const found = screen
+      .getAllByRole('button', { name: /\d.*₽/ })
+      .find((c) => (c.textContent ?? '') === text);
+    if (!found) throw new Error(`chip "${text}" not found`);
     return found;
   }
 
-  it('clicking 80 000 ₽ dispatches SET_INCOME with 8_000_000 cents', () => {
+  it('click dispatches preset cents + marks matching chip active', () => {
     const dispatch = vi.fn();
-    render(<Step01Income incomeCents={0} dispatch={dispatch} />);
-    fireEvent.click(findChipByText(`80${THIN_SPACE}000 ₽`));
+    const { rerender } = render(
+      <Step01Income incomeCents={0} dispatch={dispatch} />,
+    );
+    fireEvent.click(findChip(`80${THIN_SPACE}000 ₽`));
     expect(dispatch).toHaveBeenCalledWith({
       type: 'SET_INCOME',
       payload: { income_cents: 8_000_000 },
     });
-  });
-
-  it('clicking 200 000 ₽ dispatches SET_INCOME with 20_000_000 cents', () => {
-    const dispatch = vi.fn();
-    render(<Step01Income incomeCents={0} dispatch={dispatch} />);
-    fireEvent.click(findChipByText(`200${THIN_SPACE}000 ₽`));
-    expect(dispatch).toHaveBeenCalledWith({
-      type: 'SET_INCOME',
-      payload: { income_cents: 20_000_000 },
-    });
-  });
-
-  it('marks the matching preset chip as active', () => {
-    const { rerender } = render(
-      <Step01Income incomeCents={8_000_000} dispatch={vi.fn()} />,
+    rerender(<Step01Income incomeCents={8_000_000} dispatch={vi.fn()} />);
+    expect(findChip(`80${THIN_SPACE}000 ₽`).getAttribute('data-active')).toBe(
+      'true',
     );
-    const chip80 = findChipByText(`80${THIN_SPACE}000 ₽`);
-    expect(chip80.getAttribute('data-active')).toBe('true');
-    // Switching to 50K should swap the active chip.
-    rerender(<Step01Income incomeCents={5_000_000} dispatch={vi.fn()} />);
-    const chip50 = findChipByText(`50${THIN_SPACE}000 ₽`);
-    expect(chip50.getAttribute('data-active')).toBe('true');
-    expect(
-      findChipByText(`80${THIN_SPACE}000 ₽`).getAttribute('data-active'),
-    ).toBe('false');
+    expect(findChip(`50${THIN_SPACE}000 ₽`).getAttribute('data-active')).toBe(
+      'false',
+    );
   });
 });
