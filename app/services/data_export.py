@@ -24,6 +24,7 @@ Output shape (CMP-33-06)::
       "_meta": {"exported_at": <iso8601>, "format_version": "1.0"}
     }
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -41,10 +42,8 @@ from app.db.models import (
     AppUser,
     BudgetPeriod,
     Category,
-    Goal,
     PdnAuditLog,
     PlannedTransaction,
-    SavingsConfig,
     Subscription,
 )
 
@@ -69,7 +68,9 @@ def _serialize_row(row: Any) -> dict:
             out[col.name] = val.isoformat()
         elif isinstance(val, date):
             out[col.name] = val.isoformat()
-        elif hasattr(val, "value") and not isinstance(val, (dict, list, str, int, bool)):
+        elif hasattr(val, "value") and not isinstance(
+            val, (dict, list, str, int, bool)
+        ):
             # Enums (.value attribute) — but skip strings/dicts that happen to
             # have a `value` member.
             out[col.name] = val.value
@@ -113,11 +114,7 @@ async def build_export(db: AsyncSession, *, user_id: int) -> dict:
     )
     audit_rows = [_serialize_row(r) for r in audit_result.scalars().all()]
 
-    # SavingsConfig: PK = user_id (1:1) — fetch with a single .get().
-    sav = await db.scalar(
-        select(SavingsConfig).where(SavingsConfig.user_id == user_id)
-    )
-
+    # v1.1: goal / savings_config tables removed (AGREED §G1).
     return {
         "user": _serialize_row(user_row),
         "accounts": await _list(Account),
@@ -128,8 +125,6 @@ async def build_export(db: AsyncSession, *, user_id: int) -> dict:
         "subscriptions": await _list(Subscription),
         "ai_conversations": await _list(AiConversation),
         "ai_messages": await _list(AiMessage),
-        "goals": await _list(Goal),
-        "savings_config": _serialize_row(sav) if sav is not None else None,
         "audit_log": audit_rows,
         "_meta": {
             "exported_at": datetime.now(timezone.utc).isoformat(),

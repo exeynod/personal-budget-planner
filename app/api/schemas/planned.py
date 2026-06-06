@@ -1,4 +1,5 @@
 """Pydantic schemas for /api/v1/.../planned and /api/v1/planned endpoints (PLN-01, PLN-02, TPL-04)."""
+
 from datetime import date
 from typing import Literal, Optional
 
@@ -48,6 +49,8 @@ class PlannedRead(BaseModel):
     planned_date: Optional[date]
     source: PlanSourceStr
     subscription_id: Optional[int]
+    # v1.1: bridge план↔факт — non-null once the row is posted to an actual.
+    posted_txn_id: Optional[int] = None
 
 
 class ApplyTemplateResponse(BaseModel):
@@ -59,3 +62,38 @@ class ApplyTemplateResponse(BaseModel):
         description="Number of new planned rows created (0 if idempotent no-op)",
     )
     planned: list[PlannedRead]
+
+
+# ---------- v1.1: per-period plan limits + post/unpost/batch ----------
+
+
+class PeriodPlanRow(BaseModel):
+    category_id: int
+    limit_cents: int
+
+
+class PeriodPlanUpdate(BaseModel):
+    plans: list[PeriodPlanRow]
+
+
+class PeriodPlanResponse(BaseModel):
+    plans: list[PeriodPlanRow]
+
+
+class PostPlannedRequest(BaseModel):
+    tx_date: date
+
+
+class PostPlannedResponse(BaseModel):
+    txn_id: int
+    planned_id: int
+
+
+class PostPlannedBatchRequest(BaseModel):
+    planned_ids: list[int] = Field(min_length=1)
+    tx_date: Optional[date] = None
+
+
+class PostPlannedBatchResponse(BaseModel):
+    posted: list[int]
+    skipped: list[int]

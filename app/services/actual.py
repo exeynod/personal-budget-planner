@@ -54,7 +54,10 @@ from app.db.models import (
     BudgetPeriod,
     Category,
     CategoryKind,
+    PeriodCategoryPlan,
     PeriodStatus,
+    PlannedTransaction,
+    PlanSource,
 )
 from app.services import categories as cat_svc
 from app.services.planned import (
@@ -516,22 +519,74 @@ async def compute_balance(db: AsyncSession, period_id: int, *, user_id: int) -> 
         (r.category_id, r.kind): r.actual_cents for r in actual_rows
     }
 
-    # Plan source = Category.plan_cents (HOME-1). Per active EXPENSE category,
-    # excluding the system 'savings' bucket (mirrors V10
-    # HomeData.computeCategoryAggregates). Income carries no per-category plan.
+    # v1.1: per-period limit source = period_category_plan (fallback to
+    # Category.plan_cents for periods created before apply-template).
+    pcp_map: dict[int, int] = {
+        cid: lc
+        for cid, lc in (
+            await db.execute(
+                select(
+                    PeriodCategoryPlan.category_id,
+                    PeriodCategoryPlan.limit_cents,
+                ).where(
+                    PeriodCategoryPlan.user_id == user_id,
+                    PeriodCategoryPlan.period_id == period_id,
+                )
+            )
+        ).all()
+    }
+
+    # v1.1: "Расписано" — Σ planned (manual, unposted) per (category, kind).
+    # EXCLUDES subscription_auto (G5: already budgeted via subs category /
+    # materialised separately) and posted rows (those are now actuals).
+    planned_unposted_rows = (
+        await db.execute(
+            select(
+                PlannedTransaction.category_id,
+                PlannedTransaction.kind,
+                func.sum(func.abs(PlannedTransaction.amount_cents)).label("pu"),
+            )
+            .where(
+                PlannedTransaction.user_id == user_id,
+                PlannedTransaction.period_id == period_id,
+                PlannedTransaction.posted_txn_id.is_(None),
+                PlannedTransaction.source != PlanSource.subscription_auto,
+            )
+            .group_by(PlannedTransaction.category_id, PlannedTransaction.kind)
+        )
+    ).all()
+    planned_unposted_map: dict[tuple, int] = {
+        (r.category_id, r.kind): int(r.pu or 0) for r in planned_unposted_rows
+    }
+
+    # Plan source = period_category_plan (fallback Category.plan_cents). Per
+    # active EXPENSE category, excluding system 'savings' + 'adjustment'
+    # buckets. Income carries no per-category plan.
     planned_map: dict[tuple, int] = {}
     for cat in cats.values():
-        if cat.kind == CategoryKind.expense and cat.code != "savings":
-            planned_map[(cat.id, CategoryKind.expense)] = cat.plan_cents or 0
+        if cat.kind == CategoryKind.expense and cat.code not in (
+            "savings",
+            "adjustment",
+        ):
+            planned_map[(cat.id, CategoryKind.expense)] = pcp_map.get(
+                cat.id, cat.plan_cents or 0
+            )
 
     by_category: list[dict] = []
-    seen_keys = set(planned_map) | set(actual_map)
+    seen_keys = set(planned_map) | set(actual_map) | set(planned_unposted_map)
     for cat_id, kind in seen_keys:
         cat = cats.get(cat_id)
         if cat is None:
             continue  # archived — exclude from per-category list
+        # v1.1 (AGREED §H): system 'adjustment'/'savings' categories hold
+        # balance-reconcile / historical-deposit records — keep them OUT of
+        # the plan/fact ladder. balance_now still reflects them (totals below
+        # subtract them explicitly).
+        if cat.code in ("savings", "adjustment"):
+            continue
         plan = planned_map.get((cat_id, kind), 0) or 0
         act = actual_map.get((cat_id, kind), 0) or 0
+        planned_unposted = planned_unposted_map.get((cat_id, kind), 0) or 0
         # D-02 sign rule
         if kind == CategoryKind.expense:
             delta = plan - act
@@ -543,19 +598,37 @@ async def compute_balance(db: AsyncSession, period_id: int, *, user_id: int) -> 
                 "name": cat.name,
                 "kind": kind.value,
                 "planned_cents": plan,
+                "planned_unposted_cents": planned_unposted,
                 "actual_cents": act,
                 "delta_cents": delta,
             }
         )
 
-    # Expense plan total = Σ Category.plan_cents (active expense, no savings).
-    plan_exp = sum(planned_map.values())
-    act_exp = sum(a for (_, k), a in actual_map.items() if k == CategoryKind.expense)
-    # Income plan total = AppUser.income_cents — already resolved above in the
-    # folded period query (F4: ``plan_inc``), no separate round-trip here.
-    act_inc = sum(a for (_, k), a in actual_map.items() if k == CategoryKind.income)
+    # v1.1: identify system categories (savings/adjustment) to keep their
+    # actuals OUT of the plan/fact ladder totals — but still inside balance_now.
+    system_cat_ids = {
+        cid for cid, c in cats.items() if c.code in ("savings", "adjustment")
+    }
 
-    balance_now = period_row.starting_balance_cents + act_inc - act_exp
+    # Expense plan total = Σ period limits (active expense, no system cats).
+    plan_exp = sum(planned_map.values())
+    # Ladder totals exclude system-category actuals (adjustment/savings).
+    act_exp = sum(
+        a
+        for (cid, k), a in actual_map.items()
+        if k == CategoryKind.expense and cid not in system_cat_ids
+    )
+    act_inc = sum(
+        a
+        for (cid, k), a in actual_map.items()
+        if k == CategoryKind.income and cid not in system_cat_ids
+    )
+
+    # balance_now uses ALL actuals (including the adjustment record — that is
+    # precisely how reconcile makes the displayed balance == entered value).
+    all_exp = sum(a for (_, k), a in actual_map.items() if k == CategoryKind.expense)
+    all_inc = sum(a for (_, k), a in actual_map.items() if k == CategoryKind.income)
+    balance_now = period_row.starting_balance_cents + all_inc - all_exp
     delta_total = (plan_exp - act_exp) + (act_inc - plan_inc)
 
     return {
@@ -730,12 +803,10 @@ async def create_actual_v10(
             delta_cents=amount_cents,
         )
 
-    # Roundup hook — no-op for non-expense / no-config / aligned amounts.
-    from app.services.roundup import maybe_create_roundup_child
-
-    child = await maybe_create_roundup_child(db, user_id=user_id, parent_txn=parent)
-
-    return parent, child
+    # v1.1 (AGREED §G1): roundup выпилен. ``create_actual_v10`` всегда
+    # возвращает ``child=None`` (сигнатура tuple сохранена для существующих
+    # вызовов; исторические roundup-rows остаются в БД).
+    return parent, None
 
 
 async def delete_actual_v10(
@@ -808,4 +879,70 @@ async def delete_actual_v10(
                 delta_cents=delta,
             )
 
+    return parent
+
+
+# ---------- Balance reconcile (AGREED §H — корректировка остатка) ----------
+
+
+async def reconcile_balance(
+    db: AsyncSession, *, user_id: int, target_balance_cents: int
+) -> Optional[ActualTransaction]:
+    """Make the displayed balance equal ``target_balance_cents`` (AGREED §H).
+
+    Creates a single balancing ``actual_transaction`` whose sign = (target −
+    current computed balance) on the system ``code='adjustment'`` category, so
+    ``balance_now_cents`` becomes the entered value. Reversible via
+    ``DELETE /actual/{id}`` (standard delete restores the prior balance).
+
+    Returns the created adjustment ``ActualTransaction`` — or ``None`` when the
+    balance already matches (delta == 0; no-op).
+
+    Raises:
+        PeriodNotFoundError: user has no active period.
+        InvalidCategoryError: 'adjustment' system category missing (should be
+            seeded by onboarding / migration 0030).
+    """
+    from app.services.accounts import get_primary_account
+    from app.services.periods import get_current_active_period
+
+    period = await get_current_active_period(db, user_id=user_id)
+    if period is None:
+        raise PeriodNotFoundError(0)
+
+    bal = await compute_balance(db, period.id, user_id=user_id)
+    delta = target_balance_cents - int(bal["balance_now_cents"])
+    if delta == 0:
+        return None
+
+    adj_cat = await db.scalar(
+        select(Category).where(
+            Category.user_id == user_id,
+            Category.code == "adjustment",
+        )
+    )
+    if adj_cat is None:
+        raise InvalidCategoryError(0, "missing system 'adjustment' category")
+
+    primary = await get_primary_account(db, user_id=user_id)
+    account_id = primary.id if primary is not None else None
+
+    if delta > 0:
+        kind = "income"
+        amount = abs(delta)
+    else:
+        kind = "expense"
+        amount = -abs(delta)
+
+    parent, _child = await create_actual_v10(
+        db,
+        user_id=user_id,
+        kind=kind,
+        amount_cents=amount,
+        description="Корректировка остатка",
+        category_id=adj_cat.id,
+        tx_date=_today_in_app_tz(),
+        source=ActualSource.mini_app,
+        account_id=account_id,
+    )
     return parent

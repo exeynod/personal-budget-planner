@@ -52,11 +52,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.dependencies import get_current_user, get_db, verify_internal_token
 from app.api.routes.accounts import accounts_router
 from app.api.routes.actual import actual_router
-from app.api.routes.goals import goals_router
+from app.api.routes.balance import balance_router
 from app.api.routes.home import home_router
 from app.api.routes.me import build_me_response, me_router
 from app.api.schemas.me_v10 import MeV10Response
-from app.api.routes.savings import savings_router
 from app.api.routes.admin import admin_router
 from app.api.routes.auth import auth_router
 from app.api.routes.categories import categories_router
@@ -74,7 +73,7 @@ from app.api.routes.ai_suggest import router as ai_suggest_router
 from app.api.routes.analytics import event_router as analytics_event_router
 from app.api.routes.analytics import router as analytics_router
 from app.api.routes.subscriptions import router as subscriptions_router
-from app.api.routes.templates import templates_router
+from app.api.routes.template import template_router
 from app.db.models import AppUser
 
 
@@ -128,8 +127,11 @@ public_router.include_router(settings_router)
 # Phase 3 sub-routers — share the same /api/v1 prefix and bring their own
 # router-level Depends(get_current_user). ``planned_router`` has no prefix
 # of its own because it serves two URL groups (/periods/{id}/* and /planned/{id}).
-public_router.include_router(templates_router)
+public_router.include_router(template_router)
 public_router.include_router(planned_router)
+
+# v1.1 (AGREED §H) — balance reconcile.
+public_router.include_router(balance_router)
 
 # Phase 4 sub-router — Mini App actual transactions + balance.
 public_router.include_router(actual_router)
@@ -170,14 +172,11 @@ public_router.include_router(admin_router)
 # и сам идентифицирует пользователя как OWNER_TG_ID.
 public_router.include_router(auth_router)
 
-# Phase 22 (v1.0) — Accounts CRUD + set-primary (BE-02). Plan 22.13.
+# Phase 22 (v1.0) — Accounts read-only (single primary balance). v1.1: mutating
+# account-management routes (create/update/delete/set-primary) removed (AGREED §G2).
 public_router.include_router(accounts_router)
 
-# Phase 22 (v1.0) — Goals CRUD (BE-11). Plan 22.13.
-public_router.include_router(goals_router)
-
-# Phase 22 (v1.0) — Savings snapshot/config/deposit (BE-08, BE-09, BE-10).
-public_router.include_router(savings_router)
+# v1.1 (AGREED §G): goals_router + savings_router REMOVED (накопления выпилены).
 
 # Phase 22 (v1.0) — PATCH /me extension (BE-01). Legacy GET /me stays defined
 # above on the same public_router; me_router only adds the PATCH handler.

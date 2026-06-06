@@ -24,10 +24,8 @@ re-imported from ``app.services.onboarding_v10`` so the wire layer and
 the service layer share one definition. The service-side validators
 remain (defense-in-depth + reset endpoint reuses them with raw dicts).
 """
-from datetime import date as _date
-from datetime import datetime as _datetime
+
 from typing import Literal, Optional
-from zoneinfo import ZoneInfo
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -52,80 +50,13 @@ class OnboardingAccountItem(BaseModel):
     nested dicts through to ``complete_v10``).
     """
 
-    model_config = ConfigDict(
-        strict=True, extra="forbid", str_strip_whitespace=True
-    )
+    model_config = ConfigDict(strict=True, extra="forbid", str_strip_whitespace=True)
 
     bank: str = Field(min_length=1, max_length=40)
     mask: Optional[str] = Field(default=None, max_length=16)
     kind: AccountKindStr
-    balance_cents: int = Field(
-        default=0, ge=-100_000_000_00, le=100_000_000_00
-    )
+    balance_cents: int = Field(default=0, ge=-100_000_000_00, le=100_000_000_00)
     primary: bool = False
-
-
-class OnboardingGoalItem(BaseModel):
-    """Optional ``goal`` slot inside the onboarding body.
-
-    Distinct from :class:`app.api.schemas.goals.GoalCreate` only in that
-    the standalone create schema lives in its own module — fields and
-    validators are kept in lock-step.
-    """
-
-    model_config = ConfigDict(
-        strict=True, extra="forbid", str_strip_whitespace=True
-    )
-
-    name: str = Field(min_length=1, max_length=80)
-    target_cents: int = Field(gt=0, le=INCOME_MAX_CENTS)
-    due: Optional[_date] = None
-
-    @field_validator("due", mode="before")
-    @classmethod
-    def _coerce_due(cls, v):
-        # Pydantic strict=True rejects ISO date strings on ``date`` fields;
-        # parse them here so JSON wire format keeps working.
-        if v is None or isinstance(v, _date):
-            return v
-        if isinstance(v, str):
-            try:
-                return _date.fromisoformat(v)
-            except ValueError as exc:
-                raise ValueError(
-                    f"goal.due must be ISO-8601 date (YYYY-MM-DD); got {v!r}"
-                ) from exc
-        return v
-
-    @field_validator("due")
-    @classmethod
-    def _due_in_future(cls, v: Optional[_date]) -> Optional[_date]:
-        if v is None:
-            return v
-        # WR-04: Europe/Moscow "today" so the schema agrees with the
-        # service-layer ``_today_in_app_tz`` validator. CLAUDE.md: расчёты
-        # периодов и шедулер Europe/Moscow, БД UTC.
-        today = _datetime.now(ZoneInfo("Europe/Moscow")).date()
-        if v <= today:
-            raise ValueError(
-                f"goal.due must be strictly after today ({today.isoformat()}); "
-                f"got {v.isoformat()}"
-            )
-        return v
-
-
-class OnboardingSavingsConfigItem(BaseModel):
-    """Optional ``savings_config`` slot inside the onboarding body.
-
-    Defaults match :data:`app.services.onboarding_v10._DEFAULT_SAVINGS_CONFIG`
-    so omitting the whole object on the wire produces the same final
-    state as sending ``{"roundup_enabled": false, "base": 10}``.
-    """
-
-    model_config = ConfigDict(strict=True, extra="forbid")
-
-    roundup_enabled: bool = False
-    base: Literal[10, 50, 100] = 10
 
 
 class OnboardingV10Body(BaseModel):
@@ -146,8 +77,7 @@ class OnboardingV10Body(BaseModel):
     # the first one, but only after O(N) traversal. Bounding the dict size
     # is a cheap DoS-resilience knob.
     category_plans: dict[str, int] = Field(max_length=20)
-    goal: Optional[OnboardingGoalItem] = None
-    savings_config: Optional[OnboardingSavingsConfigItem] = None
+    # v1.1 (AGREED §G1): goal/savings_config slots removed (накопления выпилены).
 
     @field_validator("category_plans")
     @classmethod
@@ -169,13 +99,10 @@ class OnboardingV10Body(BaseModel):
                 )
             if isinstance(cents, bool) or not isinstance(cents, int):
                 raise ValueError(
-                    f"category_plans[{code!r}] must be int; got "
-                    f"{type(cents).__name__}"
+                    f"category_plans[{code!r}] must be int; got {type(cents).__name__}"
                 )
             if cents < 0:
-                raise ValueError(
-                    f"category_plans[{code!r}] must be ≥ 0; got {cents}"
-                )
+                raise ValueError(f"category_plans[{code!r}] must be ≥ 0; got {cents}")
         return v
 
     @model_validator(mode="after")
@@ -222,27 +149,6 @@ class OnboardingV10Response(BaseModel):
     income_cents: int
     account_ids: list[int]
     category_ids_by_code: dict[str, int]
-    savings_category_id: int
-    goal_id: Optional[int]
-    savings_config: "OnboardingV10SavingsConfigRead"
+    # v1.1: adjustment system category id (replaces savings_category_id).
+    adjustment_category_id: int
     onboarded_at: str
-
-
-class OnboardingV10SavingsConfigRead(BaseModel):
-    """Inlined ``SavingsConfigRead`` shape used by ``OnboardingV10Response``.
-
-    Defined as a separate class (rather than re-using
-    :class:`app.api.schemas.savings.SavingsConfigRead`) to avoid a
-    circular import — ``savings.py`` already imports from this module's
-    sibling ``goals.py`` and we keep the dependency graph
-    onboarding_v10 → (none in schemas/).
-    """
-
-    model_config = ConfigDict(from_attributes=True)
-
-    roundup_enabled: bool
-    roundup_base: int
-
-
-# Resolve the forward reference declared on ``OnboardingV10Response``.
-OnboardingV10Response.model_rebuild()

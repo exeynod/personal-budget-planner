@@ -20,6 +20,7 @@ For ``app_user`` table (no RLS), DELETE runs in admin session without
 GUC. For ``ai_usage_log`` (CASCADE on user_id FK), the row drops
 automatically when ``app_user`` is removed; no explicit DELETE needed.
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
@@ -59,18 +60,18 @@ PURGE_ORDER: list[str] = [
     "category_embedding",
     "actual_transaction",
     "planned_transaction",
+    # v1.1: goal/savings_config dropped; plan-template + per-period-plan added.
+    "period_category_plan",
+    "plan_template_line",
+    "plan_template_item",
     "subscription",
     "budget_period",
-    "goal",
-    "savings_config",
     "account",
     "category",
 ]
 
 
-async def soft_delete_account(
-    db: AsyncSession, *, user_id: int
-) -> AppUser | None:
+async def soft_delete_account(db: AsyncSession, *, user_id: int) -> AppUser | None:
     """Set ``app_user.deleted_at = now()`` (idempotent on already-deleted).
 
     Returns:
@@ -89,9 +90,7 @@ async def soft_delete_account(
     return user
 
 
-async def purge_user_data(
-    db: AsyncSession, *, user_id: int
-) -> dict[str, int]:
+async def purge_user_data(db: AsyncSession, *, user_id: int) -> dict[str, int]:
     """Cascade hard-delete of all rows tied to ``user_id``.
 
     Returns:

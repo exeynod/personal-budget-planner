@@ -63,9 +63,9 @@ Validators (DATA-MODEL §6):
 Threat model: see plan 22.11 PLAN.md ``<threat_model>``. ASVS L1 V5.3.1
 (input validation), V8.2.1 (data integrity).
 """
+
 from __future__ import annotations
 
-from datetime import date as date_type
 from datetime import datetime, timezone
 from typing import Any, Optional
 
@@ -78,7 +78,6 @@ from app.db.models import (
     AppUser,
     Category,
     CategoryKind,
-    RolloverPolicy,
 )
 
 
@@ -90,36 +89,28 @@ from app.db.models import (
 # ``ck_category_ord_format``). ``sort_order`` mirrors it as int for the
 # legacy column on the same row.
 DEFAULT_CATEGORIES: list[dict[str, Any]] = [
-    {"code": "food",    "name": "ПРОДУКТЫ",  "ord": "01"},
-    {"code": "cafe",    "name": "КАФЕ",      "ord": "02"},
-    {"code": "home",    "name": "ДОМ",       "ord": "03"},
+    {"code": "food", "name": "ПРОДУКТЫ", "ord": "01"},
+    {"code": "cafe", "name": "КАФЕ", "ord": "02"},
+    {"code": "home", "name": "ДОМ", "ord": "03"},
     {"code": "transit", "name": "ТРАНСПОРТ", "ord": "04"},
-    {"code": "fun",     "name": "РАЗВЛЕЧ.",  "ord": "05"},
-    {"code": "gifts",   "name": "ПОДАРКИ",   "ord": "06"},
-    {"code": "health",  "name": "ЗДОРОВЬЕ",  "ord": "07"},
-    {"code": "subs",    "name": "ПОДПИСКИ",  "ord": "08"},
+    {"code": "fun", "name": "РАЗВЛЕЧ.", "ord": "05"},
+    {"code": "gifts", "name": "ПОДАРКИ", "ord": "06"},
+    {"code": "health", "name": "ЗДОРОВЬЕ", "ord": "07"},
+    {"code": "subs", "name": "ПОДПИСКИ", "ord": "08"},
 ]
-SYSTEM_SAVINGS_CATEGORY: dict[str, Any] = {
-    "code": "savings",
-    "name": "КОПИЛКА",
-    "ord": "99",
+# v1.1 (AGREED §H): system balance-adjustment category. Holds reconcile
+# records out of the plan/fact ladder (compute_balance excludes it).
+SYSTEM_ADJUSTMENT_CATEGORY: dict[str, Any] = {
+    "code": "adjustment",
+    "name": "Корректировка",
+    "ord": "98",
     "plan_cents": 0,
-    "rollover": "savings",
-    "paused": True,
 }
 
-VALID_CATEGORY_CODES: frozenset[str] = frozenset(
-    c["code"] for c in DEFAULT_CATEGORIES
-)
+VALID_CATEGORY_CODES: frozenset[str] = frozenset(c["code"] for c in DEFAULT_CATEGORIES)
 
 # DATA-MODEL §6: income upper bound = 100M ₽ in копейки = 10_000_000_000.
 INCOME_MAX_CENTS: int = 100_000_000_00
-
-# SavingsConfig defaults (CONTEXT §Area 3 + plan 22.08 _DEFAULT_CONFIG).
-_DEFAULT_SAVINGS_CONFIG: dict[str, Any] = {
-    "roundup_enabled": False,
-    "base": 10,
-}
 
 
 # ---------- Domain exceptions ----------
@@ -152,8 +143,7 @@ class PlanExceedsIncomeError(ValueError):
         self.sum_plan = sum_plan
         self.income = income
         super().__init__(
-            f"Sum of category plans ({sum_plan} cents) exceeds income "
-            f"({income} cents)"
+            f"Sum of category plans ({sum_plan} cents) exceeds income ({income} cents)"
         )
 
 
@@ -179,15 +169,12 @@ class PdnConsentRequiredError(Exception):
 def _validate_income(income_cents: Any) -> int:
     """T-22-11-02: income_cents ∈ (0, 100M ₽]. Returns the validated int."""
     if not isinstance(income_cents, int) or isinstance(income_cents, bool):
-        raise ValueError(
-            f"income_cents must be int; got {type(income_cents).__name__}"
-        )
+        raise ValueError(f"income_cents must be int; got {type(income_cents).__name__}")
     if income_cents <= 0:
         raise ValueError(f"income_cents must be > 0; got {income_cents}")
     if income_cents > INCOME_MAX_CENTS:
         raise ValueError(
-            f"income_cents must be ≤ {INCOME_MAX_CENTS} (100M ₽); "
-            f"got {income_cents}"
+            f"income_cents must be ≤ {INCOME_MAX_CENTS} (100M ₽); got {income_cents}"
         )
     return income_cents
 
@@ -201,9 +188,7 @@ def _validate_account_kind(kind: Any) -> AccountKind:
         raise ValueError(f"Invalid account.kind={kind!r}")
 
 
-def _validate_category_plans(
-    category_plans: dict[str, int], income_cents: int
-) -> None:
+def _validate_category_plans(category_plans: dict[str, int], income_cents: int) -> None:
     """T-22-11-03/04: whitelist codes + Σ plan ≤ income; per-plan range checks.
 
     Raises:
@@ -223,13 +208,10 @@ def _validate_category_plans(
             )
         if not isinstance(cents, int) or isinstance(cents, bool):
             raise ValueError(
-                f"category_plans[{code!r}] must be int; got "
-                f"{type(cents).__name__}"
+                f"category_plans[{code!r}] must be int; got {type(cents).__name__}"
             )
         if cents < 0:
-            raise ValueError(
-                f"category_plans[{code!r}] must be ≥ 0; got {cents}"
-            )
+            raise ValueError(f"category_plans[{code!r}] must be ≥ 0; got {cents}")
         if cents > upper:
             raise ValueError(
                 f"category_plans[{code!r}]={cents} exceeds income*4={upper}"
@@ -260,9 +242,7 @@ def _validate_accounts(accounts: list[dict[str, Any]]) -> int:
     explicit_primary_idx: Optional[int] = None
     for idx, a in enumerate(accounts):
         if not isinstance(a, dict):
-            raise ValueError(
-                f"accounts[{idx}] must be dict; got {type(a).__name__}"
-            )
+            raise ValueError(f"accounts[{idx}] must be dict; got {type(a).__name__}")
         bank = a.get("bank")
         if not isinstance(bank, str) or not (1 <= len(bank) <= 40):
             raise ValueError(
@@ -311,13 +291,17 @@ async def _upsert_seed_categories(
     Returns a ``{code: id}`` map covering all 8 default codes.
     """
     existing_rows = (
-        await db.execute(
-            select(Category).where(
-                Category.user_id == user_id,
-                Category.code.in_(list(VALID_CATEGORY_CODES)),
+        (
+            await db.execute(
+                select(Category).where(
+                    Category.user_id == user_id,
+                    Category.code.in_(list(VALID_CATEGORY_CODES)),
+                )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     by_code: dict[str, Category] = {row.code: row for row in existing_rows}
 
     result: dict[str, int] = {}
@@ -333,8 +317,6 @@ async def _upsert_seed_categories(
                 ord=cat_def["ord"],
                 kind=CategoryKind.expense,
                 plan_cents=plan,
-                rollover=RolloverPolicy.misc,
-                paused=False,
                 is_archived=False,
                 sort_order=int(cat_def["ord"]),
             )
@@ -342,59 +324,50 @@ async def _upsert_seed_categories(
             await db.flush()
             result[code] = row.id
         else:
-            # Refresh fields that onboarding owns (plan_cents, paused-flag,
-            # archive-state). Name/code/ord are immutable per onboarding —
-            # leave them alone so a customised category survives reset.
+            # Refresh fields that onboarding owns (plan_cents, archive-state).
+            # Name/code/ord are immutable per onboarding — leave them alone so
+            # a customised category survives reset.
             existing.plan_cents = plan
-            existing.paused = False
             existing.is_archived = False
             await db.flush()
             result[code] = existing.id
     return result
 
 
-async def _upsert_savings_category(
-    db: AsyncSession, *, user_id: int
-) -> int:
-    """Insert or refresh the system 'savings' Category (CONTEXT §Area 2).
+async def _upsert_adjustment_category(db: AsyncSession, *, user_id: int) -> int:
+    """Insert or refresh the system 'adjustment' Category (AGREED §H).
 
-    Idempotent on ``(user_id, code='savings')``: re-running after
-    :func:`reset_v10` updates the existing row in place rather than
-    triggering a UniqueViolation.
+    Idempotent on ``(user_id, code='adjustment')``. Mirrors the 0030 backfill
+    for new users. Holds balance-reconcile records out of the plan/fact ladder
+    (``compute_balance`` excludes ``code='adjustment'``).
     """
-    sav_def = SYSTEM_SAVINGS_CATEGORY
+    adj_def = SYSTEM_ADJUSTMENT_CATEGORY
     existing = await db.scalar(
         select(Category).where(
             Category.user_id == user_id,
-            Category.code == "savings",
+            Category.code == "adjustment",
         )
     )
     if existing is None:
         row = Category(
             user_id=user_id,
-            name=sav_def["name"],
-            code=sav_def["code"],
-            ord=sav_def["ord"],
+            name=adj_def["name"],
+            code=adj_def["code"],
+            ord=adj_def["ord"],
             kind=CategoryKind.expense,
-            plan_cents=sav_def["plan_cents"],
-            rollover=RolloverPolicy.savings,
-            paused=sav_def["paused"],
+            plan_cents=adj_def["plan_cents"],
             is_archived=False,
-            sort_order=99,
+            sort_order=98,
         )
         db.add(row)
         await db.flush()
         return row.id
-    # Restore exact CONTEXT §Area 2 attributes — reset/customisation must
-    # not drift the system row away from the contract.
-    existing.name = sav_def["name"]
+    existing.name = adj_def["name"]
     existing.kind = CategoryKind.expense
-    existing.ord = sav_def["ord"]
-    existing.plan_cents = sav_def["plan_cents"]
-    existing.rollover = RolloverPolicy.savings
-    existing.paused = sav_def["paused"]
+    existing.ord = adj_def["ord"]
+    existing.plan_cents = adj_def["plan_cents"]
     existing.is_archived = False
-    existing.sort_order = 99
+    existing.sort_order = 98
     await db.flush()
     return existing.id
 
@@ -409,27 +382,23 @@ async def complete_v10(
     income_cents: int,
     accounts: list[dict[str, Any]],
     category_plans: dict[str, int],
-    goal: Optional[dict[str, Any]] = None,
-    savings_config: Optional[dict[str, Any]] = None,
 ) -> dict[str, Any]:
-    """Atomic v1.0 onboarding (BE-15).
+    """Atomic v1.0 onboarding (BE-15; v1.1 trimmed — savings/goal removed).
 
-    Single DB transaction; caller owns commit/rollback. The 11-step flow
-    documented in plan 22.11 ``<objective>``::
+    Single DB transaction; caller owns commit/rollback. Steps:
 
         1. Validate income, plans, accounts (raise before any insert).
         2. Conflict check: any existing Account → 409.
         3. AppUser.income_cents = ..., onboarded_at = now().
         4. Insert Account rows (one is_primary=true).
         5. Seed 8 default Categories with plan_cents per body.
-        6. Seed system 'savings' Category (kind=expense, ord='99', paused=true).
-        7. Optional Goal create (validated by app.services.goals.create_goal).
-        8. SavingsConfig upsert (defaults applied if absent).
+        6. Seed system 'adjustment' Category (kind=expense, ord='98').
+
+    v1.1 (AGREED §G1): savings-category / Goal / SavingsConfig seeds removed.
 
     Args:
         user_id: AppUser PK (resolved by caller from tg_user_id auth).
         income_cents, accounts, category_plans: required body fields.
-        goal, savings_config: optional body fields.
 
     Returns:
         Summary dict::
@@ -456,9 +425,8 @@ async def complete_v10(
     # Read app_user.pdn_consent_at; without explicit grant we refuse to
     # onboard (152-ФЗ §6 — обработка ПДн без явного согласия запрещена).
     from app.db.models import AppUser as _AppUser
-    user_row = await db.scalar(
-        select(_AppUser).where(_AppUser.id == user_id)
-    )
+
+    user_row = await db.scalar(select(_AppUser).where(_AppUser.id == user_id))
     if user_row is not None and user_row.pdn_consent_at is None:
         raise PdnConsentRequiredError()
 
@@ -469,9 +437,7 @@ async def complete_v10(
 
     # ---- 2. Conflict check (T-22-11-01, T-22-11-06 race safety net). ----
     existing_count = await db.scalar(
-        select(func.count())
-        .select_from(Account)
-        .where(Account.user_id == user_id)
+        select(func.count()).select_from(Account).where(Account.user_id == user_id)
     )
     if existing_count and int(existing_count) > 0:
         raise OnboardingConflictError(user_id, int(existing_count))
@@ -510,64 +476,8 @@ async def complete_v10(
         db, user_id=user_id, category_plans=category_plans
     )
 
-    # ---- 6. System 'savings' Category (CONTEXT §Area 2). ----
-    savings_category_id = await _upsert_savings_category(
-        db, user_id=user_id
-    )
-
-    # ---- 7. Optional Goal. ----
-    goal_id: Optional[int] = None
-    if goal is not None:
-        # Local import — avoids module-level circular dep with goals.py via savings.py.
-        from app.services.goals import create_goal as _create_goal
-
-        if not isinstance(goal, dict):
-            raise ValueError(
-                f"goal must be dict; got {type(goal).__name__}"
-            )
-        due_val = goal.get("due")
-        if isinstance(due_val, str):
-            try:
-                due_val = date_type.fromisoformat(due_val)
-            except ValueError as exc:
-                raise ValueError(
-                    f"goal.due must be ISO-8601 date; got {due_val!r}"
-                ) from exc
-        g = await _create_goal(
-            db,
-            user_id=user_id,
-            name=goal["name"],
-            target_cents=int(goal["target_cents"]),
-            due=due_val,
-        )
-        goal_id = g.id
-
-    # ---- 8. SavingsConfig (defaults if absent). ----
-    # Local import — avoids module-level circular dep.
-    from app.services.savings import upsert_config
-
-    if savings_config is None:
-        cfg_payload: dict[str, Any] = dict(_DEFAULT_SAVINGS_CONFIG)
-    else:
-        if not isinstance(savings_config, dict):
-            raise ValueError(
-                f"savings_config must be dict; got "
-                f"{type(savings_config).__name__}"
-            )
-        cfg_payload = {
-            "roundup_enabled": savings_config.get(
-                "roundup_enabled", _DEFAULT_SAVINGS_CONFIG["roundup_enabled"]
-            ),
-            "base": savings_config.get(
-                "base", _DEFAULT_SAVINGS_CONFIG["base"]
-            ),
-        }
-    cfg = await upsert_config(
-        db,
-        user_id=user_id,
-        roundup_enabled=cfg_payload.get("roundup_enabled"),
-        roundup_base=cfg_payload.get("base"),
-    )
+    # ---- 6. System 'adjustment' Category (AGREED §H). ----
+    adjustment_category_id = await _upsert_adjustment_category(db, user_id=user_id)
 
     await db.flush()
 
@@ -576,12 +486,7 @@ async def complete_v10(
         "income_cents": income_cents,
         "account_ids": account_ids,
         "category_ids_by_code": category_ids_by_code,
-        "savings_category_id": savings_category_id,
-        "goal_id": goal_id,
-        "savings_config": {
-            "roundup_enabled": bool(cfg.roundup_enabled),
-            "roundup_base": int(cfg.roundup_base),
-        },
+        "adjustment_category_id": adjustment_category_id,
         "onboarded_at": user.onboarded_at.isoformat(),
     }
 
@@ -643,21 +548,12 @@ async def reset_v10(db: AsyncSession, *, user_id: int) -> dict[str, Any]:
         ),
         {"uid": user_id},
     )
-    # 3. Delete savings_config (PK = user_id).
-    await db.execute(
-        text("DELETE FROM savings_config WHERE user_id = :uid"),
-        {"uid": user_id},
-    )
-    # 4. Delete goals.
-    await db.execute(
-        text("DELETE FROM goal WHERE user_id = :uid"),
-        {"uid": user_id},
-    )
-    # 5. Delete accounts and capture ids for audit return value.
+    # 3. v1.1: savings_config / goal tables removed (AGREED §G1) — nothing to wipe.
+    #    Per-period plan + plan-template rows reference categories (CASCADE) and
+    #    are kept; reset only zeroes plan_cents below.
+    # 4. Delete accounts and capture ids for audit return value.
     deleted = await db.execute(
-        text(
-            "DELETE FROM account WHERE user_id = :uid RETURNING id"
-        ),
+        text("DELETE FROM account WHERE user_id = :uid RETURNING id"),
         {"uid": user_id},
     )
     deleted_ids = [r[0] for r in deleted.fetchall()]
@@ -692,7 +588,7 @@ async def reset_v10(db: AsyncSession, *, user_id: int) -> dict[str, Any]:
 
 __all__ = [
     "DEFAULT_CATEGORIES",
-    "SYSTEM_SAVINGS_CATEGORY",
+    "SYSTEM_ADJUSTMENT_CATEGORY",
     "VALID_CATEGORY_CODES",
     "INCOME_MAX_CENTS",
     "OnboardingConflictError",

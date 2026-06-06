@@ -24,6 +24,7 @@ Domain exception → HTTP mapping:
     PlanExceedsIncomeError     → 422 (subclass of ValueError)
     ValueError                 → 422 (validators)
 """
+
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -89,10 +90,6 @@ async def complete_v10(
             income_cents=body.income_cents,
             accounts=[a.model_dump() for a in body.accounts],
             category_plans=body.category_plans,
-            goal=body.goal.model_dump() if body.goal else None,
-            savings_config=(
-                body.savings_config.model_dump() if body.savings_config else None
-            ),
         )
     except onboarding_v10_svc.PdnConsentRequiredError as exc:
         # Phase 33 CMP-33-04: ПДн consent gate.

@@ -22,17 +22,16 @@ Behaviour:
 Idempotency: повторный запуск в тот же день — no-op (нет expired active period
 после успешного close+create для каждого юзера).
 """
+
 from datetime import datetime, timezone
 
 import structlog
-from sqlalchemy import func, select, text
+from sqlalchemy import select, text
 
 from sqlalchemy.orm import selectinload
 
 from app.core.period import period_for
 from app.db.models import (
-    ActualKind,
-    ActualTransaction,
     AppUser,
     BudgetPeriod,
     PeriodStatus,
@@ -42,7 +41,6 @@ from app.db.models import (
 from app.db.session import AsyncSessionLocal, set_tenant_scope
 from app.services.actual import compute_balance
 from app.services.periods import _today_in_app_tz
-from app.services.rollover import do_period_rollover
 from app.services.subscriptions import add_subscription_to_period
 
 logger = structlog.get_logger(__name__)
@@ -92,12 +90,16 @@ async def close_period_job() -> None:
 
             # Step 2: collect active users (owner + member, NOT revoked).
             users = (
-                await outer.execute(
-                    select(AppUser).where(
-                        AppUser.role.in_([UserRole.owner, UserRole.member])
+                (
+                    await outer.execute(
+                        select(AppUser).where(
+                            AppUser.role.in_([UserRole.owner, UserRole.member])
+                        )
                     )
                 )
-            ).scalars().all()
+                .scalars()
+                .all()
+            )
             user_ids = [u.id for u in users]
         finally:
             if lock_acquired:
@@ -128,9 +130,7 @@ async def close_period_job() -> None:
                 await session.commit()
             except Exception:
                 await session.rollback()
-                logger.exception(
-                    "close_period.failed_for_user", user_id=user_id
-                )
+                logger.exception("close_period.failed_for_user", user_id=user_id)
 
 
 async def _close_period_for_user(session, *, user_id: int) -> None:
@@ -164,90 +164,39 @@ async def _close_period_for_user(session, *, user_id: int) -> None:
         return
 
     # Step 3: compute ending_balance via shared service (scoped по user_id).
-    # This is the PRE-rollover number — only expense/income kinds are summed
-    # (deposit/roundup excluded by compute_balance). It feeds the new period's
-    # starting_balance_cents seed; once rollover deposits land in step 5 we
-    # subtract them so the seed stays consistent with account.balance_cents
-    # (CR-02 fix below).
+    # Only expense/income kinds are summed (deposit/roundup excluded). v1.1:
+    # rollover выпилен (AGREED §G4) — the ending balance is just this number.
     bal = await compute_balance(session, expired.id, user_id=user_id)
-    pre_rollover_ending = int(bal["balance_now_cents"])
+    ending_balance = int(bal["balance_now_cents"])
 
-    # Step 4: create next period FIRST (PER-03 inheritance) so we have an id
-    # for misc-rollover accumulation in step 5. Status flip on expired comes
-    # after rollover so a rollover failure rolls back the entire per-user tx
-    # (T-22-10-05 — rollover_processed_at NULL on failure → clean retry).
-    #
-    # starting_balance_cents is seeded with the pre-rollover number; we
-    # adjust it (and ending_balance_cents on the expired period) AFTER
-    # do_period_rollover() so the rollover deposits' effect on
-    # account.balance_cents is reflected in both period markers
-    # (CR-02 fix — keeps Σ account.balance_cents == Σ starting_balance_cents).
+    # Step 4: create next period (PER-03 inheritance) seeded with the ending
+    # balance of the expired period.
     cycle_start_day = await _resolve_cycle_start_day(session, user_id=user_id)
     p_start, p_end = period_for(today, cycle_start_day)
     new_period = BudgetPeriod(
         user_id=user_id,
         period_start=p_start,
         period_end=p_end,
-        starting_balance_cents=pre_rollover_ending,
+        starting_balance_cents=ending_balance,
         status=PeriodStatus.active,
     )
     session.add(new_period)
     await session.flush()  # populate new_period.id
 
-    # Step 5: BE-14 rollover — must run BEFORE expired.status=closed so that
-    # rollover queries see expired period as the "current" closing period.
-    # Returns False on advisory-lock contention (rare; only if another worker
-    # tick races inside same second). On contention we still proceed with the
-    # close + new period — rollover_processed_at remains NULL and next tick
-    # retries the rollover (no-op for the close logic since expired.status
-    # will already be 'closed' and the SELECT in step 2 won't pick it up
-    # again; PER-04 idempotency holds).
-    await do_period_rollover(
-        session,
-        period_id=expired.id,
-        user_id=user_id,
-        next_period_id=new_period.id,
-    )
-
-    # Step 5b: CR-02 fix — adjust the period markers to include rollover
-    # deposits so Σ account.balance_cents stays in lockstep with both
-    # ``expired.ending_balance_cents`` and ``new_period.starting_balance_cents``.
-    #
-    # do_period_rollover inserts ActualTransaction(kind=deposit,
-    # amount_cents=-remainder, period_id=expired.id) for each savings-rollover
-    # category whose plan was under-spent. The deposits' negative amount
-    # represents an outflow from the user's primary account into the savings
-    # bucket. compute_balance excludes deposit/roundup kinds, so the number
-    # we computed above is rollover-naive.
-    #
-    # We compensate by summing all deposit amounts inserted for this period
-    # by this rollover (parent_txn_id IS NULL filter excludes any unrelated
-    # roundup children that might happen to share the period). Each deposit
-    # row reduces account balance by abs(amount_cents) (it's stored negative);
-    # subtracting Σ |deposit.amount_cents| from the pre-rollover ending
-    # balance yields the post-rollover ending balance.
-    deposits_total_q = select(
-        func.coalesce(
-            func.sum(func.abs(ActualTransaction.amount_cents)), 0
-        )
-    ).where(
-        ActualTransaction.user_id == user_id,
-        ActualTransaction.period_id == expired.id,
-        ActualTransaction.kind == ActualKind.deposit,
-        ActualTransaction.parent_txn_id.is_(None),
-    )
-    rollover_deposits_total = int(
-        (await session.execute(deposits_total_q)).scalar_one() or 0
-    )
-    ending_balance = pre_rollover_ending - rollover_deposits_total
-    new_period.starting_balance_cents = ending_balance
-
-    # Step 6: close expired period.
+    # Step 5: close expired period.
     expired.status = PeriodStatus.closed
     expired.ending_balance_cents = ending_balance
     expired.closed_at = datetime.now(timezone.utc)
 
-    # Add subscription planned rows for the new period (scoped по user_id).
+    # Step 6 (v1.1): apply the plan template to the new period — copies
+    # plan_template_item → period_category_plan and plan_template_line →
+    # planned_transaction(manual). Idempotent (no-op if a per-period plan
+    # already exists). Runs inside the per-user tenant scope set above.
+    await apply_template_to_period(session, user_id=user_id, period_id=new_period.id)
+
+    # Step 7: add subscription planned rows for the new period (scoped по
+    # user_id). apply_template_to_period intentionally does NOT touch
+    # subscriptions (different source) so these are added once here.
     subs_result = await session.execute(
         select(Subscription)
         .where(
@@ -259,9 +208,7 @@ async def _close_period_for_user(session, *, user_id: int) -> None:
         .options(selectinload(Subscription.category))
     )
     for sub in subs_result.scalars().all():
-        await add_subscription_to_period(
-            session, sub, new_period.id, user_id=user_id
-        )
+        await add_subscription_to_period(session, sub, new_period.id, user_id=user_id)
 
     logger.info(
         "close_period.done",

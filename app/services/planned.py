@@ -21,20 +21,32 @@ ID access yields ``PlannedNotFoundError``/``PeriodNotFoundError`` → 404
 (T-11-05-05). Apply-template propagates ``user_id`` into every new
 PlannedTransaction row (T-11-05-04).
 """
+
 from datetime import date, timedelta
 from typing import Optional
 
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.schemas.planned import PlannedCreate, PlannedUpdate
 from app.db.models import (
+    ActualKind,
+    ActualSource,
     BudgetPeriod,
     Category,
     CategoryKind,
+    PeriodCategoryPlan,
     PlannedTransaction,
     PlanSource,
+    PlanTemplateItem,
+    PlanTemplateLine,
 )
+
+# v1.1 (AGREED §B): apply_template_to_period materialises the plan template
+# (plan_template_item → period_category_plan, plan_template_line → planned
+# rows). The v1.0 no-op stub note below is historical context.
+#
 # Plan 22.13 cleanup: ``PlanTemplateItem`` was dropped in alembic 0013
 # (CONTEXT D-02). The legacy ``apply_template_to_period`` is now a no-op that
 # returns the existing template-sourced rows for idempotency, but never
@@ -110,6 +122,25 @@ class SubscriptionPlannedReadOnlyError(Exception):
             f"Planned transaction {planned_id} is managed by a subscription "
             "and cannot be modified directly"
         )
+
+
+class PlannedAlreadyPostedError(Exception):
+    """Raised when ``post_planned`` runs on a row already posted (→ 409)."""
+
+    def __init__(self, planned_id: int, posted_txn_id: int) -> None:
+        self.planned_id = planned_id
+        self.posted_txn_id = posted_txn_id
+        super().__init__(
+            f"Planned transaction {planned_id} is already posted (txn={posted_txn_id})"
+        )
+
+
+class PlannedNotPostedError(Exception):
+    """Raised when ``unpost_planned`` runs on a not-yet-posted row (→ 404)."""
+
+    def __init__(self, planned_id: int) -> None:
+        self.planned_id = planned_id
+        super().__init__(f"Planned transaction {planned_id} is not posted")
 
 
 # ---------- Helpers ----------
@@ -296,9 +327,7 @@ async def update_planned(
     if "kind" in data or "category_id" in data:
         if new_cat is None:
             # category_id unchanged (or kind-only patch) — load current category.
-            new_cat = await cat_svc.get_or_404(
-                db, effective_cat_id, user_id=user_id
-            )
+            new_cat = await cat_svc.get_or_404(db, effective_cat_id, user_id=user_id)
         if new_cat.kind.value != effective_kind:
             raise KindMismatchError(effective_kind, new_cat.kind.value)
 
@@ -330,56 +359,457 @@ async def delete_planned(
 async def apply_template_to_period(
     db: AsyncSession, *, user_id: int, period_id: int
 ) -> dict:
-    """D-31: idempotent apply-template — skip if any source='template' already exists.
+    """v1.1 apply-template: copy the plan template into a period (idempotent).
 
-    Returns ``{period_id, created, planned}``. ``created=0`` means no-op
-    (existing template rows returned). Empty template returns
-    ``created=0, planned=[]``.
+    Copies, scoped by ``user_id``:
+      1. ``plan_template_item`` → ``period_category_plan`` (per-period limit).
+      2. ``plan_template_line`` → ``planned_transaction(source=manual)`` with
+         ``planned_date`` clamped from ``day_of_period``.
 
-    Phase 11 (T-11-05-04): period must belong to ``user_id``; template items
-    are loaded scoped by ``user_id``; new PlannedTransaction rows are inserted
-    with ``user_id=user_id`` so they cannot leak across tenants.
+    Subscriptions are NOT touched here — close_period materialises them
+    separately (different source; avoids double-counting, RESEARCH §4 G5).
+
+    Idempotency: if a ``period_category_plan`` row already exists for the
+    period, this is a no-op (``created=0``, existing planned rows returned).
+
+    Returns ``{period_id, created, planned}``.
 
     Raises:
-        PeriodNotFoundError: if period does not exist (or belongs to a
-            different user — same 404, no existence leak).
+        PeriodNotFoundError: period missing or cross-tenant (same 404).
     """
     period = await _get_period_or_404(db, period_id, user_id=user_id)
 
-    # Idempotency check: any source='template' for this period (scoped to user)?
-    existing_count = await db.scalar(
+    # Idempotency: any period_category_plan row for this period?
+    pcp_exists = await db.scalar(
         select(func.count())
-        .select_from(PlannedTransaction)
+        .select_from(PeriodCategoryPlan)
         .where(
-            PlannedTransaction.user_id == user_id,
-            PlannedTransaction.period_id == period_id,
-            PlannedTransaction.source == PlanSource.template,
+            PeriodCategoryPlan.user_id == user_id,
+            PeriodCategoryPlan.period_id == period_id,
         )
     )
-    existing_count = int(existing_count or 0)
-
-    if existing_count > 0:
-        result = await db.execute(
-            select(PlannedTransaction)
-            .where(
-                PlannedTransaction.user_id == user_id,
-                PlannedTransaction.period_id == period_id,
-                PlannedTransaction.source == PlanSource.template,
+    if int(pcp_exists or 0) > 0:
+        existing = (
+            (
+                await db.execute(
+                    select(PlannedTransaction)
+                    .where(
+                        PlannedTransaction.user_id == user_id,
+                        PlannedTransaction.period_id == period_id,
+                        PlannedTransaction.source == PlanSource.manual,
+                    )
+                    .order_by(PlannedTransaction.id)
+                )
             )
-            .order_by(PlannedTransaction.id)
+            .scalars()
+            .all()
         )
-        existing = list(result.scalars().all())
-        return {"period_id": period_id, "created": 0, "planned": existing}
+        return {"period_id": period_id, "created": 0, "planned": list(existing)}
 
-    # Plan 22.13: PlanTemplateItem table was dropped in alembic 0013
-    # (CONTEXT D-02). There is no longer a "template" source to materialise
-    # planned rows from. The v1.0 model treats ``Category.plan_cents`` as the
-    # source of truth and does not auto-generate PlannedTransaction rows on
-    # period rollover — Phase 24+ will define the replacement flow if needed.
-    # For now this function is a no-op for empty-template periods so existing
-    # callers (Phase 5 worker on period creation) keep working without raising.
-    # ``period`` was looked up via ``_get_period_or_404`` above to preserve
-    # the 404-on-cross-tenant contract; touch it here so linters and the
-    # human reader see the value flow.
-    _ = period
-    return {"period_id": period_id, "created": 0, "planned": []}
+    # 1. Limits: plan_template_item → period_category_plan.
+    items = (
+        (
+            await db.execute(
+                select(PlanTemplateItem).where(PlanTemplateItem.user_id == user_id)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    for item in items:
+        db.add(
+            PeriodCategoryPlan(
+                user_id=user_id,
+                period_id=period_id,
+                category_id=item.category_id,
+                limit_cents=item.limit_cents,
+            )
+        )
+
+    # 2. Lines: plan_template_line → planned_transaction(source=manual).
+    lines = (
+        (
+            await db.execute(
+                select(PlanTemplateLine)
+                .where(PlanTemplateLine.user_id == user_id)
+                .order_by(PlanTemplateLine.id)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    created_rows: list[PlannedTransaction] = []
+    for line in lines:
+        row = PlannedTransaction(
+            user_id=user_id,
+            period_id=period_id,
+            kind=line.kind,
+            amount_cents=line.amount_cents,
+            description=line.title,
+            category_id=line.category_id,
+            planned_date=_clamp_planned_date(period, line.day_of_period),
+            source=PlanSource.manual,
+            subscription_id=None,
+        )
+        db.add(row)
+        created_rows.append(row)
+
+    await db.flush()
+    for r in created_rows:
+        await db.refresh(r)
+    return {
+        "period_id": period_id,
+        "created": len(created_rows),
+        "planned": created_rows,
+    }
+
+
+# ---------- Post / unpost planned → actual (v1.1, mirror post_subscription) ----------
+
+
+async def post_planned(
+    db: AsyncSession, planned_id: int, *, user_id: int, tx_date: date
+) -> "PlannedTransaction":
+    """Post a planned row into a real ``actual_transaction`` (AGREED §B.3).
+
+    Mirrors ``post_subscription``: SELECT … FOR UPDATE serialises the
+    post-race; idempotent (already-posted → 409). Sign by kind (expense
+    negative, income positive). Account auto-resolved to the user's primary.
+
+    Returns the created ``ActualTransaction``.
+
+    Raises:
+        PlannedNotFoundError: row missing / cross-tenant (→ 404).
+        SubscriptionPlannedReadOnlyError: subscription_auto row (→ 400) — those
+            are posted via the subscription /post endpoint.
+        PlannedAlreadyPostedError: posted_txn_id already set (→ 409).
+    """
+    from app.services.accounts import get_primary_account
+    from app.services.actual import create_actual_v10
+
+    row = await db.scalar(
+        select(PlannedTransaction)
+        .where(
+            PlannedTransaction.id == planned_id,
+            PlannedTransaction.user_id == user_id,
+        )
+        .with_for_update()
+    )
+    if row is None:
+        raise PlannedNotFoundError(planned_id)
+    if row.source == PlanSource.subscription_auto:
+        raise SubscriptionPlannedReadOnlyError(planned_id)
+    if row.posted_txn_id is not None:
+        raise PlannedAlreadyPostedError(planned_id, row.posted_txn_id)
+
+    primary = await get_primary_account(db, user_id=user_id)
+    account_id = primary.id if primary is not None else None
+
+    kind_value = (
+        row.kind.value if isinstance(row.kind, (ActualKind, CategoryKind)) else row.kind
+    )
+    if kind_value == "income":
+        amount = abs(row.amount_cents)
+    else:
+        amount = -abs(row.amount_cents)
+
+    parent, _child = await create_actual_v10(
+        db,
+        user_id=user_id,
+        kind=kind_value,
+        amount_cents=amount,
+        description=row.description or "План",
+        category_id=row.category_id,
+        tx_date=tx_date,
+        source=ActualSource.mini_app,
+        account_id=account_id,
+    )
+    row.posted_txn_id = parent.id
+    try:
+        await db.flush()
+    except IntegrityError as exc:
+        # Belt-and-braces: partial unique uq_planned_posted_txn_id.
+        await db.rollback()
+        raise PlannedAlreadyPostedError(planned_id, parent.id) from exc
+    return parent
+
+
+async def unpost_planned(db: AsyncSession, planned_id: int, *, user_id: int) -> None:
+    """Reverse ``post_planned``: delete the linked actual + restore balance.
+
+    Raises:
+        PlannedNotFoundError: row missing / cross-tenant (→ 404).
+        PlannedNotPostedError: posted_txn_id is NULL (→ 404).
+    """
+    from app.services.actual import delete_actual_v10
+
+    row = await get_or_404(db, planned_id, user_id=user_id)
+    if row.posted_txn_id is None:
+        raise PlannedNotPostedError(planned_id)
+    txn_id = row.posted_txn_id
+    row.posted_txn_id = None
+    await db.flush()
+    await delete_actual_v10(db, txn_id, user_id=user_id)
+
+
+async def post_planned_batch(
+    db: AsyncSession,
+    planned_ids: list[int],
+    *,
+    user_id: int,
+    tx_date: Optional[date] = None,
+) -> dict:
+    """Bulk-post planned rows (AGREED §B.9 / §F: one fact per line).
+
+    Date semantics (decision A.3 / B.F):
+      - ``tx_date`` given → all lines posted on that single date.
+      - ``tx_date`` None → each line on its own ``planned_date`` (fallback
+        today if NULL).
+
+    Already-posted / subscription_auto / missing rows are collected in
+    ``skipped`` rather than aborting the batch.
+
+    Returns ``{"posted": [txn_id...], "skipped": [planned_id...]}``.
+    """
+    from app.services.periods import _today_in_app_tz
+
+    posted: list[int] = []
+    skipped: list[int] = []
+    for pid in planned_ids:
+        if tx_date is not None:
+            d = tx_date
+        else:
+            row = await db.scalar(
+                select(PlannedTransaction).where(
+                    PlannedTransaction.id == pid,
+                    PlannedTransaction.user_id == user_id,
+                )
+            )
+            d = (row.planned_date if row is not None else None) or _today_in_app_tz()
+        try:
+            txn = await post_planned(db, pid, user_id=user_id, tx_date=d)
+            posted.append(txn.id)
+        except (
+            PlannedAlreadyPostedError,
+            PlannedNotFoundError,
+            SubscriptionPlannedReadOnlyError,
+        ):
+            skipped.append(pid)
+    return {"posted": posted, "skipped": skipped}
+
+
+# ---------- Plan template items / lines (AGREED §B/§C) ----------
+
+
+async def list_template_items(
+    db: AsyncSession, *, user_id: int
+) -> list[PlanTemplateItem]:
+    rows = await db.execute(
+        select(PlanTemplateItem)
+        .where(PlanTemplateItem.user_id == user_id)
+        .order_by(PlanTemplateItem.category_id)
+    )
+    return list(rows.scalars().all())
+
+
+async def upsert_template_item(
+    db: AsyncSession, *, user_id: int, category_id: int, limit_cents: int
+) -> PlanTemplateItem:
+    """UPSERT a template limit for a category (one limit per category)."""
+    await _ensure_category_active(db, category_id, user_id=user_id)
+    row = await db.scalar(
+        select(PlanTemplateItem).where(
+            PlanTemplateItem.user_id == user_id,
+            PlanTemplateItem.category_id == category_id,
+        )
+    )
+    if row is None:
+        row = PlanTemplateItem(
+            user_id=user_id, category_id=category_id, limit_cents=limit_cents
+        )
+        db.add(row)
+    else:
+        row.limit_cents = limit_cents
+    await db.flush()
+    await db.refresh(row)
+    return row
+
+
+async def list_template_lines(
+    db: AsyncSession, *, user_id: int, category_id: Optional[int] = None
+) -> list[PlanTemplateLine]:
+    stmt = select(PlanTemplateLine).where(PlanTemplateLine.user_id == user_id)
+    if category_id is not None:
+        stmt = stmt.where(PlanTemplateLine.category_id == category_id)
+    stmt = stmt.order_by(PlanTemplateLine.category_id, PlanTemplateLine.id)
+    rows = await db.execute(stmt)
+    return list(rows.scalars().all())
+
+
+async def create_template_line(
+    db: AsyncSession,
+    *,
+    user_id: int,
+    category_id: int,
+    title: str,
+    amount_cents: int,
+    kind: str,
+    day_of_period: Optional[int] = None,
+) -> PlanTemplateLine:
+    cat = await _ensure_category_active(db, category_id, user_id=user_id)
+    if cat.kind.value != kind:
+        raise KindMismatchError(kind, cat.kind.value)
+    row = PlanTemplateLine(
+        user_id=user_id,
+        category_id=category_id,
+        title=title,
+        amount_cents=amount_cents,
+        day_of_period=day_of_period,
+        kind=ActualKind(kind),
+    )
+    db.add(row)
+    await db.flush()
+    await db.refresh(row)
+    return row
+
+
+async def update_template_line(
+    db: AsyncSession, line_id: int, patch: dict, *, user_id: int
+) -> PlanTemplateLine:
+    row = await db.scalar(
+        select(PlanTemplateLine).where(
+            PlanTemplateLine.id == line_id,
+            PlanTemplateLine.user_id == user_id,
+        )
+    )
+    if row is None:
+        raise PlannedNotFoundError(line_id)
+    if "category_id" in patch and patch["category_id"] != row.category_id:
+        await _ensure_category_active(db, patch["category_id"], user_id=user_id)
+    for field, value in patch.items():
+        if field == "kind":
+            setattr(row, field, ActualKind(value))
+        else:
+            setattr(row, field, value)
+    await db.flush()
+    await db.refresh(row)
+    return row
+
+
+async def delete_template_line(db: AsyncSession, line_id: int, *, user_id: int) -> None:
+    row = await db.scalar(
+        select(PlanTemplateLine).where(
+            PlanTemplateLine.id == line_id,
+            PlanTemplateLine.user_id == user_id,
+        )
+    )
+    if row is None:
+        raise PlannedNotFoundError(line_id)
+    await db.delete(row)
+    await db.flush()
+
+
+# ---------- Per-period plan limits (AGREED §C — план месяца) ----------
+
+
+async def list_period_plan(
+    db: AsyncSession, period_id: int, *, user_id: int
+) -> list[dict]:
+    """Return per-category limits for a period (period_category_plan rows).
+
+    Fallback: categories without a period_category_plan row fall back to
+    ``Category.plan_cents`` (periods created before apply-template).
+    """
+    await _get_period_or_404(db, period_id, user_id=user_id)
+    pcp = {
+        r.category_id: r.limit_cents
+        for r in (
+            await db.execute(
+                select(PeriodCategoryPlan).where(
+                    PeriodCategoryPlan.user_id == user_id,
+                    PeriodCategoryPlan.period_id == period_id,
+                )
+            )
+        )
+        .scalars()
+        .all()
+    }
+    cats = (
+        await db.execute(
+            select(Category.id, Category.plan_cents).where(
+                Category.user_id == user_id,
+                Category.is_archived.is_(False),
+            )
+        )
+    ).all()
+    out: list[dict] = []
+    for cid, plan_cents in cats:
+        out.append(
+            {
+                "category_id": cid,
+                "limit_cents": pcp.get(cid, plan_cents or 0),
+            }
+        )
+    return out
+
+
+async def update_period_plan_atomic(
+    db: AsyncSession,
+    *,
+    user_id: int,
+    period_id: int,
+    plans: list[tuple[int, int]],
+) -> list[dict]:
+    """UPSERT per-period category limits into ``period_category_plan``.
+
+    Validates the period and every category belongs to ``user_id`` before any
+    mutation (cross-tenant → PeriodNotFoundError / CategoryNotFoundError).
+    """
+    await _get_period_or_404(db, period_id, user_id=user_id)
+    cat_ids = [c for c, _ in plans]
+    if cat_ids:
+        found = {
+            r
+            for (r,) in (
+                await db.execute(
+                    select(Category.id).where(
+                        Category.id.in_(cat_ids),
+                        Category.user_id == user_id,
+                    )
+                )
+            ).all()
+        }
+        for cid in cat_ids:
+            if cid not in found:
+                from app.services.categories import CategoryNotFoundError
+
+                raise CategoryNotFoundError(cid)
+
+    existing = {
+        r.category_id: r
+        for r in (
+            await db.execute(
+                select(PeriodCategoryPlan).where(
+                    PeriodCategoryPlan.user_id == user_id,
+                    PeriodCategoryPlan.period_id == period_id,
+                )
+            )
+        )
+        .scalars()
+        .all()
+    }
+    for cid, limit_cents in plans:
+        row = existing.get(cid)
+        if row is None:
+            db.add(
+                PeriodCategoryPlan(
+                    user_id=user_id,
+                    period_id=period_id,
+                    category_id=cid,
+                    limit_cents=limit_cents,
+                )
+            )
+        else:
+            row.limit_cents = limit_cents
+    await db.flush()
+    return [{"category_id": cid, "limit_cents": lc} for cid, lc in plans]

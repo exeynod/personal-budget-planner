@@ -1,16 +1,26 @@
-<!-- GSD:project-start source:PROJECT.md -->
 ## Project
 
 # TG Budget Planner
+
+
+<!-- CODEAGENTSWARM PROJECT CONFIG START - DO NOT EDIT -->
+
+## Project Configuration
+
+**Project Name**: tg-budget-planner
+
+_This project name is used for task organization in CodeAgentSwarm. All tasks created in this directory will be associated with this project._
+
+_For complete CodeAgentSwarm instructions, see the global CLAUDE.md file at ~/.claude/CLAUDE.md_
+
+<!-- CODEAGENTSWARM PROJECT CONFIG END -->
 
 Личный Telegram Mini App для планирования и ведения месячного бюджета — перенос Google-таблицы заказчика (план/факт по категориям, шаблон плана, подписки с напоминаниями) в TG-приложение с быстрым вводом трат через Mini App или бот-команды. Авторизация по `tg_user_id`; единственный owner — через `OWNER_TG_ID`. Технически система **multi-tenant via RLS** (см. ниже R9 / ARCH-A7): per-row `user_id`, PostgreSQL Row-Level Security и роли `owner`/`member` уже активны.
 
 **Core Value:** В один тап записать факт-трату и видеть актуальную дельту план/факт по категориям бюджета — быстрее, чем открывать Google-таблицу.
 
 See `.planning/PROJECT.md` for full project context.
-<!-- GSD:project-end -->
 
-<!-- GSD:stack-start source:STACK.md -->
 ## Technology Stack
 
 - **Backend**: Python 3.12, FastAPI, SQLAlchemy 2.x (async), Pydantic v2
@@ -23,9 +33,7 @@ See `.planning/PROJECT.md` for full project context.
 - **Money**: BIGINT копейки
 
 See `docs/HLD.md` for full architecture and API contract.
-<!-- GSD:stack-end -->
 
-<!-- GSD:conventions-start source:CONVENTIONS.md -->
 ## Conventions
 
 - Деньги хранятся как `BIGINT` (`*_cents`), на UI — рубли. Никаких `float`.
@@ -37,9 +45,7 @@ See `docs/HLD.md` for full architecture and API contract.
 - Telegram `initData` валидируется HMAC-SHA256 на каждом запросе, `auth_date` ≤ 24ч.
 - Internal API endpoints `/api/v1/internal/*` защищены `X-Internal-Token`, не проксируются Caddy наружу.
 - Шедулер-джобы оборачиваются в `pg_try_advisory_lock` для исключения гонок.
-<!-- GSD:conventions-end -->
 
-<!-- GSD:architecture-start source:ARCHITECTURE.md -->
 ## Architecture
 
 5 docker-контейнеров:
@@ -54,30 +60,7 @@ See `docs/HLD.md` for full architecture and API contract.
 6 БД-таблиц: `app_user`, `category`, `budget_period`, `plan_template_item`, `planned_transaction`, `actual_transaction`, `subscription`. ERD и индексы — в `docs/HLD.md` §2.
 
 Sketch winners в `.planning/sketches/MANIFEST.md`: 001-B (dashboard tabs), 002-B (bottom-sheet), 003 (4 edge-states), 004-A (timeline), 005-B (grouped+inline), 006-B (scrollable onboarding).
-<!-- GSD:architecture-end -->
 
-<!-- GSD:skills-start source:skills/ -->
 ## Project Skills
 
 No project skills found yet.
-<!-- GSD:skills-end -->
-
-<!-- GSD:workflow-start source:GSD defaults -->
-## GSD Workflow Enforcement
-
-Before using Edit, Write, or other file-changing tools, start work through a GSD command so planning artifacts and execution context stay in sync.
-
-Use these entry points:
-- `/gsd-quick` for small fixes, doc updates, and ad-hoc tasks
-- `/gsd-debug` for investigation and bug fixing
-- `/gsd-execute-phase` for planned phase work
-
-Do not make direct repo edits outside a GSD workflow unless the user explicitly asks to bypass it.
-<!-- GSD:workflow-end -->
-
-<!-- GSD:profile-start -->
-## Developer Profile
-
-> Profile not yet configured. Run `/gsd-profile-user` to generate your developer profile.
-> This section is managed by `generate-claude-profile` — do not edit manually.
-<!-- GSD:profile-end -->

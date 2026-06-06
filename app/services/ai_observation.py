@@ -5,7 +5,7 @@ call — server computes one human-readable RU sentence from the user's
 current month/week state and caches it per-user for 1 hour.
 
 Rule priority (highest first):
-    1. Over-limit category (fact > plan_cents on a non-paused, non-savings
+    1. Over-limit category (fact > plan_cents on a non-savings, non-adjustment
        category): "{Name} уже +N% к лимиту" — picks the category with
        the largest fact/plan ratio.
     2. Subscription charge tomorrow (cycle=monthly, day_of_month == (now+1).day):
@@ -39,6 +39,7 @@ Threat dispositions:
     T-27-01-03 (XSS in text): cat.name is user-controlled but React/SwiftUI
         escape on render — accepted at the trust boundary.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -66,14 +67,34 @@ CACHE_TTL = timedelta(hours=1)
 
 # Russian month names, nominative case (capitalised before display).
 MONTHS_RU_NOM = (
-    "январь", "февраль", "март", "апрель", "май", "июнь",
-    "июль", "август", "сентябрь", "октябрь", "ноябрь", "декабрь",
+    "январь",
+    "февраль",
+    "март",
+    "апрель",
+    "май",
+    "июнь",
+    "июль",
+    "август",
+    "сентябрь",
+    "октябрь",
+    "ноябрь",
+    "декабрь",
 )
 
 # Russian month names, genitive case (used in "{day} {month_gen}").
 MONTHS_RU_GEN = (
-    "января", "февраля", "марта", "апреля", "мая", "июня",
-    "июля", "августа", "сентября", "октября", "ноября", "декабря",
+    "января",
+    "февраля",
+    "марта",
+    "апреля",
+    "мая",
+    "июня",
+    "июля",
+    "августа",
+    "сентября",
+    "октября",
+    "ноября",
+    "декабря",
 )
 
 
@@ -142,7 +163,10 @@ async def build_observation(
 
 
 async def _compute_text(
-    db: AsyncSession, *, user_id: int, now: datetime,
+    db: AsyncSession,
+    *,
+    user_id: int,
+    now: datetime,
 ) -> str:
     """Apply the rule priority sequence and return the first matching text."""
     today = now.date()
@@ -153,7 +177,7 @@ async def _compute_text(
     # ---- Priority 1: over-limit category ----
     # SELECT cat.name, cat.plan_cents, SUM(|amount|) AS fact
     # FROM category JOIN actual_transaction ...
-    # WHERE plan > 0, NOT paused, code != 'savings', kind = expense,
+    # WHERE plan > 0, code NOT IN ('savings','adjustment'), kind = expense,
     #       tx_date >= month_start
     # GROUP BY cat HAVING SUM(|amount|) > cat.plan_cents
     # ORDER BY fact / plan DESC LIMIT 1
@@ -162,7 +186,8 @@ async def _compute_text(
             Category.name.label("name"),
             Category.plan_cents.label("plan_cents"),
             func.coalesce(
-                func.sum(func.abs(ActualTransaction.amount_cents)), 0,
+                func.sum(func.abs(ActualTransaction.amount_cents)),
+                0,
             ).label("fact_cents"),
         )
         .join(
@@ -172,9 +197,9 @@ async def _compute_text(
         .where(
             Category.user_id == user_id,
             Category.plan_cents > 0,
-            Category.paused.is_(False),
             Category.is_archived.is_(False),
             Category.code != "savings",
+            Category.code != "adjustment",
             ActualTransaction.user_id == user_id,
             ActualTransaction.kind == ActualKind.expense,
             ActualTransaction.tx_date >= month_start,
@@ -182,7 +207,8 @@ async def _compute_text(
         .group_by(Category.id, Category.name, Category.plan_cents)
         .having(
             func.coalesce(
-                func.sum(func.abs(ActualTransaction.amount_cents)), 0,
+                func.sum(func.abs(ActualTransaction.amount_cents)),
+                0,
             )
             > Category.plan_cents
         )
@@ -191,7 +217,8 @@ async def _compute_text(
         .order_by(
             (
                 func.coalesce(
-                    func.sum(func.abs(ActualTransaction.amount_cents)), 0,
+                    func.sum(func.abs(ActualTransaction.amount_cents)),
+                    0,
                 )
                 * 1.0
                 / func.nullif(Category.plan_cents, 0)

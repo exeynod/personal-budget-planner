@@ -54,6 +54,7 @@ Threat model (PLAN.md ``<threat_model>``):
     T-22-14-02 (tampering, user_id=0/-1) — mitigated via explicit validator.
     T-22-14-04 (audit) — structlog binds ``user_id`` and ``deleted_count``.
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timezone
@@ -78,7 +79,6 @@ from app.db.models import (
 )
 from app.db.session import set_tenant_scope
 from app.services.onboarding_v10 import (
-    _upsert_savings_category,
     _upsert_seed_categories,
     reset_v10,
 )
@@ -265,9 +265,7 @@ async def seed_onboarded_user(
         )
     )
     await db.execute(stmt)
-    user = await db.scalar(
-        select(AppUser).where(AppUser.tg_user_id == tg_user_id)
-    )
+    user = await db.scalar(select(AppUser).where(AppUser.tg_user_id == tg_user_id))
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -290,10 +288,8 @@ async def seed_onboarded_user(
     await set_tenant_scope(db, user_pk)
 
     # 2-3. Categories — reuse v1.0 onboarding helpers (idempotent).
-    category_ids = await _upsert_seed_categories(
-        db, user_id=user_pk, category_plans={}
-    )
-    savings_category_id = await _upsert_savings_category(db, user_id=user_pk)
+    category_ids = await _upsert_seed_categories(db, user_id=user_pk, category_plans={})
+    adjustment_category_id = await _upsert_adjustment_category(db, user_id=user_pk)
 
     # 4. BudgetPeriod — one active for the current MSK period bounds.
     today = datetime.now(timezone.utc).date()
@@ -339,9 +335,7 @@ async def seed_onboarded_user(
     else:
         # Re-seed path — return existing ids for caller convenience.
         rows = (
-            await db.execute(
-                select(Account.id).where(Account.user_id == user_pk)
-            )
+            await db.execute(select(Account.id).where(Account.user_id == user_pk))
         ).all()
         account_ids = [r[0] for r in rows]
 
@@ -360,7 +354,7 @@ async def seed_onboarded_user(
         "user_id": user_pk,
         "tg_user_id": tg_user_id,
         "category_ids": category_ids,
-        "savings_category_id": savings_category_id,
+        "adjustment_category_id": adjustment_category_id,
         "period_id": period_id,
         "account_ids": account_ids,
     }

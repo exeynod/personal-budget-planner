@@ -9,6 +9,7 @@ columns (``code``, ``ord``, ``plan_cents``, ``rollover``, ``paused``,
 filter, and badge without a second roundtrip. Legacy v0.6 clients that
 don't reference these fields are unaffected (additive only).
 """
+
 from datetime import datetime
 from typing import Literal, Optional
 
@@ -16,7 +17,6 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 CategoryKindStr = Literal["expense", "income"]
-RolloverPolicyStr = Literal["misc", "savings"]
 # Phase 36 (REQ-36-01): business/personal tag для Persona E (самозанятые).
 CategoryTagStr = Literal["personal", "business", "mixed"]
 
@@ -54,9 +54,8 @@ class CategoryUpdate(BaseModel):
     sort_order: Optional[int] = Field(default=None, ge=0)
     is_archived: Optional[bool] = None
     # Phase 26 BE — v1.0 fields per CAT-V10-04 / PLAN-V10-05.
+    # v1.1: rollover/paused removed (AGREED §G3/§G4).
     plan_cents: Optional[int] = Field(default=None, ge=0)
-    rollover: Optional[RolloverPolicyStr] = None
-    paused: Optional[bool] = None
     parent_id: Optional[int] = None
     # Phase 36 (REQ-36-01): business/personal tag для Persona E.
     tag: Optional[CategoryTagStr] = None
@@ -78,8 +77,6 @@ class CategoryRead(BaseModel):
     code: str
     ord: str
     plan_cents: int = 0
-    rollover: RolloverPolicyStr = "misc"
-    paused: bool = False
     parent_id: Optional[int] = None
     # Phase 36 (REQ-36-01): business/personal tag.
     tag: CategoryTagStr = "personal"
