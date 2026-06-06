@@ -7,21 +7,29 @@ Conventions (CLAUDE.md):
 - Multi-tenant since Phase 11: user_id BIGINT NOT NULL FK → app_user.id ON DELETE RESTRICT
   присутствует на всех доменных таблицах. RLS policies (см. alembic 0006/0012/0015).
 
-Tables (HLD §2 + Phase 22 v1.0):
+Tables (HLD §2 + Phase 22 v1.0 + v1.1 planning rework):
 - app_user, category, account, budget_period,
-- planned_transaction, actual_transaction, subscription, goal, savings_config
+- planned_transaction, actual_transaction, subscription
+- plan_template_item, plan_template_line, period_category_plan (v1.1)
 - app_health (worker heartbeat per D-12)
 - category_embedding (Phase 10: AI Categorization — pgvector)
 
 Phase 22 (v1.0 maximal poster):
-- ``plan_template_item`` dropped (CONTEXT D-02) — Category.plan_cents now SoT.
-- Category extended (plan_cents, code, ord, rollover, paused, parent_id).
+- Category extended (plan_cents, code, ord, parent_id).
 - ActualTransaction.kind → 4-valued ``actualkind`` enum (expense/income/roundup/deposit)
-  + parent_txn_id self-FK for roundup children.
-- New tables: account, goal, savings_config.
+  + parent_txn_id self-FK for roundup children (roundup now historical-only).
+- New tables: account.
 - Subscription extended (day_of_month, account_id, posted_txn_id).
-- BudgetPeriod extended (misc_rollover_cents, rollover_processed_at).
+
+v1.1 (planning rework, AGREED-PLAN §B/§G):
+- Revived plan_template_item (new schema: limit_cents) + new plan_template_line
+  + period_category_plan; PlannedTransaction.posted_txn_id bridge (alembic 0028-0029).
+- REMOVED: goal, savings_config tables; Category.rollover/paused columns;
+  RolloverPolicy enum (alembic 0031). System ``code='savings'`` category KEPT
+  (historical deposit/roundup FK RESTRICT). New ``code='adjustment'`` system
+  category for balance reconcile (alembic 0030).
 """
+
 import enum
 from datetime import date, datetime
 from typing import Optional
@@ -89,22 +97,6 @@ class AccountKind(str, enum.Enum):
 
     card = "card"
     cash = "cash"
-    savings = "savings"
-
-
-class RolloverPolicy(str, enum.Enum):
-    """Phase 22 (BE-04): category.rollover policy.
-
-    misc — period-end остаток виртуально аккумулируется в
-        ``budget_period.misc_rollover_cents`` (без отдельной txn).
-    savings — period-end остаток создаёт ``ActualTransaction(kind=deposit)``
-        в системную категорию «КОПИЛКА».
-
-    Хранится как VARCHAR(8) с CHECK constraint на DB (см. 0013), не PG enum —
-    позволяет легче добавлять новые политики без ALTER TYPE.
-    """
-
-    misc = "misc"
     savings = "savings"
 
 
@@ -185,9 +177,7 @@ class AppUser(Base):
     # Phase 22 (BE-01): месячный доход после налогов (копейки).
     # NULL = "не вводил доход" — UI редиректит на onboarding-edit
     # (alembic 0012). Backfill для existing rows = NULL.
-    income_cents: Mapped[Optional[int]] = mapped_column(
-        BigInteger, nullable=True
-    )
+    income_cents: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True)
     role: Mapped[UserRole] = mapped_column(
         PgEnum(UserRole, name="user_role", create_type=False),
         nullable=False,
@@ -234,9 +224,7 @@ class PdnAuditLog(Base):
 
     __tablename__ = "pdn_audit_log"
 
-    id: Mapped[int] = mapped_column(
-        BigInteger, primary_key=True, autoincrement=True
-    )
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     user_id_hash: Mapped[str] = mapped_column(String(64), nullable=False)
     event_type: Mapped[PdnAuditEvent] = mapped_column(
         PgEnum(PdnAuditEvent, name="pdn_audit_event", create_type=False),
@@ -293,26 +281,17 @@ class Category(Base):
     plan_cents: Mapped[int] = mapped_column(
         BigInteger, nullable=False, default=0, server_default="0"
     )
-    # code — slug для системных категорий ('food', 'cafe', 'savings', ...)
-    # и кастомных категорий пользователя (transliterate(name)). UNIQUE per
-    # user среди active rows (partial index uq_category_user_code, 0013).
+    # code — slug для системных категорий ('food', 'cafe', 'savings',
+    # 'adjustment', ...) и кастомных категорий пользователя
+    # (transliterate(name)). UNIQUE per user среди active rows
+    # (partial index uq_category_user_code, 0013).
     code: Mapped[str] = mapped_column(String(40), nullable=False)
     # ord — '01'..'99' display ordinal. CHAR(2) на DB, на ORM мапим через
     # String(2). CHECK constraint на формат — на DB.
     ord: Mapped[str] = mapped_column(String(2), nullable=False)
-    # rollover — куда уходит остаток на закрытии периода ('misc' | 'savings').
-    # Хранится VARCHAR(8) — DB CHECK enforces enum (см. 0013).
-    rollover: Mapped[RolloverPolicy] = mapped_column(
-        String(8),
-        nullable=False,
-        default=RolloverPolicy.misc,
-        server_default="misc",
-    )
-    # paused — true = категория не учитывается в расчётах текущего периода
-    # (отличается от is_archived — paused остаётся в queries).
-    paused: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, default=False, server_default=text("false")
-    )
+    # v1.1 (AGREED §G3/§G4): ``rollover`` и ``paused`` колонки удалены
+    # (alembic 0031) — с уходом накоплений rollover бессмыслен, пауза
+    # выпилена из UI. ``is_archived`` (soft-delete) остаётся.
     # parent_id — composite FK (parent_id, user_id) → (id, user_id) объявлен
     # на DB level (migration 0013, constraint ``fk_category_parent_composite``).
     # ORM держит как plain BigInteger без ForeignKey() — composite self-FK
@@ -362,12 +341,8 @@ class Category(Base):
         # Phase 22 (BE-16): composite UNIQUE для composite FK target.
         UniqueConstraint("id", "user_id", name="ux_category_id_user"),
         # CHECK constraints (DB-level, дублируем в ORM metadata для autogen
-        # alignment — alembic owns DDL, create_type/create_constraint=False
-        # неявно через factual existence в migration 0013).
-        CheckConstraint(
-            "rollover IN ('misc', 'savings')",
-            name="ck_category_rollover_enum",
-        ),
+        # alignment — alembic owns DDL). v1.1: ck_category_rollover_enum
+        # удалён вместе с колонкой rollover (alembic 0031).
         CheckConstraint(
             "ord ~ '^[0-9]{2}$'",
             name="ck_category_ord_format",
@@ -451,7 +426,9 @@ class BudgetPeriod(Base):
     starting_balance_cents: Mapped[int] = mapped_column(
         BigInteger, default=0, nullable=False
     )
-    ending_balance_cents: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True)
+    ending_balance_cents: Mapped[Optional[int]] = mapped_column(
+        BigInteger, nullable=True
+    )
     status: Mapped[PeriodStatus] = mapped_column(
         PgEnum(PeriodStatus, name="periodstatus", create_type=False),
         default=PeriodStatus.active,
@@ -598,7 +575,9 @@ class PlannedTransaction(Base):
     __tablename__ = "planned_transaction"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    period_id: Mapped[int] = mapped_column(ForeignKey("budget_period.id"), nullable=False)
+    period_id: Mapped[int] = mapped_column(
+        ForeignKey("budget_period.id"), nullable=False
+    )
     kind: Mapped[ActualKind] = mapped_column(
         PgEnum(ActualKind, name="actualkind", create_type=False), nullable=False
     )
@@ -618,9 +597,21 @@ class PlannedTransaction(Base):
         ForeignKey("app_user.id", ondelete="RESTRICT"),
         nullable=False,
     )
+    # v1.1 (AGREED §B / G1): мост план↔факт. Если строка проведена в факт,
+    # ссылка на ActualTransaction. ON DELETE SET NULL — удаление факта
+    # возвращает строку в статус «не проведено». Partial unique index ниже
+    # гарантирует, что один факт не привязан к двум planned-строкам.
+    posted_txn_id: Mapped[Optional[int]] = mapped_column(
+        BigInteger,
+        ForeignKey("actual_transaction.id", ondelete="SET NULL"),
+        nullable=True,
+    )
 
     period: Mapped["BudgetPeriod"] = relationship(back_populates="planned_transactions")
     category: Mapped["Category"] = relationship()
+    posted_txn: Mapped[Optional["ActualTransaction"]] = relationship(
+        "ActualTransaction", foreign_keys="PlannedTransaction.posted_txn_id"
+    )
 
     __table_args__ = (
         Index("ix_planned_period_kind", "period_id", "kind"),
@@ -628,6 +619,12 @@ class PlannedTransaction(Base):
             "subscription_id",
             "original_charge_date",
             name="uq_planned_sub_charge_date",
+        ),
+        Index(
+            "uq_planned_posted_txn_id",
+            "posted_txn_id",
+            unique=True,
+            postgresql_where=text("posted_txn_id IS NOT NULL"),
         ),
     )
 
@@ -649,7 +646,9 @@ class ActualTransaction(Base):
     __tablename__ = "actual_transaction"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    period_id: Mapped[int] = mapped_column(ForeignKey("budget_period.id"), nullable=False)
+    period_id: Mapped[int] = mapped_column(
+        ForeignKey("budget_period.id"), nullable=False
+    )
     kind: Mapped[ActualKind] = mapped_column(
         PgEnum(ActualKind, name="actualkind", create_type=False), nullable=False
     )
@@ -880,9 +879,7 @@ class AiUsageLog(Base):
         nullable=False,
     )
 
-    __table_args__ = (
-        Index("ix_ai_usage_log_user_created", "user_id", "created_at"),
-    )
+    __table_args__ = (Index("ix_ai_usage_log_user_created", "user_id", "created_at"),)
 
 
 # ---- Phase 17 (v0.6): native client auth tokens (IOSAUTH-02) ----
@@ -931,27 +928,22 @@ class AuthToken(Base):
         TIMESTAMP(timezone=True), nullable=True
     )
 
-    __table_args__ = (
-        Index("ix_auth_token_user", "user_id"),
-    )
+    __table_args__ = (Index("ix_auth_token_user", "user_id"),)
 
 
-# ---- Phase 22 (v1.0): Goals & Savings ----
+# ---- v1.1 (planning rework): plan template + per-period plan ----
 
 
-class Goal(Base):
-    """Цель копилки (BE-11, DATA-MODEL §1.6).
+class PlanTemplateItem(Base):
+    """Лимит категории в шаблоне плана (AGREED §B; alembic 0028).
 
-    Multi-tenant via user_id FK ON DELETE RESTRICT (нельзя удалить юзера
-    с активными целями — требуется явный revoke flow). RLS-policy
-    ``tenant_isolation_goal`` на DB-level (alembic 0014/0015).
-
-    Validators (DATA-MODEL §6, проверяются на Pydantic + DB CHECK):
-      - target_cents > 0
-      - char_length(name) ∈ [1, 80]
+    Reusable, НЕ per-period: задаётся один раз, авто-применяется к каждому
+    новому периоду через ``apply_template_to_period`` (→ period_category_plan).
+    UNIQUE (user_id, category_id) — один лимит на категорию в шаблоне.
+    Multi-tenant via RLS (``tenant_isolation_plan_template_item``).
     """
 
-    __tablename__ = "goal"
+    __tablename__ = "plan_template_item"
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(
@@ -959,60 +951,94 @@ class Goal(Base):
         ForeignKey("app_user.id", ondelete="RESTRICT"),
         nullable=False,
     )
-    name: Mapped[str] = mapped_column(String(80), nullable=False)
-    target_cents: Mapped[int] = mapped_column(BigInteger, nullable=False)
-    current_cents: Mapped[int] = mapped_column(
+    category_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("category.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    limit_cents: Mapped[int] = mapped_column(
         BigInteger, nullable=False, default=0, server_default="0"
     )
-    due: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(
-        TIMESTAMP(timezone=True), server_default=func.now(), nullable=False
-    )
 
     __table_args__ = (
-        Index("ix_goal_user_id", "user_id"),
-        CheckConstraint("target_cents > 0", name="ck_goal_target_positive"),
-        CheckConstraint(
-            "char_length(name) BETWEEN 1 AND 80",
-            name="ck_goal_name_length",
+        UniqueConstraint(
+            "user_id", "category_id", name="uq_plan_template_item_user_cat"
         ),
+        Index("ix_plan_template_item_user_id", "user_id"),
     )
 
 
-class SavingsConfig(Base):
-    """Per-user roundup configuration (BE-08, DATA-MODEL §1.7).
+class PlanTemplateLine(Base):
+    """Повторяющаяся строка детализации шаблона (AGREED §B; alembic 0028).
 
-    PK = user_id (1:1 — одна конфигурация на пользователя). ON DELETE CASCADE:
-    при revoke юзера config purge'ится автоматически (T-22-03-07 — savings_config
-    не критичная audit-data, можно дропать).
-
-    roundup_base ∈ {10, 50, 100} (₽) — DB CHECK enforces (T-22-03-05).
-    Roundup formula (DATA-MODEL §4): delta = ceil(|amount| / base) * base − |amount|.
+    Materialised into ``planned_transaction(source=manual)`` rows on apply.
+    ``kind`` reuses the PG enum ``actualkind`` but semantically ∈ {expense,
+    income}. ``day_of_period`` (1..31) clamps to a date via _clamp_planned_date.
+    Multi-tenant via RLS (``tenant_isolation_plan_template_line``).
     """
 
-    __tablename__ = "savings_config"
+    __tablename__ = "plan_template_line"
 
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(
         BigInteger,
-        ForeignKey("app_user.id", ondelete="CASCADE"),
-        primary_key=True,
+        ForeignKey("app_user.id", ondelete="RESTRICT"),
+        nullable=False,
     )
-    roundup_enabled: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, default=False, server_default=text("false")
+    category_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("category.id", ondelete="CASCADE"),
+        nullable=False,
     )
-    # SmallInteger в БД — соответствует INT2 в migration 0014.
-    roundup_base: Mapped[int] = mapped_column(
-        SmallInteger, nullable=False, default=10, server_default="10"
-    )
-    updated_at: Mapped[datetime] = mapped_column(
-        TIMESTAMP(timezone=True), server_default=func.now(), nullable=False
+    title: Mapped[str] = mapped_column(Text, nullable=False)
+    amount_cents: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    day_of_period: Mapped[Optional[int]] = mapped_column(SmallInteger, nullable=True)
+    kind: Mapped[ActualKind] = mapped_column(
+        PgEnum(ActualKind, name="actualkind", create_type=False), nullable=False
     )
 
     __table_args__ = (
         CheckConstraint(
-            "roundup_base IN (10, 50, 100)",
-            name="ck_savings_config_base_enum",
+            "day_of_period IS NULL OR (day_of_period BETWEEN 1 AND 31)",
+            name="ck_tpl_line_day",
         ),
+        Index("ix_plan_template_line_user_cat", "user_id", "category_id"),
+    )
+
+
+class PeriodCategoryPlan(Base):
+    """Per-period снапшот лимита категории (AGREED §B; alembic 0028).
+
+    Источник лимита для ``compute_balance`` (fallback на Category.plan_cents
+    для периодов, созданных до apply-template). UNIQUE (period_id, category_id).
+    Multi-tenant via RLS (``tenant_isolation_period_category_plan``).
+    """
+
+    __tablename__ = "period_category_plan"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("app_user.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    period_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("budget_period.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    category_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("category.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    limit_cents: Mapped[int] = mapped_column(
+        BigInteger, nullable=False, default=0, server_default="0"
+    )
+
+    __table_args__ = (
+        UniqueConstraint("period_id", "category_id", name="uq_period_category_plan"),
+        Index("ix_period_category_plan_user_period", "user_id", "period_id"),
     )
 
 
