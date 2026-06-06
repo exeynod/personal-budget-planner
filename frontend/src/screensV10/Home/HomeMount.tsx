@@ -374,7 +374,7 @@ export function HomeMount() {
     // v1.1 plan↔fact ladder — Σ of UNPOSTED planned amounts (excludes posted
     // rows and subscription_auto rows; anti-double-count). The native Home
     // shows this as the «Запланировано» level between Лимит and Факт.
-    const plannedUnpostedCents = plannedUnpostedTotal(planned);
+    const plannedUnpostedCents = plannedUnpostedTotal(planned, 'expense');
 
     return {
       eyebrow,

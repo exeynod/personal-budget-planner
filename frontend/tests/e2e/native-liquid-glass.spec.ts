@@ -113,6 +113,108 @@ function act(id: number, category_id: number, amount_cents: number) {
 
 const ACTUALS = [act(101, 1, 385_18), act(102, 2, 385_18), act(103, 3, 385_18)];
 
+// v1.1 planning rework — planned rows for period 5 (PlannedRead-shaped).
+// Mix of: manual unposted, manual posted, subscription_auto unposted, income.
+// Used by the Home / CategoryDetail «Расписано» ladder level and the План-месяца
+// detail disclosure. Several land in «Продукты» (id 1) so its detail shows
+// multiple rows + a non-trivial «Расписано».
+function planned(
+  id: number,
+  category_id: number,
+  amount_cents: number,
+  opts: {
+    source?: 'manual' | 'subscription_auto' | 'template';
+    posted_txn_id?: number | null;
+    subscription_id?: number | null;
+    description?: string | null;
+    planned_date?: string | null;
+    kind?: 'expense' | 'income';
+  } = {},
+) {
+  return {
+    id,
+    category_id,
+    amount_cents,
+    description: opts.description ?? null,
+    kind: opts.kind ?? ('expense' as const),
+    period_id: 5,
+    planned_date: opts.planned_date ?? '2026-05-10',
+    posted_txn_id: opts.posted_txn_id ?? null,
+    source: opts.source ?? ('manual' as const),
+    subscription_id: opts.subscription_id ?? null,
+  };
+}
+
+const PLANNED = [
+  // Продукты (id 1): manual unposted, manual posted, subscription unposted.
+  planned(201, 1, 3_000_00, {
+    description: 'Большая закупка',
+    planned_date: '2026-05-12',
+  }),
+  planned(202, 1, 1_500_00, {
+    description: 'Доставка',
+    posted_txn_id: 9001,
+    planned_date: '2026-05-05',
+  }),
+  planned(203, 1, 990_00, {
+    description: 'Подписка на продукты',
+    source: 'subscription_auto',
+    subscription_id: 11,
+    planned_date: '2026-05-15',
+  }),
+  // Кафе (id 2): one manual unposted.
+  planned(204, 2, 2_000_00, {
+    description: 'Бизнес-ланчи',
+    planned_date: '2026-05-08',
+  }),
+  // Транспорт (id 3): subscription unposted.
+  planned(205, 3, 1_200_00, {
+    description: 'Проездной',
+    source: 'subscription_auto',
+    subscription_id: 12,
+    planned_date: '2026-05-01',
+  }),
+  // Зарплата (id 10): income planned row.
+  planned(206, 10, 150_000_00, {
+    description: 'Аванс + ЗП',
+    kind: 'income',
+    planned_date: '2026-05-10',
+  }),
+];
+
+// Template items (per-category limits) + recurring lines.
+const TEMPLATE_ITEMS = [
+  { category_id: 1, limit_cents: 16_000_00 },
+  { category_id: 2, limit_cents: 8_000_00 },
+  { category_id: 3, limit_cents: 4_800_00 },
+];
+
+function tline(
+  id: number,
+  category_id: number,
+  title: string,
+  amount_cents: number,
+  day_of_period: number | null,
+  kind: 'expense' | 'income' = 'expense',
+) {
+  return { id, category_id, title, amount_cents, day_of_period, kind };
+}
+
+const TEMPLATE_LINES = [
+  tline(301, 1, 'Еженедельная закупка', 4_000_00, 5),
+  tline(302, 1, 'Доставка воды', 600_00, 20),
+  tline(303, 2, 'Кофе по утрам', 1_500_00, null),
+];
+
+// Per-period plan snapshot (PeriodPlanResponse) — mirrors category plan_cents.
+const PERIOD_PLAN = {
+  plans: [
+    { category_id: 1, limit_cents: 16_000_00 },
+    { category_id: 2, limit_cents: 8_000_00 },
+    { category_id: 3, limit_cents: 4_800_00 },
+  ],
+};
+
 const HOME_BOOTSTRAP = {
   user: ME,
   accounts: ACCOUNTS,
@@ -162,6 +264,91 @@ async function installNative(page: Page) {
         pattern: '**/api/v1/periods/5/balance**',
         handler: (r) =>
           r.fulfill(json({ by_category: [], starting_balance_cents: 0 })),
+      },
+      // ── v1.1 planning rework endpoints ──
+      // Planned rows (Home/CategoryDetail ladder «Расписано» + План-месяца detail).
+      {
+        pattern: '**/api/v1/periods/5/planned',
+        handler: (r) => {
+          if (r.request().method() === 'GET') return r.fulfill(json(PLANNED));
+          // POST create → echo a new manual row.
+          return r.fulfill(json(planned(299, 1, 1_00, { description: 'new' })));
+        },
+      },
+      {
+        pattern: '**/api/v1/periods/5/planned/post-batch',
+        handler: (r) => r.fulfill(json({ posted: [201, 204], skipped: [202] })),
+      },
+      {
+        pattern: '**/api/v1/periods/5/planned/*/post',
+        handler: (r) => r.fulfill(json({ planned_id: 201, txn_id: 9099 })),
+      },
+      {
+        pattern: '**/api/v1/periods/5/planned/*/unpost',
+        handler: (r) => r.fulfill({ status: 204, body: '' }),
+      },
+      {
+        pattern: '**/api/v1/planned/*',
+        handler: (r) => {
+          if (r.request().method() === 'DELETE')
+            return r.fulfill({ status: 204, body: '' });
+          return r.fulfill(json(planned(201, 1, 3_000_00)));
+        },
+      },
+      // Per-period plan snapshot.
+      {
+        pattern: '**/api/v1/periods/5/plan',
+        handler: (r) => r.fulfill(json(PERIOD_PLAN)),
+      },
+      // plan-month batch PATCH → return refreshed categories.
+      {
+        pattern: '**/api/v1/plan-month',
+        handler: (r) => r.fulfill(json({ categories: CATEGORIES })),
+      },
+      // Budget template — per-category limits + recurring lines.
+      {
+        pattern: '**/api/v1/template/items**',
+        handler: (r) => {
+          if (r.request().method() === 'GET')
+            return r.fulfill(json(TEMPLATE_ITEMS));
+          // PUT upsert → echo one item.
+          return r.fulfill(json({ category_id: 1, limit_cents: 16_000_00 }));
+        },
+      },
+      {
+        pattern: '**/api/v1/template/lines**',
+        handler: (r) => {
+          const m = r.request().method();
+          if (m === 'GET') return r.fulfill(json(TEMPLATE_LINES));
+          if (m === 'DELETE') return r.fulfill({ status: 204, body: '' });
+          return r.fulfill(json(tline(399, 1, 'new', 1_00, null)));
+        },
+      },
+      // Balance reconcile («Привести остаток») + computed balance for Settings.
+      {
+        pattern: '**/api/v1/actual/balance',
+        handler: (r) =>
+          r.fulfill(
+            json({
+              actual_total_expense_cents: 1_155_54,
+              actual_total_income_cents: 0,
+              balance_now_cents: 48_844_46,
+              by_category: [],
+              delta_total_cents: 0,
+              period_end: '2026-05-31',
+              period_id: 5,
+              period_start: '2026-05-01',
+              planned_total_expense_cents: 28_800_00,
+              planned_total_income_cents: 150_000_00,
+            }),
+          ),
+      },
+      {
+        pattern: '**/api/v1/balance/reconcile',
+        handler: (r) =>
+          r.fulfill(
+            json({ adjustment_txn_id: 9500, balance_now_cents: 50_000_00 }),
+          ),
       },
       {
         pattern: '**/api/v1/admin/users',
@@ -278,7 +465,7 @@ test.describe('Liquid Glass native shell (web)', () => {
   // 'Счета' (accounts) and 'Копилка' (savings) rows removed in the v1.1
   // planning rework — their hub rows + screens no longer exist.
   for (const { row, file } of [
-    { row: 'План месяца', file: 'plan' },
+    { row: 'Шаблон бюджета', file: 'template' },
     { row: 'Аналитика', file: 'analytics' },
     { row: 'Подписки', file: 'subscriptions' },
     { row: 'Настройки', file: 'settings' },
@@ -307,10 +494,69 @@ test.describe('Liquid Glass native shell (web)', () => {
     await expect(page.getByTestId('native-shell')).toBeVisible({
       timeout: 8000,
     });
-    await page.getByTestId('native-home-category-2').click(); // Кафе
+    // Продукты (id 1) carries planned rows → its 4-level ladder shows a
+    // non-zero «Расписано» (Σ unposted planned for this category).
+    await page.getByTestId('native-home-category-1').click();
+    await expect(page.getByTestId('native-cat-ladder')).toBeVisible({
+      timeout: 5000,
+    });
     await page.waitForTimeout(400);
     await freezeMotion(page);
     await page.screenshot({ path: `${OUT}/category-detail.png` });
+  });
+
+  // v1.1 — План месяца, opened from Home (NOT from Управление). Expands the
+  // «Детализация» disclosure for «Продукты» so the screenshot captures the
+  // planned rows (manual + subscription), the Лимит/Расписано/Свободно ladder,
+  // and the per-row «Провести»/«Отмена» CTAs in one frame.
+  test('plan month with expanded detail renders native iOS design', async ({
+    page,
+  }) => {
+    await installNative(page);
+    await page.goto('/');
+    await expect(page.getByTestId('native-shell')).toBeVisible({
+      timeout: 8000,
+    });
+    // «План месяца» row lives in the Home view (top, below the balance card).
+    await page.getByTestId('native-home-plan').click();
+    await expect(page.getByTestId('native-plan-surplus')).toBeVisible({
+      timeout: 5000,
+    });
+    // Expand «Детализация» for Продукты (category id 1).
+    await page.getByTestId('native-plan-detail-toggle-1').click();
+    await expect(page.getByTestId('native-plan-detail-1')).toBeVisible({
+      timeout: 5000,
+    });
+    await freezeMotion(page);
+    await page.screenshot({ path: `${OUT}/plan.png` });
+  });
+
+  // v1.1 — Шаблон бюджета with one category's «Строки» disclosure expanded so
+  // the recurring template lines + add row are visible alongside the per-
+  // category limit fields.
+  test('template with expanded lines renders native iOS design', async ({
+    page,
+  }) => {
+    await installNative(page);
+    await page.goto('/');
+    await expect(page.getByTestId('native-shell')).toBeVisible({
+      timeout: 8000,
+    });
+    await page.getByRole('tab', { name: 'Управление' }).click();
+    await expect(page.getByRole('heading', { name: 'Управление' })).toBeVisible(
+      { timeout: 5000 },
+    );
+    await page.getByText('Шаблон бюджета', { exact: false }).first().click();
+    await expect(page.getByTestId('native-template-view')).toBeVisible({
+      timeout: 5000,
+    });
+    // Expand «Строки» for Продукты (id 1) → recurring lines + add row visible.
+    await page.getByTestId('native-template-toggle-1').click();
+    await expect(page.getByTestId('native-template-lines-1')).toBeVisible({
+      timeout: 5000,
+    });
+    await freezeMotion(page);
+    await page.screenshot({ path: `${OUT}/template-expanded.png` });
   });
 
   test('onboarding renders native iOS design', async ({ page }) => {

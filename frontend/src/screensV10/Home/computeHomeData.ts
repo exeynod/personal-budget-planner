@@ -395,17 +395,23 @@ export function unpostedByCategory(
 }
 
 /**
- * Σ of UNPOSTED planned amounts across ALL categories (same filter as
- * {@link unpostedByCategory}) — the total «Запланировано» level on the Home
- * ladder.
+ * Σ of UNPOSTED planned amounts (same anti-double-count filter as
+ * {@link unpostedByCategory}) — the «Расписано» level on the Home ladder.
+ *
+ * The Home balance-card ladder is EXPENSE-scoped (Лимит/Факт are expense
+ * totals), so callers pass `kind='expense'` to keep «Расписано» in lock-step.
+ * Income planned rows would otherwise inflate the expense ladder. Omit `kind`
+ * to sum across all kinds.
  */
 export function plannedUnpostedTotal(
   planned: ReadonlyArray<PlannedV11Read>,
+  kind?: 'expense' | 'income',
 ): number {
   let sum = 0;
   for (const p of planned) {
     if (p.posted_txn_id != null) continue;
     if (p.source === 'subscription_auto') continue;
+    if (kind && p.kind !== kind) continue;
     sum += Math.abs(p.amount_cents);
   }
   return sum;
