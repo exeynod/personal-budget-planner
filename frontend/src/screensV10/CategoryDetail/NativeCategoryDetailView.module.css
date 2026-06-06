@@ -48,11 +48,11 @@
   color: var(--lgn-ink-2);
 }
 
-/* Stat row (Plan / Fact / В запасе) — mirrors NativeHomeView */
+/* Ladder row (Лимит / Расписано / Факт / В запасе) — mirrors NativeHomeView */
 .statsRow {
   display: flex;
   margin-top: 14px;
-  gap: 8px;
+  gap: 6px;
 }
 .statCol {
   display: flex;
@@ -66,13 +66,18 @@
   text-align: right;
 }
 .statLabel {
-  font-size: 11px;
-  letter-spacing: 0.4px;
+  /* 4-level ladder: tighter tracking + overflow guard so «Расписано» never
+     wraps in the 4-col row (matches NativeHomeView). */
+  font-size: 10.5px;
+  letter-spacing: 0.2px;
   color: var(--lgn-ink-2);
   text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .statValue {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--lgn-ink);
   white-space: nowrap;

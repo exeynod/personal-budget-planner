@@ -7,12 +7,7 @@
 // re-fetch behaviour, not network plumbing.
 
 import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
-import {
-  render,
-  cleanup,
-  screen,
-  act,
-} from '@testing-library/react';
+import { render, cleanup, screen, act } from '@testing-library/react';
 import { useState } from 'react';
 import { HomeMount } from '../HomeMount';
 import {
@@ -24,12 +19,14 @@ import {
 const listAccountsMock = vi.fn();
 const listCategoriesV10Mock = vi.fn();
 const listActualV10Mock = vi.fn();
+const listPlannedMock = vi.fn();
 const getCurrentPeriodMock = vi.fn();
 
 vi.mock('../../../api/v10', () => ({
   listAccounts: (...args: unknown[]) => listAccountsMock(...args),
   listCategoriesV10: (...args: unknown[]) => listCategoriesV10Mock(...args),
   listActualV10: (...args: unknown[]) => listActualV10Mock(...args),
+  listPlanned: (...args: unknown[]) => listPlannedMock(...args),
 }));
 
 vi.mock('../../../api/periods', () => ({
@@ -40,6 +37,7 @@ beforeEach(() => {
   listAccountsMock.mockResolvedValue([]);
   listCategoriesV10Mock.mockResolvedValue([]);
   listActualV10Mock.mockResolvedValue([]);
+  listPlannedMock.mockResolvedValue([]);
   // null → no active period → actuals fetch is skipped, which is fine for
   // this test (we only care that the fetch effect re-runs).
   getCurrentPeriodMock.mockResolvedValue(null);
@@ -105,9 +103,15 @@ describe('HomeMount — refetch token wiring (DEBT-02)', () => {
     await flushPromises();
 
     // Each fetch leaf should have been called again.
-    expect(listAccountsMock.mock.calls.length).toBeGreaterThan(initialAccountsCalls);
-    expect(listCategoriesV10Mock.mock.calls.length).toBeGreaterThan(initialCatsCalls);
-    expect(getCurrentPeriodMock.mock.calls.length).toBeGreaterThan(initialPeriodCalls);
+    expect(listAccountsMock.mock.calls.length).toBeGreaterThan(
+      initialAccountsCalls,
+    );
+    expect(listCategoriesV10Mock.mock.calls.length).toBeGreaterThan(
+      initialCatsCalls,
+    );
+    expect(getCurrentPeriodMock.mock.calls.length).toBeGreaterThan(
+      initialPeriodCalls,
+    );
 
     // Sentinel surfaces the new token value.
     const sentinel = screen.getByTestId('parent-refetched');

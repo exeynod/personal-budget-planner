@@ -12,7 +12,7 @@ import { usePosterRouter } from '../common';
 import { useShellVariant } from '../native/ShellVariant';
 import { MgmtHubView, type MgmtRowId } from './MgmtHubView';
 import { NativeMgmtHubView } from './NativeMgmtHubView';
-import { PlanMount } from '../Plan';
+import { TemplateMount } from './TemplateMount';
 import { SettingsMount } from './SettingsMount';
 import { AccessMount } from './AccessMount';
 import { AnalyticsMount } from '../Analytics';
@@ -39,8 +39,8 @@ export function MgmtHubMount() {
   }, []);
 
   function handleRowTap(id: MgmtRowId) {
-    if (id === 'plan') {
-      router.push(<PlanMount />);
+    if (id === 'template') {
+      router.push(<TemplateMount />);
     } else if (id === 'analytics') {
       router.push(<AnalyticsMount />);
     } else if (id === 'subscriptions') {

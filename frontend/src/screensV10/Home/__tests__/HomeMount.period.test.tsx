@@ -21,6 +21,7 @@ import { clearCache } from '../../../api/cache';
 const listAccountsMock = vi.fn();
 const listCategoriesV10Mock = vi.fn();
 const listActualV10Mock = vi.fn();
+const listPlannedMock = vi.fn();
 const listPeriodsMock = vi.fn();
 const getCurrentPeriodMock = vi.fn();
 const getPeriodBalanceMock = vi.fn();
@@ -30,6 +31,7 @@ vi.mock('../../../api/v10', () => ({
   listAccounts: (...a: unknown[]) => listAccountsMock(...a),
   listCategoriesV10: (...a: unknown[]) => listCategoriesV10Mock(...a),
   listActualV10: (...a: unknown[]) => listActualV10Mock(...a),
+  listPlanned: (...a: unknown[]) => listPlannedMock(...a),
 }));
 
 vi.mock('../../../api/periods', () => ({
@@ -109,6 +111,7 @@ beforeEach(() => {
     { id: 1, name: 'Кафе', code: 'cafe', ord: '01' },
   ]);
   listActualV10Mock.mockResolvedValue([]);
+  listPlannedMock.mockResolvedValue([]);
   listPeriodsMock.mockResolvedValue([ACTIVE, PAST_MAY]); // newest-first
   getCurrentPeriodMock.mockResolvedValue(ACTIVE);
   getPeriodBalanceMock.mockResolvedValue(MAY_BALANCE);

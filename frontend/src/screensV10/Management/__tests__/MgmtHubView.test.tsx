@@ -35,7 +35,7 @@ describe('MgmtHubView — composition', () => {
 
   it('renders all 5 numbered rows when isOwner=true', () => {
     render(<MgmtHubView {...makeProps({ isOwner: true })} />);
-    expect(screen.getByText(/PLAN МЕСЯЦА/)).toBeInTheDocument();
+    expect(screen.getByText(/ШАБЛОН БЮДЖЕТА/)).toBeInTheDocument();
     expect(screen.getByText(/АНАЛИТИКА/)).toBeInTheDocument();
     expect(screen.getByText(/ПОДПИСКИ/)).toBeInTheDocument();
     expect(screen.getByText(/НАСТРОЙКИ/)).toBeInTheDocument();
@@ -44,7 +44,7 @@ describe('MgmtHubView — composition', () => {
 
   it('renders only 4 rows when isOwner=false (no «ДОСТУП»)', () => {
     render(<MgmtHubView {...makeProps({ isOwner: false })} />);
-    expect(screen.getByText(/PLAN МЕСЯЦА/)).toBeInTheDocument();
+    expect(screen.getByText(/ШАБЛОН БЮДЖЕТА/)).toBeInTheDocument();
     expect(screen.getByText(/АНАЛИТИКА/)).toBeInTheDocument();
     expect(screen.getByText(/ПОДПИСКИ/)).toBeInTheDocument();
     expect(screen.getByText(/НАСТРОЙКИ/)).toBeInTheDocument();
@@ -60,11 +60,11 @@ describe('MgmtHubView — composition', () => {
     expect(screen.getByText('05')).toBeInTheDocument();
   });
 
-  it('row click on «PLAN МЕСЯЦА» calls onRowTap("plan")', () => {
+  it('row click on «ШАБЛОН БЮДЖЕТА» calls onRowTap("template")', () => {
     const onRowTap = vi.fn();
     render(<MgmtHubView {...makeProps({ onRowTap })} />);
-    fireEvent.click(screen.getByText(/PLAN МЕСЯЦА/));
-    expect(onRowTap).toHaveBeenCalledWith('plan' satisfies MgmtRowId);
+    fireEvent.click(screen.getByText(/ШАБЛОН БЮДЖЕТА/));
+    expect(onRowTap).toHaveBeenCalledWith('template' satisfies MgmtRowId);
   });
 
   it('row click on «ПОДПИСКИ» calls onRowTap("subscriptions")', () => {

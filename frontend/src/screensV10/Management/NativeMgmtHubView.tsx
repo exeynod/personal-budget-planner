@@ -83,9 +83,9 @@ interface NativeRowDef {
 // presentation (iOS copy + colored phosphor tile) differs.
 const ROWS: NativeRowDef[] = [
   {
-    id: 'plan',
-    title: 'План месяца',
-    subtitle: 'Повторяющийся план для нового периода',
+    id: 'template',
+    title: 'Шаблон бюджета',
+    subtitle: 'Лимиты и регулярные строки для нового периода',
     Icon: ChartBar,
     tint: 'var(--lgn-accent)',
   },

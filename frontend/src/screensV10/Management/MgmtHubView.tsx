@@ -13,7 +13,7 @@ import { Eyebrow, Mass } from '../../componentsV10';
 import styles from './MgmtHubView.module.css';
 
 export type MgmtRowId =
-  | 'plan'
+  | 'template'
   | 'analytics'
   | 'subscriptions'
   | 'settings'
@@ -38,7 +38,7 @@ interface RowDef {
 }
 
 const ROWS: RowDef[] = [
-  { id: 'plan', n: '01', name: 'PLAN МЕСЯЦА' },
+  { id: 'template', n: '01', name: 'ШАБЛОН БЮДЖЕТА' },
   { id: 'analytics', n: '02', name: 'АНАЛИТИКА' },
   { id: 'subscriptions', n: '03', name: 'ПОДПИСКИ' },
   { id: 'settings', n: '04', name: 'НАСТРОЙКИ' },

@@ -20,7 +20,7 @@
 // never serve stale numbers (mirror of subscriptions.ts post/unpost).
 
 import { apiFetch } from '../client';
-import { invalidate, CACHE_KEYS } from '../cache';
+import { getCached, invalidate, CACHE_KEYS } from '../cache';
 import type {
   PlannedV11Read,
   PlannedV11Create,
@@ -49,7 +49,13 @@ export async function listPlanned(
   periodId: number,
   categoryId?: number,
 ): Promise<PlannedV11Read[]> {
-  const rows = await apiFetch<PlannedV11Read[]>(`/periods/${periodId}/planned`);
+  // Cache the full per-period list (stable read; the native plan↔fact ladders
+  // on Home + CategoryDetail both consume it). `categoryId` filters client-side
+  // off the SAME cached payload so a category drill-down adds no round-trip and
+  // never serves a divergent shape. Post/unpost/batch invalidate `plannedPrefix`.
+  const rows = await getCached(CACHE_KEYS.planned(periodId), () =>
+    apiFetch<PlannedV11Read[]>(`/periods/${periodId}/planned`),
+  );
   return categoryId == null
     ? rows
     : rows.filter((r) => r.category_id === categoryId);
@@ -65,10 +71,13 @@ export async function createPlanned(
   periodId: number,
   payload: PlannedV11Create,
 ): Promise<PlannedV11Read> {
-  return apiFetch<PlannedV11Read>(`/periods/${periodId}/planned`, {
+  const res = await apiFetch<PlannedV11Read>(`/periods/${periodId}/planned`, {
     method: 'POST',
     body: JSON.stringify(payload),
   });
+  // A new planned row → the cached per-period list is now stale.
+  invalidate(CACHE_KEYS.plannedPrefix);
+  return res;
 }
 
 /**
@@ -79,10 +88,13 @@ export async function patchPlanned(
   plannedId: number,
   payload: PlannedV11Update,
 ): Promise<PlannedV11Read> {
-  return apiFetch<PlannedV11Read>(`/planned/${plannedId}`, {
+  const res = await apiFetch<PlannedV11Read>(`/planned/${plannedId}`, {
     method: 'PATCH',
     body: JSON.stringify(payload),
   });
+  // Amount / category / kind may have changed → drop the cached list.
+  invalidate(CACHE_KEYS.plannedPrefix);
+  return res;
 }
 
 /**
@@ -91,6 +103,7 @@ export async function patchPlanned(
  */
 export async function deletePlanned(plannedId: number): Promise<void> {
   await apiFetch<void>(`/planned/${plannedId}`, { method: 'DELETE' });
+  invalidate(CACHE_KEYS.plannedPrefix);
 }
 
 /**
@@ -112,10 +125,12 @@ export async function postPlanned(
     `/periods/${periodId}/planned/${plannedId}/post`,
     { method: 'POST', body: JSON.stringify({ tx_date: txDate }) },
   );
-  // An actual_transaction was inserted → drop tx-affected caches.
+  // An actual_transaction was inserted → drop tx-affected caches. The row's
+  // posted_txn_id flipped too → the planned list (4-level ladder) is stale.
   invalidate(CACHE_KEYS.actualsPrefix);
   invalidate(CACHE_KEYS.balancePrefix);
   invalidate(CACHE_KEYS.accounts);
+  invalidate(CACHE_KEYS.plannedPrefix);
   return res;
 }
 
@@ -135,6 +150,7 @@ export async function unpostPlanned(
   invalidate(CACHE_KEYS.actualsPrefix);
   invalidate(CACHE_KEYS.balancePrefix);
   invalidate(CACHE_KEYS.accounts);
+  invalidate(CACHE_KEYS.plannedPrefix);
 }
 
 /**
@@ -160,5 +176,6 @@ export async function postPlannedBatch(
   invalidate(CACHE_KEYS.actualsPrefix);
   invalidate(CACHE_KEYS.balancePrefix);
   invalidate(CACHE_KEYS.accounts);
+  invalidate(CACHE_KEYS.plannedPrefix);
   return res;
 }

@@ -18,8 +18,11 @@ import {
   computeWalletTotal,
   computeCategoryAggregates,
   sortCategoriesForHome,
+  unpostedByCategory,
+  plannedUnpostedTotal,
   type CategoryAggregateRow,
 } from '../computeHomeData';
+import type { PlannedV11Read } from '../../../api/v10';
 import type {
   AccountResponse,
   ActualV10Read,
@@ -348,5 +351,69 @@ describe('sortCategoriesForHome', () => {
     const snapshot = [...rows];
     sortCategoriesForHome(rows);
     expect(rows).toEqual(snapshot);
+  });
+});
+
+// ─────────────────── unposted planned (4-level ladder) ───────────────────
+
+function mkPlanned(over: Partial<PlannedV11Read> = {}): PlannedV11Read {
+  return {
+    id: 1,
+    period_id: 10,
+    category_id: 100,
+    amount_cents: 50000,
+    description: null,
+    kind: 'expense',
+    planned_date: null,
+    posted_txn_id: null,
+    source: 'manual',
+    subscription_id: null,
+    ...over,
+  };
+}
+
+describe('unpostedByCategory / plannedUnpostedTotal', () => {
+  it('sums only unposted, non-subscription rows (anti-double-count)', () => {
+    const planned: PlannedV11Read[] = [
+      // counts → category 100
+      mkPlanned({ id: 1, category_id: 100, amount_cents: 50000 }),
+      mkPlanned({ id: 2, category_id: 100, amount_cents: 20000 }),
+      // posted → excluded
+      mkPlanned({
+        id: 3,
+        category_id: 100,
+        amount_cents: 99999,
+        posted_txn_id: 7,
+      }),
+      // subscription_auto → excluded (anti-double-count)
+      mkPlanned({
+        id: 4,
+        category_id: 100,
+        amount_cents: 30000,
+        source: 'subscription_auto',
+        subscription_id: 5,
+      }),
+      // counts → category 200 (template is a deliberate plan, kept)
+      mkPlanned({
+        id: 5,
+        category_id: 200,
+        amount_cents: 12345,
+        source: 'template',
+      }),
+      // negative magnitude → abs
+      mkPlanned({ id: 6, category_id: 200, amount_cents: -1000 }),
+    ];
+
+    const byCat = unpostedByCategory(planned);
+    expect(byCat.get(100)).toBe(70000);
+    expect(byCat.get(200)).toBe(13345);
+    expect(byCat.has(999)).toBe(false);
+
+    expect(plannedUnpostedTotal(planned)).toBe(83345);
+  });
+
+  it('empty input → empty map and 0 total', () => {
+    expect(unpostedByCategory([]).size).toBe(0);
+    expect(plannedUnpostedTotal([])).toBe(0);
   });
 });

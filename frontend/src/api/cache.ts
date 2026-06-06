@@ -165,4 +165,8 @@ export const CACHE_KEYS = {
   actualsPrefix: 'actuals:',
   balance: (periodId: number) => `balance:${periodId}`,
   balancePrefix: 'balance:',
+  /** Planned-rows list per period (v1.1 plan↔fact ladder). */
+  planned: (periodId: number) => `planned:${periodId}`,
+  /** Prefix matching every per-period planned key. */
+  plannedPrefix: 'planned:',
 } as const;

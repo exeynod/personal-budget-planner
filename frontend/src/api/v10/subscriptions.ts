@@ -79,9 +79,12 @@ export async function postSubscription(
     { method: 'POST' },
   );
   // Posting inserts an actual_transaction → invalidate the tx-affected caches.
+  // The subscription's planned row flips posted → drop the planned list too so
+  // the v1.1 plan↔fact ladders never serve a stale unposted total.
   invalidate(CACHE_KEYS.actualsPrefix);
   invalidate(CACHE_KEYS.balancePrefix);
   invalidate(CACHE_KEYS.accounts);
+  invalidate(CACHE_KEYS.plannedPrefix);
   return res;
 }
 
@@ -95,8 +98,10 @@ export async function postSubscription(
  */
 export async function unpostSubscription(id: number): Promise<void> {
   await apiFetch<void>(`/subscriptions/${id}/unpost`, { method: 'POST' });
-  // Unposting deletes the actual_transaction → invalidate the same caches.
+  // Unposting deletes the actual_transaction → invalidate the same caches
+  // (incl. the planned list — the subscription's row flips back to unposted).
   invalidate(CACHE_KEYS.actualsPrefix);
   invalidate(CACHE_KEYS.balancePrefix);
   invalidate(CACHE_KEYS.accounts);
+  invalidate(CACHE_KEYS.plannedPrefix);
 }

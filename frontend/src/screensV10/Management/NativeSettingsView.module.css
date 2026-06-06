@@ -129,3 +129,44 @@
   color: var(--lgn-ink-2);
   white-space: nowrap;
 }
+
+/* ─────────── Reconcile balance («Привести остаток», v1.1) ─────────── */
+.reconcileInputWrap {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--lgn-s-8);
+}
+.reconcileInput {
+  width: 96px;
+  border: none;
+  outline: none;
+  background: var(--lgn-seg-track);
+  border-radius: var(--lgn-r-button);
+  padding: 6px 10px;
+  font-family: var(--lgn-font);
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--lgn-ink);
+  text-align: right;
+}
+.reconcileBtn {
+  flex: 0 0 auto;
+  border: none;
+  background: rgba(0, 122, 255, 0.12);
+  color: var(--lgn-blue);
+  font-family: var(--lgn-font);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 14px;
+  border-radius: var(--lgn-r-pill);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.reconcileBtn:disabled {
+  color: var(--lgn-ink-3);
+  background: var(--lgn-seg-track);
+  cursor: default;
+}
+.reconcileBtn:not(:disabled):active {
+  background: rgba(0, 122, 255, 0.22);
+}

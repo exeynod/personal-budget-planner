@@ -14,6 +14,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { Toast } from '../../componentsV10';
 import { getSettings, updateSettings } from '../../api/settings';
 import { getMeV10 } from '../../api/me';
+import { getBalance } from '../../api/actual';
+import { reconcileBalance } from '../../api/v10';
 import type { SettingsRead, SettingsUpdatePayload } from '../../api/types';
 import { usePosterRouter, useTheme } from '../common';
 import { useHomeColor } from '../Home/useHomeColor';
@@ -30,6 +32,9 @@ export function SettingsMount() {
   const [aiCapCents, setAiCapCents] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // v1.1 — «Привести остаток»: current computed balance + reconcile in-flight.
+  const [balanceNowCents, setBalanceNowCents] = useState<number | null>(null);
+  const [reconciling, setReconciling] = useState(false);
   // Phase 30-07 (DEBT-08): Home background color preference + picker sheet
   // open state. The hook persists to localStorage and broadcasts a CustomEvent
   // so HomeMount instantly re-renders when user picks a new color.
@@ -47,11 +52,12 @@ export function SettingsMount() {
     let cancelled = false;
     setLoading(true);
     setError(null);
-    Promise.all([getSettings(), getMeV10()])
-      .then(([s, me]) => {
+    Promise.all([getSettings(), getMeV10(), getBalance()])
+      .then(([s, me, balance]) => {
         if (cancelled) return;
         setSettings(s);
         setAiCapCents(me.ai_spending_cap_cents);
+        setBalanceNowCents(balance.balance_now_cents);
       })
       .catch((e: unknown) => {
         if (cancelled) return;
@@ -105,6 +111,27 @@ export function SettingsMount() {
     [patch],
   );
 
+  // v1.1 — reconcile: write a balancing adjustment so the displayed balance
+  // becomes `targetCents`, then refresh the shown balance from the response.
+  const handleReconcileBalance = useCallback(async (targetCents: number) => {
+    setReconciling(true);
+    try {
+      const res = await reconcileBalance(targetCents);
+      setBalanceNowCents(res.balance_now_cents);
+      setToastMsg(
+        res.adjustment_txn_id == null
+          ? 'Остаток уже совпадает'
+          : '✓ Остаток приведён',
+      );
+    } catch (e: unknown) {
+      const msg =
+        e instanceof Error ? e.message : 'Не удалось привести остаток';
+      setToastMsg(`Ошибка: ${msg}`);
+    } finally {
+      setReconciling(false);
+    }
+  }, []);
+
   const viewProps: SettingsViewProps = {
     cycle_start_day: settings?.cycle_start_day ?? FALLBACK_CYCLE_DAY,
     notify_days_before: settings?.notify_days_before ?? FALLBACK_NOTIFY_DAYS,
@@ -125,6 +152,9 @@ export function SettingsMount() {
     themePickerOpen,
     onSelectTheme: setTheme,
     onToggleThemePicker: setThemePickerOpen,
+    balanceNowCents,
+    onReconcileBalance: handleReconcileBalance,
+    reconciling,
   };
 
   return (

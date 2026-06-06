@@ -4,7 +4,18 @@
 // hub navigation pushes `SettingsMount` / `AccessMount` directly.
 
 export { MgmtHubMount } from './MgmtHubMount';
-export { MgmtHubView, type MgmtHubViewProps, type MgmtRowId } from './MgmtHubView';
+export {
+  MgmtHubView,
+  type MgmtHubViewProps,
+  type MgmtRowId,
+} from './MgmtHubView';
+
+export { TemplateMount } from './TemplateMount';
+export {
+  NativeTemplateView,
+  type NativeTemplateViewProps,
+  type AddTemplateLineDraft,
+} from './NativeTemplateView';
 
 export { SettingsMount } from './SettingsMount';
 export { SettingsView, type SettingsViewProps } from './SettingsView';

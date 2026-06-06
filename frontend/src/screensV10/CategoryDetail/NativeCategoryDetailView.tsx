@@ -40,6 +40,13 @@ import styles from './NativeCategoryDetailView.module.css';
 export interface NativeCategoryDetailViewProps {
   category: CategoryV10;
   actuals: ActualV10Read[];
+  /**
+   * v1.1 plan↔fact ladder — Σ of UNPOSTED planned amount for this category
+   * (manual + template, excludes posted + subscription_auto; anti-double-count
+   * applied upstream). Rendered as the «Расписано» level between Лимит and
+   * Факт. Defaults to 0.
+   */
+  plannedUnpostedCents?: number;
   /** Reference date for day labels (defaults to `new Date()`). */
   today?: Date;
 
@@ -52,13 +59,22 @@ export interface NativeCategoryDetailViewProps {
 // ─────────────────── Component ───────────────────
 
 function NativeCategoryDetailViewInner(props: NativeCategoryDetailViewProps) {
-  const { category, actuals, today = new Date(), onPushPlan, onBack } = props;
+  const {
+    category,
+    actuals,
+    plannedUnpostedCents = 0,
+    today = new Date(),
+    onPushPlan,
+    onBack,
+  } = props;
 
+  // 4-level plan↔fact ladder: Лимит (per-period limit) / Расписано (Σ unposted
+  // planned for this category) / Факт (realised) / В запасе (Лимит − Факт).
   const planCents = category.plan_cents ?? 0;
   const factCents = computeFactForCategory(actuals, category.id);
   const isOver = factCents > planCents;
 
-  // «В запасе» = План − Факт (sign convention «+ = good»; same value the poster
+  // «В запасе» = Лимит − Факт (sign convention «+ = good»; same value the poster
   // surfaces beneath the bar as «осталось» / «over»).
   const surplusCents = planCents - factCents;
   const surplusPositive = surplusCents >= 0;
@@ -86,12 +102,18 @@ function NativeCategoryDetailViewInner(props: NativeCategoryDetailViewProps) {
           </div>
         </div>
 
-        {/* Plan / Fact / В запасе stat row (mirrors NativeHomeView). */}
-        <div className={styles.statsRow}>
+        {/* 4-level ladder: Лимит / Расписано / Факт / В запасе (mirrors NativeHomeView). */}
+        <div className={styles.statsRow} data-testid="native-cat-ladder">
           <div className={styles.statCol}>
-            <span className={styles.statLabel}>План</span>
+            <span className={styles.statLabel}>Лимит</span>
             <span className={styles.statValue}>
               {formatMoneyNative(planCents)}
+            </span>
+          </div>
+          <div className={styles.statCol}>
+            <span className={styles.statLabel}>Расписано</span>
+            <span className={styles.statValue} data-testid="native-cat-planned">
+              {formatMoneyNative(plannedUnpostedCents)}
             </span>
           </div>
           <div className={styles.statCol}>

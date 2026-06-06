@@ -18,9 +18,11 @@ import { useCallback, useState } from 'react';
 import {
   listCategoriesV10,
   listActualV10,
+  listPlanned,
   type ActualV10Read,
   type CategoryV10,
 } from '../../api/v10';
+import { unpostedByCategory } from '../Home/computeHomeData';
 import { getCurrentPeriod } from '../../api/periods';
 import { Toast } from '../../componentsV10';
 import { StatePlate, usePosterRouter, useResource } from '../common';
@@ -45,6 +47,12 @@ export interface CategoryDetailMountProps {
 interface DataPayload {
   category: CategoryV10;
   actuals: ActualV10Read[];
+  /**
+   * v1.1 plan↔fact ladder — Σ of UNPOSTED planned amount for THIS category
+   * (manual + template, excludes posted + subscription_auto; anti-double-count).
+   * Drives the «Расписано» ladder level on the native detail.
+   */
+  plannedUnpostedCents: number;
 }
 
 /**
@@ -74,11 +82,18 @@ export function CategoryDetailMount({ categoryId }: CategoryDetailMountProps) {
         // server-side (RLS); to client it just looks like «не найдена».
         throw new Error(NOT_FOUND_MESSAGE);
       }
-      if (isCancelled()) return { category: cat, actuals: [] };
+      if (isCancelled())
+        return { category: cat, actuals: [], plannedUnpostedCents: 0 };
       const acts: ActualV10Read[] = period
         ? await listActualV10(period.id)
         : [];
-      return { category: cat, actuals: acts };
+      // v1.1 ladder: this category's UNPOSTED planned amount. listPlanned is
+      // cached per period (filtered client-side), so this adds no extra
+      // round-trip once Home has loaded the same period's list.
+      const planned = period ? await listPlanned(period.id, categoryId) : [];
+      const plannedUnpostedCents =
+        unpostedByCategory(planned).get(categoryId) ?? 0;
+      return { category: cat, actuals: acts, plannedUnpostedCents };
     },
     [categoryId],
   );
@@ -122,6 +137,7 @@ export function CategoryDetailMount({ categoryId }: CategoryDetailMountProps) {
         <NativeCategoryDetailView
           category={data.category}
           actuals={data.actuals}
+          plannedUnpostedCents={data.plannedUnpostedCents}
           onPushPlan={handlePushPlan}
           onBack={handleBack}
         />

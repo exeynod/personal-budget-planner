@@ -41,6 +41,13 @@ export interface SettingsViewProps {
   themePickerOpen: boolean;
   onSelectTheme: (t: Theme) => void;
   onToggleThemePicker: (open: boolean) => void;
+  // v1.1 planning rework — «Привести остаток» (native shell only).
+  /** Current computed balance in cents, or null while it loads / fails. */
+  balanceNowCents?: number | null;
+  /** Reconcile the balance to `targetCents` (writes a balancing adjustment). */
+  onReconcileBalance?: (targetCents: number) => void;
+  /** True while a reconcile request is in flight. */
+  reconciling?: boolean;
 }
 
 const CYCLE_MIN = 1;
@@ -66,7 +73,9 @@ export function SettingsView(props: SettingsViewProps) {
       </div>
 
       <div className={styles.eyebrowRow}>
-        <Eyebrow color="var(--poster-ink, #0E0E0E)">SETTINGS / НАСТРОЙКИ</Eyebrow>
+        <Eyebrow color="var(--poster-ink, #0E0E0E)">
+          SETTINGS / НАСТРОЙКИ
+        </Eyebrow>
       </div>
 
       <Mass italic size={56} className={styles.headlineMass}>
@@ -87,7 +96,9 @@ export function SettingsView(props: SettingsViewProps) {
       <div className={styles.list}>
         {/* Row 1: cycle_start_day stepper */}
         <div className={styles.row}>
-          <Eyebrow color="var(--poster-ink, #0E0E0E)">День начала цикла</Eyebrow>
+          <Eyebrow color="var(--poster-ink, #0E0E0E)">
+            День начала цикла
+          </Eyebrow>
           <div className={styles.rowControl}>
             <button
               type="button"
@@ -157,9 +168,7 @@ export function SettingsView(props: SettingsViewProps) {
                   Math.min(NOTIFY_MAX, props.notify_days_before + 1),
                 )
               }
-              disabled={
-                props.notify_days_before >= NOTIFY_MAX || props.loading
-              }
+              disabled={props.notify_days_before >= NOTIFY_MAX || props.loading}
               aria-label="Увеличить дни уведомления"
             >
               +
@@ -169,7 +178,9 @@ export function SettingsView(props: SettingsViewProps) {
 
         {/* Row 3: AI authorization toggle */}
         <div className={styles.row}>
-          <Eyebrow color="var(--poster-ink, #0E0E0E)">AI авто-категоризация</Eyebrow>
+          <Eyebrow color="var(--poster-ink, #0E0E0E)">
+            AI авто-категоризация
+          </Eyebrow>
           <label className={styles.toggleRow}>
             <input
               type="checkbox"
@@ -188,11 +199,10 @@ export function SettingsView(props: SettingsViewProps) {
 
         {/* Row 4: AI spend cap (read-only) */}
         <div className={styles.row}>
-          <Eyebrow color="var(--poster-ink, #0E0E0E)">AI лимит расходов</Eyebrow>
-          <div
-            className={styles.readonlyValue}
-            data-testid="ai-cap-value"
-          >
+          <Eyebrow color="var(--poster-ink, #0E0E0E)">
+            AI лимит расходов
+          </Eyebrow>
+          <div className={styles.readonlyValue} data-testid="ai-cap-value">
             {capRubles.toLocaleString('ru-RU')} ₽
           </div>
         </div>

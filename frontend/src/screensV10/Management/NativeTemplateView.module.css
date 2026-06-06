@@ -1,0 +1,198 @@
+/* Liquid Glass v2 — native «Шаблон бюджета» view. Scoped (CSS module).
+   Reuses the NativePlanView visual language (inset category rows + disclosure). */
+
+.root {
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 32px;
+}
+
+.segWrap {
+  margin: 8px var(--lgn-s-16) 0;
+}
+
+/* ─────────── Category rows (custom, inside InsetGroup) ─────────── */
+.catRow {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px var(--lgn-s-16);
+  font-family: var(--lgn-font);
+  position: relative;
+}
+.catRow:not(:first-child)::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: calc(var(--lgn-s-16) + 30px + 12px);
+  right: 0;
+  height: 1px;
+  background: var(--lgn-hairline-soft);
+}
+.catTop {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.catName {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 17px;
+  color: var(--lgn-ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.catInputWrap {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  background: var(--lgn-seg-track);
+  border-radius: var(--lgn-r-button);
+  padding: 6px 10px;
+}
+.catInput {
+  width: 88px;
+  border: none;
+  background: none;
+  outline: none;
+  font-family: var(--lgn-font);
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--lgn-ink);
+  text-align: right;
+  padding: 0;
+}
+.catCur {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--lgn-ink-2);
+}
+
+/* ─────────── «Строки» disclosure ─────────── */
+.detailWrap {
+  padding-left: calc(30px + 12px);
+}
+.detailToggle {
+  border: none;
+  background: none;
+  padding: 2px 0;
+  font-family: var(--lgn-font);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--lgn-blue);
+  cursor: pointer;
+}
+.detailBody {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.lineRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.lineMain {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.lineTitle {
+  font-size: 15px;
+  color: var(--lgn-ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lineSub {
+  font-size: 12px;
+  color: var(--lgn-ink-2);
+}
+.lineDelete {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: rgba(255, 59, 48, 0.1);
+  color: var(--lgn-red);
+  border-radius: var(--lgn-r-pill);
+  width: 32px;
+  height: 32px;
+  cursor: pointer;
+}
+.lineDelete:active {
+  background: rgba(255, 59, 48, 0.22);
+}
+
+/* ─────────── + добавить строку ─────────── */
+.addLine {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 4px;
+}
+.addInput,
+.addInputSm {
+  border: 1px solid var(--lgn-hairline-soft);
+  background: var(--lgn-seg-track);
+  border-radius: var(--lgn-r-button);
+  padding: 8px 10px;
+  font-family: var(--lgn-font);
+  font-size: 14px;
+  color: var(--lgn-ink);
+  outline: none;
+}
+.addRow {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.addInputSm {
+  flex: 1 1 0;
+  min-width: 0;
+}
+.addBtn {
+  flex: 0 0 auto;
+  border: none;
+  background: rgba(0, 122, 255, 0.12);
+  color: var(--lgn-blue);
+  font-family: var(--lgn-font);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 14px;
+  border-radius: var(--lgn-r-pill);
+  cursor: pointer;
+}
+.addBtn:disabled {
+  color: var(--lgn-ink-3);
+  background: var(--lgn-seg-track);
+  cursor: default;
+}
+
+/* ─────────── Empty + footnote ─────────── */
+.empty {
+  margin: 0 var(--lgn-s-16);
+  padding: 20px var(--lgn-s-16);
+  text-align: center;
+  color: var(--lgn-ink-2);
+  font-size: 15px;
+  font-family: var(--lgn-font);
+  background: var(--lgn-card);
+  -webkit-backdrop-filter: var(--lgn-glass-blur);
+  backdrop-filter: var(--lgn-glass-blur);
+  border-radius: var(--lgn-r-card);
+  box-shadow: var(--lgn-shadow-card);
+}
+.footnote {
+  margin: 12px var(--lgn-s-20) 0;
+  font-family: var(--lgn-font);
+  font-size: 13px;
+  color: var(--lgn-ink-2);
+  line-height: 1.4;
+}

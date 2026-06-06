@@ -24,9 +24,11 @@ import {
   listAccounts,
   listCategoriesV10,
   listActualV10,
+  listPlanned,
   type AccountResponse,
   type CategoryV10,
   type ActualV10Read,
+  type PlannedV11Read,
 } from '../../api/v10';
 import { getCurrentPeriod, getPeriodBalance } from '../../api/periods';
 import { getHome, isHomeBootstrap } from '../../api/home';
@@ -59,6 +61,7 @@ import {
   computePlanTotalCents,
   computeSurplus,
   computeWalletTotal,
+  plannedUnpostedTotal,
   sortCategoriesForHome,
 } from './computeHomeData';
 
@@ -86,6 +89,12 @@ interface DataPayload {
    * live category plan. Null for the active period (existing path).
    */
   balance: BalanceResponse | null;
+  /**
+   * v1.1 plan↔fact ladder: this period's planned rows (manual + subscription).
+   * Drives the «Запланировано (unposted)» ladder level on the native Home /
+   * CategoryDetail views. Empty when there is no period.
+   */
+  planned: PlannedV11Read[];
 }
 
 type LoadState =
@@ -158,6 +167,14 @@ export function HomeMount() {
           }
         }
 
+        // The /home bootstrap doesn't carry planned rows; fetch them so the
+        // native plan↔fact ladder has its «Запланировано (unposted)» level.
+        // (Cached via getCached → no extra round-trip on later navigation.)
+        const planned: PlannedV11Read[] = home.period
+          ? await listPlanned(home.period.id)
+          : [];
+        if (cancelled) return true;
+
         setState({
           status: 'ready',
           data: {
@@ -170,6 +187,7 @@ export function HomeMount() {
             // Active period → no balance aggregates (categories+actuals path),
             // byte-identical to the granular active-period render.
             balance: null,
+            planned,
           },
         });
         return true;
@@ -208,11 +226,14 @@ export function HomeMount() {
           : [];
         const balance: BalanceResponse | null =
           isPastView && period ? await getPeriodBalance(period.id) : null;
+        const planned: PlannedV11Read[] = period
+          ? await listPlanned(period.id)
+          : [];
 
         if (cancelled) return;
         setState({
           status: 'ready',
-          data: { accounts, categories, period, actuals, balance },
+          data: { accounts, categories, period, actuals, balance, planned },
         });
       } catch (err) {
         if (cancelled) return;
@@ -256,7 +277,8 @@ export function HomeMount() {
   // ─────────── computed view-model (memoised on state.data) ───────────
   const vm = useMemo(() => {
     if (state.status !== 'ready') return null;
-    const { accounts, categories, period, actuals, balance } = state.data;
+    const { accounts, categories, period, actuals, balance, planned } =
+      state.data;
 
     const today = new Date();
 
@@ -349,6 +371,11 @@ export function HomeMount() {
     });
     const walletCents = computeWalletTotal(accounts);
 
+    // v1.1 plan↔fact ladder — Σ of UNPOSTED planned amounts (excludes posted
+    // rows and subscription_auto rows; anti-double-count). The native Home
+    // shows this as the «Запланировано» level between Лимит and Факт.
+    const plannedUnpostedCents = plannedUnpostedTotal(planned);
+
     return {
       eyebrow,
       daysLeft,
@@ -357,6 +384,7 @@ export function HomeMount() {
       surplusCents,
       planTotalCents,
       factTotalExpenseCents,
+      plannedUnpostedCents,
       categoryRows,
       incomeRows,
       period,
@@ -406,6 +434,7 @@ export function HomeMount() {
         {refetchSentinel}
         <NativeHomeView
           walletCents={vm.walletCents}
+          plannedUnpostedCents={vm.plannedUnpostedCents}
           expenseRows={vm.categoryRows}
           incomeRows={vm.incomeRows}
           onPlanTap={onPlanTap}

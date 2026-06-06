@@ -29,6 +29,12 @@ import styles from './NativeHomeView.module.css';
 
 export interface NativeHomeViewProps {
   walletCents: number;
+  /**
+   * v1.1 plan↔fact ladder — Σ of UNPOSTED planned amounts (manual + template,
+   * excludes posted rows and subscription_auto; anti-double-count). Rendered as
+   * the «Расписано» level between Лимит and Факт. Defaults to 0.
+   */
+  plannedUnpostedCents?: number;
   expenseRows: CategoryAggregateRow[];
   incomeRows: CategoryAggregateRow[];
   onPlanTap: () => void;
@@ -50,6 +56,7 @@ type Seg = 'expenses' | 'income';
 function NativeHomeViewInner(props: NativeHomeViewProps) {
   const {
     walletCents,
+    plannedUnpostedCents = 0,
     expenseRows,
     incomeRows,
     onPlanTap,
@@ -64,8 +71,12 @@ function NativeHomeViewInner(props: NativeHomeViewProps) {
 
   const rows = seg === 'expenses' ? expenseRows : incomeRows;
 
-  // ПЛАН / ФАКТ / В ЗАПАСЕ are expense-scoped (mirrors the iOS Home header):
-  // surplus = expense plan − expense fact (sign convention «+ = good»).
+  // 4-level plan↔fact ladder (expense-scoped, mirrors the iOS Home header):
+  //   Лимит      — Σ per-period category limit (expense plan).
+  //   Расписано  — Σ UNPOSTED planned amount (prop; anti-double-count applied
+  //                upstream in plannedUnpostedTotal).
+  //   Факт       — Σ realised expense actuals.
+  //   В запасе   — Лимит − Факт (sign convention «+ = good»).
   const planTotalCents = sumPlan(expenseRows);
   const factTotalExpenseCents = sumFact(expenseRows);
   const surplusCents = planTotalCents - factTotalExpenseCents;
@@ -110,11 +121,20 @@ function NativeHomeViewInner(props: NativeHomeViewProps) {
           {formatMoneyNative(walletCents)}
           <span className={styles.balanceCur}>₽</span>
         </div>
-        <div className={styles.statsRow}>
+        <div className={styles.statsRow} data-testid="native-home-ladder">
           <div className={styles.statCol}>
-            <span className={styles.statLabel}>План</span>
+            <span className={styles.statLabel}>Лимит</span>
             <span className={styles.statValue}>
               {formatMoneyNative(planTotalCents)}
+            </span>
+          </div>
+          <div className={styles.statCol}>
+            <span className={styles.statLabel}>Расписано</span>
+            <span
+              className={styles.statValue}
+              data-testid="native-home-planned"
+            >
+              {formatMoneyNative(plannedUnpostedCents)}
             </span>
           </div>
           <div className={styles.statCol}>

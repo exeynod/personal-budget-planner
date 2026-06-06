@@ -22,6 +22,7 @@ import type {
   AccountResponse,
   ActualV10Read,
   CategoryV10,
+  PlannedV11Read,
 } from '../../api/v10';
 import type { BalanceCategoryRow } from '../../api/types';
 
@@ -354,6 +355,60 @@ export function computeIncomeAggregatesFromBalance(
     });
   }
   return rows;
+}
+
+// ─────────────────── unposted planned (4-level ladder) ───────────────────
+//
+// The native plan↔fact ladder (Лимит / Запланировано / Факт / В запасе)
+// surfaces a «Запланировано (unposted)» level between the per-period limit and
+// the realised fact. It sums planned rows that are NOT yet posted into a real
+// actual_transaction — these are amounts the user *intends* to spend but hasn't
+// recorded as fact yet.
+//
+// Anti-double-count rule: `source === 'subscription_auto'` rows are EXCLUDED.
+// Subscription-derived planned rows are charged automatically (the worker posts
+// them), so counting their unposted amount alongside the subscription's own
+// projection would double-count the same money. Only manual / template rows
+// (the user's deliberate plan) feed «Запланировано».
+
+/**
+ * Σ of UNPOSTED planned-row amounts per category id.
+ *
+ * A row counts when BOTH hold:
+ *   - `posted_txn_id == null` (not yet realised into a fact), AND
+ *   - `source !== 'subscription_auto'` (anti-double-count — see above).
+ *
+ * Amounts use `Math.abs` (the wire amount_cents is a positive magnitude). The
+ * returned Map omits categories with no unposted rows (callers default to 0).
+ */
+export function unpostedByCategory(
+  planned: ReadonlyArray<PlannedV11Read>,
+): Map<number, number> {
+  const out = new Map<number, number>();
+  for (const p of planned) {
+    if (p.posted_txn_id != null) continue;
+    if (p.source === 'subscription_auto') continue;
+    const prev = out.get(p.category_id) ?? 0;
+    out.set(p.category_id, prev + Math.abs(p.amount_cents));
+  }
+  return out;
+}
+
+/**
+ * Σ of UNPOSTED planned amounts across ALL categories (same filter as
+ * {@link unpostedByCategory}) — the total «Запланировано» level on the Home
+ * ladder.
+ */
+export function plannedUnpostedTotal(
+  planned: ReadonlyArray<PlannedV11Read>,
+): number {
+  let sum = 0;
+  for (const p of planned) {
+    if (p.posted_txn_id != null) continue;
+    if (p.source === 'subscription_auto') continue;
+    sum += Math.abs(p.amount_cents);
+  }
+  return sum;
 }
 
 // ─────────────────── computePlanTotalCents ───────────────────

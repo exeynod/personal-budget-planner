@@ -195,8 +195,8 @@ describe('V10MainShell — composition', () => {
     fireEvent.click(screen.getByRole('tab', { name: /УПР\./ }));
     // Hub headline is rendered synchronously (isOwner state defaults to false).
     expect(screen.getByText(/Управление\./)).toBeInTheDocument();
-    // Non-owner variant: PLAN МЕСЯЦА / АНАЛИТИКА / ПОДПИСКИ / НАСТРОЙКИ.
-    expect(screen.getByText(/PLAN МЕСЯЦА/)).toBeInTheDocument();
+    // Non-owner variant: ШАБЛОН БЮДЖЕТА / АНАЛИТИКА / ПОДПИСКИ / НАСТРОЙКИ.
+    expect(screen.getByText(/ШАБЛОН БЮДЖЕТА/)).toBeInTheDocument();
     // Wait for /me promise to resolve so the role-state settles to 'member'.
     await flushMicrotasks();
     // ДОСТУП still hidden because role='member' is the default mocked above.

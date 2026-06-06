@@ -20,7 +20,7 @@
 // back instantly. We reuse the existing poster ThemePickerSheet / HomeColorPickerSheet
 // components — both are self-contained bottom-sheets and theme-agnostic.
 
-import { memo } from 'react';
+import { memo, useState } from 'react';
 import { Minus, Plus } from '@phosphor-icons/react';
 import {
   NativeNavBar,
@@ -28,6 +28,7 @@ import {
   InsetGroup,
   InsetRow,
 } from '../native/NativePrimitives';
+import { formatMoneyNative } from '../native/money';
 import { homeColorCssValue, homeColorLabel } from '../Home/useHomeColor';
 import { themeLabel } from '../common';
 import { HomeColorPickerSheet } from './HomeColorPickerSheet';
@@ -120,6 +121,82 @@ function Toggle({
       />
       <span className={styles.toggleKnob} aria-hidden />
     </label>
+  );
+}
+
+// rubles → cents (same semantics as NativePlanView / NativeTemplateView).
+function rublesInputToCents(raw: string): number {
+  const cleaned = raw
+    .replace(/[\s  ]/g, '')
+    .replace(',', '.')
+    .replace(/[^0-9.]/g, '');
+  if (cleaned === '' || cleaned === '.') return 0;
+  const rub = Number.parseFloat(cleaned);
+  if (!Number.isFinite(rub) || rub < 0) return 0;
+  return Math.round(rub * 100);
+}
+
+// «Привести остаток»: show the computed balance, let the owner enter their real
+// balance, and write a balancing adjustment via onReconcileBalance.
+function ReconcileSection({
+  balanceNowCents,
+  reconciling,
+  onReconcileBalance,
+}: {
+  balanceNowCents: number | null | undefined;
+  reconciling: boolean;
+  onReconcileBalance: (targetCents: number) => void;
+}) {
+  const [input, setInput] = useState('');
+  const targetCents = rublesInputToCents(input);
+  const canSubmit = input.trim() !== '' && !reconciling;
+
+  return (
+    <>
+      <SectionHeader>Остаток</SectionHeader>
+      <InsetGroup>
+        <InsetRow
+          title="Текущий расчётный остаток"
+          trailing={
+            <span className={styles.readonly} data-testid="reconcile-current">
+              {balanceNowCents == null
+                ? '—'
+                : `${formatMoneyNative(balanceNowCents)} ₽`}
+            </span>
+          }
+          trailingMuted
+        />
+        <InsetRow
+          title="Реальный остаток"
+          trailing={
+            <span className={styles.reconcileInputWrap}>
+              <input
+                type="text"
+                inputMode="decimal"
+                className={styles.reconcileInput}
+                placeholder="₽"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                aria-label="Реальный остаток в рублях"
+                data-testid="reconcile-input"
+              />
+              <button
+                type="button"
+                className={styles.reconcileBtn}
+                disabled={!canSubmit}
+                onClick={() => {
+                  onReconcileBalance(targetCents);
+                  setInput('');
+                }}
+                data-testid="reconcile-submit"
+              >
+                {reconciling ? '…' : 'Привести'}
+              </button>
+            </span>
+          }
+        />
+      </InsetGroup>
+    </>
   );
 }
 
@@ -222,6 +299,15 @@ function NativeSettingsViewInner(props: SettingsViewProps) {
           trailingMuted
         />
       </InsetGroup>
+
+      {/* Остаток — «Привести остаток» (v1.1) */}
+      {props.onReconcileBalance && (
+        <ReconcileSection
+          balanceNowCents={props.balanceNowCents}
+          reconciling={props.reconciling ?? false}
+          onReconcileBalance={props.onReconcileBalance}
+        />
+      )}
 
       {/* Оформление */}
       <SectionHeader>Оформление</SectionHeader>
