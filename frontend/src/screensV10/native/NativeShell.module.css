@@ -7,10 +7,48 @@
      100dvh in browser/tests — mirrors V10MainShell so the no-TG layout is
      identical. */
   height: var(--tg-viewport-stable, 100dvh);
-  background: var(--lgn-bg);
+  /* Aurora field — soft peach / orange / lavender / mint blobs over the light
+     base. The frosted glass cards refract this, which is what makes the design
+     read as «Liquid Glass» rather than flat white-on-grey. */
+  background-color: var(--lgn-bg);
+  background-image:
+    radial-gradient(
+      52% 40% at 8% 2%,
+      rgba(255, 178, 132, 0.55) 0%,
+      rgba(255, 178, 132, 0) 70%
+    ),
+    radial-gradient(
+      50% 38% at 96% 8%,
+      rgba(255, 138, 160, 0.42) 0%,
+      rgba(255, 138, 160, 0) 72%
+    ),
+    radial-gradient(
+      60% 44% at 88% 64%,
+      rgba(176, 150, 240, 0.42) 0%,
+      rgba(176, 150, 240, 0) 72%
+    ),
+    radial-gradient(
+      58% 42% at 4% 78%,
+      rgba(120, 214, 196, 0.38) 0%,
+      rgba(120, 214, 196, 0) 74%
+    );
+  background-attachment: fixed;
   font-family: var(--lgn-font);
   color: var(--lgn-ink);
   overflow: hidden;
+
+  /* Neutralise the poster tokens INSIDE the native shell so any poster-styled
+     loading / error plate that briefly mounts (Mount fetch states, back-nav
+     reload) renders on the glass field instead of flashing Maximal Poster
+     coral. (HomeMount LoadingPlate etc. read var(--color-home,...)/--ink-*.) */
+  --color-home: transparent;
+  --poster-coral: transparent;
+  --poster-cobalt: transparent;
+  --poster-paper: var(--lgn-card);
+  --poster-ink: var(--lgn-ink);
+  --ink-on-home: var(--lgn-ink);
+  --eyebrow-ink: var(--lgn-ink-2);
+  --link-ink: var(--lgn-accent);
 }
 
 /* Scrollable content area: fills above the tab bar (reserve ~56px + the
@@ -29,9 +67,13 @@
   bottom: 0;
 }
 
-/* Router view wrapper — top-of-stack only, animated on push/pop. */
+/* Router view wrapper — top-of-stack only, animated on push/pop. Flex column so
+   a screen root can opt into filling the full content height (AI composer pin)
+   via `flex: 1`; flowing screens keep their natural height. */
 .viewWrap {
   min-height: 100%;
+  display: flex;
+  flex-direction: column;
   will-change: transform, opacity;
 }
 .slideFwd {

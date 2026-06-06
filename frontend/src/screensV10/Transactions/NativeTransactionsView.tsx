@@ -34,7 +34,7 @@ import {
 } from '../native/NativePrimitives';
 import { CategoryIcon } from '../native/CategoryIcon';
 import { formatMoneyNative, formatMoneyRubNative } from '../native/money';
-import { PeriodSwitcher } from '../common';
+import { NativePeriodSwitcher } from '../native/NativePeriodSwitcher';
 import { useNavLevel } from '../native/NavLevel';
 import type { PeriodRead } from '../../api/types';
 import type {
@@ -148,7 +148,7 @@ function NativeTransactionsViewInner(props: NativeTransactionsViewProps) {
 
       {showSwitcher && (
         <div className={styles.switcherRow}>
-          <PeriodSwitcher
+          <NativePeriodSwitcher
             periods={periods!}
             selectedId={selectedPeriodId!}
             onSelect={onSelectPeriod!}

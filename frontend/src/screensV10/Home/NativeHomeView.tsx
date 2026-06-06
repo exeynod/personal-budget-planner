@@ -10,7 +10,7 @@
 // HomeView) + router handlers. The «+» uses the AddSheetHost context.
 
 import { memo, useState } from 'react';
-import { Plus } from '@phosphor-icons/react';
+import { Plus, ListChecks, CaretRight } from '@phosphor-icons/react';
 import type { PeriodRead } from '../../api/types';
 import type { CategoryAggregateRow } from './computeHomeData';
 import {
@@ -22,7 +22,7 @@ import {
   CircleButton,
 } from '../native/NativePrimitives';
 import { CategoryIcon } from '../native/CategoryIcon';
-import { PeriodSwitcher } from '../common';
+import { NativePeriodSwitcher } from '../native/NativePeriodSwitcher';
 import { useAddSheetHost } from '../native/AddSheetHost';
 import { formatMoneyNative, formatSignedMoneyNative } from '../native/money';
 import styles from './NativeHomeView.module.css';
@@ -32,6 +32,7 @@ export interface NativeHomeViewProps {
   expenseRows: CategoryAggregateRow[];
   incomeRows: CategoryAggregateRow[];
   onWalletTap: () => void;
+  onPlanTap: () => void;
   onCategoryTap: (id: number) => void;
   periods?: PeriodRead[];
   selectedPeriodId?: number | null;
@@ -53,6 +54,7 @@ function NativeHomeViewInner(props: NativeHomeViewProps) {
     expenseRows,
     incomeRows,
     onWalletTap,
+    onPlanTap,
     onCategoryTap,
     periods,
     selectedPeriodId,
@@ -93,8 +95,8 @@ function NativeHomeViewInner(props: NativeHomeViewProps) {
       />
 
       {showSwitcher && (
-        <div style={{ padding: '0 16px 4px' }}>
-          <PeriodSwitcher
+        <div className={styles.switcherRow}>
+          <NativePeriodSwitcher
             periods={periods!}
             selectedId={selectedPeriodId!}
             onSelect={onSelectPeriod!}
@@ -138,6 +140,22 @@ function NativeHomeViewInner(props: NativeHomeViewProps) {
             </span>
           </div>
         </div>
+      </button>
+
+      {/* План месяца — opens the Plan editor (same onPlanTap as the poster). */}
+      <button
+        type="button"
+        className={styles.planRow}
+        onClick={onPlanTap}
+        data-testid="native-home-plan"
+      >
+        <span className={styles.planIcon}>
+          <ListChecks size={20} weight="regular" />
+        </span>
+        <span className={styles.planLabel}>План месяца</span>
+        <span className={styles.planChevron} aria-hidden="true">
+          <CaretRight size={16} weight="bold" />
+        </span>
       </button>
 
       {/* Расходы / Доходы */}

@@ -1,0 +1,55 @@
+/* Liquid Glass v2 — native period switcher. Centered ‹ Месяц ГГГГ › pill.
+   Dark readable iOS ink on a subtle glass pill. Scoped (CSS module). */
+
+.wrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin: 0 auto;
+  padding: 5px 8px;
+  background: var(--lgn-card);
+  -webkit-backdrop-filter: var(--lgn-glass-blur);
+  backdrop-filter: var(--lgn-glass-blur);
+  border: 1px solid var(--lgn-hairline-soft);
+  border-radius: var(--lgn-r-pill);
+  box-shadow: var(--lgn-shadow-card);
+  font-family: var(--lgn-font);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.navBtn {
+  width: 26px;
+  height: 26px;
+  border: 0;
+  background: transparent;
+  color: var(--lgn-blue);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  padding: 0;
+  border-radius: 50%;
+}
+
+.navBtn:disabled {
+  opacity: 0.3;
+  cursor: default;
+  pointer-events: none;
+}
+
+.navBtn:active {
+  background: var(--lgn-card-press);
+}
+
+.label {
+  min-width: 116px;
+  text-align: center;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.01em;
+  color: var(--lgn-ink);
+  white-space: nowrap;
+}

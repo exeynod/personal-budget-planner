@@ -76,6 +76,8 @@
   border: none;
   border-radius: var(--lgn-r-card);
   background: var(--lgn-card);
+  -webkit-backdrop-filter: var(--lgn-glass-blur);
+  backdrop-filter: var(--lgn-glass-blur);
   box-shadow: var(--lgn-shadow-card);
   padding: 12px var(--lgn-s-16);
   font-family: var(--lgn-font);
@@ -131,6 +133,8 @@
   border: none;
   border-radius: var(--lgn-r-button);
   background: var(--lgn-card);
+  -webkit-backdrop-filter: var(--lgn-glass-blur);
+  backdrop-filter: var(--lgn-glass-blur);
   box-shadow: var(--lgn-shadow-card);
   height: 52px;
   display: flex;
@@ -213,6 +217,8 @@
   color: var(--lgn-ink-2);
   padding: 10px 0 2px;
   background: var(--lgn-card);
+  -webkit-backdrop-filter: var(--lgn-glass-blur);
+  backdrop-filter: var(--lgn-glass-blur);
   border-radius: var(--lgn-r-sheet) var(--lgn-r-sheet) 0 0;
 }
 .actionGroup {
@@ -221,6 +227,8 @@
   max-height: 50vh;
   overflow-y: auto;
   background: var(--lgn-card);
+  -webkit-backdrop-filter: var(--lgn-glass-blur);
+  backdrop-filter: var(--lgn-glass-blur);
   border-radius: 0 0 var(--lgn-r-sheet) var(--lgn-r-sheet);
 }
 .actionItem,
@@ -228,6 +236,8 @@
   appearance: none;
   border: none;
   background: var(--lgn-card);
+  -webkit-backdrop-filter: var(--lgn-glass-blur);
+  backdrop-filter: var(--lgn-glass-blur);
   display: flex;
   align-items: center;
   gap: 12px;
@@ -278,6 +288,8 @@
   appearance: none;
   border: none;
   background: var(--lgn-card);
+  -webkit-backdrop-filter: var(--lgn-glass-blur);
+  backdrop-filter: var(--lgn-glass-blur);
   border-radius: var(--lgn-r-sheet);
   padding: 15px;
   font-family: var(--lgn-font);

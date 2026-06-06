@@ -84,6 +84,8 @@
   font-size: 15px;
   font-family: var(--lgn-font);
   background: var(--lgn-card);
+  -webkit-backdrop-filter: var(--lgn-glass-blur);
+  backdrop-filter: var(--lgn-glass-blur);
   border-radius: var(--lgn-r-card);
   box-shadow: var(--lgn-shadow-card);
 }

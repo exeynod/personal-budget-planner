@@ -8,6 +8,8 @@
 
 /* Period switcher */
 .switcherRow {
+  display: flex;
+  justify-content: center;
   padding: 0 var(--lgn-s-16) 4px;
 }
 
@@ -81,6 +83,8 @@
   font-size: 15px;
   font-family: var(--lgn-font);
   background: var(--lgn-card);
+  -webkit-backdrop-filter: var(--lgn-glass-blur);
+  backdrop-filter: var(--lgn-glass-blur);
   border-radius: var(--lgn-r-card);
   box-shadow: var(--lgn-shadow-card);
 }
@@ -111,6 +115,8 @@
 }
 .sheetGroup {
   background: var(--lgn-card);
+  -webkit-backdrop-filter: var(--lgn-glass-blur);
+  backdrop-filter: var(--lgn-glass-blur);
   border-radius: var(--lgn-r-card);
   box-shadow: var(--lgn-shadow-float);
   overflow: hidden;
@@ -154,6 +160,8 @@
 }
 .sheetCancel {
   background: var(--lgn-card);
+  -webkit-backdrop-filter: var(--lgn-glass-blur);
+  backdrop-filter: var(--lgn-glass-blur);
   border: none;
   border-radius: var(--lgn-r-card);
   box-shadow: var(--lgn-shadow-float);

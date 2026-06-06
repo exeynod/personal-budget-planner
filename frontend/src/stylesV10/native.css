@@ -15,11 +15,16 @@
  */
 
 :root {
-  /* Surfaces */
-  --lgn-bg: #f2f2f7; /* systemGroupedBackground */
-  --lgn-card: #ffffff; /* grouped cell / card */
-  --lgn-card-press: #e9e9ef; /* cell highlight on tap */
-  --lgn-chrome: rgba(249, 249, 249, 0.94); /* nav/tab bar material */
+  /* Surfaces — Liquid Glass: translucent + backdrop-blur over an aurora field.
+     Cards use `background: var(--lgn-card)` + `backdrop-filter: var(--lgn-glass-blur)`
+     so they frost whatever colourful aurora sits behind them. */
+  --lgn-bg: #eef0f5; /* light base under the aurora */
+  --lgn-card: rgba(255, 255, 255, 0.55); /* frosted glass cell / card */
+  --lgn-card-solid: #ffffff; /* opaque fallback / inner tiles */
+  --lgn-card-press: rgba(233, 233, 239, 0.85); /* cell highlight on tap */
+  --lgn-chrome: rgba(248, 248, 250, 0.72); /* nav/tab bar material */
+  --lgn-glass-blur: blur(22px) saturate(175%); /* the frosted-glass filter */
+  --lgn-glass-border: rgba(255, 255, 255, 0.55); /* top-edge light on glass */
 
   /* Ink (label hierarchy) */
   --lgn-ink: #1c1c1e; /* label */
@@ -64,6 +69,18 @@
     'SF Pro', 'Helvetica Neue', system-ui, Arial, sans-serif;
 
   /* Elevation */
-  --lgn-shadow-card: 0 1px 2px rgba(0, 0, 0, 0.04);
-  --lgn-shadow-float: 0 4px 16px rgba(0, 0, 0, 0.12);
+  --lgn-shadow-card: 0 1px 10px rgba(60, 60, 80, 0.06);
+  --lgn-shadow-float: 0 8px 28px rgba(60, 60, 80, 0.16);
+}
+
+/* Browsers without backdrop-filter: fall back to opaque cards so text stays
+   readable (no see-through-without-blur). */
+@supports not (
+  (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))
+) {
+  :root {
+    --lgn-card: #ffffff;
+    --lgn-card-press: #e9e9ef;
+    --lgn-chrome: #f8f8fa;
+  }
 }

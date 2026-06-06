@@ -85,6 +85,17 @@ const PERIOD = {
   closed_at: null,
 };
 
+// A prior closed period so the native period switcher (≥2 periods) renders.
+const PERIOD_PREV = {
+  id: 4,
+  period_start: '2026-04-01',
+  period_end: '2026-04-30',
+  starting_balance_cents: 0,
+  ending_balance_cents: 0,
+  status: 'closed',
+  closed_at: '2026-05-01T00:00:00Z',
+};
+
 function act(id: number, category_id: number, amount_cents: number) {
   return {
     id,
@@ -137,7 +148,7 @@ async function installNative(page: Page) {
       },
       {
         pattern: '**/api/v1/periods',
-        handler: (r) => r.fulfill(json([PERIOD])),
+        handler: (r) => r.fulfill(json([PERIOD, PERIOD_PREV])),
       },
       {
         pattern: '**/api/v1/periods/current',

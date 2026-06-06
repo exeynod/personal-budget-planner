@@ -415,6 +415,7 @@ export function HomeMount() {
           expenseRows={vm.categoryRows}
           incomeRows={vm.incomeRows}
           onWalletTap={onWalletTap}
+          onPlanTap={onPlanTap}
           onCategoryTap={onCategoryTap}
           periods={sel?.periods}
           selectedPeriodId={selectedPeriodId}

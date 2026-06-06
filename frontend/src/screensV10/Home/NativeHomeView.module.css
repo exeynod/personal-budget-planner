@@ -6,10 +6,60 @@
   padding-bottom: 24px;
 }
 
+/* Period switcher row — centered native pill. */
+.switcherRow {
+  display: flex;
+  justify-content: center;
+  padding: 0 var(--lgn-s-16) 4px;
+}
+
+/* План месяца row — glass card row, opens the Plan editor. */
+.planRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 12px var(--lgn-s-16) 0;
+  padding: 13px var(--lgn-s-16);
+  width: auto;
+  background: var(--lgn-card);
+  -webkit-backdrop-filter: var(--lgn-glass-blur);
+  backdrop-filter: var(--lgn-glass-blur);
+  border: none;
+  border-radius: var(--lgn-r-card);
+  box-shadow: var(--lgn-shadow-card);
+  font-family: var(--lgn-font);
+  cursor: pointer;
+  text-align: left;
+}
+.planRow:active {
+  background: var(--lgn-card-press);
+}
+.planIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--lgn-blue);
+  flex-shrink: 0;
+}
+.planLabel {
+  flex: 1 1 auto;
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--lgn-ink);
+}
+.planChevron {
+  display: flex;
+  align-items: center;
+  color: var(--lgn-ink-3);
+  flex-shrink: 0;
+}
+
 /* Balance card */
 .balanceCard {
   margin: 8px var(--lgn-s-16) 0;
   background: var(--lgn-card);
+  -webkit-backdrop-filter: var(--lgn-glass-blur);
+  backdrop-filter: var(--lgn-glass-blur);
   border-radius: var(--lgn-r-card);
   box-shadow: var(--lgn-shadow-card);
   padding: 14px var(--lgn-s-16) 16px;
@@ -91,6 +141,8 @@
   font-size: 15px;
   font-family: var(--lgn-font);
   background: var(--lgn-card);
+  -webkit-backdrop-filter: var(--lgn-glass-blur);
+  backdrop-filter: var(--lgn-glass-blur);
   border-radius: var(--lgn-r-card);
   box-shadow: var(--lgn-shadow-card);
 }

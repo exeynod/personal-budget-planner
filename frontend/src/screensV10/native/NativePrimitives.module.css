@@ -78,6 +78,8 @@
 .insetGroup {
   margin: 0 var(--lgn-s-16);
   background: var(--lgn-card);
+  -webkit-backdrop-filter: var(--lgn-glass-blur);
+  backdrop-filter: var(--lgn-glass-blur);
   border-radius: var(--lgn-r-card);
   box-shadow: var(--lgn-shadow-card);
   overflow: hidden;
@@ -194,6 +196,8 @@
   border-radius: var(--lgn-r-pill);
   border: none;
   background: var(--lgn-card);
+  -webkit-backdrop-filter: var(--lgn-glass-blur);
+  backdrop-filter: var(--lgn-glass-blur);
   color: var(--lgn-accent);
   box-shadow: var(--lgn-shadow-card);
   cursor: pointer;

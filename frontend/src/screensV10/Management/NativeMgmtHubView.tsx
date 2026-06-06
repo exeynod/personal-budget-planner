@@ -38,6 +38,40 @@ import { SavingsMount } from '../Savings';
 import type { MgmtHubViewProps, MgmtRowId } from './MgmtHubView';
 import styles from './NativeMgmtHubView.module.css';
 
+/** Shape of `window.Telegram.WebApp.initDataUnsafe.user` we care about. */
+interface TgUser {
+  id?: number;
+  first_name?: string;
+  last_name?: string;
+  username?: string;
+}
+
+/**
+ * Resolve the real Telegram user for the card. In a Mini App the user is
+ * available synchronously at `window.Telegram.WebApp.initDataUnsafe.user`.
+ * Outside Telegram (browser/tests) it's undefined — callers fall back to a
+ * neutral label, never a bare «—».
+ */
+function readTgUser(): TgUser | null {
+  if (typeof window === 'undefined') return null;
+  const wa = window.Telegram?.WebApp as
+    | { initDataUnsafe?: { user?: TgUser } }
+    | undefined;
+  const user = wa?.initDataUnsafe?.user;
+  return user && typeof user === 'object' ? user : null;
+}
+
+/** Build the display name from the TG user, with a graceful fallback chain. */
+function resolveUserName(user: TgUser | null): string {
+  if (user) {
+    const full = `${user.first_name ?? ''} ${user.last_name ?? ''}`.trim();
+    if (full) return full;
+    if (user.username) return `@${user.username}`;
+    if (user.id != null) return `ID ${user.id}`;
+  }
+  return 'Пользователь';
+}
+
 interface NativeRowDef {
   id: MgmtRowId;
   title: string;
@@ -111,12 +145,17 @@ function NativeMgmtHubViewInner(props: MgmtHubViewProps) {
   // Mirror the poster gate: «Доступ» (owner-only) hidden for members.
   const visible = ROWS.filter((r) => !r.ownerOnly || isOwner);
 
-  // The poster view receives no user name/role beyond `isOwner`; the iOS
-  // reference shows a static «Пользователь» label + a role subtitle, so we
-  // derive both from the single prop available.
-  const userName = 'Пользователь';
+  // Real Telegram user (Mini App runtime). Name resolves from initData; role
+  // comes from the `isOwner` prop. Outside Telegram we degrade to a neutral
+  // label — never the bare «—» the placeholder used to show.
+  const tgUser = readTgUser();
+  const userName = resolveUserName(tgUser);
   const avatarLetter = userName.charAt(0).toUpperCase();
-  const roleSubtitle = `${isOwner ? 'owner' : 'member'} · —`;
+  const role = isOwner ? 'Владелец' : 'Участник';
+  // Show «@username · Владелец» when a handle exists, else just the role.
+  const roleSubtitle = tgUser?.username
+    ? `@${tgUser.username} · ${role}`
+    : role;
 
   return (
     <div className={styles.root} data-testid="native-mgmt-hub-view">

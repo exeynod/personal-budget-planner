@@ -29,6 +29,8 @@
   margin: 8px var(--lgn-s-16) 0;
   padding: 18px var(--lgn-s-16) 20px;
   background: var(--lgn-card);
+  -webkit-backdrop-filter: var(--lgn-glass-blur);
+  backdrop-filter: var(--lgn-glass-blur);
   border-radius: var(--lgn-r-card);
   box-shadow: var(--lgn-shadow-card);
 }
@@ -117,6 +119,8 @@
   color: var(--lgn-ink-2);
   font-size: 15px;
   background: var(--lgn-card);
+  -webkit-backdrop-filter: var(--lgn-glass-blur);
+  backdrop-filter: var(--lgn-glass-blur);
   border-radius: var(--lgn-r-card);
   box-shadow: var(--lgn-shadow-card);
 }
@@ -198,6 +202,8 @@
 }
 .ctaGhost {
   background: var(--lgn-card);
+  -webkit-backdrop-filter: var(--lgn-glass-blur);
+  backdrop-filter: var(--lgn-glass-blur);
   color: var(--lgn-accent);
   box-shadow: var(--lgn-shadow-card);
 }

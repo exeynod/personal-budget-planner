@@ -3,26 +3,34 @@
 .root {
   display: flex;
   flex-direction: column;
-  min-height: 100%;
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
+/* Scrollable region — fills all space above the composer; scrolls on overflow
+   so the composer stays pinned to the bottom in both initial and active states. */
 .body {
   flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
-  min-height: 0;
 }
 
 /* ─────────── Initial state ─────────── */
 .initial {
   display: flex;
   flex-direction: column;
+  flex: 1 1 auto;
+  padding-bottom: 8px;
 }
 
 /* Observation hero — white grouped card */
 .obsCard {
   margin: 8px var(--lgn-s-16) 0;
   background: var(--lgn-card);
+  -webkit-backdrop-filter: var(--lgn-glass-blur);
+  backdrop-filter: var(--lgn-glass-blur);
   border-radius: var(--lgn-r-card);
   box-shadow: var(--lgn-shadow-card);
   padding: 18px var(--lgn-s-16) 16px;
@@ -85,6 +93,8 @@
 .msgAi {
   align-self: flex-start;
   background: var(--lgn-card);
+  -webkit-backdrop-filter: var(--lgn-glass-blur);
+  backdrop-filter: var(--lgn-glass-blur);
   color: var(--lgn-ink);
   box-shadow: var(--lgn-shadow-card);
   padding: 10px 14px;
@@ -103,6 +113,8 @@
   padding: 14px 16px;
   align-items: center;
   background: var(--lgn-card);
+  -webkit-backdrop-filter: var(--lgn-glass-blur);
+  backdrop-filter: var(--lgn-glass-blur);
   box-shadow: var(--lgn-shadow-card);
   border-radius: 18px;
   border-bottom-left-radius: 5px;
@@ -140,12 +152,9 @@
   padding: 0;
 }
 
-/* ─────────── Composer (sticky bottom) ─────────── */
+/* ─────────── Composer (bottom-pinned bar) ─────────── */
 .composer {
-  position: sticky;
-  bottom: 0;
-  left: 0;
-  right: 0;
+  flex: 0 0 auto;
   display: flex;
   gap: 8px;
   align-items: center;
@@ -162,6 +171,8 @@
   font-size: 16px;
   color: var(--lgn-ink);
   background: var(--lgn-card);
+  -webkit-backdrop-filter: var(--lgn-glass-blur);
+  backdrop-filter: var(--lgn-glass-blur);
   border: 1px solid var(--lgn-hairline-soft);
   border-radius: var(--lgn-r-pill);
   padding: 10px 16px;
