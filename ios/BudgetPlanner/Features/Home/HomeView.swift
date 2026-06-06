@@ -71,6 +71,9 @@ struct HomeView: View {
         NavigationStack {
             content
                 .navigationTitle("Главная")
+                .navigationDestination(for: CategoryDetailRoute.self) { route in
+                    CategoryLadderView(route: route)
+                }
                 .toolbar {
                     ToolbarItem(placement: .topBarTrailing) {
                         Button {
@@ -192,7 +195,9 @@ private struct HomeList: View {
                         .foregroundStyle(.secondary)
                 } else {
                     ForEach(rows) { row in
-                        CategoryListRow(row: row)
+                        NavigationLink(value: detailRoute(for: row)) {
+                            CategoryListRow(row: row)
+                        }
                     }
                 }
             }
@@ -201,6 +206,19 @@ private struct HomeList: View {
         .refreshable {
             await onRefresh?()
         }
+    }
+
+    /// Navigation value for the pushed CategoryDetail drill-down. Carries the
+    /// per-category figures already loaded for the Home list (plan/fact) plus the
+    /// active period id so the detail can scope its own actuals/planned fetches.
+    private func detailRoute(for row: BalanceCategoryRow) -> CategoryDetailRoute {
+        CategoryDetailRoute(
+            categoryId: row.categoryId,
+            name: row.name,
+            kind: row.kind,
+            plannedCents: row.plannedCents,
+            actualCents: row.actualCents,
+            periodId: period.id)
     }
 
     private var filteredRows: [BalanceCategoryRow] {
