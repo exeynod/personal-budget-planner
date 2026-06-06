@@ -623,3 +623,47 @@ export interface AccountResponse {
 import type { CategoryV10, CategoryTag } from './generated/adapters';
 
 export type { CategoryV10, CategoryTag };
+
+// ---------- v1.1 planning rework — generated-backed wire shapes ----------
+//
+// These mirror the regenerated OpenAPI schema (`generated/schema.ts`) for the
+// planning rework endpoints. We alias the generated component shapes so the
+// web wrappers stay byte-in-sync with the backend contract (no hand drift).
+//
+// NB: the legacy hand-written `TemplateItemRead` / `PlannedRead` /
+// `PlannedCreatePayload` above are the OLD (pre-rework) contract and are kept
+// only for backward source-compat; the v1.1 wrappers use the V11* aliases
+// below sourced straight from the generated schema.
+import type { components } from './generated/schema';
+
+/** GET /periods/{id}/planned item — includes posted_txn_id bridge (v1.1). */
+export type PlannedV11Read = components['schemas']['PlannedRead'];
+/** POST /periods/{id}/planned body. */
+export type PlannedV11Create = components['schemas']['PlannedCreate'];
+/** PATCH /planned/{id} body (partial). */
+export type PlannedV11Update = components['schemas']['PlannedUpdate'];
+/** POST .../planned/{id}/post body. */
+export type PostPlannedRequest = components['schemas']['PostPlannedRequest'];
+export type PostPlannedResponse = components['schemas']['PostPlannedResponse'];
+export type PostPlannedBatchRequest =
+  components['schemas']['PostPlannedBatchRequest'];
+export type PostPlannedBatchResponse =
+  components['schemas']['PostPlannedBatchResponse'];
+
+/** Template (reusable) — limits + recurring lines. */
+export type TemplateItemV11Read = components['schemas']['TemplateItemRead'];
+export type TemplateItemV11Upsert = components['schemas']['TemplateItemUpsert'];
+export type TemplateLineV11Read = components['schemas']['TemplateLineRead'];
+export type TemplateLineV11Create = components['schemas']['TemplateLineCreate'];
+export type TemplateLineV11Update = components['schemas']['TemplateLineUpdate'];
+
+/** Per-period category limit snapshot (план месяца). */
+export type PeriodPlanRow = components['schemas']['PeriodPlanRow'];
+export type PeriodPlanResponse = components['schemas']['PeriodPlanResponse'];
+export type PeriodPlanUpdate = components['schemas']['PeriodPlanUpdate'];
+
+/** Balance reconcile («Привести остаток»). */
+export type ReconcileBalanceRequest =
+  components['schemas']['ReconcileBalanceRequest'];
+export type ReconcileBalanceResponse =
+  components['schemas']['ReconcileBalanceResponse'];

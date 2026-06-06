@@ -41,6 +41,52 @@ export type {
   PlanMonthResponse,
 } from './planMonth';
 
+// v1.1 planning rework — planned-transaction detail surface + posting bridge.
+export {
+  listPlanned,
+  createPlanned,
+  patchPlanned,
+  deletePlanned,
+  postPlanned,
+  unpostPlanned,
+  postPlannedBatch,
+} from './planned';
+export type {
+  PlannedV11Read,
+  PlannedV11Create,
+  PlannedV11Update,
+  PostPlannedResponse,
+  PostPlannedBatchResponse,
+} from './planned';
+
+// v1.1 planning rework — reusable budget template (limits + recurring lines).
+export {
+  listTemplateItems,
+  upsertTemplateItem,
+  listTemplateLines,
+  createTemplateLine,
+  patchTemplateLine,
+  deleteTemplateLine,
+} from './planTemplate';
+export type {
+  TemplateItemV11Read,
+  TemplateItemV11Upsert,
+  TemplateLineV11Read,
+  TemplateLineV11Create,
+  TemplateLineV11Update,
+} from './planTemplate';
+
+// v1.1 planning rework — per-period category limits (month-plan snapshot).
+export { getPeriodPlan, patchPeriodPlan } from './periodPlan';
+export type { PeriodPlanRow, PeriodPlanResponse } from './periodPlan';
+
+// v1.1 planning rework — balance reconcile («Привести остаток»).
+export { reconcileBalance } from './balance';
+export type {
+  ReconcileBalanceRequest,
+  ReconcileBalanceResponse,
+} from './balance';
+
 // Phase 27-02 — AI observation (initial-state DM Serif text).
 export { fetchObservation } from './ai';
 export type { ObservationResponse } from './ai';
