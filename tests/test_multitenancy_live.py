@@ -17,6 +17,7 @@ pre-existing breakage. Tracked для будущего conftest fix (out of scop
 Это complement к Phase 11 test_multitenancy_isolation — там через service
 layer; здесь — raw SQL под non-superuser ролью.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -52,8 +53,8 @@ async def _seed_category(db_session, user_id: int, code: str, name: str) -> int:
     result = await db_session.execute(
         text(
             "INSERT INTO category "
-            "(user_id, name, kind, sort_order, plan_cents, code, ord, rollover, paused) "
-            "VALUES (:uid, :name, 'expense', 10, 0, :code, '01', 'misc', false) "
+            "(user_id, name, kind, sort_order, plan_cents, code, ord) "
+            "VALUES (:uid, :name, 'expense', 10, 0, :code, '01') "
             "RETURNING id"
         ),
         {"uid": user_id, "name": name, "code": code},
@@ -84,8 +85,6 @@ async def _cleanup_user(db_session, user_id: int) -> None:
         "category_embedding",
         "actual_transaction",
         "planned_transaction",
-        "savings_config",
-        "goal",
         "subscription",
         "account",
         "budget_period",
@@ -101,9 +100,7 @@ async def _cleanup_user(db_session, user_id: int) -> None:
     )
 
 
-async def test_userB_cannot_see_userA_actual_via_raw_sql(
-    db_session, _rls_test_role
-):
+async def test_userB_cannot_see_userA_actual_via_raw_sql(db_session, _rls_test_role):
     """REQ-32-01: cross-tenant raw-SQL isolation — userB не видит row userA."""
     # Unique tg_user_ids (collision-resistant).
     tg_a = 9_100_000_000 + (uuid.uuid4().int & 0xFFFF)
@@ -140,9 +137,7 @@ async def test_userB_cannot_see_userA_actual_via_raw_sql(
             {"id": tx_id},
         )
         rows = result.fetchall()
-        assert rows == [], (
-            f"userB sees userA's transaction id={tx_id}: {rows}"
-        )
+        assert rows == [], f"userB sees userA's transaction id={tx_id}: {rows}"
 
         # Direct UPDATE attempt — должно вернуть 0 affected rows.
         result = await db_session.execute(
@@ -168,9 +163,7 @@ async def test_userB_cannot_see_userA_actual_via_raw_sql(
         await db_session.commit()
 
 
-async def test_userB_cannot_insert_actual_for_userA(
-    db_session, _rls_test_role
-):
+async def test_userB_cannot_insert_actual_for_userA(db_session, _rls_test_role):
     """REQ-32-01: cross-tenant write — userB session не может INSERT с user_id=userA."""
     tg_a = 9_200_000_000 + (uuid.uuid4().int & 0xFFFF)
     tg_b = 9_200_000_000 + (uuid.uuid4().int & 0xFFFF) + 1

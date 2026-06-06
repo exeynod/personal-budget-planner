@@ -4,6 +4,7 @@ Pure-Python tests (no DB) for the is_due_for_purge logic, plus an
 integration test that drives the DELETE /me/account endpoint through
 the ASGI app under DEV_MODE.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -29,9 +30,7 @@ async def api_client():
     from main_api import app
 
     transport = ASGITransport(app=app)
-    async with AsyncClient(
-        transport=transport, base_url="http://test"
-    ) as client:
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
         yield client
 
 
@@ -61,13 +60,9 @@ async def delete_test_user():
             row = result.first()
             if row:
                 uid = row[0]
-                uid_hash = hashlib.sha256(
-                    str(uid).encode("utf-8")
-                ).hexdigest()
+                uid_hash = hashlib.sha256(str(uid).encode("utf-8")).hexdigest()
                 await conn.execute(
-                    text(
-                        "DELETE FROM pdn_audit_log WHERE user_id_hash = :h"
-                    ),
+                    text("DELETE FROM pdn_audit_log WHERE user_id_hash = :h"),
                     {"h": uid_hash},
                 )
                 await conn.execute(
@@ -126,10 +121,12 @@ def test_purge_order_includes_all_tenant_tables():
         "category_embedding",
         "actual_transaction",
         "planned_transaction",
+        # v1.1: goal/savings_config dropped; plan-template + per-period plan added.
+        "period_category_plan",
+        "plan_template_line",
+        "plan_template_item",
         "subscription",
         "budget_period",
-        "goal",
-        "savings_config",
         "account",
         "category",
     }

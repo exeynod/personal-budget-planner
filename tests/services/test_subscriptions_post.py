@@ -52,8 +52,6 @@ async def _truncate_v1_tables(session):
         "actual_transaction",
         "planned_transaction",
         "subscription",
-        "savings_config",
-        "goal",
         "account",
         "budget_period",
         "category",

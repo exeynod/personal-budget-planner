@@ -65,8 +65,6 @@ async def _hard_cleanup(tg_user_id: int) -> None:
                 "category_embedding",
                 "actual_transaction",
                 "planned_transaction",
-                "savings_config",
-                "goal",
                 "subscription",
                 "account",
                 "budget_period",

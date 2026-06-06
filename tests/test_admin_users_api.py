@@ -398,7 +398,7 @@ async def test_admin_delete_user_cascade_purges_data(
         for table in (
             "category", "budget_period", "actual_transaction",
             "planned_transaction", "subscription",
-            "savings_config", "goal", "account",
+            "account",
             "category_embedding", "ai_conversation", "ai_message",
         ):
             result = await s.execute(

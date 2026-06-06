@@ -35,6 +35,7 @@ Sections
 
 Acceptance: this file's exit code is the BE-16 gate.
 """
+
 from __future__ import annotations
 
 import os
@@ -42,7 +43,7 @@ from datetime import date, datetime, timezone
 
 import pytest
 import pytest_asyncio
-from sqlalchemy import select, text
+from sqlalchemy import text
 from sqlalchemy.exc import DBAPIError, IntegrityError, ProgrammingError
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
@@ -79,9 +80,10 @@ async def _truncate_v1_tables(session: AsyncSession) -> None:
         "category_embedding",
         "actual_transaction",
         "planned_transaction",
+        "period_category_plan",
+        "plan_template_line",
+        "plan_template_item",
         "subscription",
-        "savings_config",
-        "goal",
         "account",
         "budget_period",
         "category",
@@ -157,9 +159,7 @@ async def runtime_session():
     fail loudly if that session also turns out to be SUPERUSER.
     """
     _require_db()
-    runtime_url = (
-        os.environ.get("RUNTIME_DATABASE_URL") or os.environ["DATABASE_URL"]
-    )
+    runtime_url = os.environ.get("RUNTIME_DATABASE_URL") or os.environ["DATABASE_URL"]
     engine = create_async_engine(runtime_url, echo=False, pool_pre_ping=True)
     Session = async_sessionmaker(engine, expire_on_commit=False)
     try:
@@ -216,34 +216,42 @@ async def test_account_has_tenant_isolation_policy(admin_session):
     )
 
 
-async def test_goal_has_tenant_isolation_policy(admin_session):
-    """BE-16: pg_policy contains ``tenant_isolation_goal`` on table goal."""
-    result = await admin_session.execute(
-        text("SELECT polname FROM pg_policy WHERE polrelid = 'goal'::regclass")
-    )
-    names = {r[0] for r in result.all()}
-    assert "tenant_isolation_goal" in names, (
-        f"Expected tenant_isolation_goal policy on goal; got {names}"
-    )
-
-
-async def test_savings_config_has_tenant_isolation_policy(admin_session):
-    """BE-16: pg_policy contains ``tenant_isolation_savings_config`` on savings_config."""
+async def test_plan_template_item_has_tenant_isolation_policy(admin_session):
+    """v1.1: tenant_isolation_plan_template_item policy exists (alembic 0028)."""
     result = await admin_session.execute(
         text(
             "SELECT polname FROM pg_policy "
-            "WHERE polrelid = 'savings_config'::regclass"
+            "WHERE polrelid = 'plan_template_item'::regclass"
         )
     )
     names = {r[0] for r in result.all()}
-    assert "tenant_isolation_savings_config" in names, (
-        f"Expected tenant_isolation_savings_config policy; got {names}"
+    assert "tenant_isolation_plan_template_item" in names, (
+        f"Expected tenant_isolation_plan_template_item policy; got {names}"
+    )
+
+
+async def test_period_category_plan_has_tenant_isolation_policy(admin_session):
+    """v1.1: tenant_isolation_period_category_plan policy exists (alembic 0028)."""
+    result = await admin_session.execute(
+        text(
+            "SELECT polname FROM pg_policy "
+            "WHERE polrelid = 'period_category_plan'::regclass"
+        )
+    )
+    names = {r[0] for r in result.all()}
+    assert "tenant_isolation_period_category_plan" in names, (
+        f"Expected tenant_isolation_period_category_plan policy; got {names}"
     )
 
 
 async def test_v10_tables_force_rls_enabled(admin_session):
-    """BE-16: ENABLE + FORCE ROW LEVEL SECURITY set on all 3 v1.0 RLS tables."""
-    for tbl in ("account", "goal", "savings_config"):
+    """v1.1: ENABLE + FORCE ROW LEVEL SECURITY set on account + plan tables."""
+    for tbl in (
+        "account",
+        "plan_template_item",
+        "plan_template_line",
+        "period_category_plan",
+    ):
         result = await admin_session.execute(
             text(
                 "SELECT relrowsecurity, relforcerowsecurity "
@@ -280,9 +288,7 @@ async def test_user_a_cannot_select_user_b_accounts(
 
     # Query under A's scope via runtime (NOSUPERUSER) session.
     await set_tenant_scope(runtime_session, a_id)
-    result = await runtime_session.execute(
-        text("SELECT user_id FROM account")
-    )
+    result = await runtime_session.execute(text("SELECT user_id FROM account"))
     visible_user_ids = {row[0] for row in result.all()}
     assert b_id not in visible_user_ids, (
         f"Cross-tenant leak: A sees account rows belonging to B "
@@ -291,55 +297,34 @@ async def test_user_a_cannot_select_user_b_accounts(
     assert visible_user_ids.issubset({a_id})
 
 
-async def test_user_a_cannot_select_user_b_goals(
+async def test_user_a_cannot_select_user_b_plan_template_item(
     db_session, runtime_session, two_v10_users
 ):
-    """A under set_tenant_scope=A.id sees zero of B's goal rows."""
-    from app.db.models import Goal
+    """v1.1: A under set_tenant_scope=A.id sees zero of B's plan_template_item rows."""
+    from app.db.models import PlanTemplateItem
     from app.db.session import set_tenant_scope
+    from tests.helpers.seed import seed_category
 
     a_id, b_id = two_v10_users["a_id"], two_v10_users["b_id"]
 
-    # Seed B's goal via admin session.
+    # Seed B's category + template item via admin session (RLS bypass).
     await db_session.execute(text("SET LOCAL row_security = off"))
+    cat_b = await seed_category(db_session, user_id=b_id, name="B-cat", sort_order=10)
     db_session.add(
-        Goal(user_id=b_id, name="Отпуск", target_cents=500000, current_cents=0)
-    )
-    await db_session.commit()
-
-    await set_tenant_scope(runtime_session, a_id)
-    result = await runtime_session.execute(text("SELECT user_id FROM goal"))
-    visible_user_ids = {row[0] for row in result.all()}
-    assert b_id not in visible_user_ids, (
-        f"Cross-tenant leak: A sees goal rows of B (user_ids: {visible_user_ids})"
-    )
-    assert visible_user_ids.issubset({a_id})
-
-
-async def test_user_a_cannot_select_user_b_savings_config(
-    db_session, runtime_session, two_v10_users
-):
-    """A under set_tenant_scope=A.id sees zero of B's savings_config rows."""
-    from app.db.models import SavingsConfig
-    from app.db.session import set_tenant_scope
-
-    a_id, b_id = two_v10_users["a_id"], two_v10_users["b_id"]
-
-    await db_session.execute(text("SET LOCAL row_security = off"))
-    db_session.add(
-        SavingsConfig(user_id=b_id, roundup_enabled=True, roundup_base=10)
+        PlanTemplateItem(user_id=b_id, category_id=cat_b.id, limit_cents=500000)
     )
     await db_session.commit()
 
     await set_tenant_scope(runtime_session, a_id)
     result = await runtime_session.execute(
-        text("SELECT user_id FROM savings_config")
+        text("SELECT user_id FROM plan_template_item")
     )
     visible_user_ids = {row[0] for row in result.all()}
     assert b_id not in visible_user_ids, (
-        f"Cross-tenant leak: A sees savings_config rows of B "
+        f"Cross-tenant leak: A sees plan_template_item rows of B "
         f"(user_ids: {visible_user_ids})"
     )
+    assert visible_user_ids.issubset({a_id})
 
 
 # ---------------------------------------------------------------------------
@@ -383,9 +368,7 @@ async def test_user_a_cannot_update_user_b_account(
             {"acct_id": b_acct_id},
         )
     ).scalar_one()
-    assert refreshed == 10000, (
-        f"B's balance was mutated cross-tenant: {refreshed}"
-    )
+    assert refreshed == 10000, f"B's balance was mutated cross-tenant: {refreshed}"
 
 
 async def test_user_a_cannot_delete_user_b_account(
@@ -421,9 +404,7 @@ async def test_user_a_cannot_delete_user_b_account(
     assert still_there is not None, "B's account was deleted cross-tenant"
 
 
-async def test_user_a_cannot_insert_account_for_user_b(
-    runtime_session, two_v10_users
-):
+async def test_user_a_cannot_insert_account_for_user_b(runtime_session, two_v10_users):
     """A under scope=A tries INSERT account with user_id=B → RLS WITH CHECK rejects.
 
     Postgres raises ``new row violates row-level security policy`` —
@@ -439,7 +420,7 @@ async def test_user_a_cannot_insert_account_for_user_b(
         await runtime_session.execute(
             text(
                 "INSERT INTO account "
-                "(user_id, bank, kind, balance_cents, \"primary\") "
+                '(user_id, bank, kind, balance_cents, "primary") '
                 "VALUES (:uid, 'evil', 'card', 0, false)"
             ),
             {"uid": b_id},
@@ -484,9 +465,7 @@ async def _seed_category(
     return cat.id
 
 
-async def test_category_parent_id_rejects_cross_tenant(
-    db_session, two_v10_users
-):
+async def test_category_parent_id_rejects_cross_tenant(db_session, two_v10_users):
     """BE-16: composite FK on (parent_id, user_id) blocks A from referencing B's cat.
 
     A inserts a category with parent_id pointing at B's category id.
@@ -510,10 +489,10 @@ async def test_category_parent_id_rejects_cross_tenant(
             text(
                 "INSERT INTO category "
                 "(name, kind, is_archived, sort_order, user_id, plan_cents, "
-                "code, ord, rollover, paused, parent_id) "
+                "code, ord, parent_id) "
                 "VALUES "
                 "(:name, 'expense'::category_kind, false, 11, :uid, 0, "
-                ":code, '11', 'misc', false, :pid)"
+                ":code, '11', :pid)"
             ),
             {
                 "name": "A-child",
@@ -543,10 +522,10 @@ async def test_category_parent_id_within_same_tenant_succeeds(
         text(
             "INSERT INTO category "
             "(name, kind, is_archived, sort_order, user_id, plan_cents, "
-            "code, ord, rollover, paused, parent_id) "
+            "code, ord, parent_id) "
             "VALUES "
             "(:name, 'expense'::category_kind, false, 21, :uid, 0, "
-            ":code, '21', 'misc', false, :pid) "
+            ":code, '21', :pid) "
             "RETURNING id"
         ),
         {
@@ -561,9 +540,7 @@ async def test_category_parent_id_within_same_tenant_succeeds(
     assert child_id > 0
 
 
-async def _seed_period(
-    session: AsyncSession, *, user_id: int
-) -> int:
+async def _seed_period(session: AsyncSession, *, user_id: int) -> int:
     """Insert a BudgetPeriod for user; returns id."""
     from app.db.models import BudgetPeriod, PeriodStatus
     from app.db.session import set_tenant_scope
@@ -612,9 +589,7 @@ async def _seed_actual_txn(
     return txn.id
 
 
-async def test_actual_parent_txn_id_rejects_cross_tenant(
-    db_session, two_v10_users
-):
+async def test_actual_parent_txn_id_rejects_cross_tenant(db_session, two_v10_users):
     """BE-16: composite FK on (parent_txn_id, user_id) blocks cross-tenant child.
 
     Mirrors the category test: A creates an ActualTransaction with
