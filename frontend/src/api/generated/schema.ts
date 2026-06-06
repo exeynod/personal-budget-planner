@@ -1769,49 +1769,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/tax/export.csv": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Export Tax Csv
-         * @description Export user's actual_transaction в CSV (UTF-8 BOM, Excel-совместимый).
-         *
-         *     Содержит per-transaction поля + денорм category code/name/tag для
-         *     self-contained spreadsheet (Persona E archival / налоговая отчётность).
-         */
-        get: operations["export_tax_csv_api_v1_tax_export_csv_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/tax/reserve": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Tax Reserve
-         * @description Calculate tax reserve for self-employed (НПД) пользователя.
-         */
-        get: operations["get_tax_reserve_api_v1_tax_reserve_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/template/items": {
         parameters: {
             query?: never;
@@ -3468,32 +3425,6 @@ export interface components {
             confidence: number;
             /** Name */
             name?: string | null;
-        };
-        /**
-         * TaxReserveResponse
-         * @description API response shape — mirrors :class:`TaxReserveResult` dataclass.
-         */
-        TaxReserveResponse: {
-            /** Business Income Cents */
-            business_income_cents: number;
-            /** Income Cents */
-            income_cents: number;
-            /**
-             * Period End
-             * Format: date
-             */
-            period_end: string;
-            /**
-             * Period Start
-             * Format: date
-             */
-            period_start: string;
-            /** Regime */
-            regime: string;
-            /** Reserve Recommended Cents */
-            reserve_recommended_cents: number;
-            /** Tax Owed Cents */
-            tax_owed_cents: number;
         };
         /**
          * TemplateItemRead
@@ -6367,84 +6298,6 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    export_tax_csv_api_v1_tax_export_csv_get: {
-        parameters: {
-            query: {
-                /** @description Period start date (inclusive) */
-                period_start: string;
-                /** @description Period end date (inclusive) */
-                period_end: string;
-            };
-            header?: {
-                "x-telegram-init-data"?: string | null;
-                authorization?: string | null;
-                "x-test-user"?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_tax_reserve_api_v1_tax_reserve_get: {
-        parameters: {
-            query: {
-                /** @description Period start date (inclusive) */
-                period_start: string;
-                /** @description Period end date (inclusive) */
-                period_end: string;
-                /** @description НПД tax regime: 4% (физлица) или 6% (юр.лица). */
-                regime?: "nalog_4" | "nalog_6";
-            };
-            header?: {
-                "x-telegram-init-data"?: string | null;
-                authorization?: string | null;
-                "x-test-user"?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TaxReserveResponse"];
-                };
             };
             /** @description Validation Error */
             422: {

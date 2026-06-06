@@ -16,6 +16,7 @@ Routes mounted:
 Security:
 - ``docs_url=None`` when ``DEV_MODE=False`` to reduce attack surface.
 """
+
 from contextlib import asynccontextmanager
 
 import structlog
@@ -39,7 +40,9 @@ async def _init_missing_embeddings() -> None:
     so startup is never blocked by AI subsystem failures.
     """
     if not settings.ENABLE_AI_CATEGORIZATION:
-        logger.info("ai.embeddings.startup_skipped", reason="ENABLE_AI_CATEGORIZATION=False")
+        logger.info(
+            "ai.embeddings.startup_skipped", reason="ENABLE_AI_CATEGORIZATION=False"
+        )
         return
 
     if settings.OPENAI_API_KEY in ("", "changeme"):
@@ -83,7 +86,9 @@ async def _init_missing_embeddings() -> None:
                     vector = await embedding_svc.embed_text(
                         augment_category_name_for_embedding(cat.name)
                     )
-                    await embedding_svc.upsert_category_embedding(session, cat.id, vector)
+                    await embedding_svc.upsert_category_embedding(
+                        session, cat.id, vector
+                    )
                     generated += 1
                 except Exception:
                     logger.warning(
@@ -155,6 +160,7 @@ app.include_router(internal_router, prefix="/api/v1", tags=["internal"])
 # Mounted WITHOUT /api/v1 prefix so users can read policy BEFORE
 # Telegram auth occurs. No auth dependency.
 from app.api.routes.legal import legal_router  # noqa: E402
+
 app.include_router(legal_router, tags=["legal"])
 
 # Phase 34 (REQ-34-03, REQ-34-05) — YooKassa webhook endpoint.
@@ -162,15 +168,12 @@ app.include_router(legal_router, tags=["legal"])
 # admin panel). Auth: YooKassa IP allowlist (edge-level), идемпотентность
 # через UNIQUE(yookassa_payment_id) + state-transition guard в обработчике.
 from app.api.routes.webhooks.yookassa import router as yookassa_webhook_router  # noqa: E402
+
 app.include_router(yookassa_webhook_router, tags=["webhooks"])
 
 # Phase 34-05 (REQ-34-04, REQ-34-06) — user-facing billing + subscription routes.
 # Router declares its own ``/api/v1`` prefix (mirrors legal_router / yookassa
 # webhook patterns), so we include it WITHOUT an additional prefix here.
 from app.api.routes.billing import router as billing_router  # noqa: E402
-app.include_router(billing_router)
 
-# Phase 36-02 (REQ-36-02) — tax reserve calculator для Persona E (самозанятые).
-# Router declares its own ``/api/v1`` prefix.
-from app.api.routes.tax import router as tax_router  # noqa: E402
-app.include_router(tax_router)
+app.include_router(billing_router)

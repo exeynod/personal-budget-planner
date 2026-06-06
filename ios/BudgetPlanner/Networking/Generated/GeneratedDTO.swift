@@ -761,16 +761,6 @@ enum Gen {
         let name: String?
     }
 
-    struct TaxReserveResponse: Codable, Equatable {
-        let businessIncomeCents: Int
-        let incomeCents: Int
-        let periodEnd: BusinessDate
-        let periodStart: BusinessDate
-        let regime: String
-        let reserveRecommendedCents: Int
-        let taxOwedCents: Int
-    }
-
     struct TemplateItemRead: Codable, Equatable {
         let amountCents: Int
         let categoryId: Int
