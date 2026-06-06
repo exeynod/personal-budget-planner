@@ -187,7 +187,9 @@ def make_init_data(tg_user_id: int, bot_token: str, age_seconds: int = 0) -> str
     }
     data_check_string = "\n".join(f"{k}={v}" for k, v in sorted(params.items()))
     secret_key = hmac.new(b"WebAppData", bot_token.encode(), hashlib.sha256).digest()
-    calc_hash = hmac.new(secret_key, data_check_string.encode(), hashlib.sha256).hexdigest()
+    calc_hash = hmac.new(
+        secret_key, data_check_string.encode(), hashlib.sha256
+    ).hexdigest()
     params["hash"] = calc_hash
     return urlencode(params)
 
@@ -195,12 +197,14 @@ def make_init_data(tg_user_id: int, bot_token: str, age_seconds: int = 0) -> str
 @pytest.fixture
 def bot_token() -> str:
     import os
+
     # If settings has already been loaded (e.g. due to a module-level import
     # in another test file triggering app.core.settings at collection time),
     # return the token that settings.BOT_TOKEN was initialised with so that
     # make_init_data() and validate_init_data() use the same key.
     try:
         from app.core.settings import settings as _s
+
         if _s.BOT_TOKEN and _s.BOT_TOKEN != "changeme":
             return _s.BOT_TOKEN
     except Exception:
@@ -212,9 +216,11 @@ def bot_token() -> str:
 @pytest.fixture
 def owner_tg_id() -> int:
     import os
+
     # Mirror bot_token: if settings is already loaded, match its OWNER_TG_ID.
     try:
         from app.core.settings import settings as _s
+
         if _s.OWNER_TG_ID and _s.OWNER_TG_ID != 0:
             return _s.OWNER_TG_ID
     except Exception:
@@ -225,8 +231,10 @@ def owner_tg_id() -> int:
 @pytest.fixture
 def internal_token() -> str:
     import os
+
     try:
         from app.core.settings import settings as _s
+
         if _s.INTERNAL_TOKEN and _s.INTERNAL_TOKEN != "changeme":
             return _s.INTERNAL_TOKEN
     except Exception:
@@ -274,9 +282,7 @@ async def _rls_test_role():
             )
             # Grants: read+write on all current and future tables in public.
             # Required so SET LOCAL ROLE doesn't break with permission denied.
-            await conn.execute(
-                text(f"GRANT USAGE ON SCHEMA public TO {role_name}")
-            )
+            await conn.execute(text(f"GRANT USAGE ON SCHEMA public TO {role_name}"))
             await conn.execute(
                 text(
                     "GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES "
@@ -416,7 +422,8 @@ async def two_tenants(db_session):
     from sqlalchemy import text
 
     from app.db.models import (
-        AppUser, UserRole, CategoryKind,
+        UserRole,
+        CategoryKind,
         SubCycle,
     )
     from tests.helpers.seed import seed_category, seed_subscription, seed_user
@@ -438,16 +445,17 @@ async def two_tenants(db_session):
         user_ids = [row[0] for row in result.all()]
         if user_ids:
             # Сначала domain rows (FK RESTRICT) — order соответствует FK depth.
-            # Phase 22 (plan 22.13): plan_template_item table dropped (alembic 0013);
-            # account/goal/savings_config tables added (alembic 0012/0014/0015).
+            # v1.1: goal/savings_config dropped (alembic 0031); plan-template +
+            # per-period-plan tables added (alembic 0028).
             for tbl in (
                 "ai_message",
                 "ai_conversation",
                 "category_embedding",
                 "actual_transaction",
                 "planned_transaction",
-                "savings_config",
-                "goal",
+                "period_category_plan",
+                "plan_template_line",
+                "plan_template_item",
                 "subscription",
                 "account",
                 "budget_period",
@@ -469,10 +477,16 @@ async def two_tenants(db_session):
     # Create users — onboarded so Phase 14 require_onboarded gate doesn't
     # block multi-tenant isolation tests on domain endpoints.
     user_a = await seed_user(
-        db_session, tg_user_id=tg_a, role=UserRole.member, cycle_start_day=5,
+        db_session,
+        tg_user_id=tg_a,
+        role=UserRole.member,
+        cycle_start_day=5,
     )
     user_b = await seed_user(
-        db_session, tg_user_id=tg_b, role=UserRole.member, cycle_start_day=5,
+        db_session,
+        tg_user_id=tg_b,
+        role=UserRole.member,
+        cycle_start_day=5,
     )
     await db_session.flush()
 
@@ -480,35 +494,57 @@ async def two_tenants(db_session):
     # 68-05: route through seed_category() so the NOT-NULL code/ord columns are
     # populated (raw Category(...) bypassed them → IntegrityError).
     cat_a1 = await seed_category(
-        db_session, user_id=user_a.id, name="Продукты",
-        kind=CategoryKind.expense, sort_order=10,
+        db_session,
+        user_id=user_a.id,
+        name="Продукты",
+        kind=CategoryKind.expense,
+        sort_order=10,
     )
     cat_a2 = await seed_category(
-        db_session, user_id=user_a.id, name="Транспорт",
-        kind=CategoryKind.expense, sort_order=20,
+        db_session,
+        user_id=user_a.id,
+        name="Транспорт",
+        kind=CategoryKind.expense,
+        sort_order=20,
     )
     cat_b1 = await seed_category(
-        db_session, user_id=user_b.id, name="Продукты",
-        kind=CategoryKind.expense, sort_order=10,
+        db_session,
+        user_id=user_b.id,
+        name="Продукты",
+        kind=CategoryKind.expense,
+        sort_order=10,
     )
     cat_b2 = await seed_category(
-        db_session, user_id=user_b.id, name="Транспорт",
-        kind=CategoryKind.expense, sort_order=20,
+        db_session,
+        user_id=user_b.id,
+        name="Транспорт",
+        kind=CategoryKind.expense,
+        sort_order=20,
     )
     await db_session.flush()
 
     # Subscriptions — обе с одинаковыми именами (test scoped unique)
     sub_a = await seed_subscription(
-        db_session, user_id=user_a.id, name="Netflix",
-        amount_cents=99900, cycle=SubCycle.monthly,
+        db_session,
+        user_id=user_a.id,
+        name="Netflix",
+        amount_cents=99900,
+        cycle=SubCycle.monthly,
         next_charge_date=date(2026, 6, 1),
-        category_id=cat_a1.id, notify_days_before=2, is_active=True,
+        category_id=cat_a1.id,
+        notify_days_before=2,
+        is_active=True,
     )
     sub_b = await seed_subscription(
-        db_session, user_id=user_b.id, name="Netflix",
-        amount_cents=149900, cycle=SubCycle.monthly,
+        db_session,
+        user_id=user_b.id,
+        name="Netflix",
+        amount_cents=149900,
+        cycle=SubCycle.monthly,
         next_charge_date=date(2026, 6, 1),
-        category_id=cat_b1.id, notify_days_before=2, is_active=True,
+        category_id=cat_b1.id,
+        notify_days_before=2,
+        is_active=True,
     )
     await db_session.flush()
     await db_session.commit()
@@ -516,12 +552,14 @@ async def two_tenants(db_session):
     try:
         yield {
             "user_a": {
-                "id": user_a.id, "tg_user_id": tg_a,
+                "id": user_a.id,
+                "tg_user_id": tg_a,
                 "category_ids": [cat_a1.id, cat_a2.id],
                 "sub_id": sub_a.id,
             },
             "user_b": {
-                "id": user_b.id, "tg_user_id": tg_b,
+                "id": user_b.id,
+                "tg_user_id": tg_b,
                 "category_ids": [cat_b1.id, cat_b2.id],
                 "sub_id": sub_b.id,
             },
@@ -550,12 +588,20 @@ async def single_user(db_session, owner_tg_id):
     # Cleanup pre-test: bypass RLS для admin operations.
     await db_session.execute(text("RESET ROLE"))
     await db_session.execute(text("SET LOCAL row_security = off"))
-    # Phase 22 (plan 22.13): plan_template_item dropped; v1.0 tables added.
+    # v1.1: goal/savings_config dropped; plan-template + per-period-plan added.
     for tbl in (
-        "ai_message", "ai_conversation", "category_embedding",
-        "actual_transaction", "planned_transaction",
-        "savings_config", "goal", "subscription",
-        "account", "budget_period", "category",
+        "ai_message",
+        "ai_conversation",
+        "category_embedding",
+        "actual_transaction",
+        "planned_transaction",
+        "period_category_plan",
+        "plan_template_line",
+        "plan_template_item",
+        "subscription",
+        "account",
+        "budget_period",
+        "category",
     ):
         await db_session.execute(text(f"DELETE FROM {tbl}"))
     await db_session.execute(text("DELETE FROM app_user"))

@@ -12,6 +12,7 @@ Test names use ``test_phase_26_*`` prefix so they can be filtered with
 DB-backed: requires DATABASE_URL pointing to a test Postgres (the docker
 ``test`` profile). Self-skips if DATABASE_URL is unset.
 """
+
 import os
 from datetime import datetime, timezone
 
@@ -27,6 +28,7 @@ def _require_db():
 @pytest.fixture
 def auth_headers(bot_token, owner_tg_id):
     from tests.conftest import make_init_data
+
     return {"X-Telegram-Init-Data": make_init_data(owner_tg_id, bot_token)}
 
 
@@ -41,7 +43,7 @@ async def db_setup(async_client, owner_tg_id):
     from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
     from app.api.dependencies import get_db
-    from app.db.models import AppUser, Category, CategoryKind, RolloverPolicy, UserRole
+    from app.db.models import AppUser, CategoryKind, UserRole
     from app.main_api import app
     from tests.helpers.seed import truncate_db
 
@@ -62,6 +64,7 @@ async def db_setup(async_client, owner_tg_id):
         await session.flush()
 
         from tests.helpers.seed import seed_category
+
         cat_a = await seed_category(
             session,
             user_id=user.id,
@@ -71,8 +74,6 @@ async def db_setup(async_client, owner_tg_id):
             plan_cents=30_000_00,
             code="food",
             ord="01",
-            rollover=RolloverPolicy.misc,
-            paused=False,
         )
         cat_b = await seed_category(
             session,
@@ -83,8 +84,6 @@ async def db_setup(async_client, owner_tg_id):
             plan_cents=10_000_00,
             code="transport",
             ord="02",
-            rollover=RolloverPolicy.misc,
-            paused=False,
         )
         await session.commit()
         await session.refresh(cat_a)
@@ -115,6 +114,7 @@ async def db_setup(async_client, owner_tg_id):
 # Happy-path PATCHes — each new optional field independently.
 # ----------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_phase_26_patch_plan_cents_persists(db_setup, auth_headers):
     """T-BE-01 (plan_cents): PATCH body {plan_cents: 50_000_00} → 200 + DB row updated."""
@@ -139,53 +139,13 @@ async def test_phase_26_patch_plan_cents_persists(db_setup, auth_headers):
         assert row.plan_cents == 50_000_00
 
 
-@pytest.mark.asyncio
-async def test_phase_26_patch_rollover_persists(db_setup, auth_headers):
-    """T-BE-01 (rollover): PATCH body {rollover: 'savings'} → 200 + persisted."""
-    from app.db.models import Category, RolloverPolicy
-    from sqlalchemy import select
-
-    cat_id = db_setup["cat_a_id"]
-    response = await db_setup["client"].patch(
-        f"/api/v1/categories/{cat_id}",
-        json={"rollover": "savings"},
-        headers=auth_headers,
-    )
-    assert response.status_code == 200, response.text
-    assert response.json()["rollover"] == "savings"
-
-    async with db_setup["SessionLocal"]() as s:
-        row = (
-            await s.execute(select(Category).where(Category.id == cat_id))
-        ).scalar_one()
-        assert row.rollover == RolloverPolicy.savings
-
-
-@pytest.mark.asyncio
-async def test_phase_26_patch_paused_persists(db_setup, auth_headers):
-    """T-BE-01 (paused): PATCH body {paused: true} → 200 + persisted."""
-    from app.db.models import Category
-    from sqlalchemy import select
-
-    cat_id = db_setup["cat_a_id"]
-    response = await db_setup["client"].patch(
-        f"/api/v1/categories/{cat_id}",
-        json={"paused": True},
-        headers=auth_headers,
-    )
-    assert response.status_code == 200, response.text
-    assert response.json()["paused"] is True
-
-    async with db_setup["SessionLocal"]() as s:
-        row = (
-            await s.execute(select(Category).where(Category.id == cat_id))
-        ).scalar_one()
-        assert row.paused is True
+# v1.1: rollover/paused PATCH tests removed — columns dropped (AGREED §G3/§G4).
 
 
 # ----------------------------------------------------------------------
 # Validation rejects.
 # ----------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_phase_26_patch_negative_plan_cents_422(db_setup, auth_headers):
@@ -199,26 +159,18 @@ async def test_phase_26_patch_negative_plan_cents_422(db_setup, auth_headers):
     assert response.status_code == 422, response.text
 
 
-@pytest.mark.asyncio
-async def test_phase_26_patch_invalid_rollover_422(db_setup, auth_headers):
-    """T-26-01-06 SQL_INJECT-style invalid rollover → 422 (Literal enforces)."""
-    cat_id = db_setup["cat_a_id"]
-    response = await db_setup["client"].patch(
-        f"/api/v1/categories/{cat_id}",
-        json={"rollover": "invalid"},
-        headers=auth_headers,
-    )
-    assert response.status_code == 422, response.text
+# v1.1: invalid-rollover validation test removed (rollover field dropped).
 
 
 # ----------------------------------------------------------------------
 # Combined PATCH (all four v1.0 fields + name) — single round-trip atomic.
 # ----------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_phase_26_patch_combined_fields_apply_atomically(db_setup, auth_headers):
-    """T-BE-01: PATCH с {plan_cents, rollover, paused, name} → all 4 applied."""
-    from app.db.models import Category, RolloverPolicy
+    """v1.1: PATCH с {plan_cents, name} → both applied atomically."""
+    from app.db.models import Category
     from sqlalchemy import select
 
     cat_id = db_setup["cat_a_id"]
@@ -226,8 +178,6 @@ async def test_phase_26_patch_combined_fields_apply_atomically(db_setup, auth_he
         f"/api/v1/categories/{cat_id}",
         json={
             "plan_cents": 100_00,
-            "rollover": "misc",
-            "paused": False,
             "name": "Продукты-renamed",
         },
         headers=auth_headers,
@@ -235,8 +185,6 @@ async def test_phase_26_patch_combined_fields_apply_atomically(db_setup, auth_he
     assert response.status_code == 200, response.text
     body = response.json()
     assert body["plan_cents"] == 100_00
-    assert body["rollover"] == "misc"
-    assert body["paused"] is False
     assert body["name"] == "Продукты-renamed"
 
     async with db_setup["SessionLocal"]() as s:
@@ -244,8 +192,6 @@ async def test_phase_26_patch_combined_fields_apply_atomically(db_setup, auth_he
             await s.execute(select(Category).where(Category.id == cat_id))
         ).scalar_one()
         assert row.plan_cents == 100_00
-        assert row.rollover == RolloverPolicy.misc
-        assert row.paused is False
         assert row.name == "Продукты-renamed"
 
 
@@ -253,6 +199,7 @@ async def test_phase_26_patch_combined_fields_apply_atomically(db_setup, auth_he
 # parent_id — composite FK validation deferred to DB layer.
 # Phase 26 schema accepts the value; full FK validation arrives in Phase 27.
 # ----------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_phase_26_patch_parent_id_accepts_valid_sibling(db_setup, auth_headers):

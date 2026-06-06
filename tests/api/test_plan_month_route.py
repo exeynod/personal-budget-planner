@@ -44,7 +44,7 @@ async def db_setup(async_client, owner_tg_id):
     from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
     from app.api.dependencies import get_db
-    from app.db.models import AppUser, Category, CategoryKind, RolloverPolicy, UserRole
+    from app.db.models import AppUser, Category, CategoryKind, UserRole
     from app.main_api import app
     from tests.helpers.seed import truncate_db
 
@@ -76,19 +76,16 @@ async def db_setup(async_client, owner_tg_id):
             session,
             user_id=owner.id, name="Продукты", kind=CategoryKind.expense,
             sort_order=10, plan_cents=10_000_00, code="food", ord="01",
-            rollover=RolloverPolicy.misc, paused=False,
         )
         cat_b = await seed_category(
             session,
             user_id=owner.id, name="Транспорт", kind=CategoryKind.expense,
             sort_order=20, plan_cents=20_000_00, code="transport", ord="02",
-            rollover=RolloverPolicy.misc, paused=False,
         )
         cat_c = await seed_category(
             session,
             user_id=other.id, name="OtherFood", kind=CategoryKind.expense,
             sort_order=10, plan_cents=5_000_00, code="food", ord="01",
-            rollover=RolloverPolicy.misc, paused=False,
         )
         await session.commit()
         await session.refresh(cat_a)

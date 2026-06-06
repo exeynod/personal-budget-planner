@@ -29,10 +29,11 @@ DATA-MODEL §6 validators:
 DB-backed: requires DATABASE_URL pointing at v1.0 schema HEAD
 (0016_v10_actual_account_id). Self-skips otherwise.
 """
+
 from __future__ import annotations
 
 import os
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, timezone
 from zoneinfo import ZoneInfo
 
 import pytest
@@ -59,9 +60,10 @@ async def _truncate_v1_tables(session):
         "category_embedding",
         "actual_transaction",
         "planned_transaction",
+        "period_category_plan",
+        "plan_template_line",
+        "plan_template_item",
         "subscription",
-        "savings_config",
-        "goal",
         "account",
         "budget_period",
         "category",
@@ -80,7 +82,7 @@ async def _seed_user(session, *, tg_user_id: int):
     passes the Phase 33 CMP-33-04 consent gate (a NULL consent raises
     ``PdnConsentRequiredError``). Consent precedes onboarding in the real flow.
     """
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     from app.db.models import AppUser, UserRole
 
@@ -144,7 +146,7 @@ async def test_module_importable_with_required_symbols():
         "OnboardingConflictError",
         "PlanExceedsIncomeError",
         "DEFAULT_CATEGORIES",
-        "SYSTEM_SAVINGS_CATEGORY",
+        "SYSTEM_ADJUSTMENT_CATEGORY",
         "INCOME_MAX_CENTS",
     ):
         assert hasattr(svc, name), f"missing symbol: {name}"
@@ -157,10 +159,10 @@ async def test_module_importable_with_required_symbols():
 
 @pytest.mark.asyncio
 async def test_complete_v10_creates_full_state(db_session, fresh_user):
-    """Happy path: income+1 account+8 cats+savings sys cat+goal+savings_config in one txn."""
+    """Happy path: income + 2 accounts + 8 cats + adjustment sys cat in one txn."""
     from sqlalchemy import select, func
 
-    from app.db.models import Account, AppUser, Category, Goal, SavingsConfig
+    from app.db.models import Account, AppUser, Category
     from app.db.session import set_tenant_scope
     from app.services.onboarding_v10 import complete_v10
 
@@ -169,17 +171,9 @@ async def test_complete_v10_creates_full_state(db_session, fresh_user):
         {"bank": "Т-Банк", "kind": "card", "balance_cents": 50_000_00},
         {"bank": "Альфа", "kind": "card", "balance_cents": 25_000_00},
     ]
-    body["goal"] = {
-        "name": "iPhone",
-        "target_cents": 150_000_00,
-        "due": (_today_msk() + timedelta(days=180)).isoformat(),
-    }
-    body["savings_config"] = {"roundup_enabled": True, "base": 50}
 
     await set_tenant_scope(db_session, fresh_user["id"])
-    summary = await complete_v10(
-        db_session, user_id=fresh_user["id"], **body
-    )
+    summary = await complete_v10(db_session, user_id=fresh_user["id"], **body)
     await db_session.commit()
 
     # Summary shape
@@ -187,10 +181,7 @@ async def test_complete_v10_creates_full_state(db_session, fresh_user):
     assert summary["income_cents"] == 100_000_00
     assert len(summary["account_ids"]) == 2
     assert len(summary["category_ids_by_code"]) == 8
-    assert summary["savings_category_id"] is not None
-    assert summary["goal_id"] is not None
-    assert summary["savings_config"]["roundup_enabled"] is True
-    assert summary["savings_config"]["roundup_base"] == 50
+    assert summary["adjustment_category_id"] is not None
     assert summary["onboarded_at"] is not None
 
     # DB state — User
@@ -202,42 +193,37 @@ async def test_complete_v10_creates_full_state(db_session, fresh_user):
 
     # Accounts: 2 rows, exactly one primary
     acc_count = await db_session.scalar(
-        select(func.count()).select_from(Account).where(
-            Account.user_id == fresh_user["id"]
-        )
+        select(func.count())
+        .select_from(Account)
+        .where(Account.user_id == fresh_user["id"])
     )
     assert acc_count == 2
     primary_count = await db_session.scalar(
-        select(func.count()).select_from(Account).where(
+        select(func.count())
+        .select_from(Account)
+        .where(
             Account.user_id == fresh_user["id"],
             Account.is_primary.is_(True),
         )
     )
     assert primary_count == 1
 
-    # Categories: 8 default + 1 savings = 9 rows
+    # Categories: 8 default + 1 adjustment = 9 rows
     cat_count = await db_session.scalar(
-        select(func.count()).select_from(Category).where(
-            Category.user_id == fresh_user["id"]
-        )
+        select(func.count())
+        .select_from(Category)
+        .where(Category.user_id == fresh_user["id"])
     )
     assert cat_count == 9
 
-    # Goal — one row
-    goal_count = await db_session.scalar(
-        select(func.count()).select_from(Goal).where(
-            Goal.user_id == fresh_user["id"]
+    # Adjustment system category present.
+    adj = await db_session.scalar(
+        select(Category).where(
+            Category.user_id == fresh_user["id"],
+            Category.code == "adjustment",
         )
     )
-    assert goal_count == 1
-
-    # SavingsConfig — one row
-    cfg_count = await db_session.scalar(
-        select(func.count()).select_from(SavingsConfig).where(
-            SavingsConfig.user_id == fresh_user["id"]
-        )
-    )
-    assert cfg_count == 1
+    assert adj is not None
 
 
 @pytest.mark.asyncio
@@ -250,21 +236,31 @@ async def test_complete_v10_creates_8_default_categories(db_session, fresh_user)
     from app.services.onboarding_v10 import complete_v10
 
     await set_tenant_scope(db_session, fresh_user["id"])
-    await complete_v10(
-        db_session, user_id=fresh_user["id"], **_valid_body()
-    )
+    await complete_v10(db_session, user_id=fresh_user["id"], **_valid_body())
     await db_session.commit()
 
     cats = (
-        await db_session.execute(
-            select(Category)
-            .where(Category.user_id == fresh_user["id"])
-            .order_by(Category.ord)
+        (
+            await db_session.execute(
+                select(Category)
+                .where(Category.user_id == fresh_user["id"])
+                .order_by(Category.ord)
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
     expected_codes = [
-        "food", "cafe", "home", "transit", "fun", "gifts", "health", "subs", "savings"
+        "food",
+        "cafe",
+        "home",
+        "transit",
+        "fun",
+        "gifts",
+        "health",
+        "subs",
+        "adjustment",
     ]
     assert [c.code for c in cats] == expected_codes
 
@@ -285,34 +281,30 @@ async def test_complete_v10_creates_8_default_categories(db_session, fresh_user)
 
 
 @pytest.mark.asyncio
-async def test_complete_v10_creates_savings_system_category(db_session, fresh_user):
-    """System savings cat: code='savings', name='КОПИЛКА', kind=expense, ord='99',
-    plan_cents=0, rollover='savings', paused=True."""
+async def test_complete_v10_creates_adjustment_system_category(db_session, fresh_user):
+    """System adjustment cat: code='adjustment', name='Корректировка',
+    kind=expense, ord='98', plan_cents=0 (AGREED §H)."""
     from sqlalchemy import select
 
-    from app.db.models import Category, CategoryKind, RolloverPolicy
+    from app.db.models import Category, CategoryKind
     from app.db.session import set_tenant_scope
     from app.services.onboarding_v10 import complete_v10
 
     await set_tenant_scope(db_session, fresh_user["id"])
-    await complete_v10(
-        db_session, user_id=fresh_user["id"], **_valid_body()
-    )
+    await complete_v10(db_session, user_id=fresh_user["id"], **_valid_body())
     await db_session.commit()
 
-    sav = await db_session.scalar(
+    adj = await db_session.scalar(
         select(Category).where(
             Category.user_id == fresh_user["id"],
-            Category.code == "savings",
+            Category.code == "adjustment",
         )
     )
-    assert sav is not None
-    assert sav.name == "КОПИЛКА"
-    assert sav.kind == CategoryKind.expense
-    assert sav.ord == "99"
-    assert sav.plan_cents == 0
-    assert sav.rollover == RolloverPolicy.savings
-    assert sav.paused is True
+    assert adj is not None
+    assert adj.name == "Корректировка"
+    assert adj.kind == CategoryKind.expense
+    assert adj.ord == "98"
+    assert adj.plan_cents == 0
 
 
 @pytest.mark.asyncio
@@ -330,18 +322,20 @@ async def test_complete_v10_first_account_is_primary(db_session, fresh_user):
         {"bank": "Сбер", "kind": "card", "balance_cents": 0},
     ]
     await set_tenant_scope(db_session, fresh_user["id"])
-    summary = await complete_v10(
-        db_session, user_id=fresh_user["id"], **body
-    )
+    summary = await complete_v10(db_session, user_id=fresh_user["id"], **body)
     await db_session.commit()
 
     rows = (
-        await db_session.execute(
-            select(Account)
-            .where(Account.user_id == fresh_user["id"])
-            .order_by(Account.id)
+        (
+            await db_session.execute(
+                select(Account)
+                .where(Account.user_id == fresh_user["id"])
+                .order_by(Account.id)
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     assert rows[0].bank == "Альфа"
     assert rows[0].is_primary is True
     assert rows[1].is_primary is False
@@ -363,75 +357,27 @@ async def test_complete_v10_explicit_primary_overrides(db_session, fresh_user):
         {"bank": "ВТБ", "kind": "card", "balance_cents": 0},
     ]
     await set_tenant_scope(db_session, fresh_user["id"])
-    await complete_v10(
-        db_session, user_id=fresh_user["id"], **body
-    )
+    await complete_v10(db_session, user_id=fresh_user["id"], **body)
     await db_session.commit()
 
     rows = (
-        await db_session.execute(
-            select(Account)
-            .where(Account.user_id == fresh_user["id"])
-            .order_by(Account.id)
+        (
+            await db_session.execute(
+                select(Account)
+                .where(Account.user_id == fresh_user["id"])
+                .order_by(Account.id)
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     primaries = [r for r in rows if r.is_primary]
     assert len(primaries) == 1
     assert primaries[0].bank == "Сбер"
 
 
-@pytest.mark.asyncio
-async def test_complete_v10_optional_goal_skipped(db_session, fresh_user):
-    """No goal in body → no Goal row inserted."""
-    from sqlalchemy import select, func
-
-    from app.db.models import Goal
-    from app.db.session import set_tenant_scope
-    from app.services.onboarding_v10 import complete_v10
-
-    body = _valid_body()
-    assert "goal" not in body
-
-    await set_tenant_scope(db_session, fresh_user["id"])
-    summary = await complete_v10(
-        db_session, user_id=fresh_user["id"], **body
-    )
-    await db_session.commit()
-
-    assert summary["goal_id"] is None
-    count = await db_session.scalar(
-        select(func.count()).select_from(Goal).where(
-            Goal.user_id == fresh_user["id"]
-        )
-    )
-    assert count == 0
-
-
-@pytest.mark.asyncio
-async def test_complete_v10_optional_savings_config_default(db_session, fresh_user):
-    """No savings_config in body → SavingsConfig row with defaults (False, 10)."""
-    from sqlalchemy import select
-
-    from app.db.models import SavingsConfig
-    from app.db.session import set_tenant_scope
-    from app.services.onboarding_v10 import complete_v10
-
-    body = _valid_body()
-    await set_tenant_scope(db_session, fresh_user["id"])
-    summary = await complete_v10(
-        db_session, user_id=fresh_user["id"], **body
-    )
-    await db_session.commit()
-
-    assert summary["savings_config"]["roundup_enabled"] is False
-    assert summary["savings_config"]["roundup_base"] == 10
-
-    cfg = await db_session.scalar(
-        select(SavingsConfig).where(SavingsConfig.user_id == fresh_user["id"])
-    )
-    assert cfg is not None
-    assert cfg.roundup_enabled is False
-    assert cfg.roundup_base == 10
+# v1.1: optional goal / savings_config onboarding slots removed (AGREED §G1) —
+# the corresponding tests were deleted.
 
 
 @pytest.mark.asyncio
@@ -444,9 +390,7 @@ async def test_complete_v10_sets_onboarded_at(db_session, fresh_user):
     from app.services.onboarding_v10 import complete_v10
 
     await set_tenant_scope(db_session, fresh_user["id"])
-    await complete_v10(
-        db_session, user_id=fresh_user["id"], **_valid_body()
-    )
+    await complete_v10(db_session, user_id=fresh_user["id"], **_valid_body())
     await db_session.commit()
 
     user = await db_session.scalar(
@@ -484,9 +428,7 @@ async def test_complete_v10_returns_409_when_account_exists(db_session, fresh_us
 
     await set_tenant_scope(db_session, fresh_user["id"])
     with pytest.raises(OnboardingConflictError):
-        await complete_v10(
-            db_session, user_id=fresh_user["id"], **_valid_body()
-        )
+        await complete_v10(db_session, user_id=fresh_user["id"], **_valid_body())
 
 
 @pytest.mark.asyncio
@@ -494,7 +436,7 @@ async def test_complete_v10_rollback_on_invalid_input(db_session, fresh_user):
     """Sum-plan > income raises PlanExceedsIncomeError; no rows persisted."""
     from sqlalchemy import select, func
 
-    from app.db.models import Account, Category, Goal, SavingsConfig
+    from app.db.models import Account, Category
     from app.db.session import set_tenant_scope
     from app.services.onboarding_v10 import (
         PlanExceedsIncomeError,
@@ -516,20 +458,20 @@ async def test_complete_v10_rollback_on_invalid_input(db_session, fresh_user):
 
     await set_tenant_scope(db_session, fresh_user["id"])
     with pytest.raises(PlanExceedsIncomeError):
-        await complete_v10(
-            db_session, user_id=fresh_user["id"], **body
-        )
+        await complete_v10(db_session, user_id=fresh_user["id"], **body)
     # Validator runs BEFORE any insert → nothing to rollback, but verify state
     # is still empty for safety.
     await db_session.rollback()
 
-    for model in (Account, Category, Goal, SavingsConfig):
+    for model in (Account, Category):
         count = await db_session.scalar(
-            select(func.count()).select_from(model).where(
-                model.user_id == fresh_user["id"]
-            )
+            select(func.count())
+            .select_from(model)
+            .where(model.user_id == fresh_user["id"])
         )
-        assert count == 0, f"unexpected rows in {model.__name__} after failed onboarding"
+        assert count == 0, (
+            f"unexpected rows in {model.__name__} after failed onboarding"
+        )
 
 
 # =============================================================================
@@ -664,28 +606,23 @@ async def test_complete_v10_rejects_multiple_explicit_primary(db_session, fresh_
 
 
 @pytest.mark.asyncio
-async def test_reset_v10_wipes_account_goal_savings_config(db_session, fresh_user):
+async def test_reset_v10_wipes_account(db_session, fresh_user):
     from sqlalchemy import select, func
 
-    from app.db.models import Account, Goal, SavingsConfig
+    from app.db.models import Account
     from app.db.session import set_tenant_scope
     from app.services.onboarding_v10 import complete_v10, reset_v10
 
     body = _valid_body()
-    body["goal"] = {
-        "name": "iPhone",
-        "target_cents": 100_000_00,
-        "due": (_today_msk() + timedelta(days=180)).isoformat(),
-    }
     await set_tenant_scope(db_session, fresh_user["id"])
     await complete_v10(db_session, user_id=fresh_user["id"], **body)
     await db_session.commit()
 
     # Before reset
     acc_before = await db_session.scalar(
-        select(func.count()).select_from(Account).where(
-            Account.user_id == fresh_user["id"]
-        )
+        select(func.count())
+        .select_from(Account)
+        .where(Account.user_id == fresh_user["id"])
     )
     assert acc_before == 1
 
@@ -696,14 +633,13 @@ async def test_reset_v10_wipes_account_goal_savings_config(db_session, fresh_use
 
     assert "deleted_account_ids" in summary
 
-    # After reset: no Account / Goal / SavingsConfig.
-    for model in (Account, Goal, SavingsConfig):
-        count = await db_session.scalar(
-            select(func.count()).select_from(model).where(
-                model.user_id == fresh_user["id"]
-            )
-        )
-        assert count == 0, f"{model.__name__} not wiped"
+    # After reset: no Account (v1.1: goal/savings_config tables removed).
+    count = await db_session.scalar(
+        select(func.count())
+        .select_from(Account)
+        .where(Account.user_id == fresh_user["id"])
+    )
+    assert count == 0, "Account not wiped"
 
 
 @pytest.mark.asyncio
@@ -750,8 +686,9 @@ async def test_reset_v10_resets_plan_cents_to_zero(db_session, fresh_user):
 
     # Sum of plan_cents over all user's categories must be 0.
     s = await db_session.scalar(
-        select(func.coalesce(func.sum(Category.plan_cents), 0))
-        .where(Category.user_id == fresh_user["id"])
+        select(func.coalesce(func.sum(Category.plan_cents), 0)).where(
+            Category.user_id == fresh_user["id"]
+        )
     )
     assert int(s) == 0
 
@@ -770,9 +707,9 @@ async def test_reset_v10_does_not_delete_categories(db_session, fresh_user):
     await db_session.commit()
 
     cat_count_before = await db_session.scalar(
-        select(func.count()).select_from(Category).where(
-            Category.user_id == fresh_user["id"]
-        )
+        select(func.count())
+        .select_from(Category)
+        .where(Category.user_id == fresh_user["id"])
     )
     assert cat_count_before == 9
 
@@ -781,9 +718,9 @@ async def test_reset_v10_does_not_delete_categories(db_session, fresh_user):
     await db_session.commit()
 
     cat_count_after = await db_session.scalar(
-        select(func.count()).select_from(Category).where(
-            Category.user_id == fresh_user["id"]
-        )
+        select(func.count())
+        .select_from(Category)
+        .where(Category.user_id == fresh_user["id"])
     )
     assert cat_count_after == 9
 
@@ -807,9 +744,7 @@ async def test_reset_v10_allows_re_onboarding(db_session, fresh_user):
     body2 = _valid_body()
     body2["accounts"] = [{"bank": "Сбер", "kind": "card", "balance_cents": 1000}]
     await set_tenant_scope(db_session, fresh_user["id"])
-    summary2 = await complete_v10(
-        db_session, user_id=fresh_user["id"], **body2
-    )
+    summary2 = await complete_v10(db_session, user_id=fresh_user["id"], **body2)
     await db_session.commit()
 
     assert summary2["income_cents"] == body2["income_cents"]

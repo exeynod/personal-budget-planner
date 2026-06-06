@@ -11,6 +11,7 @@ Usage:
                                    kind=CategoryKind.expense)
         await session.commit()
 """
+
 from __future__ import annotations
 import itertools
 import re
@@ -144,6 +145,8 @@ async def seed_category(
     code: Optional[str] = None,
     ord: Optional[str] = None,
     plan_cents: Optional[int] = None,
+    # v1.1: rollover/paused columns dropped — kwargs kept for back-compat with
+    # callers that still pass them (ignored).
     rollover=None,
     paused: Optional[bool] = None,
 ) -> Category:
@@ -174,17 +177,17 @@ async def seed_category(
     a specific monthly plan.
     """
     kwargs: dict = dict(
-        user_id=user_id, name=name, kind=kind,
-        is_archived=is_archived, sort_order=sort_order,
+        user_id=user_id,
+        name=name,
+        kind=kind,
+        is_archived=is_archived,
+        sort_order=sort_order,
         code=code if code is not None else _default_code(name),
         ord=ord if ord is not None else _default_ord(sort_order),
     )
     if plan_cents is not None:
         kwargs["plan_cents"] = plan_cents
-    if rollover is not None:
-        kwargs["rollover"] = rollover
-    if paused is not None:
-        kwargs["paused"] = paused
+    # rollover / paused intentionally ignored (columns removed in v1.1).
     c = Category(**kwargs)
     session.add(c)
     await session.flush()
@@ -201,8 +204,11 @@ async def seed_budget_period(
     status: PeriodStatus = PeriodStatus.active,
 ) -> BudgetPeriod:
     p = BudgetPeriod(
-        user_id=user_id, period_start=period_start, period_end=period_end,
-        starting_balance_cents=starting_balance_cents, status=status,
+        user_id=user_id,
+        period_start=period_start,
+        period_end=period_end,
+        starting_balance_cents=starting_balance_cents,
+        status=status,
     )
     session.add(p)
     await session.flush()
@@ -222,9 +228,14 @@ async def seed_subscription(
     is_active: bool = True,
 ) -> Subscription:
     s = Subscription(
-        user_id=user_id, name=name, amount_cents=amount_cents, cycle=cycle,
-        next_charge_date=next_charge_date, category_id=category_id,
-        notify_days_before=notify_days_before, is_active=is_active,
+        user_id=user_id,
+        name=name,
+        amount_cents=amount_cents,
+        cycle=cycle,
+        next_charge_date=next_charge_date,
+        category_id=category_id,
+        notify_days_before=notify_days_before,
+        is_active=is_active,
     )
     session.add(s)
     await session.flush()
@@ -273,9 +284,15 @@ async def seed_planned_transaction(
     original_charge_date: Optional[date] = None,
 ) -> PlannedTransaction:
     p = PlannedTransaction(
-        user_id=user_id, period_id=period_id, kind=kind, amount_cents=amount_cents,
-        category_id=category_id, source=source, description=description,
-        planned_date=planned_date, subscription_id=subscription_id,
+        user_id=user_id,
+        period_id=period_id,
+        kind=kind,
+        amount_cents=amount_cents,
+        category_id=category_id,
+        source=source,
+        description=description,
+        planned_date=planned_date,
+        subscription_id=subscription_id,
         original_charge_date=original_charge_date,
     )
     session.add(p)
@@ -296,8 +313,14 @@ async def seed_actual_transaction(
     description: Optional[str] = None,
 ) -> ActualTransaction:
     a = ActualTransaction(
-        user_id=user_id, period_id=period_id, kind=kind, amount_cents=amount_cents,
-        category_id=category_id, tx_date=tx_date, source=source, description=description,
+        user_id=user_id,
+        period_id=period_id,
+        kind=kind,
+        amount_cents=amount_cents,
+        category_id=category_id,
+        tx_date=tx_date,
+        source=source,
+        description=description,
     )
     session.add(a)
     await session.flush()
@@ -433,14 +456,14 @@ async def seed_ai_usage_log(
 # (account, goal, savings_config) added so phase-23+ tests can rely on a clean
 # slate without seeding around stale rows.
 _DEFAULT_TRUNCATE_TABLES = (
-    "savings_config, goal, account, "
+    "period_category_plan, plan_template_line, plan_template_item, account, "
     "category, planned_transaction, actual_transaction, "
     "subscription, budget_period, ai_message, ai_conversation, "
     "category_embedding, app_user"
 )
 
 _PHASE13_TRUNCATE_TABLES = (
-    "savings_config, goal, account, "
+    "period_category_plan, plan_template_line, plan_template_item, account, "
     "category, planned_transaction, actual_transaction, "
     "subscription, budget_period, ai_message, ai_conversation, "
     "category_embedding, ai_usage_log, app_user"
@@ -466,7 +489,9 @@ async def truncate_db(*, tables: str = _DEFAULT_TRUNCATE_TABLES) -> None:
     engine = create_async_engine(admin_url, echo=False)
     try:
         async with engine.begin() as conn:
-            await conn.execute(text(f"TRUNCATE TABLE {tables} RESTART IDENTITY CASCADE"))
+            await conn.execute(
+                text(f"TRUNCATE TABLE {tables} RESTART IDENTITY CASCADE")
+            )
     finally:
         await engine.dispose()
 

@@ -66,7 +66,7 @@ async def seed_sub_with_account(db_setup, owner_tg_id):
     _, SessionLocal = db_setup
     from sqlalchemy import text
     from app.db.models import (
-        Account, AccountKind, Category, CategoryKind, RolloverPolicy,
+        Account, AccountKind, Category, CategoryKind,
         Subscription, SubCycle,
     )
 
@@ -82,14 +82,12 @@ async def seed_sub_with_account(db_setup, owner_tg_id):
         cat = await seed_category(
             session,
             user_id=uid, name="Подписки", code="subs", ord="08",
-            kind=CategoryKind.expense, plan_cents=0,
-            rollover=RolloverPolicy.misc, paused=False, sort_order=10,
+            kind=CategoryKind.expense, plan_cents=0, sort_order=10,
         )
         savings_cat = await seed_category(
             session,
             user_id=uid, name="КОПИЛКА", code="savings", ord="99",
-            kind=CategoryKind.expense, plan_cents=0,
-            rollover=RolloverPolicy.savings, paused=True, sort_order=99,
+            kind=CategoryKind.expense, plan_cents=0, sort_order=99,
         )
         acc = Account(
             user_id=uid, bank="Т-Банк", kind=AccountKind.card,

@@ -11,6 +11,7 @@
 Note: `plan_template_item` table был dropped в v1.0 Phase 22 (plan 22.13).
 Currently 12 tenant tables: 8 v0.4 + ai_usage_log (Phase 13) + 3 v1.0 (Phase 22).
 """
+
 from __future__ import annotations
 
 import pytest
@@ -18,8 +19,7 @@ from sqlalchemy import text
 
 pytestmark = pytest.mark.asyncio
 
-# v0.4 (Phase 11 + Phase 13) + v1.0 (Phase 22) tenant tables.
-# plan_template_item dropped в v1.0 plan 22.13.
+# v0.4 (Phase 11 + Phase 13) + v1.0 (Phase 22) + v1.1 tenant tables.
 TENANT_TABLES = [
     # Phase 11 (v0.4)
     "category",
@@ -34,8 +34,10 @@ TENANT_TABLES = [
     "ai_usage_log",
     # v1.0 (Phase 22)
     "account",
-    "goal",
-    "savings_config",
+    # v1.1 (planning rework) — goal/savings_config dropped (alembic 0031).
+    "plan_template_item",
+    "plan_template_line",
+    "period_category_plan",
 ]
 
 

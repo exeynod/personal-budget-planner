@@ -22,6 +22,7 @@ Tests:
   3. test_rls_setting_resets_after_commit — SET LOCAL = transaction scope
   4. test_rls_enabled_on_all_tenant_tables — pg_class.relrowsecurity == true
 """
+
 from __future__ import annotations
 
 import pytest
@@ -33,7 +34,9 @@ from app.db.session import set_tenant_scope
 pytestmark = pytest.mark.asyncio
 
 
-async def test_rls_blocks_query_without_setting(two_tenants, db_session, _rls_test_role):
+async def test_rls_blocks_query_without_setting(
+    two_tenants, db_session, _rls_test_role
+):
     """MUL-02: SELECT без app.current_user_id → 0 rows (coalesce -1 не матчит).
 
     Под non-superuser ролью budget_rls_test, чтобы FORCE ROW LEVEL SECURITY
@@ -72,9 +75,7 @@ async def test_rls_filters_by_app_current_user_id(
     assert user_b["id"] not in user_ids
 
 
-async def test_rls_setting_resets_after_commit(
-    two_tenants, db_session, _rls_test_role
-):
+async def test_rls_setting_resets_after_commit(two_tenants, db_session, _rls_test_role):
     """MUL-02: SET LOCAL — transaction scope, на COMMIT сбрасывается."""
     user_a = two_tenants["user_a"]
 
@@ -89,9 +90,7 @@ async def test_rls_setting_resets_after_commit(
     await db_session.execute(text(f"SET LOCAL ROLE {_rls_test_role}"))
     result = await db_session.execute(text("SELECT count(*) FROM category"))
     count = result.scalar_one()
-    assert count == 0, (
-        f"Expected 0 rows after COMMIT (setting reset) but got {count}"
-    )
+    assert count == 0, f"Expected 0 rows after COMMIT (setting reset) but got {count}"
 
 
 async def test_rls_enabled_on_all_tenant_tables(db_session):
@@ -127,11 +126,14 @@ async def test_rls_enabled_on_all_tenant_tables(db_session):
         "ai_conversation",
         "ai_message",
         # New v1.0 / later RLS-bearing tenant tables
-        "ai_usage_log",          # 0008
-        "account",               # 0012 — money balances
-        "goal",                  # 0014/0015
-        "savings_config",        # 0014/0015
-        "payment",               # 0021 — money
+        "ai_usage_log",  # 0008
+        "account",  # 0012 — money balances
+        # v1.1: goal/savings_config dropped (0031); plan-template + per-period
+        # plan tables added (0028).
+        "plan_template_item",  # 0028
+        "plan_template_line",  # 0028
+        "period_category_plan",  # 0028
+        "payment",  # 0021 — money
         "subscription_billing",  # 0021 — money
     )
 

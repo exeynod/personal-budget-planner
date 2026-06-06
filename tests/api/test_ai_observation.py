@@ -147,7 +147,7 @@ async def _seed_category(
     plan_cents: int = 0,
     paused: bool = False,
 ) -> int:
-    from app.db.models import CategoryKind, RolloverPolicy
+    from app.db.models import CategoryKind
     from tests.helpers.seed import seed_category
 
     cat = await seed_category(
@@ -158,7 +158,6 @@ async def _seed_category(
         ord="01",
         kind=CategoryKind.expense,
         plan_cents=plan_cents,
-        rollover=RolloverPolicy.misc,
         paused=paused,
         sort_order=10,
     )
@@ -298,7 +297,7 @@ async def test_observation_week_savings(db_setup):
     async with SessionLocal() as session:
         period_id = await _seed_period(session, user_id=uid, today=today)
         cat_id = await _seed_category(
-            session, user_id=uid, name="КОПИЛКА", code="savings", paused=True,
+            session, user_id=uid, name="КОПИЛКА", code="savings",
         )
         # 1 000 ₽ deposit + 50 ₽ roundup, both within last 7 days.
         await _seed_actual(

@@ -207,6 +207,11 @@ async def test_alembic_upgrade_from_0011_to_0015_succeeds(db_session):
         "0025_subscription_posted_txn_unique",
         "0026_ai_usage_cost_cents",
         "0027_perf_composite_indexes",
+        # v1.1 planning rework
+        "0028_planning_rework_add",
+        "0029_planned_posted_txn",
+        "0030_adjustment_category",
+        "0031_remove_savings_etc",
     }
     assert heads & v10_revs, (
         f"DB is not at a v1.0 alembic head; current revisions: {heads}"
@@ -232,32 +237,42 @@ async def test_after_upgrade_account_table_exists(db_session):
     )
 
 
-async def test_after_upgrade_goal_table_exists(db_session):
-    """0014: ``goal`` table with all required columns."""
-    cols = await _table_columns(db_session, "goal")
-    expected = {
+async def test_after_upgrade_goal_table_dropped(db_session):
+    """v1.1 (0031): ``goal`` table dropped (накопления выпилены)."""
+    assert not await _table_exists(db_session, "goal"), (
+        "goal table must be dropped after 0031"
+    )
+
+
+async def test_after_upgrade_savings_config_table_dropped(db_session):
+    """v1.1 (0031): ``savings_config`` table dropped (накопления выпилены)."""
+    assert not await _table_exists(db_session, "savings_config"), (
+        "savings_config table must be dropped after 0031"
+    )
+
+
+async def test_after_upgrade_plan_template_tables_exist(db_session):
+    """v1.1 (0028): plan-template + per-period-plan tables exist with columns."""
+    item_cols = await _table_columns(db_session, "plan_template_item")
+    assert {"id", "user_id", "category_id", "limit_cents"} <= item_cols.keys()
+    line_cols = await _table_columns(db_session, "plan_template_line")
+    assert {
         "id",
         "user_id",
-        "name",
-        "target_cents",
-        "current_cents",
-        "due",
-        "created_at",
-    }
-    missing = expected - cols.keys()
-    assert not missing, (
-        f"goal table missing columns: {missing}; have {sorted(cols.keys())}"
-    )
-
-
-async def test_after_upgrade_savings_config_table_exists(db_session):
-    """0014: ``savings_config`` table (PK = user_id) with all columns."""
-    cols = await _table_columns(db_session, "savings_config")
-    expected = {"user_id", "roundup_enabled", "roundup_base", "updated_at"}
-    missing = expected - cols.keys()
-    assert not missing, (
-        f"savings_config table missing columns: {missing}; have {sorted(cols.keys())}"
-    )
+        "category_id",
+        "title",
+        "amount_cents",
+        "day_of_period",
+        "kind",
+    } <= line_cols.keys()
+    pcp_cols = await _table_columns(db_session, "period_category_plan")
+    assert {
+        "id",
+        "user_id",
+        "period_id",
+        "category_id",
+        "limit_cents",
+    } <= pcp_cols.keys()
 
 
 # ---------------------------------------------------------------------------
@@ -292,27 +307,32 @@ async def test_category_kind_enum_has_2_values(db_session):
 
 
 async def test_category_has_v10_columns(db_session):
-    """0013 BE-04: category extension — plan_cents/code/ord/rollover/paused/parent_id."""
+    """0013 BE-04 + v1.1: category — plan_cents/code/ord/parent_id.
+
+    v1.1 (0031): rollover/paused columns dropped.
+    """
     cols = await _table_columns(db_session, "category")
-    expected = {"plan_cents", "code", "ord", "rollover", "paused", "parent_id"}
+    expected = {"plan_cents", "code", "ord", "parent_id"}
     missing = expected - cols.keys()
     assert not missing, (
         f"category missing v1.0 columns: {missing}; have {sorted(cols.keys())}"
     )
-    # NOT NULL after backfill — code/ord/rollover/paused/plan_cents required.
+    # v1.1: rollover/paused must be GONE.
+    assert "rollover" not in cols, "category.rollover must be dropped (0031)"
+    assert "paused" not in cols, "category.paused must be dropped (0031)"
+    # NOT NULL after backfill — code/ord/plan_cents required.
     nullable_rows = (
         await db_session.execute(
             text(
                 "SELECT column_name, is_nullable "
                 "FROM information_schema.columns "
                 "WHERE table_schema = 'public' AND table_name = 'category' "
-                "AND column_name IN "
-                "('plan_cents', 'code', 'ord', 'rollover', 'paused')"
+                "AND column_name IN ('plan_cents', 'code', 'ord')"
             )
         )
     ).all()
     nullability = {r[0]: r[1] for r in nullable_rows}
-    for col in ("plan_cents", "code", "ord", "rollover", "paused"):
+    for col in ("plan_cents", "code", "ord"):
         assert nullability.get(col) == "NO", (
             f"category.{col} must be NOT NULL after backfill; got {nullability!r}"
         )
@@ -563,35 +583,20 @@ async def test_existing_categories_get_code_and_ord_backfilled(db_session):
     assert null_ord == 0, (
         f"Backfill BE-04: {null_ord} category rows have NULL/non-2-digit ord"
     )
-    # rollover ∈ {'misc', 'savings'} — CHECK constraint enforces, but if a
-    # legacy row sneaked through with NULL the CHECK would still pass; we
-    # also enforce non-NULL here.
-    bad_rollover = (
-        await db_session.execute(
-            text(
-                "SELECT count(*) FROM category "
-                "WHERE rollover IS NULL OR rollover NOT IN ('misc', 'savings')"
-            )
-        )
-    ).scalar()
-    assert bad_rollover == 0, (
-        f"Backfill BE-04: {bad_rollover} category rows have invalid rollover"
-    )
+    # v1.1: rollover column dropped (0031) — no rollover invariant to check.
 
 
-async def test_existing_categories_get_plan_cents_from_plan_template_item(db_session):
-    """BE-04 + 0013: plan_template_item has been dropped; plan_cents is the
-    source of truth.
+async def test_existing_categories_plan_cents_source_of_truth(db_session):
+    """BE-04 + v1.1: plan_cents NOT NULL; plan_template_item revived (0028).
 
     Verification:
-      1. ``plan_template_item`` table no longer exists.
-      2. ``category.plan_cents`` is NOT NULL (default 0; backfilled from the
-         latest plan_template_item.amount_cents per (user_id, category_id)).
+      1. ``plan_template_item`` table EXISTS (revived in 0028 with new schema).
+      2. ``category.plan_cents`` is NOT NULL (default 0).
       3. Where rows exist, ``plan_cents >= 0`` (sanity).
     """
-    # 1. plan_template_item gone.
-    assert not await _table_exists(db_session, "plan_template_item"), (
-        "plan_template_item table must be dropped after migration 0013"
+    # 1. plan_template_item revived (v1.1, alembic 0028).
+    assert await _table_exists(db_session, "plan_template_item"), (
+        "plan_template_item table must be revived in 0028"
     )
 
     # 2. plan_cents NOT NULL.
@@ -631,23 +636,26 @@ async def test_existing_categories_get_plan_cents_from_plan_template_item(db_ses
 
 
 async def test_after_upgrade_rls_policies_present(db_session):
-    """0012/0015 BE-16: tenant_isolation_<table> policies exist on all v1.0 tables.
+    """tenant_isolation_<table> policies exist on tenant tables.
 
-    Account policy ships in 0012; goal + savings_config policies ship in 0015.
+    Account policy ships in 0012; v1.1 plan-template + per-period-plan policies
+    ship in 0028 (goal/savings_config dropped in 0031).
     """
     res = await db_session.execute(
         text(
             "SELECT polname, c.relname "
             "FROM pg_policy p "
             "JOIN pg_class c ON p.polrelid = c.oid "
-            "WHERE c.relname IN ('account', 'goal', 'savings_config')"
+            "WHERE c.relname IN ('account', 'plan_template_item', "
+            "'plan_template_line', 'period_category_plan')"
         )
     )
     policies = {(r[0], r[1]) for r in res.all()}
     expected = {
         ("tenant_isolation_account", "account"),
-        ("tenant_isolation_goal", "goal"),
-        ("tenant_isolation_savings_config", "savings_config"),
+        ("tenant_isolation_plan_template_item", "plan_template_item"),
+        ("tenant_isolation_plan_template_line", "plan_template_line"),
+        ("tenant_isolation_period_category_plan", "period_category_plan"),
     }
     missing = expected - policies
     assert not missing, f"Missing tenant_isolation policies: {missing}; got {policies}"
@@ -664,12 +672,18 @@ async def test_after_upgrade_force_rls_enabled_on_new_tables(db_session):
         text(
             "SELECT relname, relrowsecurity, relforcerowsecurity "
             "FROM pg_class "
-            "WHERE relname IN ('account', 'goal', 'savings_config') "
+            "WHERE relname IN ('account', 'plan_template_item', "
+            "'plan_template_line', 'period_category_plan') "
             "AND relkind = 'r'"
         )
     )
     rows = {r[0]: (r[1], r[2]) for r in res.all()}
-    for tbl in ("account", "goal", "savings_config"):
+    for tbl in (
+        "account",
+        "plan_template_item",
+        "plan_template_line",
+        "period_category_plan",
+    ):
         assert tbl in rows, f"Table {tbl} not visible in pg_class"
         rls_enabled, rls_forced = rows[tbl]
         assert rls_enabled, f"{tbl}: RLS not ENABLEd (relrowsecurity=false)"

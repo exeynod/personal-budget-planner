@@ -35,8 +35,11 @@ EXPECTED_TABLES = {
     "app_health",
     # Phase 22 v1.0 tables (plans 22.01, 22.03):
     "account",
-    "goal",
-    "savings_config",
+    # v1.1 (planning rework): goal/savings_config dropped (0031);
+    # plan-template + per-period plan added (0028).
+    "plan_template_item",
+    "plan_template_line",
+    "period_category_plan",
 }
 
 

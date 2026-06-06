@@ -17,6 +17,7 @@ Two layers:
 
 Self-skips when DATABASE_URL absent (consistent with the rest of tests/api/).
 """
+
 from __future__ import annotations
 
 import os
@@ -265,10 +266,8 @@ async def seeded_with_account_savings_and_categories(db_setup, owner_tg_id):
         Account,
         AccountKind,
         BudgetPeriod,
-        Category,
         CategoryKind,
         PeriodStatus,
-        SavingsConfig,
     )
     from datetime import timedelta
 
@@ -297,6 +296,7 @@ async def seeded_with_account_savings_and_categories(db_setup, owner_tg_id):
         # NOTE: Category.ord is NOT NULL CHAR(2) per migration 0013 — must
         # supply a 2-char ordinal even in tests (CHECK enforces format).
         from tests.helpers.seed import seed_category
+
         food_cat = await seed_category(
             session,
             user_id=user_id,
@@ -320,16 +320,7 @@ async def seeded_with_account_savings_and_categories(db_setup, owner_tg_id):
             ord="99",
         )
 
-        # SavingsConfig — roundup enabled, base=10. The DB CHECK enforces
-        # roundup_base IN (10, 50, 100) literally; the existing v0.x roundup
-        # service uses ``int(cfg.roundup_base)`` directly as the rounding
-        # granularity in the same unit as ``amount_cents`` (копейки).
-        cfg = SavingsConfig(
-            user_id=user_id,
-            roundup_enabled=True,
-            roundup_base=10,
-        )
-        session.add(cfg)
+        # v1.1: SavingsConfig / roundup removed (AGREED §G1) — no config seed.
 
         # BudgetPeriod covering today (so legacy create_actual doesn't auto-create).
         today = date.today()
@@ -366,11 +357,6 @@ async def test_post_actual_with_account_id_triggers_v10_path(
     client, SessionLocal = db_setup
     seed = seeded_with_account_savings_and_categories
 
-    # Use a non-aligned amount so roundup actually fires.
-    # base=10, amount_cents=100_50 → delta = ((10050 + 9) // 10) * 10 - 10050
-    # = 10050 - 10050 = 0 → ALIGNED. We need a NON-aligned magnitude for
-    # roundup to fire. Pick 100_53: delta = ((10053 + 9)//10)*10 - 10053
-    # = 10060 - 10053 = 7 → roundup child amount = -7.
     amount = 100_53
 
     r = await client.post(
@@ -390,12 +376,8 @@ async def test_post_actual_with_account_id_triggers_v10_path(
     assert body["account_id"] == seed["account_id"]
     assert body["parent_txn_id"] is None  # parent has no parent
 
-    # Verify account balance changed by parent + roundup child amount.
-    # parent delta = +amount (positive — income/expense sign-agnostic for delta).
-    # apply_balance_delta uses delta_cents = body.amount_cents.
-    # Roundup child delta = -7. So expected new balance:
-    #   50000_00 + 100_53 + (-7) = 50_100_46
-    expected_balance = seed["initial_balance_cents"] + amount + (-7)
+    # v1.1: roundup removed — balance delta is just the parent amount.
+    expected_balance = seed["initial_balance_cents"] + amount
 
     accounts = (await client.get("/api/v1/accounts", headers=auth_headers)).json()
     acct = next(a for a in accounts if a["id"] == seed["account_id"])
@@ -403,16 +385,15 @@ async def test_post_actual_with_account_id_triggers_v10_path(
         f"expected {expected_balance}, got {acct['balance_cents']}"
     )
 
-    # Verify roundup child exists in same period as sibling.
-    rows = (await client.get(
-        f"/api/v1/periods/{seed['period_id']}/actual", headers=auth_headers
-    )).json()
-    assert len(rows) == 2, rows
-    parent = next(x for x in rows if x["kind"] == "expense")
-    child = next(x for x in rows if x["kind"] == "roundup")
-    assert child["parent_txn_id"] == parent["id"]
-    assert child["account_id"] == seed["account_id"]
-    assert child["amount_cents"] == -7
+    # v1.1: single row in period — no roundup child.
+    rows = (
+        await client.get(
+            f"/api/v1/periods/{seed['period_id']}/actual", headers=auth_headers
+        )
+    ).json()
+    assert len(rows) == 1, rows
+    assert rows[0]["kind"] == "expense"
+    assert rows[0]["account_id"] == seed["account_id"]
 
 
 # Test: no account_id → legacy create_actual → no balance change, no roundup.
@@ -446,9 +427,11 @@ async def test_post_actual_without_account_id_uses_legacy_path(
     assert acct["balance_cents"] == seed["initial_balance_cents"]
 
     # Single row in period — no roundup child.
-    rows = (await client.get(
-        f"/api/v1/periods/{seed['period_id']}/actual", headers=auth_headers
-    )).json()
+    rows = (
+        await client.get(
+            f"/api/v1/periods/{seed['period_id']}/actual", headers=auth_headers
+        )
+    ).json()
     assert len(rows) == 1
     assert rows[0]["account_id"] is None
 
@@ -464,7 +447,6 @@ async def test_post_actual_cross_tenant_account_id_returns_404(
 
     # Insert a SECOND user with their own account that the calling user
     # has no access to. Calling user (owner_tg_id) MUST get 404, not 200.
-    from sqlalchemy import text
     from app.db.models import (
         Account,
         AccountKind,
@@ -563,9 +545,11 @@ async def test_actual_read_response_shape_includes_v10_fields(
     assert "parent_txn_id" in body
 
     # Same for GET listing.
-    listing = (await client.get(
-        f"/api/v1/periods/{seed['period_id']}/actual", headers=auth_headers
-    )).json()
+    listing = (
+        await client.get(
+            f"/api/v1/periods/{seed['period_id']}/actual", headers=auth_headers
+        )
+    ).json()
     assert len(listing) >= 1
     for row in listing:
         assert "kind" in row
