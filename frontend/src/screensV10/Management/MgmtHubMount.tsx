@@ -15,7 +15,9 @@
 import { useEffect, useState } from 'react';
 import { getMeV10 } from '../../api/me';
 import { usePosterRouter } from '../common';
+import { useShellVariant } from '../native/ShellVariant';
 import { MgmtHubView, type MgmtRowId } from './MgmtHubView';
+import { NativeMgmtHubView } from './NativeMgmtHubView';
 import { PlanMount } from '../Plan';
 import { SettingsMount } from './SettingsMount';
 import { AccessMount } from './AccessMount';
@@ -25,6 +27,7 @@ import { SubscriptionsMount } from '../Subscriptions';
 
 export function MgmtHubMount() {
   const router = usePosterRouter();
+  const variant = useShellVariant();
   const [isOwner, setIsOwner] = useState(false);
 
   useEffect(() => {
@@ -57,6 +60,15 @@ export function MgmtHubMount() {
       router.push(<AccessMount />);
     }
   }
+
+  const viewProps = {
+    isOwner,
+    onRowTap: handleRowTap,
+    canPop: router.canPop,
+    onBack: () => router.pop(),
+  };
+
+  if (variant === 'native') return <NativeMgmtHubView {...viewProps} />;
 
   return (
     <MgmtHubView

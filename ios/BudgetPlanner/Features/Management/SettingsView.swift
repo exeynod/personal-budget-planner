@@ -224,7 +224,7 @@ struct SettingsView: View {
             Text("Дизайн")
         } footer: {
             Text(
-                "Выберите стиль интерфейса. СТАРЫЙ IOS — нативный SwiftUI-шелл; остальные открывают V10-шелл с выбранной темой."
+                "Выберите стиль интерфейса. Liquid Glass — нативный iOS-дизайн (этот экран); Maximal Poster — постерный V10-шелл."
             )
         }
     }
@@ -239,11 +239,8 @@ struct SettingsView: View {
             case .liquidGlass:
                 RoundedRectangle(cornerRadius: 6, style: .continuous)
                     .fill(Color(red: 242 / 255, green: 242 / 255, blue: 247 / 255))
-            case .legacyV06:
-                RoundedRectangle(cornerRadius: 6, style: .continuous)
-                    .fill(Color(.systemGroupedBackground))
                     .overlay(
-                        Image(systemName: "house.fill")
+                        Image(systemName: "drop.fill")
                             .font(.system(size: 11, weight: .regular))
                             .foregroundStyle(Color.accentColor)
                     )

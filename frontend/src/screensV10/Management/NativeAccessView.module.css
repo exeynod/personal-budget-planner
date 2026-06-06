@@ -1,0 +1,83 @@
+/* Liquid Glass v2 — native Access view. Scoped (CSS module). */
+
+.root {
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 24px;
+}
+
+/* Segmented control row (Пользователи | AI Usage) */
+.segmentedRow {
+  padding: 4px var(--lgn-s-16) 4px;
+}
+
+/* Loading / error banner */
+.banner {
+  margin: 8px var(--lgn-s-16) 0;
+  padding: 12px var(--lgn-s-16);
+  background: var(--lgn-card);
+  border-radius: var(--lgn-r-card);
+  box-shadow: var(--lgn-shadow-card);
+  font-family: var(--lgn-font);
+  font-size: 15px;
+  color: var(--lgn-ink-2);
+}
+.bannerError {
+  color: var(--lgn-red);
+}
+
+/* Empty state */
+.empty {
+  margin: 8px var(--lgn-s-16) 0;
+  padding: 28px var(--lgn-s-16);
+  text-align: center;
+  color: var(--lgn-ink-2);
+  font-size: 15px;
+  font-family: var(--lgn-font);
+  background: var(--lgn-card);
+  border-radius: var(--lgn-r-card);
+  box-shadow: var(--lgn-shadow-card);
+}
+
+/* User-card avatar tile (circular, tinted, first letter) */
+.avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  border-radius: var(--lgn-r-pill);
+  background: rgba(255, 122, 76, 0.18);
+  color: var(--lgn-accent);
+  font-family: var(--lgn-font);
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+/* Role badge (owner / member) — pill on the trailing edge */
+.roleBadge {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  padding: 3px 9px;
+  border-radius: var(--lgn-r-pill);
+  background: rgba(255, 122, 76, 0.16);
+  color: var(--lgn-accent);
+  font-family: var(--lgn-font);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+/* AI-usage cost (trailing money) */
+.cost {
+  font-family: var(--lgn-font);
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--lgn-ink);
+  white-space: nowrap;
+}

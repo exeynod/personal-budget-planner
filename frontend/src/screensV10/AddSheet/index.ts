@@ -4,6 +4,13 @@
 // `screensV10/AddSheet`; the Keypad is also re-exported for tests.
 
 export { AddSheet, type AddSheetProps } from './AddSheet';
+// Liquid Glass v2 — native iOS variant of the add-transaction sheet. Reuses
+// the shared useAddSheetController (same submit/keypad/picker logic).
+export { NativeAddSheet, type NativeAddSheetProps } from './NativeAddSheet';
+export {
+  useAddSheetController,
+  type AddSheetController,
+} from './useAddSheetController';
 export { Keypad, type KeypadProps } from './Keypad';
 // Phase 30-02 (DEBT-03): bottom-sheet account picker — usually consumed
 // inside AddSheet, but exported for direct rendering in tests.

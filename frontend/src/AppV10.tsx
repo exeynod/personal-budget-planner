@@ -1,11 +1,13 @@
 import { lazy, Suspense, useMemo } from 'react';
 import './stylesV10/tokens.css';
 import './stylesV10/responsive.css';
-import './stylesV10/liquid-glass.css';
+import './stylesV10/native.css';
 import './stylesV10/fonts.css';
 import './stylesV10/animations.css';
 import styles from './AppV10.module.css';
 import { V10MainShell } from './screensV10/V10MainShell';
+import { NativeShell } from './screensV10/native/NativeShell';
+import { useTheme } from './screensV10/common/useTheme';
 import { AuthGate } from './screensV10/Auth/AuthGate';
 
 // Lazy-import preview gallery — keeps prod bundle slim when surface !== 'preview'.
@@ -33,6 +35,11 @@ export default function AppV10() {
     return 'mount';
   }, []);
 
+  // Liquid Glass v2 (2026-06): two parallel designs. `liquid_glass` renders the
+  // native iOS shell (NativeShell); `maximal_poster` keeps the poster shell
+  // (V10MainShell). Both wrap the same design-agnostic AuthGate + data stack.
+  const [theme] = useTheme();
+
   if (surface === 'preview') {
     return (
       <div className={styles.shellRoot} data-theme="v10">
@@ -48,7 +55,7 @@ export default function AppV10() {
   return (
     <div className={styles.shellRoot} data-theme="v10">
       <AuthGate>
-        <V10MainShell />
+        {theme === 'liquid_glass' ? <NativeShell /> : <V10MainShell />}
       </AuthGate>
     </div>
   );

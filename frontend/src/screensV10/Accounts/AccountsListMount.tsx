@@ -28,6 +28,8 @@ import {
   type AccountCreatePayload,
 } from '../../api/v10';
 import { AccountsListView } from './AccountsListView';
+import { NativeAccountsListView } from './NativeAccountsListView';
+import { useShellVariant } from '../native/ShellVariant';
 import { AccountDetailMount } from './AccountDetailMount';
 import { NewAccountSheet } from './NewAccountSheet';
 
@@ -38,6 +40,7 @@ export interface AccountsListMountProps {
 
 export function AccountsListMount(props: AccountsListMountProps = {}) {
   const router = usePosterRouter();
+  const variant = useShellVariant();
   const canPop = props.canPop ?? false;
 
   const [accounts, setAccounts] = useState<AccountResponse[]>([]);
@@ -105,8 +108,21 @@ export function AccountsListMount(props: AccountsListMountProps = {}) {
     [submitting],
   );
 
-  return (
-    <>
+  // Liquid Glass v2: same props feed the native or poster list view. The
+  // NewAccountSheet («+» action) + Toast wrappers are shared by both variants.
+  const listView =
+    variant === 'native' ? (
+      <NativeAccountsListView
+        accounts={accounts}
+        loading={loading}
+        error={error}
+        onAccountTap={onAccountTap}
+        onAddAccount={onAddAccount}
+        onTransfer={onTransfer}
+        canPop={canPop}
+        onBack={onBack}
+      />
+    ) : (
       <AccountsListView
         accounts={accounts}
         loading={loading}
@@ -117,6 +133,11 @@ export function AccountsListMount(props: AccountsListMountProps = {}) {
         canPop={canPop}
         onBack={onBack}
       />
+    );
+
+  return (
+    <>
+      {listView}
       <PosterSheet
         isOpen={sheet === 'newAccount'}
         onClose={onSheetClose}

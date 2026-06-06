@@ -39,6 +39,8 @@ import {
   useSelectedPeriodOptional,
 } from '../common';
 import { TransactionsView } from './TransactionsView';
+import { NativeTransactionsView } from './NativeTransactionsView';
+import { useShellVariant } from '../native/ShellVariant';
 import {
   applyFilterChip,
   computeHeaderSummary,
@@ -68,6 +70,7 @@ interface DataPayload {
 
 export function TransactionsMount() {
   const router = usePosterRouter();
+  const variant = useShellVariant();
   const [chip, setChip] = useState<TxFilterChip>('all');
   const [editingTx, setEditingTx] = useState<ActualV10Read | null>(null);
   // P2-11: delete error surface (single toast slot, last error wins).
@@ -206,6 +209,44 @@ export function TransactionsMount() {
     );
   }
   if (!vm) return refetchSentinel;
+
+  // Liquid Glass native shell → native iOS Transactions view. Same vm + props.
+  if (variant === 'native') {
+    return (
+      <>
+        {refetchSentinel}
+        <NativeTransactionsView
+          headerCount={vm.summary.count}
+          headerSumCents={vm.summary.sumCents}
+          filterChip={chip}
+          onChipChange={handleChipChange}
+          dayGroups={vm.dayGroups}
+          categories={vm.categories}
+          accounts={vm.accounts}
+          onRowTap={handleRowTap}
+          onRowDelete={handleRowDelete}
+          onBack={handleBack}
+          periods={sel?.periods}
+          selectedPeriodId={selectedPeriodId}
+          onSelectPeriod={sel?.setSelectedPeriodId}
+        />
+        <PosterSheet
+          isOpen={editingTx !== null}
+          onClose={handleEditClose}
+          backgroundColor="var(--poster-paper)"
+          testId="tx-edit-sheet"
+        >
+          <EditPlaceholder tx={editingTx} onClose={handleEditClose} />
+        </PosterSheet>
+        <Toast
+          message={toastMsg ?? ''}
+          visible={toastMsg !== null}
+          onDismiss={() => setToastMsg(null)}
+          duration={4000}
+        />
+      </>
+    );
+  }
 
   return (
     <>

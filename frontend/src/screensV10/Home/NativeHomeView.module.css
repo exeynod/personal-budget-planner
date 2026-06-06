@@ -1,0 +1,96 @@
+/* Liquid Glass v2 — native Home view. Scoped (CSS module). */
+
+.root {
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 24px;
+}
+
+/* Balance card */
+.balanceCard {
+  margin: 8px var(--lgn-s-16) 0;
+  background: var(--lgn-card);
+  border-radius: var(--lgn-r-card);
+  box-shadow: var(--lgn-shadow-card);
+  padding: 14px var(--lgn-s-16) 16px;
+  text-align: left;
+  width: auto;
+  border: none;
+  font-family: var(--lgn-font);
+  cursor: pointer;
+}
+.balanceCard:active {
+  background: var(--lgn-card-press);
+}
+.balanceLabel {
+  font-size: 13px;
+  color: var(--lgn-ink-2);
+}
+.balanceAmount {
+  margin-top: 2px;
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  color: var(--lgn-ink);
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+.balanceCur {
+  font-size: 19px;
+  font-weight: 600;
+  color: var(--lgn-ink-2);
+}
+
+.statsRow {
+  display: flex;
+  margin-top: 14px;
+  gap: 8px;
+}
+.statCol {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1 1 0;
+  min-width: 0;
+}
+.statColEnd {
+  align-items: flex-end;
+  text-align: right;
+}
+.statLabel {
+  font-size: 11px;
+  letter-spacing: 0.4px;
+  color: var(--lgn-ink-2);
+  text-transform: uppercase;
+}
+.statValue {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--lgn-ink);
+  white-space: nowrap;
+}
+.statPositive {
+  color: var(--lgn-green);
+}
+.statNegative {
+  color: var(--lgn-red);
+}
+
+/* Segment row */
+.segmentRow {
+  margin-top: 22px;
+}
+
+/* Empty state */
+.empty {
+  margin: 8px var(--lgn-s-16) 0;
+  padding: 28px var(--lgn-s-16);
+  text-align: center;
+  color: var(--lgn-ink-2);
+  font-size: 15px;
+  font-family: var(--lgn-font);
+  background: var(--lgn-card);
+  border-radius: var(--lgn-r-card);
+  box-shadow: var(--lgn-shadow-card);
+}

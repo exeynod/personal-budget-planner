@@ -5,6 +5,7 @@
 
 export { SavingsMount } from './SavingsMount';
 export { SavingsView, type SavingsViewProps } from './SavingsView';
+export { NativeSavingsView } from './NativeSavingsView';
 export { NewGoalSheet, type NewGoalSheetProps } from './NewGoalSheet';
 export { DepositSheet, type DepositSheetProps } from './DepositSheet';
 export {

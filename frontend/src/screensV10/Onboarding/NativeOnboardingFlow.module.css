@@ -1,0 +1,283 @@
+/* Liquid Glass v2 — native iOS onboarding (single-scroll). Scoped (CSS module).
+   Mirrors .planning/ios-native-screens/00-onboarding.jpg. */
+
+.screen {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 100dvh;
+  font-family: var(--lgn-font);
+  color: var(--lgn-ink);
+  background: var(--lgn-bg);
+}
+
+.scroll {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 0 var(--lgn-s-16)
+    calc(var(--lgn-s-16) + env(safe-area-inset-bottom, 0px));
+}
+
+/* ── Hero ── */
+.hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 44px var(--lgn-s-8) 24px;
+}
+.heroIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 72px;
+  height: 72px;
+  border-radius: var(--lgn-r-pill);
+  background: var(--lgn-accent);
+  box-shadow: var(--lgn-shadow-float);
+  margin-bottom: 18px;
+}
+.title {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.4px;
+  line-height: 1.15;
+  color: var(--lgn-ink);
+}
+.subtitle {
+  margin: 8px 0 0;
+  font-size: 16px;
+  font-weight: 400;
+  color: var(--lgn-ink-2);
+}
+
+/* ── Card (inset grouped cell) ── */
+.card {
+  background: var(--lgn-card);
+  border-radius: var(--lgn-r-card);
+  box-shadow: var(--lgn-shadow-card);
+  padding: 14px var(--lgn-s-16);
+  margin-top: var(--lgn-s-16);
+}
+.caption {
+  margin: 6px var(--lgn-s-4) 0;
+  font-size: 13px;
+  line-height: 1.35;
+  color: var(--lgn-ink-3);
+}
+
+/* ── Field row (label + control) ── */
+.fieldRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 28px;
+}
+.fieldLabel {
+  font-size: 17px;
+  font-weight: 500;
+  color: var(--lgn-ink);
+}
+
+/* ── Amount field ── */
+.amountField {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  min-width: 0;
+}
+.amountInput {
+  appearance: none;
+  border: none;
+  background: none;
+  text-align: right;
+  width: 8ch;
+  max-width: 140px;
+  padding: 0;
+  font-family: var(--lgn-font);
+  font-size: 19px;
+  font-weight: 600;
+  color: var(--lgn-ink);
+  font-variant-numeric: tabular-nums;
+}
+.amountInput::placeholder {
+  color: var(--lgn-ink-3);
+  font-weight: 400;
+}
+.amountInput:focus {
+  outline: none;
+}
+.rub {
+  font-size: 19px;
+  font-weight: 600;
+  color: var(--lgn-ink-3);
+}
+
+/* ── Stepper (День начала) ── */
+.stepper {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.stepperValue {
+  font-size: 19px;
+  font-weight: 600;
+  color: var(--lgn-ink);
+  font-variant-numeric: tabular-nums;
+  min-width: 1.5ch;
+  text-align: right;
+}
+.stepperBtn {
+  appearance: none;
+  border: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 30px;
+  border-radius: var(--lgn-r-tile);
+  background: var(--lgn-seg-track);
+  color: var(--lgn-ink);
+  cursor: pointer;
+}
+.stepperBtn:active {
+  background: var(--lgn-card-press);
+}
+.stepperDivider {
+  width: 1px;
+  height: 18px;
+  background: var(--lgn-hairline-soft);
+}
+
+/* ── Chips (cycle-day presets) ── */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--lgn-s-8);
+  margin-top: 14px;
+}
+.chip {
+  appearance: none;
+  border: none;
+  min-width: 38px;
+  padding: 7px 10px;
+  border-radius: var(--lgn-r-pill);
+  background: var(--lgn-seg-track);
+  font-family: var(--lgn-font);
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--lgn-ink-2);
+  cursor: pointer;
+}
+.chipActive {
+  background: var(--lgn-accent);
+  color: #fff;
+}
+
+/* ── Toggle (Готовые категории) ── */
+.toggle {
+  appearance: none;
+  border: none;
+  position: relative;
+  width: 51px;
+  height: 31px;
+  border-radius: var(--lgn-r-pill);
+  background: var(--lgn-seg-track);
+  cursor: pointer;
+  transition: background 0.18s ease;
+  flex: 0 0 auto;
+}
+.toggleOn {
+  background: var(--lgn-accent);
+}
+.toggleKnob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 27px;
+  height: 27px;
+  border-radius: var(--lgn-r-pill);
+  background: #fff;
+  box-shadow: var(--lgn-shadow-float);
+  transition: transform 0.18s ease;
+}
+.toggleOn .toggleKnob {
+  transform: translateX(20px);
+}
+
+/* ── Telegram-бот ── */
+.sectionLabel {
+  margin: 22px var(--lgn-s-4) 0;
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--lgn-ink);
+}
+.botBtn {
+  appearance: none;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  box-sizing: border-box;
+  margin-top: var(--lgn-s-12);
+  padding: 14px var(--lgn-s-16);
+  border-radius: var(--lgn-r-card);
+  background: var(--lgn-card);
+  box-shadow: var(--lgn-shadow-card);
+  font-family: var(--lgn-font);
+  font-size: 17px;
+  font-weight: 500;
+  color: var(--lgn-accent);
+  cursor: pointer;
+}
+.botBtn:active {
+  background: var(--lgn-card-press);
+}
+
+/* ── Error ── */
+.error {
+  margin-top: var(--lgn-s-16);
+  padding: 10px var(--lgn-s-16);
+  border-radius: var(--lgn-r-card);
+  background: rgba(255, 59, 48, 0.12);
+  color: var(--lgn-red);
+  font-size: 14px;
+}
+
+/* ── Sticky footer CTA ── */
+.footer {
+  flex: 0 0 auto;
+  padding: var(--lgn-s-12) var(--lgn-s-16)
+    calc(var(--lgn-s-12) + env(safe-area-inset-bottom, 0px));
+  background: linear-gradient(
+    to top,
+    var(--lgn-bg) 70%,
+    rgba(242, 242, 247, 0)
+  );
+}
+.cta {
+  appearance: none;
+  border: none;
+  width: 100%;
+  padding: 16px var(--lgn-s-16);
+  border-radius: var(--lgn-r-button);
+  background: var(--lgn-accent);
+  color: #fff;
+  font-family: var(--lgn-font);
+  font-size: 17px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.cta:active {
+  background: var(--lgn-accent-press);
+}
+.ctaDisabled {
+  background: var(--lgn-seg-track);
+  color: var(--lgn-ink-3);
+  cursor: default;
+}

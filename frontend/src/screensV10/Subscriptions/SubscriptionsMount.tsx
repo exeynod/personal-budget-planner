@@ -34,7 +34,9 @@ import {
   type AccountResponse,
 } from '../../api/v10';
 import { SubscriptionsView } from './SubscriptionsView';
+import { NativeSubscriptionsView } from './NativeSubscriptionsView';
 import { SubscriptionMenuSheet } from './SubscriptionMenuSheet';
+import { useShellVariant } from '../native/ShellVariant';
 import styles from './SubscriptionsView.module.css';
 
 // Toast duration for error surfaces — 4s gives the user enough time to read
@@ -63,6 +65,7 @@ type LoadState =
 
 export function SubscriptionsMount() {
   const router = usePosterRouter();
+  const variant = useShellVariant();
   const [state, setState] = useState<LoadState>({ status: 'loading' });
   const [reloadToken, setReloadToken] = useState(0);
   const [menuSub, setMenuSub] = useState<SubscriptionV10Read | null>(null);
@@ -122,8 +125,7 @@ export function SubscriptionsMount() {
         refresh();
       } catch (err) {
         setToastMsg(
-          'Не удалось обновить · ' +
-            errMessage(err, 'день не сохранён'),
+          'Не удалось обновить · ' + errMessage(err, 'день не сохранён'),
         );
       }
     },
@@ -137,8 +139,7 @@ export function SubscriptionsMount() {
         refresh();
       } catch (err) {
         setToastMsg(
-          'Не удалось обновить · ' +
-            errMessage(err, 'цена не сохранена'),
+          'Не удалось обновить · ' + errMessage(err, 'цена не сохранена'),
         );
       }
     },
@@ -166,8 +167,7 @@ export function SubscriptionsMount() {
         refresh();
       } catch (err) {
         setToastMsg(
-          'Не удалось удалить · ' +
-            errMessage(err, 'подписка не удалена'),
+          'Не удалось удалить · ' + errMessage(err, 'подписка не удалена'),
         );
       }
     },
@@ -212,7 +212,14 @@ export function SubscriptionsMount() {
           <Eyebrow color="var(--poster-ink)">SUBSCRIPTIONS</Eyebrow>
         </div>
         <div className={styles.emptyState}>{state.message}</div>
-        <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginTop: 16 }}>
+        <div
+          style={{
+            display: 'flex',
+            gap: 10,
+            justifyContent: 'center',
+            marginTop: 16,
+          }}
+        >
           <PosterButton variant="primary" onClick={refresh}>
             ПОВТОРИТЬ
           </PosterButton>
@@ -226,12 +233,21 @@ export function SubscriptionsMount() {
 
   return (
     <>
-      <SubscriptionsView
-        subs={state.subs}
-        accounts={state.accounts}
-        onMenuOpen={(sub) => setMenuSub(sub)}
-        onBack={() => router.pop()}
-      />
+      {variant === 'native' ? (
+        <NativeSubscriptionsView
+          subs={state.subs}
+          accounts={state.accounts}
+          onMenuOpen={(sub) => setMenuSub(sub)}
+          onBack={() => router.pop()}
+        />
+      ) : (
+        <SubscriptionsView
+          subs={state.subs}
+          accounts={state.accounts}
+          onMenuOpen={(sub) => setMenuSub(sub)}
+          onBack={() => router.pop()}
+        />
+      )}
       <SubscriptionMenuSheet
         sub={menuSub}
         accounts={state.accounts}

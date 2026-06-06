@@ -1,0 +1,227 @@
+/* Liquid Glass v2 — native Plan (План месяца) view. Scoped (CSS module). */
+
+.root {
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 32px;
+}
+
+/* ─────────── Nav-bar trailing «Сохранить» ─────────── */
+.saveBtn {
+  border: none;
+  background: none;
+  font-family: var(--lgn-font);
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--lgn-accent);
+  padding: 4px 2px;
+  cursor: pointer;
+}
+.saveBtn:disabled {
+  color: var(--lgn-ink-3);
+  cursor: default;
+}
+.saveBtn:not(:disabled):active {
+  color: var(--lgn-accent-press);
+}
+
+/* ─────────── Surplus card ─────────── */
+.surplusCard {
+  position: relative;
+  margin: 8px var(--lgn-s-16) 0;
+  background: var(--lgn-card);
+  border-radius: var(--lgn-r-card);
+  box-shadow: var(--lgn-shadow-card);
+  padding: 14px var(--lgn-s-16) 16px;
+  font-family: var(--lgn-font);
+  border-left: 4px solid transparent;
+}
+.surplusOk {
+  border-left-color: var(--lgn-green);
+}
+.surplusOver {
+  border-left-color: var(--lgn-red);
+}
+.surplusLabel {
+  font-size: 13px;
+  color: var(--lgn-ink-2);
+}
+.surplusValue {
+  margin-top: 2px;
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  color: var(--lgn-ink);
+}
+.surplusOver .surplusValue {
+  color: var(--lgn-red);
+}
+.surplusBadge {
+  position: absolute;
+  top: 14px;
+  right: var(--lgn-s-16);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: var(--lgn-r-pill);
+}
+.badgeOk {
+  color: var(--lgn-green);
+  background: rgba(52, 199, 89, 0.14);
+}
+.badgeOver {
+  color: var(--lgn-red);
+  background: rgba(255, 59, 48, 0.14);
+}
+
+/* ─────────── Aggregates ─────────── */
+.aggSavings {
+  color: var(--lgn-green);
+  font-weight: 600;
+}
+
+/* ─────────── Regulars ─────────── */
+.regularTrailing {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--lgn-font);
+}
+.regularAmount {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--lgn-ink);
+  white-space: nowrap;
+}
+.regularCta {
+  border: none;
+  background: rgba(0, 122, 255, 0.12);
+  color: var(--lgn-blue);
+  font-family: var(--lgn-font);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: var(--lgn-r-pill);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.regularCta:active {
+  background: rgba(0, 122, 255, 0.22);
+}
+.regularCtaUndo {
+  background: var(--lgn-seg-track);
+  color: var(--lgn-ink-2);
+}
+.regularCtaUndo:active {
+  background: var(--lgn-card-press);
+}
+
+/* ─────────── Category rows (custom, inside InsetGroup) ─────────── */
+.catRow {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px var(--lgn-s-16);
+  font-family: var(--lgn-font);
+  position: relative;
+}
+.catRow:not(:first-child)::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: calc(var(--lgn-s-16) + 30px + 12px);
+  right: 0;
+  height: 1px;
+  background: var(--lgn-hairline-soft);
+}
+.catRowFocused {
+  background: rgba(255, 122, 76, 0.08);
+}
+.catTop {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.catName {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 17px;
+  color: var(--lgn-ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.catInputWrap {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  background: var(--lgn-seg-track);
+  border-radius: var(--lgn-r-button);
+  padding: 6px 10px;
+}
+.catInput {
+  width: 88px;
+  border: none;
+  background: none;
+  outline: none;
+  font-family: var(--lgn-font);
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--lgn-ink);
+  text-align: right;
+  padding: 0;
+}
+.catCur {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--lgn-ink-2);
+}
+
+/* Rollover segmented under the row, inset past the icon. */
+.catRollover {
+  padding-left: calc(30px + 12px);
+}
+
+/* ─────────── Total / income ─────────── */
+.totalLabel {
+  font-weight: 700;
+}
+.totalValue {
+  font-weight: 700;
+  color: var(--lgn-ink);
+}
+
+/* ─────────── Error + footnote ─────────── */
+.errorMsg {
+  margin: 10px var(--lgn-s-16) 0;
+  padding: 12px var(--lgn-s-16);
+  background: rgba(255, 59, 48, 0.1);
+  color: var(--lgn-red);
+  border-radius: var(--lgn-r-card);
+  font-family: var(--lgn-font);
+  font-size: 14px;
+  font-weight: 500;
+}
+.footnote {
+  margin: 12px var(--lgn-s-20) 0;
+  font-family: var(--lgn-font);
+  font-size: 13px;
+  color: var(--lgn-ink-2);
+  line-height: 1.4;
+}
+
+/* ─────────── Empty (regulars) ─────────── */
+.empty {
+  margin: 0 var(--lgn-s-16);
+  padding: 20px var(--lgn-s-16);
+  text-align: center;
+  color: var(--lgn-ink-2);
+  font-size: 15px;
+  font-family: var(--lgn-font);
+  background: var(--lgn-card);
+  border-radius: var(--lgn-r-card);
+  box-shadow: var(--lgn-shadow-card);
+}

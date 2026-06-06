@@ -24,7 +24,9 @@ import {
   type AccountResponse,
 } from '../../api/v10';
 import { usePosterRouter, PosterSheet, useResource } from '../common';
+import { useShellVariant } from '../native/ShellVariant';
 import { SavingsView } from './SavingsView';
+import { NativeSavingsView } from './NativeSavingsView';
 import { NewGoalSheet } from './NewGoalSheet';
 import { DepositSheet } from './DepositSheet';
 
@@ -40,6 +42,7 @@ interface SavingsPayload {
 
 export function SavingsMount() {
   const router = usePosterRouter();
+  const variant = useShellVariant();
 
   const [sheet, setSheet] = useState<SheetMode>({ kind: 'none' });
   const [submitting, setSubmitting] = useState(false);
@@ -151,9 +154,13 @@ export function SavingsMount() {
     [reload],
   );
 
+  // Liquid Glass v2: render the native iOS view under the native shell; the
+  // poster path stays unchanged (pixel baselines). Both consume the SAME props.
+  const ViewComponent = variant === 'native' ? NativeSavingsView : SavingsView;
+
   return (
     <>
-      <SavingsView
+      <ViewComponent
         snapshot={snapshot}
         loading={loading}
         error={error}

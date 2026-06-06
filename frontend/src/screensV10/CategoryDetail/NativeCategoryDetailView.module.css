@@ -1,0 +1,209 @@
+/* Liquid Glass v2 — native CategoryDetail view. Scoped (CSS module). */
+
+.root {
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 24px;
+}
+
+/* ─────────── Summary card ─────────── */
+.summaryCard {
+  margin: 8px var(--lgn-s-16) 0;
+  background: var(--lgn-card);
+  border-radius: var(--lgn-r-card);
+  box-shadow: var(--lgn-shadow-card);
+  padding: 14px var(--lgn-s-16) 16px;
+  font-family: var(--lgn-font);
+}
+
+.summaryHead {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.summaryHeadText {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.summaryName {
+  font-size: 13px;
+  color: var(--lgn-ink-2);
+}
+.summaryFact {
+  margin-top: 1px;
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  color: var(--lgn-ink);
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+.summaryCur {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--lgn-ink-2);
+}
+
+/* Stat row (Plan / Fact / В запасе) — mirrors NativeHomeView */
+.statsRow {
+  display: flex;
+  margin-top: 14px;
+  gap: 8px;
+}
+.statCol {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1 1 0;
+  min-width: 0;
+}
+.statColEnd {
+  align-items: flex-end;
+  text-align: right;
+}
+.statLabel {
+  font-size: 11px;
+  letter-spacing: 0.4px;
+  color: var(--lgn-ink-2);
+  text-transform: uppercase;
+}
+.statValue {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--lgn-ink);
+  white-space: nowrap;
+}
+.statPositive {
+  color: var(--lgn-green);
+}
+.statNegative {
+  color: var(--lgn-red);
+}
+
+/* Progress bar */
+.barTrack {
+  position: relative;
+  margin-top: 14px;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--lgn-hairline-soft);
+  overflow: hidden;
+}
+.barFill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  height: 100%;
+  border-radius: 3px;
+  background: var(--lgn-accent);
+}
+.barFillOver {
+  background: var(--lgn-red);
+}
+.barTick {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--lgn-card);
+  transform: translateX(-0.5px);
+}
+
+/* ─────────── Rollover hint trailing ─────────── */
+.rolloverHint {
+  font-size: 15px;
+  color: var(--lgn-ink-2);
+}
+
+/* ─────────── CTA row ─────────── */
+.ctaRow {
+  display: flex;
+  gap: 10px;
+  margin: 14px var(--lgn-s-16) 0;
+}
+.ctaPrimary {
+  flex: 1 1 auto;
+  border: none;
+  border-radius: var(--lgn-r-card);
+  background: var(--lgn-accent);
+  color: #fff;
+  font-family: var(--lgn-font);
+  font-size: 16px;
+  font-weight: 600;
+  padding: 13px;
+  cursor: pointer;
+}
+.ctaPrimary:active {
+  background: var(--lgn-accent-press);
+}
+.ctaGhost {
+  flex: 0 0 auto;
+  border: none;
+  border-radius: var(--lgn-r-card);
+  background: var(--lgn-card);
+  box-shadow: var(--lgn-shadow-card);
+  color: var(--lgn-blue);
+  font-family: var(--lgn-font);
+  font-size: 16px;
+  font-weight: 600;
+  padding: 13px 22px;
+  cursor: pointer;
+}
+.ctaGhost:active {
+  background: var(--lgn-card-press);
+}
+
+/* ─────────── Day group: SectionHeader (date) + day total ─────────── */
+.dayGroup {
+  display: flex;
+  flex-direction: column;
+}
+.dayHeaderRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding-right: var(--lgn-s-20);
+}
+.dayHeaderRow > :first-child {
+  flex: 1 1 auto;
+}
+.daySum {
+  flex: 0 0 auto;
+  font-family: var(--lgn-font);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--lgn-ink-2);
+  white-space: nowrap;
+}
+
+/* ─────────── Row title (uppercase name) + signed amount ─────────── */
+.catName {
+  text-transform: uppercase;
+  letter-spacing: 0.2px;
+}
+.amount {
+  font-family: var(--lgn-font);
+  font-size: 17px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.amountPositive {
+  color: var(--lgn-green);
+}
+.amountNegative {
+  color: var(--lgn-ink);
+}
+
+/* ─────────── Empty state ─────────── */
+.empty {
+  margin: 8px var(--lgn-s-16) 0;
+  padding: 28px var(--lgn-s-16);
+  text-align: center;
+  color: var(--lgn-ink-2);
+  font-size: 15px;
+  font-family: var(--lgn-font);
+  background: var(--lgn-card);
+  border-radius: var(--lgn-r-card);
+  box-shadow: var(--lgn-shadow-card);
+}

@@ -5,16 +5,19 @@
 // + v06 sentinel. Stale persisted "ios_default" raw безопасно резолвится в
 // .maximalPoster; "liquid_glass" теперь снова резолвится в .liquidGlass.
 //
+// Liquid Glass v2 (2026-06-06): «Liquid Glass» = native MainShell. Picker = 2
+// опции; sentinel "v06" мигрируется в .liquidGlass.
+//
 // Покрывает каждый <behavior> путь:
 //   - selected(forRaw:) для maximal_poster / liquid_glass
-//   - "v06" → .legacyV06
+//   - "v06" → .liquidGlass (миграция старого нативного шелла)
 //   - stale ios_default/неизвестный/пустой raw → .maximalPoster
 //   - liquid_glass round-trips to .liquidGlass
 //   - rawValue(for:) для всех опций
 //   - round-trip option ↔ rawValue по allOptions
-//   - allOptions = [.maximalPoster, .liquidGlass, .legacyV06]
+//   - allOptions = [.maximalPoster, .liquidGlass]
 //   - Theme.allCases == [.maximalPoster, .liquidGlass]
-//   - ruLabel (legacyV06 + паритет с Theme.ruLabel)
+//   - ruLabel паритет с Theme.ruLabel
 
 import XCTest
 
@@ -43,8 +46,10 @@ final class ThemeOptionTests: XCTestCase {
         XCTAssertEqual(ThemeOption.selected(forRaw: "liquid_glass"), .liquidGlass)
     }
 
-    func testSelectedResolvesLegacyV06() {
-        XCTAssertEqual(ThemeOption.selected(forRaw: "v06"), .legacyV06)
+    func testSelectedMigratesLegacyV06ToLiquidGlass() {
+        // Liquid Glass v2: "v06" — старый ключ нативного шелла, теперь это и есть
+        // Liquid Glass (native MainShell), поэтому мигрируется в .liquidGlass.
+        XCTAssertEqual(ThemeOption.selected(forRaw: "v06"), .liquidGlass)
     }
 
     func testSelectedStaleIosDefaultFallsBackToMaximalPoster() {
@@ -80,8 +85,9 @@ final class ThemeOptionTests: XCTestCase {
         XCTAssertEqual(ThemeOption.rawValue(for: .liquidGlass), "liquid_glass")
     }
 
-    func testRawValueForLegacyV06() {
-        XCTAssertEqual(ThemeOption.rawValue(for: .legacyV06), "v06")
+    func testLegacyV06RawConstantPreserved() {
+        // Sentinel-строка сохранена для миграции, но больше не пишется в storage.
+        XCTAssertEqual(ThemeOption.legacyV06Raw, "v06")
     }
 
     // MARK: - round-trip
@@ -102,15 +108,11 @@ final class ThemeOptionTests: XCTestCase {
     func testAllOptionsOrder() {
         XCTAssertEqual(
             ThemeOption.allOptions,
-            [.maximalPoster, .liquidGlass, .legacyV06]
+            [.maximalPoster, .liquidGlass]
         )
     }
 
     // MARK: - ruLabel
-
-    func testRuLabelLegacyV06() {
-        XCTAssertEqual(ThemeOption.legacyV06.ruLabel, "СТАРЫЙ IOS")
-    }
 
     func testRuLabelMirrorsThemeForMaximalPoster() {
         XCTAssertEqual(ThemeOption.maximalPoster.ruLabel, Theme.maximalPoster.ruLabel)

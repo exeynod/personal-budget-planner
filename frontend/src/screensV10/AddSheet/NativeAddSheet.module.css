@@ -1,0 +1,348 @@
+/* Liquid Glass v2 — native «Новая транзакция» sheet. Scoped (CSS module). */
+
+.sheet {
+  display: flex;
+  flex-direction: column;
+  font-family: var(--lgn-font);
+  color: var(--lgn-ink);
+  background: var(--lgn-bg);
+  padding: 0 0 calc(12px + env(safe-area-inset-bottom, 0px));
+}
+
+/* ── Sheet header ── */
+.header {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  padding: 6px var(--lgn-s-16) 8px;
+}
+.title {
+  grid-column: 2;
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--lgn-ink);
+  text-align: center;
+  white-space: nowrap;
+}
+.cancelBtn {
+  grid-column: 1;
+  justify-self: start;
+  appearance: none;
+  border: none;
+  background: none;
+  padding: 4px 0;
+  font-family: var(--lgn-font);
+  font-size: 17px;
+  color: var(--lgn-blue);
+  cursor: pointer;
+}
+.headerSpacer {
+  grid-column: 3;
+}
+
+/* ── Amount display ── */
+.amountBlock {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 6px;
+  padding: 14px var(--lgn-s-16) 18px;
+}
+.amountValue {
+  font-size: 56px;
+  font-weight: 700;
+  letter-spacing: -1px;
+  line-height: 1;
+  color: var(--lgn-ink);
+  font-variant-numeric: tabular-nums;
+}
+.amountMuted {
+  color: var(--lgn-ink-3);
+}
+.amountCurrency {
+  font-size: 28px;
+  font-weight: 600;
+  color: var(--lgn-ink-2);
+}
+
+/* ── Description field ── */
+.fieldGroup {
+  padding: 0 var(--lgn-s-16) 8px;
+}
+.descInput {
+  width: 100%;
+  box-sizing: border-box;
+  appearance: none;
+  border: none;
+  border-radius: var(--lgn-r-card);
+  background: var(--lgn-card);
+  box-shadow: var(--lgn-shadow-card);
+  padding: 12px var(--lgn-s-16);
+  font-family: var(--lgn-font);
+  font-size: 17px;
+  color: var(--lgn-ink);
+}
+.descInput::placeholder {
+  color: var(--lgn-ink-3);
+}
+
+/* ── Inset rows: trailing value text ── */
+.rowValue {
+  font-family: var(--lgn-font);
+  font-size: 17px;
+  color: var(--lgn-ink-2);
+  white-space: nowrap;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Meta tile (Счёт/Дата) — same footprint as CategoryIcon. */
+.metaTile,
+.placeholderTile {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--lgn-r-tile);
+  flex: 0 0 auto;
+}
+.placeholderTile {
+  background: var(--lgn-ink-3);
+}
+
+/* ── Period-scope hint ── */
+.periodHint {
+  padding: 6px var(--lgn-s-20) 0;
+  font-size: 13px;
+  color: var(--lgn-ink-2);
+}
+
+/* ── Native keypad ── */
+.keypad {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  padding: 16px var(--lgn-s-16) 8px;
+}
+.key {
+  appearance: none;
+  border: none;
+  border-radius: var(--lgn-r-button);
+  background: var(--lgn-card);
+  box-shadow: var(--lgn-shadow-card);
+  height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--lgn-font);
+  font-size: 26px;
+  font-weight: 500;
+  color: var(--lgn-ink);
+  cursor: pointer;
+  user-select: none;
+}
+.key:active {
+  background: var(--lgn-card-press);
+}
+
+/* ── Error banner ── */
+.errorBanner {
+  margin: 4px var(--lgn-s-16) 0;
+  padding: 10px var(--lgn-s-16);
+  border-radius: var(--lgn-r-card);
+  background: rgba(255, 59, 48, 0.12);
+  color: var(--lgn-red);
+  font-size: 14px;
+}
+
+/* ── Primary CTA ── */
+.cta {
+  appearance: none;
+  border: none;
+  margin: 12px var(--lgn-s-16) 0;
+  padding: 15px var(--lgn-s-16);
+  border-radius: var(--lgn-r-button);
+  background: var(--lgn-accent);
+  color: #fff;
+  font-family: var(--lgn-font);
+  font-size: 17px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.cta:active {
+  background: var(--lgn-accent-press);
+}
+.ctaDisabled {
+  background: var(--lgn-seg-track);
+  color: var(--lgn-ink-3);
+  cursor: default;
+}
+
+/* Hidden native date input (driven by «Своя дата»). */
+.hiddenDateInput {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* ── Action-sheet (date / category pickers) ── */
+.actionBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: 8px;
+  padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+}
+.actionSheet {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.actionTitle {
+  text-align: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--lgn-ink-2);
+  padding: 10px 0 2px;
+  background: var(--lgn-card);
+  border-radius: var(--lgn-r-sheet) var(--lgn-r-sheet) 0 0;
+}
+.actionGroup {
+  display: flex;
+  flex-direction: column;
+  max-height: 50vh;
+  overflow-y: auto;
+  background: var(--lgn-card);
+  border-radius: 0 0 var(--lgn-r-sheet) var(--lgn-r-sheet);
+}
+.actionItem,
+.catRow {
+  appearance: none;
+  border: none;
+  background: var(--lgn-card);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  padding: 13px var(--lgn-s-16);
+  font-family: var(--lgn-font);
+  cursor: pointer;
+  border-bottom: 0.5px solid var(--lgn-hairline-soft);
+}
+.actionItem:last-child,
+.catRow:last-child {
+  border-bottom: none;
+}
+.actionItem:active,
+.catRow:active {
+  background: var(--lgn-card-press);
+}
+.actionItemMain {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.actionItemLabel {
+  font-size: 17px;
+  color: var(--lgn-ink);
+}
+.actionItemSub {
+  font-size: 13px;
+  color: var(--lgn-ink-2);
+}
+.actionCheck,
+.catCheck {
+  color: var(--lgn-accent);
+  flex: 0 0 auto;
+}
+.catName {
+  flex: 1 1 auto;
+  font-size: 17px;
+  color: var(--lgn-ink);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.actionCancel {
+  appearance: none;
+  border: none;
+  background: var(--lgn-card);
+  border-radius: var(--lgn-r-sheet);
+  padding: 15px;
+  font-family: var(--lgn-font);
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--lgn-blue);
+  cursor: pointer;
+}
+.sheetEmpty {
+  padding: 22px var(--lgn-s-16);
+  text-align: center;
+  color: var(--lgn-ink-2);
+  font-size: 15px;
+}
+
+/* ── Dirty-close confirm ── */
+.confirmBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+.confirmBox {
+  width: 100%;
+  max-width: 280px;
+  background: rgba(248, 248, 248, 0.98);
+  border-radius: var(--lgn-r-sheet);
+  overflow: hidden;
+  text-align: center;
+}
+.confirmTitle {
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--lgn-ink);
+  padding: 18px 16px 4px;
+}
+.confirmHint {
+  font-size: 13px;
+  color: var(--lgn-ink-2);
+  padding: 0 16px 16px;
+}
+.confirmActions {
+  display: flex;
+  border-top: 0.5px solid var(--lgn-hairline);
+}
+.confirmContinue,
+.confirmCancel {
+  appearance: none;
+  border: none;
+  background: none;
+  flex: 1 1 0;
+  padding: 13px 8px;
+  font-family: var(--lgn-font);
+  font-size: 17px;
+  cursor: pointer;
+}
+.confirmContinue {
+  color: var(--lgn-blue);
+  border-right: 0.5px solid var(--lgn-hairline);
+}
+.confirmCancel {
+  color: var(--lgn-red);
+  font-weight: 600;
+}

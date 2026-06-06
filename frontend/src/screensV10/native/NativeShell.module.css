@@ -1,0 +1,68 @@
+/* Liquid Glass v2 — native shell layout + iOS push transitions. */
+
+.shellRoot {
+  position: relative;
+  width: 100%;
+  /* Track TG stable viewport (synced by utils/safeArea.ts); falls back to
+     100dvh in browser/tests — mirrors V10MainShell so the no-TG layout is
+     identical. */
+  height: var(--tg-viewport-stable, 100dvh);
+  background: var(--lgn-bg);
+  font-family: var(--lgn-font);
+  color: var(--lgn-ink);
+  overflow: hidden;
+}
+
+/* Scrollable content area: fills above the tab bar (reserve ~56px + the
+   device home-indicator inset). */
+.content {
+  position: absolute;
+  inset: 0 0 calc(56px + env(safe-area-inset-bottom, 0px)) 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.navWrap {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+}
+
+/* Router view wrapper — top-of-stack only, animated on push/pop. */
+.viewWrap {
+  min-height: 100%;
+  will-change: transform, opacity;
+}
+.slideFwd {
+  animation: lgnSlideInFwd 0.34s cubic-bezier(0.32, 0.72, 0, 1);
+}
+.slideBack {
+  animation: lgnSlideInBack 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+@keyframes lgnSlideInFwd {
+  from {
+    transform: translateX(28px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+@keyframes lgnSlideInBack {
+  from {
+    transform: translateX(-22px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+/* Bottom padding so scrollable content clears the tab bar. */
+.screenPad {
+  padding-bottom: 24px;
+}

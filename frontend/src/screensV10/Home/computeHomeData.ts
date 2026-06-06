@@ -144,6 +144,10 @@ export function computeCategoryAggregates(
     // T-25-04-01: drop system 'savings' category and paused categories.
     if (cat.code === 'savings') continue;
     if (cat.paused === true) continue;
+    // Expense home bars are expense-scoped. Income categories are surfaced
+    // separately (computeIncomeAggregates → native Доходы tab). Categories
+    // with no `kind` (older wire schema) are kept for back-compat.
+    if (cat.kind && cat.kind !== 'expense') continue;
 
     const planCents = cat.plan_cents ?? 0;
     let factCents = 0;
@@ -262,6 +266,98 @@ export function computeCategoryAggregatesFromBalance(
   return rows;
 }
 
+// ─────────────────── income aggregates (Liquid Glass native Доходы) ───────────────────
+//
+// The native iOS Home has a Расходы/Доходы segment. The poster Home shows only
+// expense categories; the native view additionally renders income categories
+// under «Доходы». These helpers mirror the expense aggregation but invert the
+// kind filter (income categories + income actuals). They are additive — the
+// poster path never calls them, so Maximal Poster is unaffected.
+
+/**
+ * Build per-category income aggregate rows for the native Home «Доходы» tab.
+ *
+ * Pipeline mirrors `computeCategoryAggregates` but:
+ *   - keeps categories with `kind === 'income'` (drops expense + system savings);
+ *   - sums actuals where `kind === 'income'` and `category_id` matches.
+ * Sign convention for income (CLAUDE.md): delta = Факт − План, so `isOver`
+ * here means «exceeded the income plan» (a GOOD outcome), but we keep the same
+ * field shape for rendering symmetry; the native view colours income deltas
+ * with the positive convention.
+ */
+export function computeIncomeAggregates(
+  input: CategoryAggregateInputs,
+): CategoryAggregateRow[] {
+  const rows: CategoryAggregateRow[] = [];
+  for (const cat of input.categories) {
+    if (cat.kind !== 'income') continue;
+    if (cat.paused === true) continue;
+
+    const planCents = cat.plan_cents ?? 0;
+    let factCents = 0;
+    for (const tx of input.actuals) {
+      if (tx.category_id !== cat.id) continue;
+      if (tx.kind !== 'income') continue;
+      factCents += tx.amount_cents;
+    }
+
+    let ratio: number;
+    if (planCents === 0) {
+      ratio = factCents === 0 ? 0 : Infinity;
+    } else {
+      ratio = factCents / planCents;
+    }
+
+    rows.push({
+      id: cat.id,
+      name: cat.name,
+      code: cat.code ?? null,
+      ord: cat.ord ?? '00',
+      plan_cents: planCents,
+      fact_cents: factCents,
+      ratio,
+      isOver: factCents > planCents,
+    });
+  }
+  return rows;
+}
+
+/** Income variant of `computeCategoryAggregatesFromBalance` (past periods). */
+export function computeIncomeAggregatesFromBalance(
+  input: BalanceAggregateInputs,
+): CategoryAggregateRow[] {
+  const catById = new Map<number, CategoryV10>();
+  for (const c of input.categories) catById.set(c.id, c);
+
+  const rows: CategoryAggregateRow[] = [];
+  for (const br of input.byCategory) {
+    if (br.kind !== 'income') continue;
+    const cat = catById.get(br.category_id);
+
+    const planCents = br.planned_cents;
+    const factCents = br.actual_cents;
+
+    let ratio: number;
+    if (planCents === 0) {
+      ratio = factCents === 0 ? 0 : Infinity;
+    } else {
+      ratio = factCents / planCents;
+    }
+
+    rows.push({
+      id: br.category_id,
+      name: br.name,
+      code: cat?.code ?? null,
+      ord: cat?.ord ?? '00',
+      plan_cents: planCents,
+      fact_cents: factCents,
+      ratio,
+      isOver: factCents > planCents,
+    });
+  }
+  return rows;
+}
+
 // ─────────────────── computePlanTotalCents ───────────────────
 
 /**
@@ -278,6 +374,7 @@ export function computePlanTotalCents(
   for (const cat of categories) {
     if (cat.code === 'savings') continue;
     if (cat.paused === true) continue;
+    if (cat.kind && cat.kind !== 'expense') continue;
     sum += cat.plan_cents ?? 0;
   }
   return sum;

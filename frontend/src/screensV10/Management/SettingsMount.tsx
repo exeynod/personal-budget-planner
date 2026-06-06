@@ -17,7 +17,9 @@ import { getMeV10 } from '../../api/me';
 import type { SettingsRead, SettingsUpdatePayload } from '../../api/types';
 import { usePosterRouter, useTheme } from '../common';
 import { useHomeColor } from '../Home/useHomeColor';
-import { SettingsView } from './SettingsView';
+import { useShellVariant } from '../native/ShellVariant';
+import { SettingsView, type SettingsViewProps } from './SettingsView';
+import { NativeSettingsView } from './NativeSettingsView';
 
 const FALLBACK_CYCLE_DAY = 1;
 const FALLBACK_NOTIFY_DAYS = 2;
@@ -38,6 +40,8 @@ export function SettingsMount() {
   const [themePickerOpen, setThemePickerOpen] = useState(false);
   // P2-11: PATCH error surface (single toast slot, last error wins).
   const [toastMsg, setToastMsg] = useState<string | null>(null);
+  // Liquid Glass v2: pick the native or poster presentational view.
+  const variant = useShellVariant();
 
   useEffect(() => {
     let cancelled = false;
@@ -51,7 +55,9 @@ export function SettingsMount() {
       })
       .catch((e: unknown) => {
         if (cancelled) return;
-        setError(e instanceof Error ? e.message : 'Не удалось загрузить настройки');
+        setError(
+          e instanceof Error ? e.message : 'Не удалось загрузить настройки',
+        );
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -99,35 +105,41 @@ export function SettingsMount() {
     [patch],
   );
 
+  const viewProps: SettingsViewProps = {
+    cycle_start_day: settings?.cycle_start_day ?? FALLBACK_CYCLE_DAY,
+    notify_days_before: settings?.notify_days_before ?? FALLBACK_NOTIFY_DAYS,
+    ai_categorization_enabled: settings?.enable_ai_categorization ?? true,
+    ai_spend_cap_cents: aiCapCents,
+    loading,
+    error,
+    onChangeCycleDay: handleChangeCycleDay,
+    onChangeNotifyDays: handleChangeNotifyDays,
+    onToggleAiCat: handleToggleAiCat,
+    canPop: router.canPop,
+    onBack: () => router.pop(),
+    homeColor,
+    pickerOpen: homeColorPickerOpen,
+    onSelectHomeColor: setHomeColor,
+    onTogglePicker: setHomeColorPickerOpen,
+    theme,
+    themePickerOpen,
+    onSelectTheme: setTheme,
+    onToggleThemePicker: setThemePickerOpen,
+  };
+
   return (
     <>
-    <SettingsView
-      cycle_start_day={settings?.cycle_start_day ?? FALLBACK_CYCLE_DAY}
-      notify_days_before={settings?.notify_days_before ?? FALLBACK_NOTIFY_DAYS}
-      ai_categorization_enabled={settings?.enable_ai_categorization ?? true}
-      ai_spend_cap_cents={aiCapCents}
-      loading={loading}
-      error={error}
-      onChangeCycleDay={handleChangeCycleDay}
-      onChangeNotifyDays={handleChangeNotifyDays}
-      onToggleAiCat={handleToggleAiCat}
-      canPop={router.canPop}
-      onBack={() => router.pop()}
-      homeColor={homeColor}
-      pickerOpen={homeColorPickerOpen}
-      onSelectHomeColor={setHomeColor}
-      onTogglePicker={setHomeColorPickerOpen}
-      theme={theme}
-      themePickerOpen={themePickerOpen}
-      onSelectTheme={setTheme}
-      onToggleThemePicker={setThemePickerOpen}
-    />
-    <Toast
-      message={toastMsg ?? ''}
-      visible={toastMsg !== null}
-      onDismiss={() => setToastMsg(null)}
-      duration={4000}
-    />
+      {variant === 'native' ? (
+        <NativeSettingsView {...viewProps} />
+      ) : (
+        <SettingsView {...viewProps} />
+      )}
+      <Toast
+        message={toastMsg ?? ''}
+        visible={toastMsg !== null}
+        onDismiss={() => setToastMsg(null)}
+        duration={4000}
+      />
     </>
   );
 }

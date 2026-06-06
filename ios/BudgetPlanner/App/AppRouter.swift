@@ -4,12 +4,17 @@ struct AppRouter: View {
     @Environment(AuthStore.self) private var authStore
     @AppStorage("ui.theme") private var themeRaw: String = Theme.maximalPoster.rawValue
 
-    // Phase 56 (v06 Native Rebuild — Foundation), Phase 4 (LG restore): один
-    // special-case. `"v06"` → native-iOS shell (MainShell). Любое другое значение
-    // (две V10-темы maximal_poster / liquid_glass, плюс stale "ios_default" из
-    // прежних версий) → V10MainShell; тему резолвит `Theme.resolve(themeRaw)`
-    // через `\.appTheme` environment в `BudgetPlannerApp`.
-    private var isLegacyV06Shell: Bool { themeRaw == "v06" }
+    // Liquid Glass v2 (2026-06-06): два первоклассных дизайна.
+    //   - `liquid_glass` (Theme.liquidGlass) → native-iOS shell (MainShell). Это
+    //     и есть «Liquid Glass» — настоящий нативный дизайн, не перекраска постера.
+    //   - `maximal_poster` (+ stale "ios_default" и прочий неизвестный raw) →
+    //     V10MainShell (постер). Тему резолвит `Theme.resolve(themeRaw)` через
+    //     `\.appTheme` в `BudgetPlannerApp`.
+    // Legacy `"v06"` (старый ключ нативного шелла) мигрируется в нативный шелл,
+    // чтобы у уже-сохранённых пользователей native-дизайн не пропал.
+    private var isNativeShell: Bool {
+        themeRaw == Theme.liquidGlass.rawValue || themeRaw == ThemeOption.legacyV06Raw
+    }
 
     var body: some View {
         Group {
@@ -22,7 +27,7 @@ struct AppRouter: View {
             case .unauthenticated, .error:
                 DevTokenSetupView()
             case .onboardingRequired(let user):
-                if isLegacyV06Shell {
+                if isNativeShell {
                     // Phase 57 (v06 Native Rebuild): native 4-step wizard for the
                     // v06 shell. Legacy OnboardingView (`Features/Onboarding/OnboardingView.swift`)
                     // remains in tree but is no longer reachable from this router.
@@ -33,7 +38,7 @@ struct AppRouter: View {
                     OnboardingView(initialUser: user)
                 }
             case .authenticated:
-                if isLegacyV06Shell {
+                if isNativeShell {
                     MainShell()
                 } else {
                     V10MainShell()

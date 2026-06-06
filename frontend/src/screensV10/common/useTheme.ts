@@ -66,7 +66,7 @@ export function themeDescription(t: Theme): string {
     case 'maximal_poster':
       return 'Кораллово-кобальтовая палитра, Archivo Black + DM Serif Italic';
     case 'liquid_glass':
-      return 'Apple iOS Liquid Glass: прозрачные слои, SF Pro, system materials';
+      return 'Нативный iOS-дизайн: SF Pro, сгруппированные списки, таб-бар';
   }
 }
 

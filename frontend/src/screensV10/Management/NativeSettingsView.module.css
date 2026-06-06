@@ -1,0 +1,129 @@
+/* Liquid Glass v2 — native Settings view. Scoped (CSS module). */
+
+.root {
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 24px;
+}
+
+/* Loading / error banners */
+.banner {
+  margin: 8px var(--lgn-s-16) 0;
+  padding: 12px var(--lgn-s-16);
+  border-radius: var(--lgn-r-card);
+  background: var(--lgn-card);
+  box-shadow: var(--lgn-shadow-card);
+  font-family: var(--lgn-font);
+  font-size: 15px;
+  color: var(--lgn-ink-2);
+  text-align: center;
+}
+.bannerError {
+  color: var(--lgn-red);
+}
+
+/* Read-only trailing value (AI cap) */
+.readonly {
+  font-family: var(--lgn-font);
+  font-size: 17px;
+  color: var(--lgn-ink-2);
+  white-space: nowrap;
+}
+
+/* ─────────── Stepper ─────────── */
+.stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--lgn-s-8);
+}
+.stepperBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 50%;
+  background: var(--lgn-seg-track);
+  color: var(--lgn-accent);
+  cursor: pointer;
+  font-family: var(--lgn-font);
+}
+.stepperBtn:active {
+  background: var(--lgn-card-press);
+}
+.stepperBtn:disabled {
+  color: var(--lgn-ink-3);
+  cursor: default;
+}
+.stepperValue {
+  min-width: 24px;
+  text-align: center;
+  font-family: var(--lgn-font);
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--lgn-ink);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ─────────── Toggle (iOS switch) ─────────── */
+.toggle {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  width: 51px;
+  height: 31px;
+  border-radius: var(--lgn-r-pill, 16px);
+  background: var(--lgn-seg-track);
+  cursor: pointer;
+  transition: background 0.18s ease;
+  flex: 0 0 auto;
+}
+.toggleOn {
+  background: var(--lgn-green);
+}
+.toggleDisabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.toggleInput {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+  cursor: inherit;
+}
+.toggleKnob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 27px;
+  height: 27px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: var(--lgn-shadow-float);
+  transition: transform 0.18s ease;
+}
+.toggleOn .toggleKnob {
+  transform: translateX(20px);
+}
+
+/* ─────────── Disclosure preview (color / theme) ─────────── */
+.previewTrailing {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--lgn-s-8);
+}
+.colorSwatch {
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  flex: 0 0 auto;
+  box-shadow: inset 0 0 0 1px var(--lgn-hairline-soft);
+}
+.previewLabel {
+  font-family: var(--lgn-font);
+  font-size: 16px;
+  color: var(--lgn-ink-2);
+  white-space: nowrap;
+}

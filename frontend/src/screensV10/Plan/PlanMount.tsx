@@ -37,6 +37,8 @@ import { getCurrentPeriod } from '../../api/periods';
 import { ApiError } from '../../api/client';
 import type { PlanMonthItem } from '../../api/types';
 import { PlanView } from './PlanView';
+import { NativePlanView } from './NativePlanView';
+import { useShellVariant } from '../native/ShellVariant';
 import {
   applyPlanEdit,
   computeIsOverflow,
@@ -57,6 +59,7 @@ export interface PlanMountProps {
 
 export function PlanMount({ focusCategoryId = null }: PlanMountProps = {}) {
   const router = usePosterRouter();
+  const variant = useShellVariant();
 
   const [income, setIncome] = useState<number>(0);
   const [categories, setCategories] = useState<CategoryV10[]>([]);
@@ -213,26 +216,32 @@ export function PlanMount({ focusCategoryId = null }: PlanMountProps = {}) {
     );
   }
 
+  const viewProps = {
+    incomeCents: income,
+    categories,
+    plans,
+    regulars,
+    aggregates,
+    surplusCents: surplus,
+    isOverflow,
+    submitting,
+    saveError,
+    focusCategoryId,
+    onSliderChange: handleSliderChange,
+    onRolloverChip: handleRolloverChip,
+    onPostRegular: handlePostRegular,
+    onUnpostRegular: handleUnpostRegular,
+    onSubmit: handleSubmit,
+    onBack: () => router.pop(),
+  };
+
   return (
     <>
-      <PlanView
-        incomeCents={income}
-        categories={categories}
-        plans={plans}
-        regulars={regulars}
-        aggregates={aggregates}
-        surplusCents={surplus}
-        isOverflow={isOverflow}
-        submitting={submitting}
-        saveError={saveError}
-        focusCategoryId={focusCategoryId}
-        onSliderChange={handleSliderChange}
-        onRolloverChip={handleRolloverChip}
-        onPostRegular={handlePostRegular}
-        onUnpostRegular={handleUnpostRegular}
-        onSubmit={handleSubmit}
-        onBack={() => router.pop()}
-      />
+      {variant === 'native' ? (
+        <NativePlanView {...viewProps} />
+      ) : (
+        <PlanView {...viewProps} />
+      )}
       <Toast
         message={toastMsg ?? ''}
         visible={toastMsg !== null}

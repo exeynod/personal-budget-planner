@@ -27,6 +27,8 @@ import {
 import { getCurrentPeriod } from '../../api/periods';
 import { filterByAccount } from './computeAccounts';
 import { AccountDetailView } from './AccountDetailView';
+import { NativeAccountDetailView } from './NativeAccountDetailView';
+import { useShellVariant } from '../native/ShellVariant';
 
 // TODO P2 (period switching): the «В <месяце>» KPI tx-range still pins to
 // getCurrentPeriod(). Scoping it to the viewed period is deferred — account
@@ -46,6 +48,7 @@ interface AccountDetailPayload {
 
 export function AccountDetailMount({ accountId }: AccountDetailMountProps) {
   const router = usePosterRouter();
+  const variant = useShellVariant();
 
   const fetchAccountDetail = useCallback(
     async (isCancelled: () => boolean): Promise<AccountDetailPayload> => {
@@ -86,19 +89,21 @@ export function AccountDetailMount({ accountId }: AccountDetailMountProps) {
   // boolean/null shape it expects — behaviour identical to the prior useState.
   const loading = status === 'loading';
 
-  return (
-    <AccountDetailView
-      account={data?.account ?? null}
-      actuals={data?.actuals ?? []}
-      categories={data?.categories ?? []}
-      period={data?.period ?? null}
-      loading={loading}
-      error={error}
-      canPop
-      onBack={() => router.pop()}
-      onTxRowTap={() => {
-        /* MVP no-op — defer deep-link into Transactions registry to polish */
-      }}
-    />
-  );
+  // Same props feed the native or poster detail view (brief: branch in Mount).
+  const detailProps = {
+    account: data?.account ?? null,
+    actuals: data?.actuals ?? [],
+    categories: data?.categories ?? [],
+    period: data?.period ?? null,
+    loading,
+    error,
+    canPop: true,
+    onBack: () => router.pop(),
+    onTxRowTap: () => {
+      /* MVP no-op — defer deep-link into Transactions registry to polish */
+    },
+  };
+
+  if (variant === 'native') return <NativeAccountDetailView {...detailProps} />;
+  return <AccountDetailView {...detailProps} />;
 }

@@ -1,0 +1,155 @@
+/* Liquid Glass v2 — native Analytics view. Scoped (CSS module). */
+
+.root {
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 24px;
+}
+
+/* ─────────── Period chips (segmented, inside content) ─────────── */
+.segmentRow {
+  padding: 8px var(--lgn-s-16) 4px;
+}
+
+/* ─────────── KPI stat cards row ─────────── */
+.kpiRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--lgn-s-12);
+  padding: 8px var(--lgn-s-16) 4px;
+}
+.kpiCard {
+  background: var(--lgn-card);
+  border-radius: var(--lgn-r-card);
+  box-shadow: var(--lgn-shadow-card);
+  padding: 14px var(--lgn-s-16);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-family: var(--lgn-font);
+}
+.kpiLabel {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--lgn-ink-2);
+}
+.kpiValue {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--lgn-ink);
+  white-space: nowrap;
+}
+.kpiCur {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--lgn-ink-2);
+  margin-left: 3px;
+}
+.kpiDelta {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--lgn-ink-2);
+}
+.kpiDeltaUp {
+  color: var(--lgn-red); /* spent more than prev = bad */
+}
+.kpiDeltaDown {
+  color: var(--lgn-green); /* spent less than prev = good */
+}
+
+/* ─────────── Bar chart card ─────────── */
+.chartCard {
+  background: var(--lgn-card);
+  border-radius: var(--lgn-r-card);
+  box-shadow: var(--lgn-shadow-card);
+  margin: 4px var(--lgn-s-16) 0;
+  padding: 16px var(--lgn-s-16) 12px;
+  font-family: var(--lgn-font);
+}
+.chartBars {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  height: 140px;
+  width: 100%;
+}
+.barCol {
+  flex: 1 1 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  min-width: 0;
+  height: 100%;
+}
+.barTrack {
+  flex: 1 1 auto;
+  width: 100%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+.barFill {
+  width: 70%;
+  max-width: 26px;
+  min-height: 2px;
+  border-radius: 4px 4px 0 0;
+  background: var(--lgn-accent);
+}
+.barFillRed {
+  background: var(--lgn-red);
+}
+.barLabel {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--lgn-ink-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+.chartEmpty {
+  text-align: center;
+  color: var(--lgn-ink-2);
+  font-size: 15px;
+  padding: 28px 0;
+}
+
+/* ─────────── Top-5 amount / pct trailing ─────────── */
+.topAmount {
+  font-family: var(--lgn-font);
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--lgn-ink);
+  white-space: nowrap;
+}
+.topPct {
+  font-weight: 400;
+  color: var(--lgn-ink-2);
+  margin-left: 4px;
+}
+.topRank {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ─────────── Empty / loading / error ─────────── */
+.empty {
+  margin: 8px var(--lgn-s-16) 0;
+  padding: 28px var(--lgn-s-16);
+  text-align: center;
+  color: var(--lgn-ink-2);
+  font-size: 15px;
+  font-family: var(--lgn-font);
+  background: var(--lgn-card);
+  border-radius: var(--lgn-r-card);
+  box-shadow: var(--lgn-shadow-card);
+}
+.errorMsg {
+  margin: 8px var(--lgn-s-16) 0;
+  padding: 20px var(--lgn-s-16);
+  color: var(--lgn-red);
+  font-size: 15px;
+  font-family: var(--lgn-font);
+  text-align: center;
+}

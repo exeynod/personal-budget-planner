@@ -29,6 +29,8 @@ import { StatePlate, usePosterRouter, useResource } from '../common';
 // prior WIP PlanViewPlaceholder push.
 import { PlanMount } from '../Plan';
 import { CategoryDetailView } from './CategoryDetailView';
+import { useShellVariant } from '../native/ShellVariant';
+import { NativeCategoryDetailView } from './NativeCategoryDetailView';
 
 // TODO P2 (period switching): this drill-down still pins to getCurrentPeriod().
 // Scoping it to the viewed period is deferred — the view also exposes
@@ -60,6 +62,7 @@ const NOT_FOUND_MESSAGE = 'Категория не найдена';
 
 export function CategoryDetailMount({ categoryId }: CategoryDetailMountProps) {
   const router = usePosterRouter();
+  const variant = useShellVariant();
   // P2-11: mutation error surface (single toast slot, last error wins).
   const [toastMsg, setToastMsg] = useState<string | null>(null);
 
@@ -144,6 +147,27 @@ export function CategoryDetailMount({ categoryId }: CategoryDetailMountProps) {
       />
     );
   }
+  if (variant === 'native') {
+    return (
+      <>
+        <NativeCategoryDetailView
+          category={data.category}
+          actuals={data.actuals}
+          onPushPlan={handlePushPlan}
+          onTogglePause={handleTogglePause}
+          onToggleRollover={handleToggleRollover}
+          onBack={handleBack}
+        />
+        <Toast
+          message={toastMsg ?? ''}
+          visible={toastMsg !== null}
+          onDismiss={() => setToastMsg(null)}
+          duration={4000}
+        />
+      </>
+    );
+  }
+
   return (
     <>
       <CategoryDetailView

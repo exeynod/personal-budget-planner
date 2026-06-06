@@ -38,6 +38,8 @@ import {
 import { listPeriods } from '../../api/periods';
 import type { PeriodRead } from '../../api/types';
 import { AnalyticsView, type BarDatum } from './AnalyticsView';
+import { NativeAnalyticsView } from './NativeAnalyticsView';
+import { useShellVariant } from '../native/ShellVariant';
 import {
   computeKPISaved,
   computeKPISpent,
@@ -54,6 +56,7 @@ import {
 
 export function AnalyticsMount() {
   const router = usePosterRouter();
+  const variant = useShellVariant();
 
   // Build the period chips once — re-derive only if Date dependency changes
   // (today's date is stable for the screen's lifetime in mini-app context).
@@ -108,7 +111,9 @@ export function AnalyticsMount() {
         setLoading(false);
       } catch (e) {
         if (cancelled) return;
-        setError(e instanceof Error ? e.message : 'Не удалось загрузить аналитику');
+        setError(
+          e instanceof Error ? e.message : 'Не удалось загрузить аналитику',
+        );
         setLoading(false);
       }
     }
@@ -141,10 +146,12 @@ export function AnalyticsMount() {
       }));
     }
     if (groupMode === 'week') {
-      return groupActualsByWeek(actuals, selectedMonth.period_start).map((b) => ({
-        label: `Н${b.weekIdx}`,
-        sumCents: b.sumCents,
-      }));
+      return groupActualsByWeek(actuals, selectedMonth.period_start).map(
+        (b) => ({
+          label: `Н${b.weekIdx}`,
+          sumCents: b.sumCents,
+        }),
+      );
     }
     // groupMode === 'cat'
     return groupActualsByCategory(actuals, categories).map((b) => ({
@@ -173,23 +180,28 @@ export function AnalyticsMount() {
     router.pop();
   }, [router]);
 
-  return (
-    <AnalyticsView
-      monthOptions={monthOptions}
-      selectedMonth={selectedMonth}
-      onSelectMonth={handleSelectMonth}
-      groupMode={groupMode}
-      onSelectGroup={handleSelectGroup}
-      kpiSpent={kpiSpent}
-      kpiSaved={kpiSaved}
-      barData={barData}
-      topCategories={topCategories}
-      loading={loading}
-      error={error}
-      canPop={router.canPop}
-      onBack={handleBack}
-    />
-  );
+  const viewProps = {
+    monthOptions,
+    selectedMonth,
+    onSelectMonth: handleSelectMonth,
+    groupMode,
+    onSelectGroup: handleSelectGroup,
+    kpiSpent,
+    kpiSaved,
+    barData,
+    topCategories,
+    loading,
+    error,
+    canPop: router.canPop,
+    onBack: handleBack,
+  };
+
+  // Liquid Glass native shell → native iOS Analytics view. Reuses the same vm.
+  if (variant === 'native') {
+    return <NativeAnalyticsView {...viewProps} />;
+  }
+
+  return <AnalyticsView {...viewProps} />;
 }
 
 // ─────────── helpers (private) ───────────
@@ -210,4 +222,3 @@ function findPeriodForMonth(
   }
   return null;
 }
-

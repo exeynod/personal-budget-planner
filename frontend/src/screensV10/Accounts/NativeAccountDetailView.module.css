@@ -1,0 +1,102 @@
+/* Liquid Glass v2 — native Account detail view. Scoped (CSS module). */
+
+.root {
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 24px;
+}
+
+/* Balance card */
+.balanceCard {
+  margin: 8px var(--lgn-s-16) 0;
+  background: var(--lgn-card);
+  border-radius: var(--lgn-r-card);
+  box-shadow: var(--lgn-shadow-card);
+  padding: 14px var(--lgn-s-16) 16px;
+  font-family: var(--lgn-font);
+}
+.balanceLabel {
+  font-size: 13px;
+  color: var(--lgn-ink-2);
+}
+.balanceAmount {
+  margin-top: 2px;
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  color: var(--lgn-ink);
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+.balanceCur {
+  font-size: 19px;
+  font-weight: 600;
+  color: var(--lgn-ink-2);
+}
+.subtitle {
+  margin-top: 4px;
+  font-size: 13px;
+  color: var(--lgn-ink-2);
+}
+
+/* «В <месяце> · N операций» KPI line inside the card */
+.kpiRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--lgn-hairline-soft);
+}
+.kpiLabel {
+  font-size: 11px;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--lgn-ink-2);
+}
+.kpiValue {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--lgn-ink);
+  white-space: nowrap;
+}
+
+/* Operations rows */
+.rowTitle {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.amount {
+  font-family: var(--lgn-font);
+  font-size: 17px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.amountPositive {
+  color: var(--lgn-green);
+}
+.amountNegative {
+  color: var(--lgn-ink);
+}
+
+/* Status / empty */
+.status {
+  margin: 8px var(--lgn-s-20) 0;
+  font-size: 15px;
+  color: var(--lgn-ink-2);
+  font-family: var(--lgn-font);
+}
+.empty {
+  margin: 8px var(--lgn-s-16) 0;
+  padding: 28px var(--lgn-s-16);
+  text-align: center;
+  color: var(--lgn-ink-2);
+  font-size: 15px;
+  font-family: var(--lgn-font);
+  background: var(--lgn-card);
+  border-radius: var(--lgn-r-card);
+  box-shadow: var(--lgn-shadow-card);
+}

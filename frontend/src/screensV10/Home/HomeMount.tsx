@@ -50,10 +50,14 @@ import { CategoryDetailMount } from '../CategoryDetail';
 // Phase 26-04: real Plan editor replaces the prior WIP PlanViewPlaceholder.
 import { PlanMount } from '../Plan';
 import { HomeView } from './HomeView';
+import { NativeHomeView } from './NativeHomeView';
+import { useShellVariant } from '../native/ShellVariant';
 import { useHomeColor } from './useHomeColor';
 import {
   computeCategoryAggregates,
   computeCategoryAggregatesFromBalance,
+  computeIncomeAggregates,
+  computeIncomeAggregatesFromBalance,
   computeDailyPace,
   computePlanTotalCents,
   computeSurplus,
@@ -96,6 +100,7 @@ type LoadState =
 
 export function HomeMount() {
   const router = usePosterRouter();
+  const variant = useShellVariant();
   const [state, setState] = useState<LoadState>({ status: 'loading' });
   const [reloadToken, setReloadToken] = useState(0);
   // Phase 30-02 (DEBT-02): AddSheet submit bumps this token via V10MainShell
@@ -325,6 +330,18 @@ export function HomeMount() {
       );
     }
 
+    // Liquid Glass native «Доходы» tab — income category rows. Computed here
+    // (cheap) but consumed only by NativeHomeView; the poster HomeView ignores
+    // it (Maximal Poster unaffected).
+    const incomeRows = sortCategoriesForHome(
+      balance
+        ? computeIncomeAggregatesFromBalance({
+            byCategory: balance.by_category,
+            categories,
+          })
+        : computeIncomeAggregates({ categories, actuals }),
+    );
+
     const dailyPaceCents = computeDailyPace({
       planTotalCents,
       factTotalExpenseCents,
@@ -344,7 +361,10 @@ export function HomeMount() {
       dailyPaceCents,
       walletCents,
       surplusCents,
+      planTotalCents,
+      factTotalExpenseCents,
       categoryRows,
+      incomeRows,
       period,
     };
   }, [state]);
@@ -384,6 +404,25 @@ export function HomeMount() {
   }
   // status === 'ready' → vm is non-null.
   if (!vm) return refetchSentinel;
+
+  // Liquid Glass native shell → native iOS Home view. Reuses the same vm.
+  if (variant === 'native') {
+    return (
+      <>
+        {refetchSentinel}
+        <NativeHomeView
+          walletCents={vm.walletCents}
+          expenseRows={vm.categoryRows}
+          incomeRows={vm.incomeRows}
+          onWalletTap={onWalletTap}
+          onCategoryTap={onCategoryTap}
+          periods={sel?.periods}
+          selectedPeriodId={selectedPeriodId}
+          onSelectPeriod={sel?.setSelectedPeriodId}
+        />
+      </>
+    );
+  }
 
   return (
     <>

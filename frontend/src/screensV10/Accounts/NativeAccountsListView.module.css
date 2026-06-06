@@ -1,0 +1,130 @@
+/* Liquid Glass v2 — native Accounts list view. Scoped (CSS module). */
+
+.root {
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 24px;
+}
+
+/* Total «Суммарно» card */
+.totalCard {
+  margin: 8px var(--lgn-s-16) 0;
+  background: var(--lgn-card);
+  border-radius: var(--lgn-r-card);
+  box-shadow: var(--lgn-shadow-card);
+  padding: 14px var(--lgn-s-16) 16px;
+  font-family: var(--lgn-font);
+}
+.totalLabel {
+  font-size: 13px;
+  color: var(--lgn-ink-2);
+}
+.totalAmount {
+  margin-top: 2px;
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  color: var(--lgn-ink);
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+.totalCur {
+  font-size: 19px;
+  font-weight: 600;
+  color: var(--lgn-ink-2);
+}
+.totalCount {
+  margin-top: 8px;
+  font-size: 13px;
+  color: var(--lgn-ink-2);
+}
+
+/* Account-kind tile (CreditCard / Wallet / Vault) */
+.tile {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--lgn-r-tile);
+  background: var(--lgn-blue);
+  flex: 0 0 auto;
+}
+.tileMuted {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--lgn-r-tile);
+  background: var(--lgn-ink-3, rgba(60, 60, 67, 0.3));
+  flex: 0 0 auto;
+}
+
+/* Row title: «BANK · MASK» + ОСНОВНОЙ badge */
+.rowTitleWrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.bankName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.subtitleWrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.primaryBadge {
+  flex: 0 0 auto;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  color: var(--lgn-accent);
+  background: rgba(255, 122, 76, 0.14);
+  border-radius: 5px;
+  padding: 2px 6px;
+  text-transform: uppercase;
+}
+
+.balance {
+  font-family: var(--lgn-font);
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--lgn-ink);
+  white-space: nowrap;
+}
+
+/* Disabled «Перевод» row */
+.disabledTitle {
+  color: var(--lgn-ink-2);
+}
+.soon {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  color: var(--lgn-ink-2);
+}
+
+/* Status / empty */
+.status {
+  margin: 8px var(--lgn-s-20) 0;
+  font-size: 15px;
+  color: var(--lgn-ink-2);
+  font-family: var(--lgn-font);
+}
+.empty {
+  margin: 8px var(--lgn-s-16) 0;
+  padding: 28px var(--lgn-s-16);
+  text-align: center;
+  color: var(--lgn-ink-2);
+  font-size: 15px;
+  font-family: var(--lgn-font);
+  background: var(--lgn-card);
+  border-radius: var(--lgn-r-card);
+  box-shadow: var(--lgn-shadow-card);
+}

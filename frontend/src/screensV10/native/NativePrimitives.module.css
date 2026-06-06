@@ -1,0 +1,235 @@
+/* Liquid Glass v2 — native iOS primitives. All classes scoped (CSS module). */
+
+/* ─────────── Large title header ─────────── */
+.largeHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 4px var(--lgn-s-20) 8px;
+}
+.largeTitle {
+  font-family: var(--lgn-font);
+  font-size: 34px;
+  line-height: 1.05;
+  font-weight: 700;
+  letter-spacing: 0.37px;
+  color: var(--lgn-ink);
+  margin: 0;
+}
+.headerTrailing {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-top: 4px;
+}
+
+/* ─────────── Nav bar (pushed screens) ─────────── */
+.navBar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 6px var(--lgn-s-12);
+}
+.navBack {
+  position: absolute;
+  left: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  border: none;
+  background: none;
+  color: var(--lgn-accent);
+  font-family: var(--lgn-font);
+  font-size: 17px;
+  padding: 6px;
+  cursor: pointer;
+}
+.navTitle {
+  font-family: var(--lgn-font);
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--lgn-ink);
+}
+.navTrailing {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ─────────── Section header ─────────── */
+.sectionHeader {
+  font-family: var(--lgn-font);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--lgn-ink-2);
+  padding: 18px var(--lgn-s-20) 8px;
+}
+
+/* ─────────── Inset group (grouped card) ─────────── */
+.insetGroup {
+  margin: 0 var(--lgn-s-16);
+  background: var(--lgn-card);
+  border-radius: var(--lgn-r-card);
+  box-shadow: var(--lgn-shadow-card);
+  overflow: hidden;
+}
+.insetRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: none;
+  font-family: var(--lgn-font);
+  padding: 11px var(--lgn-s-16);
+  min-height: 44px;
+  position: relative;
+  cursor: pointer;
+  color: var(--lgn-ink);
+}
+.insetRow:active {
+  background: var(--lgn-card-press);
+}
+.insetRowStatic {
+  cursor: default;
+}
+.insetRowStatic:active {
+  background: none;
+}
+/* hairline separator between rows, inset past the leading icon */
+.insetRow:not(:first-child)::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 58px;
+  right: 0;
+  height: 1px;
+  background: var(--lgn-hairline-soft);
+}
+.insetRowNoIcon:not(:first-child)::before {
+  left: 16px;
+}
+.rowMain {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.rowTitle {
+  font-size: 17px;
+  line-height: 1.25;
+  color: var(--lgn-ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.rowSubtitle {
+  font-size: 13px;
+  line-height: 1.2;
+  color: var(--lgn-ink-2);
+}
+.rowTrailing {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  color: var(--lgn-ink);
+  font-size: 17px;
+}
+.rowTrailingMuted {
+  color: var(--lgn-ink-2);
+}
+.rowChevron {
+  color: var(--lgn-ink-3);
+  display: inline-flex;
+}
+
+/* ─────────── Segmented control ─────────── */
+.segmented {
+  display: flex;
+  gap: 0;
+  margin: 0 var(--lgn-s-16);
+  padding: 2px;
+  background: var(--lgn-seg-track);
+  border-radius: 9px;
+}
+.segItem {
+  flex: 1 1 0;
+  border: none;
+  background: none;
+  font-family: var(--lgn-font);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--lgn-ink);
+  padding: 6px 8px;
+  border-radius: 7px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+.segItemActive {
+  background: var(--lgn-seg-thumb);
+  box-shadow:
+    0 3px 8px rgba(0, 0, 0, 0.12),
+    0 1px 1px rgba(0, 0, 0, 0.04);
+}
+
+/* ─────────── Circle icon button ─────────── */
+.circleBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: var(--lgn-r-pill);
+  border: none;
+  background: var(--lgn-card);
+  color: var(--lgn-accent);
+  box-shadow: var(--lgn-shadow-card);
+  cursor: pointer;
+}
+.circleBtn:active {
+  background: var(--lgn-card-press);
+}
+
+/* ─────────── Tab bar ─────────── */
+.tabBar {
+  display: flex;
+  align-items: stretch;
+  background: var(--lgn-chrome);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  backdrop-filter: saturate(180%) blur(20px);
+  border-top: 0.5px solid var(--lgn-hairline);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.tab {
+  flex: 1 1 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  border: none;
+  background: none;
+  padding: 7px 0 6px;
+  cursor: pointer;
+  color: var(--lgn-ink-2);
+}
+.tabActive {
+  color: var(--lgn-accent);
+}
+.tabLabel {
+  font-family: var(--lgn-font);
+  font-size: 10px;
+  line-height: 1.1;
+  letter-spacing: 0.1px;
+}

@@ -1,0 +1,69 @@
+/* Liquid Glass v2 — native iOS design tokens (web port of the iOS MainShell).
+ *
+ * These are a SEPARATE design from Maximal Poster. The native shell renders
+ * only when `ui.theme === 'liquid_glass'`; Maximal Poster (`maximal_poster`)
+ * keeps its poster look untouched (pixel baselines must not regress).
+ *
+ * All custom properties are prefixed `--lgn-*` so they never collide with the
+ * poster `--poster-*` / `--color-home` / `--ink-*` vocabularies. Defining them
+ * in :root is inert under Maximal Poster (no poster component references them).
+ *
+ * Values mirror the iOS source of truth:
+ *   - LiquidGlassTokens / IOSDefault (ios/.../FeaturesV10/Common/PosterTokens.swift)
+ *   - Tokens.Accent.primary = #FF7A4C  (ios/.../Design/Tokens.swift)
+ *   - systemGroupedBackground #F2F2F7, secondaryLabel rgba(60,60,67,.6)
+ */
+
+:root {
+  /* Surfaces */
+  --lgn-bg: #f2f2f7; /* systemGroupedBackground */
+  --lgn-card: #ffffff; /* grouped cell / card */
+  --lgn-card-press: #e9e9ef; /* cell highlight on tap */
+  --lgn-chrome: rgba(249, 249, 249, 0.94); /* nav/tab bar material */
+
+  /* Ink (label hierarchy) */
+  --lgn-ink: #1c1c1e; /* label */
+  --lgn-ink-2: rgba(60, 60, 67, 0.6); /* secondaryLabel */
+  --lgn-ink-3: rgba(60, 60, 67, 0.3); /* tertiaryLabel */
+
+  /* Accent + semantic */
+  --lgn-accent: #ff7a4c; /* brand orange (iOS .tint) */
+  --lgn-accent-press: #e86a3e;
+  --lgn-green: #34c759; /* systemGreen (positive delta) */
+  --lgn-red: #ff3b30; /* systemRed (negative) */
+  --lgn-blue: #007aff; /* systemBlue (links) */
+
+  /* Hairlines + separators */
+  --lgn-hairline: rgba(60, 60, 67, 0.29); /* separator */
+  --lgn-hairline-soft: rgba(60, 60, 67, 0.12);
+
+  /* Segmented control track */
+  --lgn-seg-track: rgba(118, 118, 128, 0.12);
+  --lgn-seg-thumb: #ffffff;
+
+  /* Radii (continuous-ish) */
+  --lgn-r-card: 14px;
+  --lgn-r-sheet: 16px;
+  --lgn-r-button: 12px;
+  --lgn-r-tile: 8px;
+  --lgn-r-pill: 999px;
+
+  /* Spacing (4pt grid) */
+  --lgn-s-2: 2px;
+  --lgn-s-4: 4px;
+  --lgn-s-8: 8px;
+  --lgn-s-10: 10px;
+  --lgn-s-12: 12px;
+  --lgn-s-16: 16px;
+  --lgn-s-20: 20px;
+  --lgn-s-24: 24px;
+
+  /* Type */
+  --lgn-font:
+    -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display',
+    'SF Pro', 'Helvetica Neue', system-ui, Arial, sans-serif;
+
+  /* Elevation */
+  --lgn-shadow-card: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --lgn-shadow-float: 0 4px 16px rgba(0, 0, 0, 0.12);
+}
