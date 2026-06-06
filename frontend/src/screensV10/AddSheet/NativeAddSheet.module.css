@@ -78,7 +78,7 @@
   background: var(--lgn-card);
   -webkit-backdrop-filter: var(--lgn-glass-blur);
   backdrop-filter: var(--lgn-glass-blur);
-  box-shadow: var(--lgn-shadow-card);
+  box-shadow: var(--lgn-shadow-card), var(--lgn-card-edge);
   padding: 12px var(--lgn-s-16);
   font-family: var(--lgn-font);
   font-size: 17px;
@@ -135,7 +135,7 @@
   background: var(--lgn-card);
   -webkit-backdrop-filter: var(--lgn-glass-blur);
   backdrop-filter: var(--lgn-glass-blur);
-  box-shadow: var(--lgn-shadow-card);
+  box-shadow: var(--lgn-shadow-card), var(--lgn-card-edge);
   height: 52px;
   display: flex;
   align-items: center;

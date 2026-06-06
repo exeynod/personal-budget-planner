@@ -15,6 +15,7 @@
 
 /* План месяца row — glass card row, opens the Plan editor. */
 .planRow {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -26,10 +27,23 @@
   backdrop-filter: var(--lgn-glass-blur);
   border: none;
   border-radius: var(--lgn-r-card);
-  box-shadow: var(--lgn-shadow-card);
+  box-shadow: var(--lgn-shadow-card), var(--lgn-card-edge);
   font-family: var(--lgn-font);
   cursor: pointer;
   text-align: left;
+  overflow: hidden;
+}
+.planRow::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--lgn-sheen);
+  pointer-events: none;
+}
+.planRow > * {
+  position: relative;
+  z-index: 1;
 }
 .planRow:active {
   background: var(--lgn-card-press);
@@ -54,20 +68,34 @@
   flex-shrink: 0;
 }
 
-/* Balance card */
+/* Balance card — hero glass surface (holds the big number, like ref1). */
 .balanceCard {
+  position: relative;
   margin: 8px var(--lgn-s-16) 0;
   background: var(--lgn-card);
   -webkit-backdrop-filter: var(--lgn-glass-blur);
   backdrop-filter: var(--lgn-glass-blur);
   border-radius: var(--lgn-r-card);
-  box-shadow: var(--lgn-shadow-card);
-  padding: 14px var(--lgn-s-16) 16px;
+  box-shadow: var(--lgn-shadow-card), var(--lgn-card-edge);
+  padding: 16px var(--lgn-s-16) 18px;
   text-align: left;
   width: auto;
   border: none;
   font-family: var(--lgn-font);
   cursor: pointer;
+  overflow: hidden;
+}
+.balanceCard::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--lgn-sheen);
+  pointer-events: none;
+}
+.balanceCard > * {
+  position: relative;
+  z-index: 1;
 }
 .balanceCard:active {
   background: var(--lgn-card-press);
@@ -149,5 +177,5 @@
   -webkit-backdrop-filter: var(--lgn-glass-blur);
   backdrop-filter: var(--lgn-glass-blur);
   border-radius: var(--lgn-r-card);
-  box-shadow: var(--lgn-shadow-card);
+  box-shadow: var(--lgn-shadow-card), var(--lgn-card-edge);
 }

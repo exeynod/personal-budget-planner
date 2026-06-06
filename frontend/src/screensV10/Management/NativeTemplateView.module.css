@@ -187,7 +187,7 @@
   -webkit-backdrop-filter: var(--lgn-glass-blur);
   backdrop-filter: var(--lgn-glass-blur);
   border-radius: var(--lgn-r-card);
-  box-shadow: var(--lgn-shadow-card);
+  box-shadow: var(--lgn-shadow-card), var(--lgn-card-edge);
 }
 .footnote {
   margin: 12px var(--lgn-s-20) 0;

@@ -23,7 +23,7 @@
   -webkit-backdrop-filter: var(--lgn-glass-blur);
   backdrop-filter: var(--lgn-glass-blur);
   border-radius: var(--lgn-r-card);
-  box-shadow: var(--lgn-shadow-card);
+  box-shadow: var(--lgn-shadow-card), var(--lgn-card-edge);
   padding: 14px var(--lgn-s-16);
   display: flex;
   flex-direction: column;
@@ -65,7 +65,7 @@
   -webkit-backdrop-filter: var(--lgn-glass-blur);
   backdrop-filter: var(--lgn-glass-blur);
   border-radius: var(--lgn-r-card);
-  box-shadow: var(--lgn-shadow-card);
+  box-shadow: var(--lgn-shadow-card), var(--lgn-card-edge);
   margin: 4px var(--lgn-s-16) 0;
   padding: 16px var(--lgn-s-16) 12px;
   font-family: var(--lgn-font);
@@ -149,7 +149,7 @@
   -webkit-backdrop-filter: var(--lgn-glass-blur);
   backdrop-filter: var(--lgn-glass-blur);
   border-radius: var(--lgn-r-card);
-  box-shadow: var(--lgn-shadow-card);
+  box-shadow: var(--lgn-shadow-card), var(--lgn-card-edge);
 }
 .errorMsg {
   margin: 8px var(--lgn-s-16) 0;

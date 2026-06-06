@@ -7,31 +7,51 @@
      100dvh in browser/tests — mirrors V10MainShell so the no-TG layout is
      identical. */
   height: var(--tg-viewport-stable, 100dvh);
-  /* Aurora field — soft peach / orange / lavender / mint blobs over the light
-     base. The frosted glass cards refract this, which is what makes the design
-     read as «Liquid Glass» rather than flat white-on-grey. */
+  /* Optical colour-mesh field (ref1 Payrix vibe) — a deeper, layered teal →
+     orange glass field with a lavender / mint counter-pole, NOT 4 flat
+     radials. A top light-vignette gives the specular card kerbs a believable
+     light source; the alpha is kept moderate so the frosted cards stay
+     readable (financial numbers ≥4.5:1). The frosted glass cards refract this,
+     which is what makes the design read as «Liquid Glass». */
   background-color: var(--lgn-bg);
   background-image:
+    /* top light-vignette: light source above → feeds the bright top kerbs */
     radial-gradient(
-      52% 40% at 8% 2%,
-      rgba(255, 178, 132, 0.55) 0%,
-      rgba(255, 178, 132, 0) 70%
+      120% 60% at 50% -8%,
+      rgba(255, 255, 255, 0.65) 0%,
+      rgba(255, 255, 255, 0) 60%
     ),
+    /* warm orange caustic, upper-left (ref1 sweep) */
     radial-gradient(
-      50% 38% at 96% 8%,
-      rgba(255, 138, 160, 0.42) 0%,
-      rgba(255, 138, 160, 0) 72%
-    ),
+        62% 50% at 14% 6%,
+        rgba(255, 167, 102, 0.6) 0%,
+        rgba(255, 167, 102, 0) 64%
+      ),
+    /* coral/rose accent, upper-right */
     radial-gradient(
-      60% 44% at 88% 64%,
-      rgba(176, 150, 240, 0.42) 0%,
-      rgba(176, 150, 240, 0) 72%
-    ),
+        54% 44% at 98% 4%,
+        rgba(255, 122, 138, 0.46) 0%,
+        rgba(255, 122, 138, 0) 70%
+      ),
+    /* lavender body, mid-right */
     radial-gradient(
-      58% 42% at 4% 78%,
-      rgba(120, 214, 196, 0.38) 0%,
-      rgba(120, 214, 196, 0) 74%
-    );
+        66% 52% at 92% 58%,
+        rgba(160, 138, 246, 0.46) 0%,
+        rgba(160, 138, 246, 0) 70%
+      ),
+    /* deep teal pole, lower-left — the cool side of the optical glass */
+    radial-gradient(
+        72% 56% at 0% 86%,
+        rgba(58, 196, 200, 0.5) 0%,
+        rgba(58, 196, 200, 0) 72%
+      ),
+    /* broad teal→indigo wash across the bottom for depth */
+    linear-gradient(
+        200deg,
+        rgba(120, 196, 230, 0) 38%,
+        rgba(96, 156, 224, 0.26) 78%,
+        rgba(86, 132, 214, 0.32) 100%
+      );
   background-attachment: fixed;
   font-family: var(--lgn-font);
   color: var(--lgn-ink);
@@ -55,7 +75,8 @@
    device home-indicator inset). */
 .content {
   position: absolute;
-  inset: 0 0 calc(56px + env(safe-area-inset-bottom, 0px)) 0;
+  /* Clear the floating tab pill: bar height (~58) + its 8px bottom margin. */
+  inset: 0 0 calc(70px + env(safe-area-inset-bottom, 0px)) 0;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
 }

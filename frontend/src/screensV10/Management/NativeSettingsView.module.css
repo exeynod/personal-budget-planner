@@ -14,7 +14,7 @@
   background: var(--lgn-card);
   -webkit-backdrop-filter: var(--lgn-glass-blur);
   backdrop-filter: var(--lgn-glass-blur);
-  box-shadow: var(--lgn-shadow-card);
+  box-shadow: var(--lgn-shadow-card), var(--lgn-card-edge);
   font-family: var(--lgn-font);
   font-size: 15px;
   color: var(--lgn-ink-2);

@@ -19,7 +19,7 @@
   -webkit-backdrop-filter: var(--lgn-glass-blur);
   backdrop-filter: var(--lgn-glass-blur);
   border-radius: var(--lgn-r-card);
-  box-shadow: var(--lgn-shadow-card);
+  box-shadow: var(--lgn-shadow-card), var(--lgn-card-edge);
   font-family: var(--lgn-font);
   font-size: 15px;
   color: var(--lgn-ink-2);
@@ -40,7 +40,7 @@
   -webkit-backdrop-filter: var(--lgn-glass-blur);
   backdrop-filter: var(--lgn-glass-blur);
   border-radius: var(--lgn-r-card);
-  box-shadow: var(--lgn-shadow-card);
+  box-shadow: var(--lgn-shadow-card), var(--lgn-card-edge);
 }
 
 /* User-card avatar tile (circular, tinted, first letter) */

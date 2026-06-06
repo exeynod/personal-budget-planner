@@ -13,7 +13,7 @@
   backdrop-filter: var(--lgn-glass-blur);
   border: 1px solid var(--lgn-hairline-soft);
   border-radius: var(--lgn-r-pill);
-  box-shadow: var(--lgn-shadow-card);
+  box-shadow: var(--lgn-shadow-card), var(--lgn-card-edge);
   font-family: var(--lgn-font);
   -webkit-tap-highlight-color: transparent;
 }
