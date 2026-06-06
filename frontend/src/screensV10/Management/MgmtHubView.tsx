@@ -12,7 +12,12 @@
 import { Eyebrow, Mass } from '../../componentsV10';
 import styles from './MgmtHubView.module.css';
 
-export type MgmtRowId = 'plan' | 'accounts' | 'analytics' | 'subscriptions' | 'settings' | 'access';
+export type MgmtRowId =
+  | 'plan'
+  | 'analytics'
+  | 'subscriptions'
+  | 'settings'
+  | 'access';
 
 export interface MgmtHubViewProps {
   /** True → render «05 ДОСТУП» row (owner-only). */
@@ -34,11 +39,10 @@ interface RowDef {
 
 const ROWS: RowDef[] = [
   { id: 'plan', n: '01', name: 'PLAN МЕСЯЦА' },
-  { id: 'accounts', n: '02', name: 'СЧЕТА' },
-  { id: 'analytics', n: '03', name: 'АНАЛИТИКА' },
-  { id: 'subscriptions', n: '04', name: 'ПОДПИСКИ' },
-  { id: 'settings', n: '05', name: 'НАСТРОЙКИ' },
-  { id: 'access', n: '06', name: 'ДОСТУП', ownerOnly: true },
+  { id: 'analytics', n: '02', name: 'АНАЛИТИКА' },
+  { id: 'subscriptions', n: '03', name: 'ПОДПИСКИ' },
+  { id: 'settings', n: '04', name: 'НАСТРОЙКИ' },
+  { id: 'access', n: '05', name: 'ДОСТУП', ownerOnly: true },
 ];
 
 export function MgmtHubView(props: MgmtHubViewProps) {

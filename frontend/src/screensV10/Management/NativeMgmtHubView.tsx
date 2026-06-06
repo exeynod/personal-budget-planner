@@ -20,7 +20,6 @@
 import { memo } from 'react';
 import {
   ChartBar,
-  Wallet,
   Stack,
   GearSix,
   Users,
@@ -89,13 +88,6 @@ const ROWS: NativeRowDef[] = [
     subtitle: 'Повторяющийся план для нового периода',
     Icon: ChartBar,
     tint: 'var(--lgn-accent)',
-  },
-  {
-    id: 'accounts',
-    title: 'Счета',
-    subtitle: 'Кошельки и остатки',
-    Icon: Wallet,
-    tint: '#FF9F43',
   },
   {
     id: 'analytics',

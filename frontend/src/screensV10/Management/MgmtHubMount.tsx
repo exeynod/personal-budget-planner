@@ -6,12 +6,6 @@
 //     Default to false on error (fail-closed for «ДОСТУП» visibility).
 //   - Row tap → router.push(<Mount />) for the corresponding section.
 //
-// Sibling-Mount imports note:
-//   AccountsListMount / AnalyticsMount / SavingsMount / AiMount come from
-//   Phase 27 plans 27-04 / 27-05 / 27-03 / 27-02 (parallel wave). When they
-//   ship their barrel exports we import from there; until then we route
-//   through `_externalMountStubs.tsx` so the hub navigation works end-to-end.
-
 import { useEffect, useState } from 'react';
 import { getMeV10 } from '../../api/me';
 import { usePosterRouter } from '../common';
@@ -21,7 +15,6 @@ import { NativeMgmtHubView } from './NativeMgmtHubView';
 import { PlanMount } from '../Plan';
 import { SettingsMount } from './SettingsMount';
 import { AccessMount } from './AccessMount';
-import { AccountsListMount } from '../Accounts';
 import { AnalyticsMount } from '../Analytics';
 import { SubscriptionsMount } from '../Subscriptions';
 
@@ -48,8 +41,6 @@ export function MgmtHubMount() {
   function handleRowTap(id: MgmtRowId) {
     if (id === 'plan') {
       router.push(<PlanMount />);
-    } else if (id === 'accounts') {
-      router.push(<AccountsListMount />);
     } else if (id === 'analytics') {
       router.push(<AnalyticsMount />);
     } else if (id === 'subscriptions') {

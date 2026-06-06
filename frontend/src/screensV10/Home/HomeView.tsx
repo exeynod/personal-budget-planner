@@ -45,7 +45,6 @@ export interface HomeViewProps {
   categoryRows: CategoryAggregateRow[];
 
   // ── click handlers (router-agnostic) ───────────────────────────────────
-  onWalletTap: () => void;
   onPlanTap: () => void;
   onCategoryTap: (id: number) => void;
   onAllOperationsTap: () => void;
@@ -87,7 +86,6 @@ function HomeViewInner(props: HomeViewProps) {
     walletCents,
     surplusCents,
     categoryRows,
-    onWalletTap,
     onPlanTap,
     onCategoryTap,
     onAllOperationsTap,
@@ -170,17 +168,8 @@ function HomeViewInner(props: HomeViewProps) {
           {'· осталось '}
           {daysLeft}
           {' дней · '}
-          <span
-            data-testid="home-wallet-link"
-            className={styles.walletLink}
-            onClick={onWalletTap}
-            role="button"
-            tabIndex={0}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') onWalletTap();
-            }}
-          >
-            {`в кошельке ${formatRubles(walletCents)} ₽ →`}
+          <span data-testid="home-wallet-value" className={styles.walletLink}>
+            {`в кошельке ${formatRubles(walletCents)} ₽`}
           </span>
         </div>
       </div>

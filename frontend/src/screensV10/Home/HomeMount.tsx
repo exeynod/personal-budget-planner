@@ -40,9 +40,6 @@ import {
   usePosterRouter,
   useSelectedPeriodOptional,
 } from '../common';
-// Phase 27-04 (gap-fix during milestone audit): real AccountsListMount
-// replaces AccountsListPlaceholder for HOME-V10-02 wallet-link tap target.
-import { AccountsListMount } from '../Accounts';
 // Phase 25-08: real Transactions registry replaces the prior WIP placeholder.
 import { TransactionsMount } from '../Transactions';
 // Phase 26-02: real CategoryDetail replaces the prior WIP placeholder.
@@ -242,9 +239,6 @@ export function HomeMount() {
   }, [reloadToken, refetchToken, selectedPeriodId, selectedPeriod, sel]);
 
   // ─────────── push handlers (router-bound) ───────────
-  const onWalletTap = useCallback(() => {
-    router.push(<AccountsListMount />);
-  }, [router]);
   const onPlanTap = useCallback(() => {
     router.push(<PlanMount />);
   }, [router]);
@@ -414,7 +408,6 @@ export function HomeMount() {
           walletCents={vm.walletCents}
           expenseRows={vm.categoryRows}
           incomeRows={vm.incomeRows}
-          onWalletTap={onWalletTap}
           onPlanTap={onPlanTap}
           onCategoryTap={onCategoryTap}
           periods={sel?.periods}
@@ -435,7 +428,6 @@ export function HomeMount() {
         walletCents={vm.walletCents}
         surplusCents={vm.surplusCents}
         categoryRows={vm.categoryRows}
-        onWalletTap={onWalletTap}
         onPlanTap={onPlanTap}
         onCategoryTap={onCategoryTap}
         onAllOperationsTap={onAllOperationsTap}

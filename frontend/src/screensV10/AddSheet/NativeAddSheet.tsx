@@ -15,18 +15,11 @@
 // (kind:'expense' only) and a dead control is forbidden.
 
 import { useState } from 'react';
-import {
-  Backspace,
-  Check,
-  CalendarBlank,
-  CreditCard,
-  Tag,
-} from '@phosphor-icons/react';
+import { Backspace, Check, CalendarBlank, Tag } from '@phosphor-icons/react';
 import { InsetGroup, InsetRow } from '../native/NativePrimitives';
 import { CategoryIcon } from '../native/CategoryIcon';
 import { formatMoneyNative } from '../native/money';
 import { MONTHS_RU_GENITIVE } from '../common';
-import { AccountPickerSheet } from './AccountPickerSheet';
 import { useAddSheetController } from './useAddSheetController';
 import styles from './NativeAddSheet.module.css';
 
@@ -95,7 +88,6 @@ export function NativeAddSheet({ onSubmitted, onClose }: NativeAddSheetProps) {
 
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [catPickerOpen, setCatPickerOpen] = useState(false);
-  const [accountPickerOpen, setAccountPickerOpen] = useState(false);
   const [dateSheetOpen, setDateSheetOpen] = useState(false);
 
   const onClickClose = () => {
@@ -109,13 +101,6 @@ export function NativeAddSheet({ onSubmitted, onClose }: NativeAddSheetProps) {
     c.categoryId != null
       ? (c.visibleCategories.find((cat) => cat.id === c.categoryId) ?? null)
       : null;
-
-  // Account display value «BANK · MASK».
-  const accountValue = c.currentAccount
-    ? `${(c.currentAccount.bank ?? '').toUpperCase()}${
-        c.currentAccount.mask ? ' · ' + c.currentAccount.mask : ''
-      }`
-    : '—';
 
   // Date row value: chip-aware («Сегодня» / «Вчера» / «9 мая»).
   let dateValue: string;
@@ -203,25 +188,6 @@ export function NativeAddSheet({ onSubmitted, onClose }: NativeAddSheetProps) {
           chevron
           onClick={() => setCatPickerOpen(true)}
           testId="native-add-category-row"
-        />
-        <InsetRow
-          leading={
-            <span
-              className={styles.metaTile}
-              style={{ background: 'var(--lgn-blue)' }}
-              aria-hidden="true"
-            >
-              <CreditCard size={17} weight="fill" color="#fff" />
-            </span>
-          }
-          title="Счёт"
-          trailing={<span className={styles.rowValue}>{accountValue}</span>}
-          trailingMuted={!c.currentAccount}
-          chevron
-          onClick={() => {
-            if (c.accounts.length > 0) setAccountPickerOpen(true);
-          }}
-          testId="native-add-account-row"
         />
         <InsetRow
           leading={
@@ -400,18 +366,6 @@ export function NativeAddSheet({ onSubmitted, onClose }: NativeAddSheetProps) {
           )}
         </ActionSheet>
       )}
-
-      {/* ── Account picker (reuses the shared AccountPickerSheet) ── */}
-      <AccountPickerSheet
-        isOpen={accountPickerOpen}
-        accounts={c.accounts}
-        selectedAccountId={c.accountId}
-        onSelect={(id) => {
-          c.setAccountId(id);
-          setAccountPickerOpen(false);
-        }}
-        onClose={() => setAccountPickerOpen(false)}
-      />
 
       {/* ── Dirty-close confirm ── */}
       {showCancelConfirm && (

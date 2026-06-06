@@ -14,12 +14,8 @@ export type {
   ActualV10Kind,
 } from './actual';
 
-export { listAccounts, createAccount } from './accounts';
-export type {
-  AccountResponse,
-  AccountKindStr,
-  AccountCreatePayload,
-} from './accounts';
+export { listAccounts } from './accounts';
+export type { AccountResponse, AccountKindStr } from './accounts';
 
 export { listCategoriesV10, updateCategoryV10 } from './categories';
 export type {

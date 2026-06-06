@@ -38,8 +38,9 @@ function row(over: Partial<CategoryAggregateRow> = {}): CategoryAggregateRow {
   };
 }
 
-function renderHome(propOverrides: Partial<React.ComponentProps<typeof HomeView>> = {}) {
-  const onWalletTap = vi.fn();
+function renderHome(
+  propOverrides: Partial<React.ComponentProps<typeof HomeView>> = {},
+) {
   const onPlanTap = vi.fn();
   const onCategoryTap = vi.fn();
   const onAllOperationsTap = vi.fn();
@@ -51,7 +52,6 @@ function renderHome(propOverrides: Partial<React.ComponentProps<typeof HomeView>
       walletCents={123_456_00}
       surplusCents={20_000_00}
       categoryRows={[]}
-      onWalletTap={onWalletTap}
       onPlanTap={onPlanTap}
       onCategoryTap={onCategoryTap}
       onAllOperationsTap={onAllOperationsTap}
@@ -59,7 +59,7 @@ function renderHome(propOverrides: Partial<React.ComponentProps<typeof HomeView>
       {...propOverrides}
     />,
   );
-  return { ...utils, onWalletTap, onPlanTap, onCategoryTap, onAllOperationsTap };
+  return { ...utils, onPlanTap, onCategoryTap, onAllOperationsTap };
 }
 
 describe('HomeView — header / hero', () => {
@@ -82,7 +82,7 @@ describe('HomeView — header / hero', () => {
     expect(container.textContent).toContain('4 000');
   });
 
-  it('renders «осталось 22 дней · в кошельке … ₽ →» mono mini-line', () => {
+  it('renders «осталось 22 дней · в кошельке … ₽» mono mini-line', () => {
     const { container } = renderHome({ daysLeft: 22, walletCents: 12_345_00 });
     // Russian dative-plural «дней» is correct for 22 — we render literal `дней`
     // per CONTEXT (the eyebrow has its own pluralisation; this line uses a
@@ -102,13 +102,16 @@ describe('HomeView — header / hero', () => {
   });
 });
 
-describe('HomeView — wallet link', () => {
-  it('calls onWalletTap when the wallet substring is clicked', () => {
-    const { container, onWalletTap } = renderHome();
-    const walletLink = container.querySelector('[data-testid="home-wallet-link"]');
-    expect(walletLink).not.toBeNull();
-    fireEvent.click(walletLink!);
-    expect(onWalletTap).toHaveBeenCalledTimes(1);
+describe('HomeView — wallet value', () => {
+  it('renders the wallet balance as a non-interactive value (no nav)', () => {
+    const { container } = renderHome();
+    // v1.1: accounts-mgmt navigation removed — wallet is display-only.
+    expect(
+      container.querySelector('[data-testid="home-wallet-value"]'),
+    ).not.toBeNull();
+    expect(
+      container.querySelector('[data-testid="home-wallet-link"]'),
+    ).toBeNull();
   });
 });
 
@@ -161,7 +164,9 @@ describe('HomeView — category list', () => {
       row({ id: 30, name: 'Транспорт', ord: '03' }),
     ];
     const { container } = renderHome({ categoryRows: rows });
-    const rowEls = container.querySelectorAll('[data-testid^="home-category-row-"]');
+    const rowEls = container.querySelectorAll(
+      '[data-testid^="home-category-row-"]',
+    );
     expect(rowEls).toHaveLength(3);
     rowEls.forEach((el, i) => {
       // Inline style.animationDelay should match `${0.08 + i*0.045}s`.
@@ -177,7 +182,9 @@ describe('HomeView — category list', () => {
     const { container, onCategoryTap } = renderHome({
       categoryRows: [row({ id: 42 })],
     });
-    const rowEl = container.querySelector('[data-testid="home-category-row-42"]');
+    const rowEl = container.querySelector(
+      '[data-testid="home-category-row-42"]',
+    );
     expect(rowEl).not.toBeNull();
     fireEvent.click(rowEl!);
     expect(onCategoryTap).toHaveBeenCalledTimes(1);
@@ -186,11 +193,15 @@ describe('HomeView — category list', () => {
 
   it('renders OVER plate when row.isOver=true', () => {
     const { container, getByText } = renderHome({
-      categoryRows: [row({ id: 1, isOver: true, fact_cents: 15_000_00, ratio: 1.5 })],
+      categoryRows: [
+        row({ id: 1, isOver: true, fact_cents: 15_000_00, ratio: 1.5 }),
+      ],
     });
     expect(getByText('OVER')).toBeInTheDocument();
     // Row exists.
-    expect(container.querySelector('[data-testid="home-category-row-1"]')).not.toBeNull();
+    expect(
+      container.querySelector('[data-testid="home-category-row-1"]'),
+    ).not.toBeNull();
   });
 
   it('does NOT render OVER plate when row.isOver=false', () => {
@@ -202,7 +213,9 @@ describe('HomeView — category list', () => {
 
   it('renders fact / plan amounts in mono mini-text below the bar', () => {
     const { container } = renderHome({
-      categoryRows: [row({ id: 1, fact_cents: 5_000_00, plan_cents: 10_000_00 })],
+      categoryRows: [
+        row({ id: 1, fact_cents: 5_000_00, plan_cents: 10_000_00 }),
+      ],
     });
     // 5_000_00 cents → '5 000', 10_000_00 → '10 000', both with U+202F.
     expect(container.textContent).toContain('5 000 ₽');
@@ -211,7 +224,15 @@ describe('HomeView — category list', () => {
 
   it('renders bar fill scaleX clamped to 100% when ratio > 1', () => {
     const { container } = renderHome({
-      categoryRows: [row({ id: 1, isOver: true, ratio: 2.5, fact_cents: 25_000_00, plan_cents: 10_000_00 })],
+      categoryRows: [
+        row({
+          id: 1,
+          isOver: true,
+          ratio: 2.5,
+          fact_cents: 25_000_00,
+          plan_cents: 10_000_00,
+        }),
+      ],
     });
     const fill = container.querySelector(
       '[data-testid="home-category-bar-fill-1"]',

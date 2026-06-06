@@ -34,7 +34,6 @@ import {
   listAccounts,
   listCategoriesV10,
   createActualV10,
-  type AccountResponse,
   type CategoryV10,
 } from '../../api/v10';
 import {
@@ -43,7 +42,6 @@ import {
   useSelectedPeriodOptional,
 } from '../common';
 import { Keypad } from './Keypad';
-import { AccountPickerSheet } from './AccountPickerSheet';
 import {
   appendDigit,
   appendDot,
@@ -165,16 +163,14 @@ export function AddSheet({ onSubmitted, onClose }: AddSheetProps) {
   // customDate is set when user picks «Своя дата» via the date picker.
   const [customDate, setCustomDate] = useState<string>('');
   const [categoryId, setCategoryId] = useState<number | null>(null);
+  // v1.1 planning rework: no account picker. We still fetch /accounts to learn
+  // the primary account id and auto-attach it to the new actual (single
+  // implicit balance) — but we no longer expose the account list to the UI.
   const [accountId, setAccountId] = useState<number | null>(null);
-  const [accounts, setAccounts] = useState<AccountResponse[]>([]);
   const [categories, setCategories] = useState<CategoryV10[]>([]);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  // Phase 30-02 (DEBT-03): bottom-sheet account picker replaces the
-  // tap-to-cycle behaviour. The button on the account row now opens
-  // a PosterSheet-based list instead of advancing the selection in-place.
-  const [accountPickerOpen, setAccountPickerOpen] = useState(false);
   // We mount once for the «NEW ENTRY · {date} · {time}» eyebrow.
   const today = useMemo(() => new Date(), []);
   const dateInputRef = useRef<HTMLInputElement | null>(null);
@@ -222,7 +218,6 @@ export function AddSheet({ onSubmitted, onClose }: AddSheetProps) {
     Promise.all([listAccounts(), listCategoriesV10()])
       .then(([accs, cats]) => {
         if (cancelled) return;
-        setAccounts(accs);
         setCategories(cats);
         const primary = accs.find((a) => a.primary) ?? accs[0] ?? null;
         setAccountId(primary?.id ?? null);
@@ -259,11 +254,6 @@ export function AddSheet({ onSubmitted, onClose }: AddSheetProps) {
   const visibleCategories = useMemo(
     () => categories.filter((c) => c.code !== 'savings' && c.paused !== true),
     [categories],
-  );
-
-  const currentAccount = useMemo(
-    () => accounts.find((a) => a.id === accountId) ?? null,
-    [accounts, accountId],
   );
 
   // ── Handlers ──────────────────────────────────────────────────────
@@ -338,20 +328,6 @@ export function AddSheet({ onSubmitted, onClose }: AddSheetProps) {
       setSubmitting(false);
     }
   };
-
-  // ── Account picker (bottom-sheet — Phase 30-02 DEBT-03) ──────────
-  // Replaces the previous tap-to-cycle behaviour: tap on the account row
-  // opens AccountPickerSheet (a PosterSheet-rendered list); selecting a
-  // row writes back via `setAccountId` and closes the picker.
-  const onOpenAccountPicker = () => {
-    if (accounts.length === 0) return;
-    setAccountPickerOpen(true);
-  };
-  const onSelectAccount = (id: number) => {
-    setAccountId(id);
-    setAccountPickerOpen(false);
-  };
-  const onCloseAccountPicker = () => setAccountPickerOpen(false);
 
   // ── Render ────────────────────────────────────────────────────────
   return (
@@ -472,32 +448,6 @@ export function AddSheet({ onSubmitted, onClose }: AddSheetProps) {
         </div>
       </div>
 
-      {/* Account row — Phase 29-04 §3 AddSheet BLOCKERs #2/#3:
-       * - Eyebrow «Счёт» now lives ABOVE the row plate (was inline label).
-       * - Display content is `{BANK uppercased} · {MASK}` with a single
-       *   middle dot; right-side caption is mono «сменить ↓» (not chevron).
-       * Mirrors prototype/poster-screens.jsx:1209-1213. */}
-      <div className={styles.accountBlock}>
-        <Eyebrow color="var(--poster-paper)" opacity={0.55}>
-          Счёт
-        </Eyebrow>
-        <button
-          type="button"
-          className={styles.accountRow}
-          onClick={onOpenAccountPicker}
-          data-testid="add-sheet-account-row"
-          aria-haspopup="dialog"
-          aria-expanded={accountPickerOpen}
-        >
-          <span className={styles.accountValue}>
-            {currentAccount
-              ? `${(currentAccount.bank ?? '').toUpperCase()}${currentAccount.mask ? ' · ' + currentAccount.mask : ''}`
-              : '—'}
-          </span>
-          <span className={styles.accountSwitch}>сменить ↓</span>
-        </button>
-      </div>
-
       {/* Keypad (LAST input section per prototype) */}
       <div className={styles.keypadBlock}>
         <Keypad
@@ -562,19 +512,6 @@ export function AddSheet({ onSubmitted, onClose }: AddSheetProps) {
           </div>
         </div>
       ) : null}
-
-      {/* Phase 30-02 (DEBT-03): bottom-sheet account picker.
-       * Rendered AFTER the cancel-confirm overlay so its PosterSheet portal
-       * is appended to document.body and layers above the AddSheet's own
-       * dark background. Open state lives in `accountPickerOpen`.
-       */}
-      <AccountPickerSheet
-        isOpen={accountPickerOpen}
-        accounts={accounts}
-        selectedAccountId={accountId}
-        onSelect={onSelectAccount}
-        onClose={onCloseAccountPicker}
-      />
     </div>
   );
 }

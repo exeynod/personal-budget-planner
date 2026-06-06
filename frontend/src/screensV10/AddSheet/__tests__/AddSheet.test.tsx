@@ -122,7 +122,9 @@ async function flushPromises() {
 async function renderSheet() {
   const onSubmitted = vi.fn();
   const onClose = vi.fn();
-  const utils = render(<AddSheet onSubmitted={onSubmitted} onClose={onClose} />);
+  const utils = render(
+    <AddSheet onSubmitted={onSubmitted} onClose={onClose} />,
+  );
   await flushPromises();
   return { ...utils, onSubmitted, onClose };
 }
@@ -131,9 +133,7 @@ describe('AddSheet — header & layout', () => {
   it('renders the NEW ENTRY header eyebrow', async () => {
     await renderSheet();
     // Eyebrow text starts with "NEW ENTRY ·"
-    expect(
-      screen.getByText(/NEW ENTRY/),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/NEW ENTRY/)).toBeInTheDocument();
   });
 
   it('renders the × close button', async () => {
@@ -145,9 +145,7 @@ describe('AddSheet — header & layout', () => {
 
   it('renders the BigFig amount display starting at 0', async () => {
     await renderSheet();
-    expect(
-      screen.getByTestId('add-sheet-bigfig'),
-    ).toBeInTheDocument();
+    expect(screen.getByTestId('add-sheet-bigfig')).toBeInTheDocument();
   });
 
   it('renders the 3×4 keypad', async () => {
@@ -155,23 +153,11 @@ describe('AddSheet — header & layout', () => {
     expect(screen.getByTestId('add-sheet-keypad')).toBeInTheDocument();
   });
 
-  it('renders only non-savings, non-paused categories as chips', async () => {
+  it('renders only non-savings categories as chips', async () => {
     await renderSheet();
     expect(screen.getByText('Кафе')).toBeInTheDocument();
     expect(screen.getByText('Продукты')).toBeInTheDocument();
     expect(screen.queryByText('Копилка')).toBeNull();
-    expect(screen.queryByText('Старая категория')).toBeNull();
-  });
-
-  it('renders the primary account in the account row by default', async () => {
-    await renderSheet();
-    // Account row shows «Т-БАНК · 1234» (bank UPPERCASED, single mid-dot
-    // separator per Phase 29-04 §3 AddSheet BLOCKER #3 — matches the
-    // Transactions sub-line pattern TXN-V10-04). Match case-insensitively
-    // so the assertion survives any future label-case tweaks.
-    expect(screen.getByTestId('add-sheet-account-row').textContent).toMatch(
-      /Т-БАНК/i,
-    );
   });
 });
 
@@ -205,7 +191,9 @@ describe('AddSheet — keypad → BigFig & CTA flow', () => {
     // Now BigFig shows 50.
     expect(screen.getByTestId('add-sheet-bigfig').textContent).toMatch(/50/);
     fireEvent.click(screen.getByRole('button', { name: /удалить/i }));
-    expect(screen.getByTestId('add-sheet-bigfig').textContent).toMatch(/^[^0-9]*5[^0-9]*$/);
+    expect(screen.getByTestId('add-sheet-bigfig').textContent).toMatch(
+      /^[^0-9]*5[^0-9]*$/,
+    );
   });
 
   it('after entering an amount AND tapping a category, CTA becomes «СОХРАНИТЬ ↵» enabled', async () => {

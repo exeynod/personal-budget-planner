@@ -31,7 +31,6 @@ vi.mock('../Onboarding/OnboardingMount', () => ({
 // Mock the v10 API leaves the real AddSheet + Phase 27 mounts use.
 vi.mock('../../api/v10', () => ({
   listAccounts: vi.fn().mockResolvedValue([]),
-  createAccount: vi.fn(),
   listCategoriesV10: vi.fn().mockResolvedValue([]),
   createActualV10: vi.fn(),
   listActualV10: vi.fn().mockResolvedValue([]),
@@ -196,7 +195,7 @@ describe('V10MainShell — composition', () => {
     fireEvent.click(screen.getByRole('tab', { name: /УПР\./ }));
     // Hub headline is rendered synchronously (isOwner state defaults to false).
     expect(screen.getByText(/Управление\./)).toBeInTheDocument();
-    // 4-row variant for non-owner role: PLAN МЕСЯЦА / СЧЕТА / АНАЛИТИКА / НАСТРОЙКИ.
+    // Non-owner variant: PLAN МЕСЯЦА / АНАЛИТИКА / ПОДПИСКИ / НАСТРОЙКИ.
     expect(screen.getByText(/PLAN МЕСЯЦА/)).toBeInTheDocument();
     // Wait for /me promise to resolve so the role-state settles to 'member'.
     await flushMicrotasks();

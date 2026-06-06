@@ -31,7 +31,6 @@ export interface NativeHomeViewProps {
   walletCents: number;
   expenseRows: CategoryAggregateRow[];
   incomeRows: CategoryAggregateRow[];
-  onWalletTap: () => void;
   onPlanTap: () => void;
   onCategoryTap: (id: number) => void;
   periods?: PeriodRead[];
@@ -53,7 +52,6 @@ function NativeHomeViewInner(props: NativeHomeViewProps) {
     walletCents,
     expenseRows,
     incomeRows,
-    onWalletTap,
     onPlanTap,
     onCategoryTap,
     periods,
@@ -104,13 +102,9 @@ function NativeHomeViewInner(props: NativeHomeViewProps) {
         </div>
       )}
 
-      {/* Balance card */}
-      <button
-        type="button"
-        className={styles.balanceCard}
-        onClick={onWalletTap}
-        data-testid="native-home-balance"
-      >
+      {/* Balance card (display only — accounts-mgmt navigation removed in
+          the v1.1 planning rework). */}
+      <div className={styles.balanceCard} data-testid="native-home-balance">
         <div className={styles.balanceLabel}>Остаток на счёте</div>
         <div className={styles.balanceAmount}>
           {formatMoneyNative(walletCents)}
@@ -140,7 +134,7 @@ function NativeHomeViewInner(props: NativeHomeViewProps) {
             </span>
           </div>
         </div>
-      </button>
+      </div>
 
       {/* План месяца — opens the Plan editor (same onPlanTap as the poster). */}
       <button
