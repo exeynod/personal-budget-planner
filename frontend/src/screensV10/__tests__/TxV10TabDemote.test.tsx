@@ -24,19 +24,19 @@ import { BottomNavV10 } from '../common/BottomNavV10';
 afterEach(cleanup);
 
 describe('TXN-V10-06 — V10 BottomNav demotion', () => {
-  it('BottomNavV10 has exactly 4 tab buttons + 1 FAB; no Транзакции / Реестр / Transactions label', () => {
+  it('BottomNavV10 has exactly 3 tab buttons + 1 FAB; no Транзакции / Реестр / Transactions label', () => {
     const { container } = render(
       <BottomNavV10 active="home" onTab={vi.fn()} onFab={vi.fn()} />,
     );
 
-    // 4 tab buttons (role=tab) + 1 FAB (role=button, not role=tab).
+    // 3 tab buttons (role=tab) + 1 FAB (role=button, not role=tab).
     const tabBar = container.querySelector('[role="tablist"]');
     expect(tabBar).not.toBeNull();
     const tabs = within(tabBar as HTMLElement).queryAllByRole('tab');
-    expect(tabs).toHaveLength(4);
+    expect(tabs).toHaveLength(3);
 
-    // Required V10 labels present.
-    for (const lbl of ['ГЛАВНАЯ', 'КОПИЛКА', 'AI', 'УПР.']) {
+    // Required V10 labels present (savings tab removed).
+    for (const lbl of ['ГЛАВНАЯ', 'AI', 'УПР.']) {
       expect(screen.getByText(lbl)).toBeTruthy();
     }
 
@@ -63,22 +63,22 @@ describe('TXN-V10-06 — V10 BottomNav demotion', () => {
     ).toBeNull();
   });
 
-  it('V10 TabId enum has exactly 4 cases (no transactions)', () => {
+  it('V10 TabId enum has exactly 3 cases (no transactions, no savings)', () => {
     // Runtime mapping mirrors the V10 TabId type literal:
-    //   componentsV10/TabBar.tsx: type TabId = 'home' | 'savings' | 'ai' | 'mgmt'
+    //   componentsV10/TabBar.tsx: type TabId = 'home' | 'ai' | 'mgmt'
     // If anyone adds 'transactions' back to TabId, this object literal will
     // fail to type-check (Record key set diverges) and the keyof check below
     // will fail at runtime as a belt-and-braces guard.
-    const map: Record<'home' | 'savings' | 'ai' | 'mgmt', boolean> = {
+    const map: Record<'home' | 'ai' | 'mgmt', boolean> = {
       home: true,
-      savings: true,
       ai: true,
       mgmt: true,
     };
     const keys = Object.keys(map).sort();
-    expect(keys).toEqual(['ai', 'home', 'mgmt', 'savings']);
+    expect(keys).toEqual(['ai', 'home', 'mgmt']);
     expect(keys).not.toContain('transactions');
-    expect(keys).toHaveLength(4);
+    expect(keys).not.toContain('savings');
+    expect(keys).toHaveLength(3);
   });
 
   it('HomeMount imports the real TransactionsMount, not the placeholder (Plan 25-08 swap regression guard)', () => {

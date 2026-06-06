@@ -17,14 +17,13 @@
 // `canPop` / `onBack` are accepted (prop-parity with the poster) but unused —
 // the native shell owns the bottom tab bar and never pushes the hub.
 
-import { Fragment, memo } from 'react';
+import { memo } from 'react';
 import {
   ChartBar,
   Wallet,
   Stack,
   GearSix,
   Users,
-  PiggyBank,
   type Icon as PhosphorIcon,
 } from '@phosphor-icons/react';
 import {
@@ -33,8 +32,6 @@ import {
   InsetGroup,
   InsetRow,
 } from '../native/NativePrimitives';
-import { usePosterRouterOptional } from '../common';
-import { SavingsMount } from '../Savings';
 import type { MgmtHubViewProps, MgmtRowId } from './MgmtHubView';
 import styles from './NativeMgmtHubView.module.css';
 
@@ -135,13 +132,6 @@ const ROWS: NativeRowDef[] = [
 function NativeMgmtHubViewInner(props: MgmtHubViewProps) {
   const { isOwner, onRowTap } = props;
 
-  // The native shell has only 4 tabs (no «Копилка» tab), so Savings would be
-  // unreachable under the native design. Surface it here as an EXTRA menu row
-  // that pushes the Savings screen directly via the poster router. This is the
-  // ONLY added row — it lives outside the shared MgmtRowId / onRowTap path so
-  // the poster MgmtHubView (which has no savings row) is untouched.
-  const router = usePosterRouterOptional();
-
   // Mirror the poster gate: «Доступ» (owner-only) hidden for members.
   const visible = ROWS.filter((r) => !r.ownerOnly || isOwner);
 
@@ -181,53 +171,32 @@ function NativeMgmtHubViewInner(props: MgmtHubViewProps) {
         {visible.map((row) => {
           const { Icon } = row;
           return (
-            <Fragment key={row.id}>
-              <InsetRow
-                testId={`native-mgmt-row-${row.id}`}
-                leading={
-                  <span
-                    className={styles.iconTile}
-                    style={{ background: row.tint }}
-                    aria-hidden="true"
-                  >
-                    <Icon size={18} weight="fill" color="#fff" />
+            <InsetRow
+              key={row.id}
+              testId={`native-mgmt-row-${row.id}`}
+              leading={
+                <span
+                  className={styles.iconTile}
+                  style={{ background: row.tint }}
+                  aria-hidden="true"
+                >
+                  <Icon size={18} weight="fill" color="#fff" />
+                </span>
+              }
+              title={
+                row.ownerBadge ? (
+                  <span className={styles.titleRow}>
+                    {row.title}
+                    <span className={styles.ownerBadge}>OWNER</span>
                   </span>
-                }
-                title={
-                  row.ownerBadge ? (
-                    <span className={styles.titleRow}>
-                      {row.title}
-                      <span className={styles.ownerBadge}>OWNER</span>
-                    </span>
-                  ) : (
-                    row.title
-                  )
-                }
-                subtitle={row.subtitle}
-                chevron
-                onClick={() => onRowTap(row.id)}
-              />
-              {/* Reachability fix: «Копилка» has no native tab → push it from
-                  the Management hub. Placed right after «Подписки». */}
-              {row.id === 'subscriptions' && (
-                <InsetRow
-                  testId="native-mgmt-row-savings"
-                  leading={
-                    <span
-                      className={styles.iconTile}
-                      style={{ background: '#30B0C7' }}
-                      aria-hidden="true"
-                    >
-                      <PiggyBank size={18} weight="fill" color="#fff" />
-                    </span>
-                  }
-                  title="Копилка"
-                  subtitle="Накопления и цели"
-                  chevron
-                  onClick={() => router?.push(<SavingsMount />)}
-                />
-              )}
-            </Fragment>
+                ) : (
+                  row.title
+                )
+              }
+              subtitle={row.subtitle}
+              chevron
+              onClick={() => onRowTap(row.id)}
+            />
           );
         })}
       </InsetGroup>

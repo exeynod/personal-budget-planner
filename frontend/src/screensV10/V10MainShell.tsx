@@ -32,16 +32,13 @@
 //     prop. Tests can observe the bump via the `parent-refetched` sentinel
 //     rendered alongside each mount.
 //
-// Tab-tap routing (Phase 27 wiring — Plan 27-06 connects Mgmt-hub for real,
-// Savings/AI use temporary stubs from Management/_externalMountStubs.tsx until
-// Phase 27 plans 27-02 (AiMount) and 27-03 (SavingsMount) ship their barrel
-// exports — then this file swaps the imports):
+// Tab-tap routing:
 //   - home    → router.popToRoot()  (return to OnboardingMount/HomeMount root)
-//   - savings → router.push(<SavingsMountStub />)   // Plan 27-03 swap target
-//   - ai      → router.push(<AiMountStub />)         // Plan 27-02 swap target
-//   - mgmt    → router.push(<MgmtHubMount />)        // Plan 27-06 — REAL
+//   - ai      → router.push(<AiMount />)
+//   - mgmt    → router.push(<MgmtHubMount />)
 //
 // Note: the v0.6 Transactions tab is intentionally absent (TXN-V10-06).
+// Note: the Savings («Копилка») tab was removed in the v1.1 planning rework.
 
 import { useState } from 'react';
 import {
@@ -59,7 +56,6 @@ import type { TabId } from '../componentsV10';
 import { OnboardingMount } from './Onboarding/OnboardingMount';
 import { AddSheet } from './AddSheet';
 import { MgmtHubMount } from './Management';
-import { SavingsMount } from './Savings';
 import { AiMount } from './Ai';
 import styles from './V10MainShell.module.css';
 
@@ -89,10 +85,6 @@ function ShellChrome({
     if (id === 'home') {
       // Pop everything pushed on top — return to root (OnboardingMount/HomeMount).
       router.popToRoot();
-      return;
-    }
-    if (id === 'savings') {
-      router.push(<SavingsMount />);
       return;
     }
     if (id === 'ai') {

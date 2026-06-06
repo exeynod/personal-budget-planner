@@ -12,7 +12,14 @@
 // renders without network. The AddSheet placeholder content is gone.
 
 import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
-import { render, fireEvent, cleanup, screen, within, act } from '@testing-library/react';
+import {
+  render,
+  fireEvent,
+  cleanup,
+  screen,
+  within,
+  act,
+} from '@testing-library/react';
 
 // Mock OnboardingMount to a simple stub — V10MainShell uses it as PosterRouter root.
 vi.mock('../Onboarding/OnboardingMount', () => ({
@@ -28,18 +35,6 @@ vi.mock('../../api/v10', () => ({
   listCategoriesV10: vi.fn().mockResolvedValue([]),
   createActualV10: vi.fn(),
   listActualV10: vi.fn().mockResolvedValue([]),
-  // Phase 27 — Savings/Goals (snap.config nested per actual SavingsSnapshot)
-  fetchSavingsSummary: vi.fn().mockResolvedValue({
-    total_cents: 0,
-    month_in_cents: 0,
-    config: { roundup_enabled: false, roundup_base: 10 },
-    goals: [],
-  }),
-  patchSavingsConfig: vi.fn(),
-  postDeposit: vi.fn(),
-  listGoals: vi.fn().mockResolvedValue([]),
-  createGoal: vi.fn(),
-  deleteGoal: vi.fn(),
   // Phase 27 — AI observation
   fetchObservation: vi.fn().mockResolvedValue({
     text: '',
@@ -127,11 +122,11 @@ describe('V10MainShell — composition', () => {
 
   it('BottomNavV10 is visible by default with home tab active', () => {
     render(<V10MainShell />);
-    // 4 tab buttons + 1 FAB.
-    expect(
-      screen.getByRole('tab', { name: /ГЛАВНАЯ/ }),
-    ).toHaveAttribute('aria-selected', 'true');
-    expect(screen.getByRole('tab', { name: /КОПИЛКА/ })).toBeInTheDocument();
+    // 3 tab buttons + 1 FAB.
+    expect(screen.getByRole('tab', { name: /ГЛАВНАЯ/ })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
     expect(screen.getByRole('tab', { name: /AI/ })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: /УПР\./ })).toBeInTheDocument();
     expect(
@@ -139,15 +134,15 @@ describe('V10MainShell — composition', () => {
     ).toBeInTheDocument();
   });
 
-  it('TXN-V10-06: no Transactions tab in BottomNav (4-tab + FAB layout)', () => {
+  it('TXN-V10-06: no Transactions tab in BottomNav (3-tab + FAB layout)', () => {
     const { container } = render(<V10MainShell />);
     const tabBar = container.querySelector('[role="tablist"]');
     expect(tabBar).not.toBeNull();
     const labels = within(tabBar as HTMLElement)
       .queryAllByRole('tab')
       .map((b) => b.textContent ?? '');
-    // Total tab buttons must be exactly 4.
-    expect(labels).toHaveLength(4);
+    // Total tab buttons must be exactly 3 (savings tab removed).
+    expect(labels).toHaveLength(3);
     for (const text of labels) {
       expect(text).not.toMatch(/Транзакции|Реестр|Transactions/);
     }
@@ -174,9 +169,7 @@ describe('V10MainShell — composition', () => {
     expect(screen.getByText(/NEW ENTRY/)).toBeInTheDocument();
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(screen.queryByText(/NEW ENTRY/)).toBeNull();
-    expect(
-      screen.getByRole('tab', { name: /ГЛАВНАЯ/ }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /ГЛАВНАЯ/ })).toBeInTheDocument();
   });
 
   it('AddSheet × button (clean form) dismisses the sheet', async () => {
@@ -187,20 +180,7 @@ describe('V10MainShell — composition', () => {
     await flushMicrotasks();
     fireEvent.click(screen.getByRole('button', { name: /Закрыть форму/ }));
     expect(screen.queryByText(/NEW ENTRY/)).toBeNull();
-    expect(
-      screen.getByRole('tab', { name: /ГЛАВНАЯ/ }),
-    ).toBeInTheDocument();
-  });
-
-  it('Savings tab tap pushes the real SavingsMount (Phase 27 wire)', async () => {
-    render(<V10MainShell />);
-    fireEvent.click(screen.getByRole('tab', { name: /КОПИЛКА/ }));
-    // Real SavingsMount fetches asynchronously — wait for «Копилка.» Mass headline.
-    await flushMicrotasks();
-    await flushMicrotasks();
-    expect(screen.getByText(/Копилка\./)).toBeInTheDocument();
-    // Top of stack changed → onboarding-mount-stub hidden.
-    expect(screen.queryByTestId('onboarding-mount-stub')).toBeNull();
+    expect(screen.getByRole('tab', { name: /ГЛАВНАЯ/ })).toBeInTheDocument();
   });
 
   it('AI tab tap pushes the real AiMount (Phase 27 wire)', () => {
@@ -226,7 +206,7 @@ describe('V10MainShell — composition', () => {
 
   it('Home tab tap after a push pops the stack back to root', () => {
     render(<V10MainShell />);
-    fireEvent.click(screen.getByRole('tab', { name: /КОПИЛКА/ }));
+    fireEvent.click(screen.getByRole('tab', { name: /AI/ }));
     expect(screen.queryByTestId('onboarding-mount-stub')).toBeNull();
     fireEvent.click(screen.getByRole('tab', { name: /ГЛАВНАЯ/ }));
     expect(screen.getByTestId('onboarding-mount-stub')).toBeInTheDocument();

@@ -7,7 +7,7 @@
 //  2. Stable contract for V10MainShell / AppV10 to import a single component
 //     instead of TabBar + ad-hoc visibility logic.
 //
-// Tabs delivered by TabBar: home / savings / FAB-center / ai / mgmt
+// Tabs delivered by TabBar: home / FAB-center / ai / mgmt
 // (TXN-V10-06: v0.6 Transactions tab demoted from bottom nav — Transactions
 // is reachable only via push-stack from Home «ВСЕ ОПЕРАЦИИ →»).
 

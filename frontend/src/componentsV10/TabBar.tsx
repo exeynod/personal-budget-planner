@@ -1,7 +1,7 @@
 import { FAB } from './FAB';
 import styles from './TabBar.module.css';
 
-export type TabId = 'home' | 'savings' | 'ai' | 'mgmt';
+export type TabId = 'home' | 'ai' | 'mgmt';
 
 interface TabEntry {
   id: TabId;
@@ -12,7 +12,6 @@ interface TabEntry {
 
 const TABS: TabEntry[] = [
   { id: 'home', label: 'ГЛАВНАЯ', glyph: '■', idx: 0 },
-  { id: 'savings', label: 'КОПИЛКА', glyph: '◊', idx: 1 },
   { id: 'ai', label: 'AI', glyph: '✦', idx: 3 },
   { id: 'mgmt', label: 'УПР.', glyph: '⌘', idx: 4 },
 ];
@@ -36,13 +35,13 @@ export function TabBar({ active, dark = false, onTab, onFab }: TabBarProps) {
         className={styles.indicator}
         style={{ left: `calc(${activeIdx} * (100% / 5))` }}
       />
-      {[TABS[0], TABS[1]].map((t) => (
+      {[TABS[0]].map((t) => (
         <TabBtn key={t.id} t={t} active={active === t.id} onTab={onTab} />
       ))}
       <div className={styles.fabSlot}>
         <FAB onClick={onFab} />
       </div>
-      {[TABS[2], TABS[3]].map((t) => (
+      {[TABS[1], TABS[2]].map((t) => (
         <TabBtn key={t.id} t={t} active={active === t.id} onTab={onTab} />
       ))}
     </nav>
@@ -66,9 +65,7 @@ function TabBtn({
       className={`${styles.tab}${active ? ' ' + styles.active : ''}`}
       onClick={() => onTab(t.id)}
     >
-      <span
-        className={`${styles.glyph}${active ? ' poster-tab-pop' : ''}`}
-      >
+      <span className={`${styles.glyph}${active ? ' poster-tab-pop' : ''}`}>
         {t.glyph}
       </span>
       <span className={styles.label}>{t.label}</span>

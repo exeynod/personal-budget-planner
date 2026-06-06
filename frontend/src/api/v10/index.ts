@@ -7,10 +7,7 @@
  * consumers can `import { listAccounts, listCategoriesV10, createActualV10 }
  * from '../api/v10'` without reaching into individual files.
  */
-export {
-  listActualV10,
-  createActualV10,
-} from './actual';
+export { listActualV10, createActualV10 } from './actual';
 export type {
   ActualV10Read,
   ActualV10CreatePayload,
@@ -55,23 +52,6 @@ export type {
 // Phase 27-02 — AI observation (initial-state DM Serif text).
 export { fetchObservation } from './ai';
 export type { ObservationResponse } from './ai';
-
-// Phase 27-03 — Savings + Goals (SAV-V10-01..04).
-export {
-  fetchSavingsSummary,
-  patchSavingsConfig,
-  postDeposit,
-} from './savings';
-export type {
-  SavingsSnapshot,
-  SavingsConfig,
-  SavingsConfigPatchPayload,
-  DepositCreatePayload,
-  DepositResponse,
-} from './savings';
-
-export { listGoals, createGoal, deleteGoal } from './goals';
-export type { GoalRead, GoalCreatePayload } from './goals';
 
 // Phase 27-05 — Analytics top-categories wrapper (ANAL-V10-04).
 export { fetchTopCategories } from './analytics';

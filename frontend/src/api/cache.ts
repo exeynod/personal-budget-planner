@@ -165,5 +165,4 @@ export const CACHE_KEYS = {
   actualsPrefix: 'actuals:',
   balance: (periodId: number) => `balance:${periodId}`,
   balancePrefix: 'balance:',
-  savingsSummary: 'savings-summary',
 } as const;
