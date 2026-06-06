@@ -141,9 +141,8 @@ export function computeCategoryAggregates(
 ): CategoryAggregateRow[] {
   const rows: CategoryAggregateRow[] = [];
   for (const cat of input.categories) {
-    // T-25-04-01: drop system 'savings' category and paused categories.
+    // T-25-04-01: drop system 'savings' category.
     if (cat.code === 'savings') continue;
-    if (cat.paused === true) continue;
     // Expense home bars are expense-scoped. Income categories are surfaced
     // separately (computeIncomeAggregates → native Доходы tab). Categories
     // with no `kind` (older wire schema) are kept for back-compat.
@@ -291,7 +290,6 @@ export function computeIncomeAggregates(
   const rows: CategoryAggregateRow[] = [];
   for (const cat of input.categories) {
     if (cat.kind !== 'income') continue;
-    if (cat.paused === true) continue;
 
     const planCents = cat.plan_cents ?? 0;
     let factCents = 0;
@@ -373,7 +371,6 @@ export function computePlanTotalCents(
   let sum = 0;
   for (const cat of categories) {
     if (cat.code === 'savings') continue;
-    if (cat.paused === true) continue;
     if (cat.kind && cat.kind !== 'expense') continue;
     sum += cat.plan_cents ?? 0;
   }

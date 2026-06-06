@@ -620,10 +620,6 @@ export interface AccountResponse {
  * generated source. The old stub Optionals are gone — the Phase 25 gap-fix
  * landed every field on the wire.
  */
-import type {
-  CategoryV10,
-  CategoryRollover,
-  CategoryTag,
-} from './generated/adapters';
+import type { CategoryV10, CategoryTag } from './generated/adapters';
 
-export type { CategoryV10, CategoryRollover, CategoryTag };
+export type { CategoryV10, CategoryTag };

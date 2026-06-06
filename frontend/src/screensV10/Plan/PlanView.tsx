@@ -16,16 +16,10 @@
 // vi.fn() spies and assert call shapes.
 
 import { memo, useEffect, useRef } from 'react';
-import {
-  Chip,
-  Eyebrow,
-  Mass,
-  PosterButton,
-  PosterSlider,
-} from '../../componentsV10';
+import { Eyebrow, Mass, PosterButton, PosterSlider } from '../../componentsV10';
 import type { CategoryV10 } from '../../api/v10';
 import type { PlanMonthItem } from '../../api/types';
-import type { RegularRow, RolloverAggregates } from './computePlan';
+import type { RegularRow } from './computePlan';
 import styles from './PlanView.module.css';
 
 // ─────────── Props ───────────
@@ -33,14 +27,12 @@ import styles from './PlanView.module.css';
 export interface PlanViewProps {
   /** User.income_cents from /me. Used for slider max + plate value. */
   incomeCents: number;
-  /** Categories (ord-sorted, savings/paused-filtered) — slider list source. */
+  /** Categories (ord-sorted, savings-filtered) — slider list source. */
   categories: CategoryV10[];
   /** Current draft plan_cents — mount-controlled. */
   plans: PlanMonthItem[];
   /** Monthly subscriptions with day_of_month set, sorted ASC. */
   regulars: RegularRow[];
-  /** Aggregated remainders by rollover policy. */
-  aggregates: RolloverAggregates;
   /** Signed cents (income − Σplan). */
   surplusCents: number;
   /** Convenience: surplusCents < 0. Disables submit + flips plate tone. */
@@ -57,10 +49,8 @@ export interface PlanViewProps {
 
   /** Slider drag handler — local state only, no PATCH. */
   onSliderChange: (catId: number, cents: number) => void;
-  /** Optional debounced (300ms) commit handler — currently no-op (mount aggregates on submit). */
+  /** Optional debounced (300ms) commit handler — currently no-op (PATCH on submit). */
   onSliderCommit?: (catId: number, cents: number) => void;
-  /** Chip-pair → PATCH /categories/:id with new rollover. */
-  onRolloverChip: (catId: number, next: 'misc' | 'savings') => void;
   /** «ПРОВЕСТИ →» tap — POST /subscriptions/:id/post. */
   onPostRegular: (subId: number) => void;
   /** «ОТМЕНА» tap — POST /subscriptions/:id/unpost. */
@@ -80,7 +70,6 @@ function PlanViewInner(props: PlanViewProps) {
     categories,
     plans,
     regulars,
-    aggregates,
     surplusCents,
     isOverflow,
     submitting,
@@ -88,7 +77,6 @@ function PlanViewInner(props: PlanViewProps) {
     focusCategoryId,
     onSliderChange,
     onSliderCommit,
-    onRolloverChip,
     onPostRegular,
     onUnpostRegular,
     onSubmit,
@@ -111,13 +99,6 @@ function PlanViewInner(props: PlanViewProps) {
     'ru-RU',
   );
   const surplusSign = surplusCents < 0 ? '−' : '+';
-  const miscRubles = Math.floor(aggregates.miscCents / 100).toLocaleString(
-    'ru-RU',
-  );
-  const savingsRubles = Math.floor(
-    aggregates.savingsCents / 100,
-  ).toLocaleString('ru-RU');
-
   // Phase 29-04 §5 PlanMonth BLOCKER #2 — dynamic month genitive UPPER
   // for the «PLAN / {МАЯ}.» headline. Matches prototype `PLAN<br/>МАЯ.`
   // which is hardcoded for May; we mirror dynamic locale.
@@ -197,32 +178,6 @@ function PlanViewInner(props: PlanViewProps) {
         </span>
       </div>
 
-      {/* ───── rollover aggregates ───── */}
-      {/* Phase 29-04 §5 PlanMonth BLOCKER #4 — eyebrow «ОСТАТОК ПО ИТОГУ
-       * МЕСЯЦА» above the two aggregate plates per prototype line 748. */}
-      <div className={styles.aggEyebrow}>
-        <Eyebrow color="var(--poster-paper)">ОСТАТОК ПО ИТОГУ МЕСЯЦА</Eyebrow>
-      </div>
-      {/* Phase 29-04 §5 PlanMonth BLOCKER #3 — asymmetric aggregate plates.
-       * Left = bordered ghost plate (prototype line 750-753).
-       * Right = yellow plate with cobalt text (line 754-757). */}
-      <div className={styles.rolloverRow}>
-        <div
-          className={`${styles.aggPlate} ${styles.aggPlateGhost}`}
-          data-testid="agg-misc"
-        >
-          <div className={styles.aggLabel}>→ ПРОЧЕЕ</div>
-          <div className={styles.aggValue}>{miscRubles} ₽</div>
-        </div>
-        <div
-          className={`${styles.aggPlate} ${styles.aggPlateYellow}`}
-          data-testid="agg-savings"
-        >
-          <div className={styles.aggLabel}>→ НАКОПЛЕНИЯ</div>
-          <div className={styles.aggValue}>+ {savingsRubles} ₽</div>
-        </div>
-      </div>
-
       {/* ───── regulars block ───── */}
       <div className={styles.sectionEyebrow}>
         <Eyebrow color="var(--poster-paper)">
@@ -286,7 +241,6 @@ function PlanViewInner(props: PlanViewProps) {
       {categories.map((c, i) => {
         const planCents = planByCat.get(c.id) ?? c.plan_cents ?? 0;
         const focused = focusCategoryId === c.id;
-        const rollover = c.rollover ?? 'misc';
         // Allow up-to-income; if planCents already exceeds income, use it as
         // upper bound so the slider doesn't snap back.
         const sliderMax = Math.max(incomeCents, planCents, 60_000_00);
@@ -309,20 +263,6 @@ function PlanViewInner(props: PlanViewProps) {
                 onSliderCommit ? (v) => onSliderCommit(c.id, v) : undefined
               }
             />
-            <div className={styles.chipPair}>
-              <Chip
-                active={rollover === 'misc'}
-                onClick={() => onRolloverChip(c.id, 'misc')}
-              >
-                ПРОЧЕЕ
-              </Chip>
-              <Chip
-                active={rollover === 'savings'}
-                onClick={() => onRolloverChip(c.id, 'savings')}
-              >
-                НАКОПЛЕНИЯ
-              </Chip>
-            </div>
           </div>
         );
       })}

@@ -171,9 +171,9 @@ export function useAddSheetController({
   // failed or the user has zero accounts (prevents wallet-desync POST).
   const cta = ctaState(amountCents, categoryId, accountId);
 
-  // ADD-V10-04: hide savings + paused categories.
+  // ADD-V10-04: hide the system savings category.
   const visibleCategories = useMemo(
-    () => categories.filter((c) => c.code !== 'savings' && c.paused !== true),
+    () => categories.filter((c) => c.code !== 'savings'),
     [categories],
   );
 

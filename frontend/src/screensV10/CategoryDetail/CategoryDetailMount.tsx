@@ -4,8 +4,8 @@
 //   1. On mount, fetch categories + current period in parallel; resolve the
 //      target category locally (cats.find(id)). Then fetch period actuals
 //      sequentially once period.id is known.
-//   2. Render <CategoryDetailView> wired to PATCH-backed toggle handlers
-//      (rollover, paused) and a router-push handler for «+ ПОДНЯТЬ ЛИМИТ».
+//   2. Render <CategoryDetailView> wired to a router-push handler for
+//      «+ ПОДНЯТЬ ЛИМИТ».
 //   3. On any fetch error, render an error sub-view with a retry button.
 //
 // Mount layer is intentionally thin — all sort/filter/aggregate logic lives
@@ -18,7 +18,6 @@ import { useCallback, useState } from 'react';
 import {
   listCategoriesV10,
   listActualV10,
-  updateCategoryV10,
   type ActualV10Read,
   type CategoryV10,
 } from '../../api/v10';
@@ -33,10 +32,7 @@ import { useShellVariant } from '../native/ShellVariant';
 import { NativeCategoryDetailView } from './NativeCategoryDetailView';
 
 // TODO P2 (period switching): this drill-down still pins to getCurrentPeriod().
-// Scoping it to the viewed period is deferred — the view also exposes
-// rollover/paused PATCH toggles against the LIVE category plan, which must not
-// be applied while «viewing» a closed past period. Wiring useSelectedPeriod
-// here needs a read-only mode for past periods first (out of P2 scope).
+// Scoping it to the viewed period is deferred (out of P2 scope).
 
 // ─────────────────── Props ───────────────────
 
@@ -87,37 +83,10 @@ export function CategoryDetailMount({ categoryId }: CategoryDetailMountProps) {
     [categoryId],
   );
 
-  const { status, data, error, reload, setData } = useResource<DataPayload>(
+  const { status, data, error, reload } = useResource<DataPayload>(
     fetchCategory,
     [categoryId],
   );
-
-  // ─────────── PATCH-backed toggle handlers ───────────
-  const handleToggleRollover = useCallback(async () => {
-    if (data === null) return;
-    const current = data.category;
-    const next = (current.rollover ?? 'misc') === 'misc' ? 'savings' : 'misc';
-    try {
-      const updated = await updateCategoryV10(current.id, { rollover: next });
-      setData((d) => (d ? { ...d, category: updated } : d));
-    } catch {
-      // T-26-02-04 mitigation (P2-11): surface via Toast instead of alert.
-      setToastMsg('Не удалось обновить «Остаток» — попробуйте снова');
-    }
-  }, [data, setData]);
-
-  const handleTogglePause = useCallback(async () => {
-    if (data === null) return;
-    const current = data.category;
-    try {
-      const updated = await updateCategoryV10(current.id, {
-        paused: !(current.paused ?? false),
-      });
-      setData((d) => (d ? { ...d, category: updated } : d));
-    } catch {
-      setToastMsg('Не удалось переключить «Паузу» — попробуйте снова');
-    }
-  }, [data, setData]);
 
   const handlePushPlan = useCallback(
     (catId: number) => {
@@ -154,8 +123,6 @@ export function CategoryDetailMount({ categoryId }: CategoryDetailMountProps) {
           category={data.category}
           actuals={data.actuals}
           onPushPlan={handlePushPlan}
-          onTogglePause={handleTogglePause}
-          onToggleRollover={handleToggleRollover}
           onBack={handleBack}
         />
         <Toast
@@ -174,8 +141,6 @@ export function CategoryDetailMount({ categoryId }: CategoryDetailMountProps) {
         category={data.category}
         actuals={data.actuals}
         onPushPlan={handlePushPlan}
-        onTogglePause={handleTogglePause}
-        onToggleRollover={handleToggleRollover}
         onBack={handleBack}
       />
       <Toast

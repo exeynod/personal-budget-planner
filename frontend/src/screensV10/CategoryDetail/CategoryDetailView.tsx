@@ -9,8 +9,7 @@
 //    pass `bigFigAnimate=false` for synchronous read).
 //  - 6px progress bar with width capped at 100%; visible 1px tick at plan/fact
 //    position when over-budget.
-//  - Toggle plate «ОСТАТОК → НАКОПЛЕНИЯ / ПРОЧЕЕ» — click → onToggleRollover.
-//  - CTA row: «+ ПОДНЯТЬ ЛИМИТ» (push Plan with focus) / «ПАУЗА» / «ВКЛЮЧИТЬ».
+//  - CTA: «+ ПОДНЯТЬ ЛИМИТ» (push Plan with focus).
 //  - Day-grouped operations list (filtered to this category); empty-state when none.
 //
 // View is router-agnostic — all click handlers are passed in as props.
@@ -18,7 +17,10 @@
 import { BigFig, Eyebrow, Mass } from '../../componentsV10';
 import { formatRubles } from '../Onboarding/format';
 import { formatTimeHM } from '../common/format';
-import { groupByDay, formatTxAmount } from '../Transactions/computeTransactions';
+import {
+  groupByDay,
+  formatTxAmount,
+} from '../Transactions/computeTransactions';
 import {
   computeBarSegments,
   computeFactForCategory,
@@ -41,10 +43,6 @@ export interface CategoryDetailViewProps {
 
   /** Push Plan view focused on this category (CAT-V10-05 «+ ПОДНЯТЬ ЛИМИТ»). */
   onPushPlan: (categoryId: number) => void;
-  /** Toggle category.paused via PATCH (CAT-V10-05 «ПАУЗА» / «ВКЛЮЧИТЬ»). */
-  onTogglePause: () => void;
-  /** Toggle category.rollover via PATCH (CAT-V10-04 plate). */
-  onToggleRollover: () => void;
   /** Pop the router stack (CAT-V10-01 ← НАЗАД). */
   onBack: () => void;
 }
@@ -58,8 +56,6 @@ export function CategoryDetailView(props: CategoryDetailViewProps) {
     today = new Date(),
     bigFigAnimate = true,
     onPushPlan,
-    onTogglePause,
-    onToggleRollover,
     onBack,
   } = props;
 
@@ -70,8 +66,6 @@ export function CategoryDetailView(props: CategoryDetailViewProps) {
     ? `— превышено на ${computeOverPercent(factCents, planCents)}%`
     : `— на ${computeUnderPercent(factCents, planCents)}% плана`;
   const segments = computeBarSegments(factCents, planCents);
-  const rollover = category.rollover ?? 'misc';
-  const paused = category.paused ?? false;
 
   const ownActuals = filterActualsForCategory(actuals, category.id);
   const dayGroups = groupByDay(ownActuals, today);
@@ -85,22 +79,13 @@ export function CategoryDetailView(props: CategoryDetailViewProps) {
     ? `−${formatRubles(Math.abs(leftCents))} over`
     : `${formatRubles(leftCents)} осталось`;
 
-  // Phase 29-04 §4 BLOCKER #4 — rollover plate body lines.
-  // Mono caption + mono money line (yellow when not over, paper when over).
-  const rolloverDestLabel = rollover === 'savings' ? 'НАКОПЛЕНИЯ' : 'ПРОЧЕЕ';
-  const rolloverMoneyLine = isOver
-    ? `− ${formatRubles(Math.abs(leftCents))} ₽`
-    : `+ ${formatRubles(Math.max(0, leftCents))} ₽`;
-
   return (
-    <div className={`${styles.root} ${isOver ? styles.bgRed : styles.bgCobalt}`}>
+    <div
+      className={`${styles.root} ${isOver ? styles.bgRed : styles.bgCobalt}`}
+    >
       {/* ─────────── header row ─────────── */}
       <div className={styles.headerRow}>
-        <button
-          type="button"
-          className={styles.backBtn}
-          onClick={onBack}
-        >
+        <button type="button" className={styles.backBtn} onClick={onBack}>
           ← НАЗАД
         </button>
         {/* Phase 29-04 §4 BLOCKER #1 — eyebrow shows state, not ordinal.
@@ -155,34 +140,7 @@ export function CategoryDetailView(props: CategoryDetailViewProps) {
         )}
       </div>
 
-      {/* ─────────── rollover plate (dark, two-line) ─────────── */}
-      {/* Phase 29-04 §4 BLOCKER #4 — prototype dark plate (rgba(0,0,0,0.22)),
-       * mono eyebrow «ОСТАТОК ПО КАТЕГОРИИ → {DEST}», mono money line.
-       * Click toggles rollover destination. */}
-      <button
-        type="button"
-        onClick={onToggleRollover}
-        className={styles.rolloverPlate}
-        data-testid="rollover-plate"
-      >
-        <span className={styles.rolloverEyebrow}>
-          ОСТАТОК ПО КАТЕГОРИИ → {rolloverDestLabel}
-        </span>
-        <span
-          className={
-            isOver
-              ? styles.rolloverMoneyOver
-              : styles.rolloverMoneyOk
-          }
-        >
-          {rolloverMoneyLine}
-        </span>
-      </button>
-
       {/* ─────────── CTA row ─────────── */}
-      {/* Phase 29-04 §4 BLOCKER #5 — asymmetric pills: yellow «+ ПОДНЯТЬ
-       * ЛИМИТ» (cobalt text; red text on over bg) + bordered ghost «ПАУЗА»
-       * per prototype lines 557-560. NOT two full-width ghost buttons. */}
       <div className={styles.ctaRow}>
         <button
           type="button"
@@ -192,13 +150,6 @@ export function CategoryDetailView(props: CategoryDetailViewProps) {
           }`}
         >
           + ПОДНЯТЬ ЛИМИТ
-        </button>
-        <button
-          type="button"
-          onClick={onTogglePause}
-          className={styles.ctaGhost}
-        >
-          {paused ? 'ВКЛЮЧИТЬ' : 'ПАУЗА'}
         </button>
       </div>
 

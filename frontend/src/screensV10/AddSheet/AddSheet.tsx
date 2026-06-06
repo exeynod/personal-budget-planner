@@ -250,9 +250,9 @@ export function AddSheet({ onSubmitted, onClose }: AddSheetProps) {
   // (HOME-V10-04 desync). The gate makes the failure visible to the user.
   const cta = ctaState(amountCents, categoryId, accountId);
 
-  // ADD-V10-04: filter out savings + paused.
+  // ADD-V10-04: filter out the system savings category.
   const visibleCategories = useMemo(
-    () => categories.filter((c) => c.code !== 'savings' && c.paused !== true),
+    () => categories.filter((c) => c.code !== 'savings'),
     [categories],
   );
 

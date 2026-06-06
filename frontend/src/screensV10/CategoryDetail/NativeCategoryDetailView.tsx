@@ -6,8 +6,7 @@
 //   - Summary card: CategoryIcon + plan / fact / «в запасе» stat row (same
 //     План−Факт surplus the poster computes) + a CSS progress bar reusing the
 //     exact computeBarSegments ratio (capped 100%, over-budget tick).
-//   - Rollover toggle row (ОСТАТОК → НАКОПЛЕНИЯ / ПРОЧЕЕ) → onToggleRollover.
-//   - CTA row: «Поднять лимит» (push Plan focused) + «Пауза»/«Включить».
+//   - CTA: «Поднять лимит» (push Plan focused).
 //   - SectionHeader + InsetGroup of this category's operations, day-grouped,
 //     each row: CategoryIcon + UPPERCASE name + time/desc + signed amount
 //     (income «+» green, expense «−» ink — kind-driven, like NativeTransactions).
@@ -46,10 +45,6 @@ export interface NativeCategoryDetailViewProps {
 
   /** Push Plan view focused on this category («Поднять лимит»). */
   onPushPlan: (categoryId: number) => void;
-  /** Toggle category.paused via PATCH («Пауза» / «Включить»). */
-  onTogglePause: () => void;
-  /** Toggle category.rollover via PATCH (rollover destination plate). */
-  onToggleRollover: () => void;
   /** Pop the router stack (back chevron). */
   onBack: () => void;
 }
@@ -57,21 +52,11 @@ export interface NativeCategoryDetailViewProps {
 // ─────────────────── Component ───────────────────
 
 function NativeCategoryDetailViewInner(props: NativeCategoryDetailViewProps) {
-  const {
-    category,
-    actuals,
-    today = new Date(),
-    onPushPlan,
-    onTogglePause,
-    onToggleRollover,
-    onBack,
-  } = props;
+  const { category, actuals, today = new Date(), onPushPlan, onBack } = props;
 
   const planCents = category.plan_cents ?? 0;
   const factCents = computeFactForCategory(actuals, category.id);
   const isOver = factCents > planCents;
-  const rollover = category.rollover ?? 'misc';
-  const paused = category.paused ?? false;
 
   // «В запасе» = План − Факт (sign convention «+ = good»; same value the poster
   // surfaces beneath the bar as «осталось» / «over»).
@@ -83,8 +68,6 @@ function NativeCategoryDetailViewInner(props: NativeCategoryDetailViewProps) {
 
   const ownActuals = filterActualsForCategory(actuals, category.id);
   const dayGroups = groupByDay(ownActuals, today);
-
-  const rolloverDestLabel = rollover === 'savings' ? 'Накопления' : 'Прочее';
 
   return (
     <div className={styles.root}>
@@ -146,18 +129,6 @@ function NativeCategoryDetailViewInner(props: NativeCategoryDetailViewProps) {
         </div>
       </div>
 
-      {/* ─────────── Rollover toggle row ─────────── */}
-      <InsetGroup>
-        <InsetRow
-          testId="native-cat-rollover"
-          title="Остаток по категории"
-          subtitle={`→ ${rolloverDestLabel}`}
-          trailing={<span className={styles.rolloverHint}>Изменить</span>}
-          trailingMuted
-          onClick={onToggleRollover}
-        />
-      </InsetGroup>
-
       {/* ─────────── CTA row ─────────── */}
       <div className={styles.ctaRow}>
         <button
@@ -167,14 +138,6 @@ function NativeCategoryDetailViewInner(props: NativeCategoryDetailViewProps) {
           onClick={() => onPushPlan(category.id)}
         >
           Поднять лимит
-        </button>
-        <button
-          type="button"
-          className={styles.ctaGhost}
-          data-testid="native-cat-pause"
-          onClick={onTogglePause}
-        >
-          {paused ? 'Включить' : 'Пауза'}
         </button>
       </div>
 

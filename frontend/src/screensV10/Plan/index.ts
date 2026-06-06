@@ -9,9 +9,8 @@ export type { PlanViewProps } from './PlanView';
 export {
   computeSurplus,
   computeIsOverflow,
-  computeRolloverAggregates,
   computeRegularsList,
   applyPlanEdit,
   plansFromCategories,
 } from './computePlan';
-export type { RegularRow, RolloverAggregates } from './computePlan';
+export type { RegularRow } from './computePlan';

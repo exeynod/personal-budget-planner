@@ -26,8 +26,18 @@ import type {
 export type GroupMode = 'day' | 'week' | 'cat';
 
 const MONTHS_RU_SHORT = [
-  'ЯНВ', 'ФЕВ', 'МАР', 'АПР', 'МАЙ', 'ИЮН',
-  'ИЮЛ', 'АВГ', 'СЕН', 'ОКТ', 'НОЯ', 'ДЕК',
+  'ЯНВ',
+  'ФЕВ',
+  'МАР',
+  'АПР',
+  'МАЙ',
+  'ИЮН',
+  'ИЮЛ',
+  'АВГ',
+  'СЕН',
+  'ОКТ',
+  'НОЯ',
+  'ДЕК',
 ] as const;
 
 export interface MonthOption {
@@ -149,7 +159,10 @@ export function groupActualsByCategory(
   const sumMap = new Map<number, number>();
   for (const t of filtered) {
     if (t.category_id == null) continue;
-    sumMap.set(t.category_id, (sumMap.get(t.category_id) ?? 0) + Math.abs(t.amount_cents));
+    sumMap.set(
+      t.category_id,
+      (sumMap.get(t.category_id) ?? 0) + Math.abs(t.amount_cents),
+    );
   }
   return Array.from(sumMap.entries())
     .map(([id, sumCents]) => {
@@ -255,7 +268,6 @@ export function computeKPISaved(
   let saved = 0;
   for (const c of categories) {
     if (c.code === 'savings') continue;
-    if (c.paused === true) continue;
     const fact = factById.get(c.id) ?? 0;
     saved += Math.max(0, (c.plan_cents ?? 0) - fact);
   }

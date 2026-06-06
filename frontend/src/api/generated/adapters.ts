@@ -21,9 +21,11 @@
  * (always present on the wire), and optional (`?: T | null`) only when it is
  * neither required nor defaulted but nullable. So for `CategoryRead`:
  *  - `code` / `ord`            — required, no default → non-optional `string`
- *  - `plan_cents` / `rollover` / `paused` / `tag` — server-defaulted → always
- *    present on the wire → non-optional
+ *  - `plan_cents` / `tag`      — server-defaulted → always present on the wire
  *  - `parent_id`              — neither required nor defaulted → optional+nullable
+ *
+ * NOTE: `rollover` / `paused` were removed from the category contract in the
+ * v1.1 planning rework (no UI exposes them anymore).
  */
 import type { components } from './schema';
 
@@ -36,31 +38,22 @@ type Schemas = components['schemas'];
  *
  * `code`/`ord` are required (in the OpenAPI `required` set, no default).
  *
- * The server-defaulted fields (`plan_cents`/`rollover`/`paused`/`tag`) and the
- * nullable `parent_id` are kept OPTIONAL here. The generated `CategoryRead`
- * renders the defaulted ones non-optional, but per 69-04 they STAY optional:
- * legacy / pre-gap-fix wire rows may omit them, and consumers
- * (`computeHomeData` et al.) defensively default — `computeHomeData.test.ts`
- * has an explicit "missing optional fields by defaulting" regression. Keeping
- * these optional preserves that defensive contract (threat T-69-04-01) without
- * any runtime behavior change. `tag` (Phase 36, `"personal"|"business"|"mixed"`)
- * is now present (optional) — the headline missing-field drift is closed.
+ * The server-defaulted fields (`plan_cents`/`tag`) and the nullable `parent_id`
+ * are kept OPTIONAL here. The generated `CategoryRead` renders the defaulted
+ * ones non-optional, but per 69-04 they STAY optional: legacy / pre-gap-fix
+ * wire rows may omit them, and consumers (`computeHomeData` et al.) defensively
+ * default — `computeHomeData.test.ts` has an explicit "missing optional fields
+ * by defaulting" regression. Keeping these optional preserves that defensive
+ * contract (threat T-69-04-01) without any runtime behavior change. `tag`
+ * (Phase 36, `"personal"|"business"|"mixed"`) is present (optional).
  */
-type CategoryV10DefaultedOptional =
-  | 'plan_cents'
-  | 'rollover'
-  | 'paused'
-  | 'parent_id'
-  | 'tag';
+type CategoryV10DefaultedOptional = 'plan_cents' | 'parent_id' | 'tag';
 
 export type CategoryV10 = Omit<
   Schemas['CategoryRead'],
   CategoryV10DefaultedOptional
 > &
   Partial<Pick<Schemas['CategoryRead'], CategoryV10DefaultedOptional>>;
-
-/** Generated `rollover` policy union (`"misc" | "savings"`). */
-export type CategoryRollover = Schemas['CategoryRead']['rollover'];
 
 /** Generated category `tag` union (`"personal" | "business" | "mixed"`). */
 export type CategoryTag = Schemas['CategoryRead']['tag'];

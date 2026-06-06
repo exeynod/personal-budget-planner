@@ -3,7 +3,7 @@
 // Pushed detail screen ported from the Maximal Poster PlanView. Consumes the
 // SAME props PlanMount feeds the poster view; all editing + saving flows reuse
 // the SAME handlers (onSliderChange for per-category plan edits, onSubmit for
-// patchPlanMonth, onRolloverChip / onPostRegular / onUnpostRegular).
+// patchPlanMonth, onPostRegular / onUnpostRegular).
 //
 // Edit affordance translation (brief §«mirror the poster's edit affordance»):
 //   The poster edits each plan amount via a PosterSlider (drag → onSliderChange,
@@ -17,10 +17,8 @@
 // Structure (iOS inset-grouped):
 //   - NativeNavBar «План месяца» + back + trailing «Сохранить» (→ onSubmit)
 //   - surplus card «Осталось распределить» (OK green / OVER red)
-//   - «Остаток по итогу месяца» → ПРОЧЕЕ / НАКОПЛЕНИЯ inset rows
 //   - «Регулярные» inset rows with «Провести»/«Отмена» (→ onPostRegular/unpost)
-//   - «Категории · N» inset rows: CategoryIcon + name + inline ₽ input +
-//     ПРОЧЕЕ/НАКОПЛЕНИЯ rollover segmented (→ onRolloverChip)
+//   - «Категории · N» inset rows: CategoryIcon + name + inline ₽ input
 //   - inline save error + total «Σ план» row
 
 import { memo, useEffect, useRef } from 'react';
@@ -29,13 +27,12 @@ import {
   SectionHeader,
   InsetGroup,
   InsetRow,
-  Segmented,
 } from '../native/NativePrimitives';
 import { CategoryIcon } from '../native/CategoryIcon';
 import { formatMoneyNative, formatSignedMoneyNative } from '../native/money';
 import type { CategoryV10 } from '../../api/v10';
 import type { PlanMonthItem } from '../../api/types';
-import type { RegularRow, RolloverAggregates } from './computePlan';
+import type { RegularRow } from './computePlan';
 import styles from './NativePlanView.module.css';
 
 // ─────────── Props (mirror poster PlanView) ───────────
@@ -45,7 +42,6 @@ export interface NativePlanViewProps {
   categories: CategoryV10[];
   plans: PlanMonthItem[];
   regulars: RegularRow[];
-  aggregates: RolloverAggregates;
   surplusCents: number;
   isOverflow: boolean;
   submitting: boolean;
@@ -54,7 +50,6 @@ export interface NativePlanViewProps {
 
   onSliderChange: (catId: number, cents: number) => void;
   onSliderCommit?: (catId: number, cents: number) => void;
-  onRolloverChip: (catId: number, next: 'misc' | 'savings') => void;
   onPostRegular: (subId: number) => void;
   onUnpostRegular: (subId: number) => void;
   onSubmit: () => void;
@@ -84,8 +79,6 @@ function centsToRublesInput(cents: number): string {
   return kop === 0 ? `${rub}` : `${rub},${kop.toString().padStart(2, '0')}`;
 }
 
-type RolloverSeg = 'misc' | 'savings';
-
 // ─────────── Component ───────────
 
 function NativePlanViewInner(props: NativePlanViewProps) {
@@ -94,14 +87,12 @@ function NativePlanViewInner(props: NativePlanViewProps) {
     categories,
     plans,
     regulars,
-    aggregates,
     surplusCents,
     isOverflow,
     submitting,
     saveError,
     focusCategoryId,
     onSliderChange,
-    onRolloverChip,
     onPostRegular,
     onUnpostRegular,
     onSubmit,
@@ -161,26 +152,6 @@ function NativePlanViewInner(props: NativePlanViewProps) {
         </span>
       </div>
 
-      {/* ───── rollover aggregates ───── */}
-      <SectionHeader>Остаток по итогу месяца</SectionHeader>
-      <InsetGroup>
-        <InsetRow
-          testId="native-plan-agg-misc"
-          title="→ Прочее"
-          trailing={formatMoneyNative(aggregates.miscCents)}
-          trailingMuted
-        />
-        <InsetRow
-          testId="native-plan-agg-savings"
-          title="→ Накопления"
-          trailing={
-            <span className={styles.aggSavings}>
-              {formatSignedMoneyNative(aggregates.savingsCents)}
-            </span>
-          }
-        />
-      </InsetGroup>
-
       {/* ───── regulars block ───── */}
       <SectionHeader>Регулярные · провести в факт</SectionHeader>
       {regulars.length === 0 ? (
@@ -228,7 +199,6 @@ function NativePlanViewInner(props: NativePlanViewProps) {
         {categories.map((c) => {
           const planCents = planByCat.get(c.id) ?? c.plan_cents ?? 0;
           const focused = focusCategoryId === c.id;
-          const rollover: RolloverSeg = (c.rollover ?? 'misc') as RolloverSeg;
           return (
             <div
               key={c.id}
@@ -253,17 +223,6 @@ function NativePlanViewInner(props: NativePlanViewProps) {
                   />
                   <span className={styles.catCur}>₽</span>
                 </span>
-              </div>
-              <div className={styles.catRollover}>
-                <Segmented<RolloverSeg>
-                  ariaLabel={`Остаток категории «${c.name}»`}
-                  value={rollover}
-                  onChange={(next) => onRolloverChip(c.id, next)}
-                  options={[
-                    { value: 'misc', label: 'Прочее' },
-                    { value: 'savings', label: 'Накопления' },
-                  ]}
-                />
               </div>
             </div>
           );
