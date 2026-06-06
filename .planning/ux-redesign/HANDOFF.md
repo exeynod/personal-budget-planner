@@ -97,14 +97,32 @@ Liquid Glass фон = «оптический» цветной (Payrix ref1).
 (падал на API 529). Владелец: «720 тестов — жесть», держать сьют лаконичным (см. memory
 `feedback-lean-tests`). Касается и frontend (vitest 654 — тоже можно прорежать).
 
+### Фаза 3b — Новый UX планирования: ЧАСТИЧНО ✅ (ветка зелёная: tsc 0, vitest pass)
+
+- **API-обёртки СДЕЛАНЫ** (коммит `a9f9416`): `frontend/src/api/v10/planned.ts`,
+  `planTemplate.ts`, `periodPlan.ts`, `balance.ts` (reconcile) — экспортнуты из index.
+- **План месяца: детализация + проведение СДЕЛАНЫ** (коммит `9cb9d7e`): NativePlanView с
+  раскрытием детализации по категории, planned-строки (manual + подписки), «Провести»/bulk,
+  ладдер Лимит/Расписано/Свободно. (Проверить вживую скриншотом — не сверял визуально.)
+- **НЕ доделано:** ладдер план↔факт на Home/CategoryDetail (агент начал, я откатил
+  半-готовый CategoryDetail-ладдер до green; helper `unpostedByCategory` в computePlanDetail
+  надо вернуть чисто); экран **Шаблон бюджета**; **«Привести остаток»** в Настройках; доходы
+  в планировании; явное surfacing подписок в поверхности; визуальная сверка скриншотами.
+
 ---
 
 ## 3. Что ОСТАЛОСЬ (TODO для новой сессии)
 
 ### Фаза 3b — Новый UX планирования (web NATIVE shell приоритет; постер можно базовый)
 
-**API-обёртки (`frontend/src/api/v10/`) — ИХ ЕЩЁ НЕТ, делать первыми** (эндпоинты на бэке
-есть, типы в `src/api/generated/schema.ts`):
+**ВНИМАНИЕ: api-обёртки + План месяца (детализация+проведение) УЖЕ СДЕЛАНЫ** (см §2 фаза 3b
+частично; коммиты a9f9416, 9cb9d7e). Ниже — что было запланировано; делать ОСТАВШЕЕСЯ:
+ладдер Home/CategoryDetail, экран Шаблон, «Привести остаток», доходы, surfacing подписок,
+визуальная сверка. Сначала перепроверить уже сделанное скриншотом.
+
+~~API-обёртки~~ ✅ ГОТОВО (`frontend/src/api/v10/`): planned.ts (list/create/patch/delete/
+postPlanned/unpostPlanned/postPlannedBatch), planTemplate.ts, periodPlan.ts, balance.ts
+(reconcile). Эталон того, что было нужно:
 
 - `planned.ts`: list (фильтр по категории/периоду), create/patch/delete (title/description,
   amount_cents, planned_date, kind, category_id), `postPlanned(id, tx_date?)`,
@@ -209,8 +227,20 @@ Web: `tests/e2e/native-liquid-glass.spec.ts` (моки+тема liquid_glass, pa
 
 ## 6. Следующий конкретный шаг
 
-Фаза 3b: сначала **API-обёртки** (`planned.ts`/`planTemplate.ts`/`periodPlan.ts`/reconcile) →
-затем **План месяца с детализацией+проведением+ладдером** (native) → ладдер Home/CategoryDetail
-→ экран Шаблон → «Привести остаток» → подписки в поверхность планирования. tsc+vitest зелёные,
-коммиты по чанкам, скриншоты через `native-liquid-glass.spec.ts`. Детальный промпт-спек этого
-шага — в этом файле §3 (фаза 3b) + `AGREED-PLAN.md §C`.
+Ветка `v1.1-planning-rework` зелёная на HEAD `9441d70` (tsc 0, vitest pass, backend pytest 602).
+Уже сделано: backend, выпиливание, api-обёртки, План месяца (детализация+проведение).
+
+ДЕЛАТЬ ДАЛЬШЕ (фаза 3b остаток), порядок:
+
+1. **Сверить скриншотом уже сделанный План месяца** (`native-liquid-glass.spec.ts` + богатый мок
+   с planned-строками) — убедиться, что детализация/проведение/ладдер реально работают и выглядят.
+2. **Ладдер план↔факт** на `NativeHomeView` + `NativeCategoryDetailView` (Лимит/Запланировано/
+   Факт/В запасе). Вернуть чисто helper `unpostedByCategory` (был начат и откачен) + прокинуть
+   `plannedUnpostedCents` в Mount.
+3. **Экран «Шаблон бюджета»** (вход — строка в NativeMgmtHubView) на api `planTemplate.ts`.
+4. **«Привести остаток»** в NativeSettingsView на `balance.ts` reconcile.
+5. **Доходы** в планировании (income-категории) + **surfacing подписок** в поверхность детализации.
+6. tsc+vitest зелёные (тесты МИНИМАЛЬНО, lean), коммиты по чанкам.
+
+Затем фаза 4 (Liquid Glass v2), фаза 5 (iOS), фаза 6 (полное UX-тест). Спек — §3 + `AGREED-PLAN.md`.
+**На master НЕ пушить без слова владельца.**
