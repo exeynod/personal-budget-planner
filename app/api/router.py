@@ -37,6 +37,7 @@ Phase 12 ROLE-05: ``/me`` returns ``role`` field; ``get_current_user`` (Plan 12-
 resolves AppUser ORM + rejects revoked/unknown users. In DEV_MODE the dependency
 upserts the owner row on first call — no upsert inside the handler.
 """
+
 # Phase 14 (MTONB-04, D-14-01): each gated domain router carries its own
 # Depends(require_onboarded) (added in Plan 14-02). /me, /onboarding/*,
 # /internal/*, /admin/*, /health remain reachable for not-yet-onboarded
@@ -52,6 +53,7 @@ from app.api.dependencies import get_current_user, get_db, verify_internal_token
 from app.api.routes.accounts import accounts_router
 from app.api.routes.actual import actual_router
 from app.api.routes.goals import goals_router
+from app.api.routes.home import home_router
 from app.api.routes.me import build_me_response, me_router
 from app.api.schemas.me_v10 import MeV10Response
 from app.api.routes.savings import savings_router
@@ -61,7 +63,6 @@ from app.api.routes.categories import categories_router
 from app.api.routes.internal_bot import internal_bot_router
 from app.api.routes.internal_onboarding import internal_onboarding_router
 from app.api.routes.internal_telegram import internal_telegram_router
-from app.api.routes.onboarding import onboarding_router  # noqa: F401  (legacy, kept importable)
 from app.api.routes.onboarding_v10 import onboarding_v10_router
 from app.api.routes.periods import periods_router
 from app.api.routes.plan_month import plan_month_router
@@ -74,7 +75,7 @@ from app.api.routes.analytics import event_router as analytics_event_router
 from app.api.routes.analytics import router as analytics_router
 from app.api.routes.subscriptions import router as subscriptions_router
 from app.api.routes.templates import templates_router
-from app.db.models import AppUser, UserRole
+from app.db.models import AppUser
 
 
 # ---- Public router (requires initData auth) ----
@@ -117,11 +118,10 @@ async def get_me(
 # Each sub-router brings its own router-level Depends(get_current_user).
 public_router.include_router(categories_router)
 public_router.include_router(periods_router)
-# Phase 22 (plan 22.13): legacy onboarding_router is REPLACED by the v1.0
+# Phase 22 (plan 22.13): legacy onboarding_router was REPLACED by the v1.0
 # router below. Per CONTEXT D-04 v0.x backwards compat is dropped — single
-# user, single client. The legacy module remains importable so any deferred
-# code paths (tests/manual scripts) can still reference it.
-# public_router.include_router(onboarding_router)  # noqa: E800  (replaced)
+# user, single client. The legacy route + schema modules were deleted as dead
+# code (no callers, never mounted).
 public_router.include_router(onboarding_v10_router)
 public_router.include_router(settings_router)
 
@@ -133,6 +133,11 @@ public_router.include_router(planned_router)
 
 # Phase 4 sub-router — Mini App actual transactions + balance.
 public_router.include_router(actual_router)
+
+# F3 — single HOME bootstrap endpoint (GET /api/v1/home). Collapses the six
+# authed HOME calls into one tenant-scoped request. Individual endpoints above
+# remain for other callers / tests.
+public_router.include_router(home_router)
 
 # Phase 6 sub-router — Subscriptions CRUD + charge-now (D-71).
 public_router.include_router(subscriptions_router)

@@ -11,6 +11,7 @@
 // (`s.day_of_month ?? null`, `s.posted_txn_id ?? null`).
 
 import { apiFetch } from '../client';
+import { invalidate, CACHE_KEYS } from '../cache';
 import type {
   SubscriptionV10Read,
   SubscriptionV10UpdatePayload,
@@ -73,9 +74,15 @@ export async function deleteSubscription(id: number): Promise<void> {
 export async function postSubscription(
   id: number,
 ): Promise<SubscriptionPostResponse> {
-  return apiFetch<SubscriptionPostResponse>(`/subscriptions/${id}/post`, {
-    method: 'POST',
-  });
+  const res = await apiFetch<SubscriptionPostResponse>(
+    `/subscriptions/${id}/post`,
+    { method: 'POST' },
+  );
+  // Posting inserts an actual_transaction → invalidate the tx-affected caches.
+  invalidate(CACHE_KEYS.actualsPrefix);
+  invalidate(CACHE_KEYS.balancePrefix);
+  invalidate(CACHE_KEYS.accounts);
+  return res;
 }
 
 /**
@@ -88,4 +95,8 @@ export async function postSubscription(
  */
 export async function unpostSubscription(id: number): Promise<void> {
   await apiFetch<void>(`/subscriptions/${id}/unpost`, { method: 'POST' });
+  // Unposting deletes the actual_transaction → invalidate the same caches.
+  invalidate(CACHE_KEYS.actualsPrefix);
+  invalidate(CACHE_KEYS.balancePrefix);
+  invalidate(CACHE_KEYS.accounts);
 }

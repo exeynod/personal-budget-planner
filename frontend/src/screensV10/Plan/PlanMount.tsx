@@ -17,9 +17,9 @@
 // Toast UX (T-26-04-02 mitigation): every post/unpost shows confirm; user can
 // undo via inline button without leaving the screen.
 
-import { useCallback, useEffect, useState, type CSSProperties } from 'react';
-import { Eyebrow, PosterButton, Toast } from '../../componentsV10';
-import { usePosterRouter } from '../common';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Toast } from '../../componentsV10';
+import { StatePlate, usePosterRouter } from '../common';
 import {
   listCategoriesV10,
   listSubscriptionsV10,
@@ -108,7 +108,9 @@ export function PlanMount({ focusCategoryId = null }: PlanMountProps = {}) {
         setStatus('ready');
       } catch (e) {
         if (cancelled) return;
-        setLoadError(e instanceof Error ? e.message : 'Не удалось загрузить план');
+        setLoadError(
+          e instanceof Error ? e.message : 'Не удалось загрузить план',
+        );
         setStatus('error');
       }
     }
@@ -182,15 +184,28 @@ export function PlanMount({ focusCategoryId = null }: PlanMountProps = {}) {
   }, [plans, router]);
 
   // ─────────── derived view-model ───────────
-  const surplus = computeSurplus(income, plans);
-  const isOverflow = computeIsOverflow(surplus);
-  const aggregates = computeRolloverAggregates(categories, plans, actuals);
-  const regulars = computeRegularsList(subs, categories);
+  // Memoised so slider drags (which only bump `plans`) don't recompute the
+  // regulars list (subs×categories) every render, and a parent re-render with
+  // unchanged inputs is a no-op. Each useMemo is keyed on its exact inputs.
+  const surplus = useMemo(() => computeSurplus(income, plans), [income, plans]);
+  const isOverflow = useMemo(() => computeIsOverflow(surplus), [surplus]);
+  const aggregates = useMemo(
+    () => computeRolloverAggregates(categories, plans, actuals),
+    [categories, plans, actuals],
+  );
+  const regulars = useMemo(
+    () => computeRegularsList(subs, categories),
+    [subs, categories],
+  );
 
-  if (status === 'loading') return <LoadingPlate />;
+  if (status === 'loading') {
+    return <StatePlate variant="loading" testId="plan-loading" />;
+  }
   if (status === 'error') {
     return (
-      <ErrorPlate
+      <StatePlate
+        variant="error"
+        testId="plan-error"
         message={loadError ?? 'Ошибка'}
         onRetry={() => setReloadToken((n) => n + 1)}
         onBack={() => router.pop()}
@@ -224,72 +239,5 @@ export function PlanMount({ focusCategoryId = null }: PlanMountProps = {}) {
         onDismiss={() => setToastMsg(null)}
       />
     </>
-  );
-}
-
-// ─────────────────── Loading / Error sub-views ───────────────────
-
-const fillStyle: CSSProperties = {
-  position: 'absolute',
-  inset: 0,
-  background: 'var(--poster-cobalt)',
-  color: 'var(--poster-paper)',
-  padding: '56px 22px 90px',
-  display: 'flex',
-  flexDirection: 'column',
-  gap: 14,
-  fontFamily: 'var(--poster-font-manrope), system-ui, sans-serif',
-};
-
-function LoadingPlate() {
-  return (
-    <div style={fillStyle} data-testid="plan-loading">
-      <Eyebrow color="var(--poster-paper)">ЗАГРУЗКА</Eyebrow>
-      <div
-        style={{
-          fontFamily:
-            'var(--poster-font-jet-brains-mono), ui-monospace, monospace',
-          fontSize: 13,
-          opacity: 0.7,
-          marginTop: 18,
-        }}
-      >
-        ···
-      </div>
-    </div>
-  );
-}
-
-interface ErrorPlateProps {
-  message: string;
-  onRetry: () => void;
-  onBack: () => void;
-}
-
-function ErrorPlate({ message, onRetry, onBack }: ErrorPlateProps) {
-  return (
-    <div style={fillStyle} data-testid="plan-error">
-      <Eyebrow color="var(--poster-paper)">ОШИБКА</Eyebrow>
-      <div
-        style={{
-          fontFamily:
-            'var(--poster-font-jet-brains-mono), ui-monospace, monospace',
-          fontSize: 13,
-          opacity: 0.85,
-          marginTop: 18,
-          wordBreak: 'break-word',
-        }}
-      >
-        {message}
-      </div>
-      <div style={{ marginTop: 20, display: 'flex', gap: 10 }}>
-        <PosterButton variant="primary" onClick={onRetry}>
-          ПОВТОРИТЬ
-        </PosterButton>
-        <PosterButton variant="ghost" onClick={onBack}>
-          НАЗАД
-        </PosterButton>
-      </div>
-    </div>
   );
 }

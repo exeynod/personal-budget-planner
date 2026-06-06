@@ -25,7 +25,7 @@
 //
 // All click handlers are passed in as props — TransactionsView is router-agnostic.
 
-import { useState, type CSSProperties } from 'react';
+import { memo, useState, type CSSProperties } from 'react';
 import { Chip, Eyebrow, Mass } from '../../componentsV10';
 import { PeriodSwitcher } from '../common';
 import type { PeriodRead } from '../../api/types';
@@ -98,7 +98,8 @@ const CHIP_LIST: ReadonlyArray<{ id: TxFilterChip; label: string }> = [
 
 // ─────────────────── Component ───────────────────
 
-export function TransactionsView(props: TransactionsViewProps) {
+// Phase 31 (code-quality): leaf view wrapped in React.memo (see HomeView).
+function TransactionsViewInner(props: TransactionsViewProps) {
   const {
     headerCount,
     headerSumCents,
@@ -233,6 +234,8 @@ export function TransactionsView(props: TransactionsViewProps) {
   );
 }
 
+export const TransactionsView = memo(TransactionsViewInner);
+
 // ─────────────────── TxRow (swipe-able row sub-component) ───────────────────
 //
 // Phase 30-05: each row owns a small piece of UI state (context-menu open
@@ -251,7 +254,7 @@ interface TxRowProps {
   onRowDelete: (tx: ActualV10Read) => void;
 }
 
-function TxRow({
+function TxRowInner({
   tx,
   cat,
   acc,
@@ -396,3 +399,7 @@ function TxRow({
     </div>
   );
 }
+
+// Phase 31 (code-quality): row leaf wrapped in React.memo so re-rendering the
+// registry (e.g. filter-chip change) only re-renders rows whose props changed.
+const TxRow = memo(TxRowInner);

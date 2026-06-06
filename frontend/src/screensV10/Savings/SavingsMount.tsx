@@ -12,7 +12,7 @@
 // Failure mode (P2-11 / R5): mutation errors surface via <Toast> (single slot,
 // last error wins) — parity with SubscriptionsMount; replaces the old alert.
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Toast } from '../../componentsV10';
 import {
   fetchSavingsSummary,
@@ -23,7 +23,7 @@ import {
   type SavingsSnapshot,
   type AccountResponse,
 } from '../../api/v10';
-import { usePosterRouter, PosterSheet } from '../common';
+import { usePosterRouter, PosterSheet, useResource } from '../common';
 import { SavingsView } from './SavingsView';
 import { NewGoalSheet } from './NewGoalSheet';
 import { DepositSheet } from './DepositSheet';
@@ -33,81 +33,80 @@ type SheetMode =
   | { kind: 'newGoal' }
   | { kind: 'deposit'; goalId: number | null };
 
+interface SavingsPayload {
+  snapshot: SavingsSnapshot;
+  accounts: AccountResponse[];
+}
+
 export function SavingsMount() {
   const router = usePosterRouter();
 
-  const [snapshot, setSnapshot] = useState<SavingsSnapshot | null>(null);
-  const [accounts, setAccounts] = useState<AccountResponse[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [reloadToken, setReloadToken] = useState(0);
   const [sheet, setSheet] = useState<SheetMode>({ kind: 'none' });
   const [submitting, setSubmitting] = useState(false);
   // P2-11: mutation error surface (single toast slot, last error wins).
   const [toastMsg, setToastMsg] = useState<string | null>(null);
 
-  // ─────────── fetch effect ───────────
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    setError(null);
+  // ─────────── fetch (useResource) ───────────
+  const fetchSavings = useCallback(async (): Promise<SavingsPayload> => {
+    const [snapshot, accounts] = await Promise.all([
+      fetchSavingsSummary(),
+      listAccounts(),
+    ]);
+    return { snapshot, accounts };
+  }, []);
 
-    Promise.all([fetchSavingsSummary(), listAccounts()])
-      .then(([snap, accs]) => {
-        if (cancelled) return;
-        setSnapshot(snap);
-        setAccounts(accs);
-        setLoading(false);
-      })
-      .catch((e) => {
-        if (cancelled) return;
-        setError(
-          e instanceof Error ? e.message : 'Не удалось загрузить копилку',
-        );
-        setLoading(false);
-      });
+  const { status, data, error, reload, setData } = useResource<SavingsPayload>(
+    fetchSavings,
+    [],
+  );
+  const loading = status === 'loading';
+  const snapshot = data?.snapshot ?? null;
+  const accounts = data?.accounts ?? [];
 
-    return () => {
-      cancelled = true;
-    };
-  }, [reloadToken]);
+  // Patch only the snapshot inside the loaded payload (optimistic mutations).
+  const patchSnapshot = useCallback(
+    (next: SavingsSnapshot) => {
+      setData((d) => (d ? { ...d, snapshot: next } : d));
+    },
+    [setData],
+  );
 
   // ─────────── PATCH /savings/config (optimistic) ───────────
   const handleToggleRoundup = useCallback(
     async (enabled: boolean) => {
       if (!snapshot) return;
       // Optimistic update so toggle flips instantly.
-      setSnapshot({
+      patchSnapshot({
         ...snapshot,
         config: { ...snapshot.config, roundup_enabled: enabled },
       });
       try {
         const cfg = await patchSavingsConfig({ roundup_enabled: enabled });
-        setSnapshot((s) => (s ? { ...s, config: cfg } : s));
+        patchSnapshot({ ...snapshot, config: cfg });
       } catch {
         setToastMsg('Не удалось переключить округление — попробуйте снова');
-        setReloadToken((n) => n + 1);
+        reload();
       }
     },
-    [snapshot],
+    [snapshot, patchSnapshot, reload],
   );
 
   const handleSelectBase = useCallback(
     async (base: 10 | 50 | 100) => {
       if (!snapshot) return;
-      setSnapshot({
+      patchSnapshot({
         ...snapshot,
         config: { ...snapshot.config, roundup_base: base },
       });
       try {
         const cfg = await patchSavingsConfig({ roundup_base: base });
-        setSnapshot((s) => (s ? { ...s, config: cfg } : s));
+        patchSnapshot({ ...snapshot, config: cfg });
       } catch {
         setToastMsg('Не удалось сменить базу округления');
-        setReloadToken((n) => n + 1);
+        reload();
       }
     },
-    [snapshot],
+    [snapshot, patchSnapshot, reload],
   );
 
   // ─────────── POST /goals ───────────
@@ -121,14 +120,14 @@ export function SavingsMount() {
       try {
         await createGoal(payload);
         setSheet({ kind: 'none' });
-        setReloadToken((n) => n + 1);
+        reload();
       } catch {
         setToastMsg('Не удалось создать цель');
       } finally {
         setSubmitting(false);
       }
     },
-    [],
+    [reload],
   );
 
   // ─────────── POST /savings/deposit ───────────
@@ -142,14 +141,14 @@ export function SavingsMount() {
       try {
         await postDeposit(payload);
         setSheet({ kind: 'none' });
-        setReloadToken((n) => n + 1);
+        reload();
       } catch {
         setToastMsg('Не удалось пополнить копилку');
       } finally {
         setSubmitting(false);
       }
     },
-    [],
+    [reload],
   );
 
   return (
@@ -162,9 +161,7 @@ export function SavingsMount() {
         onSelectBase={handleSelectBase}
         onAddGoal={() => setSheet({ kind: 'newGoal' })}
         onDeposit={() => setSheet({ kind: 'deposit', goalId: null })}
-        onContributeToGoal={(goalId) =>
-          setSheet({ kind: 'deposit', goalId })
-        }
+        onContributeToGoal={(goalId) => setSheet({ kind: 'deposit', goalId })}
         canPop={router.canPop}
         onBack={() => router.pop()}
       />

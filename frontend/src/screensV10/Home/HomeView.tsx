@@ -14,7 +14,7 @@
 // All click handlers are passed in as props — HomeView is router-agnostic
 // (HomeMount wires them to PosterRouter.push targets).
 
-import type { CSSProperties } from 'react';
+import { memo, type CSSProperties } from 'react';
 import { BigFig, Eyebrow, Mass } from '../../componentsV10';
 import { PeriodSwitcher } from '../common';
 import type { PeriodRead } from '../../api/types';
@@ -75,7 +75,11 @@ export interface HomeViewProps {
   onSelectPeriod?: (id: number) => void;
 }
 
-export function HomeView(props: HomeViewProps) {
+// Phase 31 (code-quality): leaf view wrapped in React.memo — HomeMount passes
+// stable (useCallback) handlers + a memoised view-model, so re-renders driven
+// by sibling state (router, refetch token) skip HomeView when its props are
+// referentially unchanged.
+function HomeViewInner(props: HomeViewProps) {
   const {
     eyebrow,
     dailyPaceCents,
@@ -94,12 +98,14 @@ export function HomeView(props: HomeViewProps) {
     onSelectPeriod,
   } = props;
 
-  // Phase P2: only show the switcher when there is something to switch between
-  // (≥2 periods) AND a selection + handler are wired. The default current view
-  // (one period, or no provider) renders exactly as before — no extra DOM.
+  // Phase P2: show the switcher whenever a period selection + handler are wired
+  // and at least one period exists. With ≥2 periods PeriodSwitcher renders its
+  // prev/next pill; with exactly 1 it renders a static month chip (no arrows) so
+  // the period concept stays visible. The no-provider / empty-list path (e.g. the
+  // pixel-snapshot fixtures where /periods → []) still renders no extra DOM.
   const showSwitcher =
     !!periods &&
-    periods.length >= 2 &&
+    periods.length >= 1 &&
     selectedPeriodId != null &&
     !!onSelectPeriod;
 
@@ -125,7 +131,7 @@ export function HomeView(props: HomeViewProps) {
     <div className={styles.root} style={rootStyle}>
       {/* ─────────── header row ─────────── */}
       <div className={styles.headerRow}>
-        <Eyebrow color="var(--poster-paper)">{eyebrow}</Eyebrow>
+        <Eyebrow color="var(--eyebrow-ink)">{eyebrow}</Eyebrow>
         <span className={styles.menuLink}>МЕНЮ ↗</span>
       </div>
 
@@ -155,7 +161,7 @@ export function HomeView(props: HomeViewProps) {
       >
         <BigFig
           sup="₽"
-          color="var(--poster-paper)"
+          color="var(--ink-on-home)"
           size={88}
           value={dailyPaceRubles}
           animate={bigFigAnimate}
@@ -213,7 +219,7 @@ export function HomeView(props: HomeViewProps) {
       {/* ─────────── categories block ─────────── */}
       <div className={styles.categoriesBlock}>
         <div className={styles.categoriesHeader}>
-          <Eyebrow color="var(--poster-paper)">КАТЕГОРИИ</Eyebrow>
+          <Eyebrow color="var(--eyebrow-ink)">КАТЕГОРИИ</Eyebrow>
           <span
             data-testid="home-all-operations"
             className={styles.allOpsLink}
@@ -297,3 +303,5 @@ export function HomeView(props: HomeViewProps) {
     </div>
   );
 }
+
+export const HomeView = memo(HomeViewInner);

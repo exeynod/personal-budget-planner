@@ -10,6 +10,7 @@
 // path slugs only.
 
 import { apiFetch } from '../client';
+import { getCached, invalidate, CACHE_KEYS } from '../cache';
 import type {
   SavingsSnapshot,
   SavingsConfig,
@@ -34,7 +35,11 @@ export type {
  * toggle + base), and the user's goals list.
  */
 export async function fetchSavingsSummary(): Promise<SavingsSnapshot> {
-  return apiFetch<SavingsSnapshot>('/savings');
+  // Cached + deduped (perceived-speed). Invalidated by config PATCH and
+  // deposit POST below so the snapshot never lags a mutation.
+  return getCached(CACHE_KEYS.savingsSummary, () =>
+    apiFetch<SavingsSnapshot>('/savings'),
+  );
 }
 
 /**
@@ -51,10 +56,12 @@ export async function fetchSavingsSummary(): Promise<SavingsSnapshot> {
 export async function patchSavingsConfig(
   payload: SavingsConfigPatchPayload,
 ): Promise<SavingsConfig> {
-  return apiFetch<SavingsConfig>('/savings/config', {
+  const cfg = await apiFetch<SavingsConfig>('/savings/config', {
     method: 'PATCH',
     body: JSON.stringify(payload),
   });
+  invalidate(CACHE_KEYS.savingsSummary);
+  return cfg;
 }
 
 /**
@@ -72,8 +79,15 @@ export async function patchSavingsConfig(
 export async function postDeposit(
   payload: DepositCreatePayload,
 ): Promise<DepositResponse> {
-  return apiFetch<DepositResponse>('/savings/deposit', {
+  const res = await apiFetch<DepositResponse>('/savings/deposit', {
     method: 'POST',
     body: JSON.stringify(payload),
   });
+  // Deposit inserts an actual_transaction + debits the source account →
+  // invalidate savings snapshot, actuals, balances and accounts.
+  invalidate(CACHE_KEYS.savingsSummary);
+  invalidate(CACHE_KEYS.actualsPrefix);
+  invalidate(CACHE_KEYS.balancePrefix);
+  invalidate(CACHE_KEYS.accounts);
+  return res;
 }

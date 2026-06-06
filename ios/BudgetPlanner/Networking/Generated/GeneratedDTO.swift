@@ -479,6 +479,15 @@ enum Gen {
         let targetCents: Int?
     }
 
+    struct HomeResponse: Codable, Equatable {
+        let accounts: [Gen.AccountRead]
+        let actuals: [Gen.ActualRead]
+        let balance: Gen.BalanceResponse?
+        let categories: [Gen.CategoryRead]
+        let period: Gen.PeriodRead?
+        let user: Gen.MeV10Response
+    }
+
     struct MePatchV10: Codable, Equatable {
         let incomeCents: Int?
     }

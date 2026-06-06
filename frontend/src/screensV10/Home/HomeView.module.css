@@ -15,7 +15,9 @@
    * default rendering identical to pre-DEBT-08 behaviour when no user
    * preference is set. */
   background: var(--color-home, var(--poster-coral));
-  color: var(--poster-paper);
+  /* `--ink-on-home` defaults to `--poster-paper` (responsive.css :root) so
+     Maximal Poster is unchanged; Liquid Glass re-points it to readable iOS ink. */
+  color: var(--ink-on-home);
   padding: 56px 22px 90px;
   overflow: auto;
   font-family: var(--poster-font-manrope), system-ui, sans-serif;
@@ -50,7 +52,7 @@
   line-height: 1.05;
 }
 .heroHeadlineMass {
-  color: var(--poster-paper);
+  color: var(--ink-on-home);
   opacity: 0.75;
 }
 .heroBigFig {
@@ -65,8 +67,12 @@
 }
 .walletLink {
   cursor: pointer;
-  border-bottom: 1px dashed rgba(255, 246, 232, 0.4);
-  /* Inherit colour/font from parent .heroSubline. */
+  /* Colour is the deep-link ink: defaults to poster paper (same as the inherited
+     cream under Maximal Poster — byte-identical) and re-points to iOS blue under
+     Liquid Glass so the wallet link stays visible. The dashed underline keeps its
+     poster-paper tint by default; liquid-glass.css re-tints it under LG. */
+  color: var(--link-ink);
+  border-bottom: 1px dashed var(--link-underline-ink, rgba(255, 246, 232, 0.4));
 }
 
 /* ───── plan plate ───── */
@@ -74,7 +80,7 @@
   margin-top: 14px;
   padding: 10px 12px;
   background: rgba(0, 0, 0, 0.22);
-  color: var(--poster-paper);
+  color: var(--ink-on-home);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -128,14 +134,14 @@
   font-weight: 700;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--poster-paper);
+  color: var(--link-ink);
   opacity: 0.7;
-  border-bottom: 1px dashed rgba(255, 246, 232, 0.4);
+  border-bottom: 1px dashed var(--link-underline-ink, rgba(255, 246, 232, 0.4));
 }
 
 .categoryRow {
   padding: 10px 0;
-  border-top: 1px solid rgba(255, 246, 232, 0.22);
+  border-top: 1px solid var(--hairline-ink);
   cursor: pointer;
 }
 .categoryRowGrid {
@@ -189,7 +195,7 @@
 .barTrack {
   margin-top: 6px;
   height: 3px;
-  background: rgba(255, 246, 232, 0.15);
+  background: var(--bar-track-ink);
   position: relative;
   overflow: hidden;
 }
@@ -198,7 +204,7 @@
   left: 0;
   top: 0;
   bottom: 0;
-  background: var(--poster-paper);
+  background: var(--bar-fill-ink);
   transform-origin: left center;
 }
 .barFillOver {
@@ -209,7 +215,7 @@
   top: -2px;
   bottom: -2px;
   width: 1px;
-  background: var(--poster-paper);
+  background: var(--ink-on-home);
   opacity: 0.6;
 }
 
@@ -217,6 +223,9 @@
   margin-top: 4px;
   font-family: var(--poster-font-jet-brains-mono), ui-monospace, monospace;
   font-size: 11px;
+  /* Faint План/Факт sub-labels: secondary ink (defaults to poster paper → same
+     cream under MP; muted iOS secondary under LG so they don't vanish). */
+  color: var(--amount-sub-ink);
   opacity: 0.6;
   display: flex;
   justify-content: space-between;

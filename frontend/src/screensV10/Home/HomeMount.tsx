@@ -29,6 +29,8 @@ import {
   type ActualV10Read,
 } from '../../api/v10';
 import { getCurrentPeriod, getPeriodBalance } from '../../api/periods';
+import { getHome, isHomeBootstrap } from '../../api/home';
+import { seedCache, CACHE_KEYS } from '../../api/cache';
 import type { BalanceResponse, PeriodRead } from '../../api/types';
 import { Eyebrow, PosterButton } from '../../componentsV10';
 import {
@@ -124,7 +126,58 @@ export function HomeMount() {
     let cancelled = false;
     setState({ status: 'loading' });
 
-    async function load() {
+    // Fast path (perceived-speed): when we're in the shell (provider present)
+    // and viewing the ACTIVE period, a single GET /api/v1/home returns
+    // everything Home needs in one round-trip — AND lets us seed the granular
+    // client caches so the next navigation reuses accounts / categories /
+    // period / actuals with zero refetch. We restrict this to the active
+    // period because a PAST/closed view sources its category aggregates from
+    // getPeriodBalance(...) (the bootstrap carries only the current period).
+    const canUseBootstrap =
+      sel != null &&
+      selectedPeriod != null &&
+      selectedPeriod.status === 'active';
+
+    async function loadFromBootstrap(): Promise<boolean> {
+      try {
+        const home = await getHome();
+        if (!isHomeBootstrap(home)) return false; // malformed → fall back
+        if (cancelled) return true;
+
+        // Seed the granular caches so Transactions / Accounts / CategoryDetail
+        // reuse what Home already loaded (no cold refetch on first navigation).
+        seedCache(CACHE_KEYS.accounts, home.accounts);
+        seedCache(CACHE_KEYS.categories(false), home.categories);
+        seedCache(CACHE_KEYS.me, home.user);
+        if (home.period) {
+          seedCache(CACHE_KEYS.actuals(home.period.id), home.actuals);
+          if (home.balance) {
+            seedCache(CACHE_KEYS.balance(home.period.id), home.balance);
+          }
+        }
+
+        setState({
+          status: 'ready',
+          data: {
+            accounts: home.accounts,
+            categories: home.categories,
+            // Prefer the provider's selected period object (identical to the
+            // server's active period) so the rest of the VM is unchanged.
+            period: selectedPeriod ?? home.period,
+            actuals: home.actuals,
+            // Active period → no balance aggregates (categories+actuals path),
+            // byte-identical to the granular active-period render.
+            balance: null,
+          },
+        });
+        return true;
+      } catch {
+        // /home unavailable (older backend, 5xx, network) → granular fallback.
+        return false;
+      }
+    }
+
+    async function loadGranular() {
       try {
         const [accounts, categories] = await Promise.all([
           listAccounts(),
@@ -165,6 +218,14 @@ export function HomeMount() {
           err instanceof Error ? err.message : 'Не удалось загрузить данные';
         setState({ status: 'error', message });
       }
+    }
+
+    async function load() {
+      if (canUseBootstrap) {
+        const ok = await loadFromBootstrap();
+        if (ok || cancelled) return;
+      }
+      await loadGranular();
     }
 
     load();
@@ -354,8 +415,13 @@ export function HomeMount() {
 const fillStyle: CSSProperties = {
   position: 'absolute',
   inset: 0,
-  background: 'var(--poster-coral)',
-  color: 'var(--poster-paper)',
+  // Use the same home surface + ink tokens as HomeView so the Loading / Error
+  // plates stay readable under BOTH themes. Under Maximal Poster these resolve
+  // to coral + paper (unchanged); under Liquid Glass `--color-home` is forced to
+  // LG grey and `--ink-on-home` to iOS dark ink, so the screen is no longer a
+  // blank light-on-light plate on every cold load / error.
+  background: 'var(--color-home, var(--poster-coral))',
+  color: 'var(--ink-on-home)',
   padding: '56px 22px 90px',
   display: 'flex',
   flexDirection: 'column',
@@ -366,7 +432,7 @@ const fillStyle: CSSProperties = {
 function LoadingPlate() {
   return (
     <div style={fillStyle}>
-      <Eyebrow color="var(--poster-paper)">ЗАГРУЗКА</Eyebrow>
+      <Eyebrow color="var(--eyebrow-ink)">ЗАГРУЗКА</Eyebrow>
       <div
         style={{
           fontFamily:
@@ -390,7 +456,7 @@ interface ErrorPlateProps {
 function ErrorPlate({ message, onRetry }: ErrorPlateProps) {
   return (
     <div style={fillStyle}>
-      <Eyebrow color="var(--poster-paper)">ОШИБКА</Eyebrow>
+      <Eyebrow color="var(--eyebrow-ink)">ОШИБКА</Eyebrow>
       <div
         style={{
           fontFamily:

@@ -1,20 +1,35 @@
 import { apiFetch, ApiError } from './client';
+import { getCached, CACHE_KEYS } from './cache';
 import type { BalanceResponse, PeriodRead } from './types';
 
 /**
  * GET /api/v1/periods — list all budget periods, newest first.
  * Returns empty array if no periods exist (not 404). Used by PeriodSwitcher (DSH-06).
+ *
+ * Cached + deduped (perceived-speed): SelectedPeriodProvider reads this on
+ * every shell mount. Invalidated by subscription post/unpost (which may create
+ * a period) — see api/v10/subscriptions.ts.
  */
 export async function listPeriods(): Promise<PeriodRead[]> {
-  return apiFetch<PeriodRead[]>('/periods');
+  return getCached(CACHE_KEYS.periods, () =>
+    apiFetch<PeriodRead[]>('/periods'),
+  );
 }
 
 /**
  * GET /api/v1/periods/{period_id}/balance — balance for any period (active or closed).
  * Throws ApiError(404) if period does not exist. Used for archived period view (DSH-05/06).
+ *
+ * Cached per period id (perceived-speed): a closed past period's balance is
+ * immutable; the active period's is invalidated by tx / subscription / category
+ * mutations so it never serves a stale plan/fact delta.
  */
-export async function getPeriodBalance(periodId: number): Promise<BalanceResponse> {
-  return apiFetch<BalanceResponse>(`/periods/${periodId}/balance`);
+export async function getPeriodBalance(
+  periodId: number,
+): Promise<BalanceResponse> {
+  return getCached(CACHE_KEYS.balance(periodId), () =>
+    apiFetch<BalanceResponse>(`/periods/${periodId}/balance`),
+  );
 }
 
 /**

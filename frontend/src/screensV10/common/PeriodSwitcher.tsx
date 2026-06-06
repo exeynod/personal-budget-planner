@@ -74,6 +74,25 @@ export function PeriodSwitcher({
 }: PeriodSwitcherProps) {
   const idx = periods.findIndex((p) => p.id === selectedId);
   const current = idx >= 0 ? periods[idx] : undefined;
+
+  // UX (single period): with only one period there is nothing to switch
+  // between, but the period concept should still be visible. Render a static
+  // month chip (no arrows) instead of hiding the whole switcher. Readable under
+  // both themes (it consumes the same ink tokens + LG surface rule).
+  if (periods.length === 1 && current) {
+    const isClosedOne = current.status === 'closed';
+    return (
+      <div className={styles.wrap} data-testid="period-chip">
+        <span className={styles.label}>{formatPeriodLabel(current)}</span>
+        <span className={styles.dot} aria-hidden="true">
+          ·
+        </span>
+        <span className={styles.sub}>
+          {isClosedOne ? 'закрыт' : `${daysLeft(current)} дн.`}
+        </span>
+      </div>
+    );
+  }
   // newest-first: older = idx+1, newer = idx-1.
   const hasPrev = idx >= 0 && idx < periods.length - 1;
   const hasNext = idx > 0;

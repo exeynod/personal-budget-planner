@@ -36,6 +36,7 @@ keyword-only and scopes its queries / inserts по ``ActualTransaction.user_id``
 ``BudgetPeriod.user_id``, ``Category.user_id``. RLS (``SET LOCAL
 app.current_user_id``) — defense-in-depth; app-side filtering — primary defense.
 """
+
 from datetime import date, timedelta
 from typing import Optional
 
@@ -172,9 +173,7 @@ async def _resolve_period_for_date(
 
     p_start, p_end = period_for(tx_date, cycle_start_day)
     today = _today_in_app_tz()
-    status = (
-        PeriodStatus.active if p_start <= today <= p_end else PeriodStatus.closed
-    )
+    status = PeriodStatus.active if p_start <= today <= p_end else PeriodStatus.closed
     period = BudgetPeriod(
         user_id=user_id,
         period_start=p_start,
@@ -323,7 +322,9 @@ async def update_actual(
     # + same tenant (cat_svc.get_or_404 scoped by user_id).
     new_cat: Optional[Category] = None
     if "category_id" in data and data["category_id"] != row.category_id:
-        new_cat = await _ensure_category_active(db, data["category_id"], user_id=user_id)
+        new_cat = await _ensure_category_active(
+            db, data["category_id"], user_id=user_id
+        )
 
     effective_kind = data.get(
         "kind", row.kind.value if isinstance(row.kind, CategoryKind) else row.kind
@@ -374,9 +375,7 @@ async def delete_actual(
 # ---------- Balance aggregation ----------
 
 
-async def compute_balance(
-    db: AsyncSession, period_id: int, *, user_id: int
-) -> dict:
+async def compute_balance(db: AsyncSession, period_id: int, *, user_id: int) -> dict:
     """Aggregate planned/actual per category + totals for a budget period.
 
     Phase 11: BudgetPeriod / ActualTransaction / Category queries scoped по
@@ -443,14 +442,31 @@ async def compute_balance(
         PeriodNotFoundError: if BudgetPeriod with given id does not exist
             (or belongs to different tenant — same effect).
     """
-    period = await db.scalar(
-        select(BudgetPeriod).where(
-            BudgetPeriod.id == period_id,
-            BudgetPeriod.user_id == user_id,
+    # F4: fold the income read into the period lookup. Income (AppUser.income_cents)
+    # is the single monthly figure and was previously a separate round-trip near
+    # the end of this function. We resolve it here in the same query that fetches
+    # the period via a correlated scalar subquery, removing one round-trip while
+    # keeping the returned shape / semantics identical (NULL income → 0).
+    period_row = (
+        await db.execute(
+            select(
+                BudgetPeriod.id,
+                BudgetPeriod.period_start,
+                BudgetPeriod.period_end,
+                BudgetPeriod.starting_balance_cents,
+                select(AppUser.income_cents)
+                .where(AppUser.id == user_id)
+                .scalar_subquery()
+                .label("income_cents"),
+            ).where(
+                BudgetPeriod.id == period_id,
+                BudgetPeriod.user_id == user_id,
+            )
         )
-    )
-    if period is None:
+    ).first()
+    if period_row is None:
         raise PeriodNotFoundError(period_id)
+    plan_inc = period_row.income_cents or 0
 
     # Aggregate actual by (category_id, kind), scoped by user_id.
     # CR-01 fix: use func.abs() to make the sum sign-agnostic so a period
@@ -478,13 +494,23 @@ async def compute_balance(
     )
     # Active categories only for by_category display (scoped by user_id).
     # Carries plan_cents — the v1.0 plan source (Phase 71 HOME-1).
-    cats_q = select(Category).where(
+    # F4: project ONLY the columns this aggregation actually reads
+    # (id, name, kind, code, plan_cents) instead of loading full Category ORM
+    # rows — avoids hydrating the other ~15 columns (rollover, ord, parent_id,
+    # tag, created_at, …) and the relationship machinery for a hot read.
+    cats_q = select(
+        Category.id,
+        Category.name,
+        Category.kind,
+        Category.code,
+        Category.plan_cents,
+    ).where(
         Category.user_id == user_id,
         Category.is_archived.is_(False),
     )
 
     actual_rows = (await db.execute(actual_q)).all()
-    cats = {c.id: c for c in (await db.execute(cats_q)).scalars().all()}
+    cats = {c.id: c for c in (await db.execute(cats_q)).all()}
 
     actual_map: dict[tuple, int] = {
         (r.category_id, r.kind): r.actual_cents for r in actual_rows
@@ -500,7 +526,7 @@ async def compute_balance(
 
     by_category: list[dict] = []
     seen_keys = set(planned_map) | set(actual_map)
-    for (cat_id, kind) in seen_keys:
+    for cat_id, kind in seen_keys:
         cat = cats.get(cat_id)
         if cat is None:
             continue  # archived — exclude from per-category list
@@ -524,26 +550,19 @@ async def compute_balance(
 
     # Expense plan total = Σ Category.plan_cents (active expense, no savings).
     plan_exp = sum(planned_map.values())
-    act_exp = sum(
-        a for (_, k), a in actual_map.items() if k == CategoryKind.expense
-    )
-    # Income plan total = AppUser.income_cents (single monthly figure; v1.0 has
-    # no per-income-category plan). NULL income → 0.
-    plan_inc = await db.scalar(
-        select(AppUser.income_cents).where(AppUser.id == user_id)
-    ) or 0
-    act_inc = sum(
-        a for (_, k), a in actual_map.items() if k == CategoryKind.income
-    )
+    act_exp = sum(a for (_, k), a in actual_map.items() if k == CategoryKind.expense)
+    # Income plan total = AppUser.income_cents — already resolved above in the
+    # folded period query (F4: ``plan_inc``), no separate round-trip here.
+    act_inc = sum(a for (_, k), a in actual_map.items() if k == CategoryKind.income)
 
-    balance_now = period.starting_balance_cents + act_inc - act_exp
+    balance_now = period_row.starting_balance_cents + act_inc - act_exp
     delta_total = (plan_exp - act_exp) + (act_inc - plan_inc)
 
     return {
-        "period_id": period.id,
-        "period_start": period.period_start,
-        "period_end": period.period_end,
-        "starting_balance_cents": period.starting_balance_cents,
+        "period_id": period_row.id,
+        "period_start": period_row.period_start,
+        "period_end": period_row.period_end,
+        "starting_balance_cents": period_row.starting_balance_cents,
         "planned_total_expense_cents": plan_exp,
         "actual_total_expense_cents": act_exp,
         "planned_total_income_cents": plan_inc,
@@ -714,9 +733,7 @@ async def create_actual_v10(
     # Roundup hook — no-op for non-expense / no-config / aligned amounts.
     from app.services.roundup import maybe_create_roundup_child
 
-    child = await maybe_create_roundup_child(
-        db, user_id=user_id, parent_txn=parent
-    )
+    child = await maybe_create_roundup_child(db, user_id=user_id, parent_txn=parent)
 
     return parent, child
 
@@ -750,26 +767,30 @@ async def delete_actual_v10(
     parent = await get_or_404(db, actual_id, user_id=user_id)
 
     children = (
-        await db.execute(
-            select(ActualTransaction).where(
-                ActualTransaction.parent_txn_id == parent.id,
-                ActualTransaction.user_id == user_id,
+        (
+            await db.execute(
+                select(ActualTransaction).where(
+                    ActualTransaction.parent_txn_id == parent.id,
+                    ActualTransaction.user_id == user_id,
+                )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
     affected_accounts: dict[int, int] = {}
 
     if parent.account_id is not None:
-        affected_accounts[parent.account_id] = (
-            affected_accounts.get(parent.account_id, 0) + (-parent.amount_cents)
-        )
+        affected_accounts[parent.account_id] = affected_accounts.get(
+            parent.account_id, 0
+        ) + (-parent.amount_cents)
 
     for ch in children:
         if ch.account_id is not None:
-            affected_accounts[ch.account_id] = (
-                affected_accounts.get(ch.account_id, 0) + (-ch.amount_cents)
-            )
+            affected_accounts[ch.account_id] = affected_accounts.get(
+                ch.account_id, 0
+            ) + (-ch.amount_cents)
 
     await db.delete(parent)  # DB-level CASCADE wipes children.
     await db.flush()

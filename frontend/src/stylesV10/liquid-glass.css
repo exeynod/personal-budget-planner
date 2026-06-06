@@ -35,6 +35,9 @@
   --lg-hairline: rgba(60, 60, 67, 0.18);
   --lg-text: #1c1c1e;
   --lg-text-on-dark: #f2f2f7;
+  /* iOS secondary label (rgba(60,60,67,0.6)) — used for eyebrows / faint
+     amount sub-labels so they read as muted iOS captions, not invisible cream. */
+  --lg-text-secondary: rgba(60, 60, 67, 0.6);
 
   /* Backgrounds: every poster "page" colour → system grey. These vars are
      consumed directly by screen `.root` backgrounds + `--color-home`. */
@@ -77,6 +80,20 @@
   /* Yellow accent → iOS system blue so the FAB / accents read as iOS. */
   --poster-yellow: #007aff;
 
+  /* Semantic ink tokens (defined in responsive.css `:root` as the poster
+     cream values). Re-point them to readable iOS ink on the LG grey surface so
+     the hero number, eyebrows, deep-links, hairlines and progress bars are no
+     longer light-on-light. `--link-ink` rides `--poster-yellow` (iOS blue). */
+  --ink-on-home: var(--lg-text);
+  --eyebrow-ink: var(--lg-text-secondary);
+  --link-ink: var(--poster-yellow);
+  /* dashed deep-link underline → iOS blue at a soft alpha (was poster cream). */
+  --link-underline-ink: rgba(0, 122, 255, 0.5);
+  --hairline-ink: var(--lg-hairline);
+  --bar-track-ink: var(--lg-hairline);
+  --bar-fill-ink: var(--lg-text);
+  --amount-sub-ink: var(--lg-text-secondary);
+
   /* The default app body background var, if referenced. */
   --color-home: var(--lg-bg);
 
@@ -90,21 +107,15 @@
 }
 
 /* Neutralize the Home hero client colour: `--color-home` is pushed inline on
-   the Home `.root` (coral/cobalt/black/cream) — force LG grey + dark ink there.
-   Inline style sets the var, so we override the var at the element + restyle
-   the hero figures to read on a light surface. */
+   the Home `.root` (coral/cobalt/black/cream) — force LG grey there. The hero
+   number, eyebrows, subline and links now consume the semantic ink tokens
+   (--ink-on-home / --eyebrow-ink / --link-ink), which are re-pointed to iOS ink
+   above — so they read correctly on the light surface without per-class
+   !important colour patches. */
 [data-theme='liquid_glass'] [class*='root'][style*='--color-home'] {
   --color-home: var(--lg-bg) !important;
   background: var(--lg-bg) !important;
   color: var(--lg-text);
-}
-[data-theme='liquid_glass'] [class*='heroHeadline'],
-[data-theme='liquid_glass'] [class*='heroBigFig'],
-[data-theme='liquid_glass'] [class*='heroSubline'] {
-  color: var(--lg-text) !important;
-}
-[data-theme='liquid_glass'] [class*='heroHeadlineMass'] {
-  color: rgba(60, 60, 67, 0.6) !important;
 }
 
 /* ── 2. Typography scale: SF Pro Large-Title feel for hero / eyebrow ─────── */
@@ -165,6 +176,18 @@
   ),
 [data-theme='liquid_glass']
   [class*='Chip']:not([class*='ChipRow']):not([class*='ChipArrow']) {
+  border-radius: 999px !important;
+}
+
+/* PeriodSwitcher pill: poster paints it paper-on-translucent-white, which is
+   light-on-light under LG. Give it a readable frosted capsule with a hairline
+   border; its label/arrows already consume --ink-on-home / --link-ink. The
+   component carries a stable `data-testid` for both the switcher and the
+   single-period static chip. */
+[data-theme='liquid_glass'] [data-testid='period-switcher'],
+[data-theme='liquid_glass'] [data-testid='period-chip'] {
+  background: var(--lg-surface-frost) !important;
+  border-color: var(--lg-hairline) !important;
   border-radius: 999px !important;
 }
 

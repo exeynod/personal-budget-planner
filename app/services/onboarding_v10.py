@@ -78,7 +78,6 @@ from app.db.models import (
     AppUser,
     Category,
     CategoryKind,
-    Goal,
     RolloverPolicy,
 )
 

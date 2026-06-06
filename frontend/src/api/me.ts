@@ -21,6 +21,7 @@
 // account deletion (see app/api/routes/me.py § ---- Phase 33 ----).
 
 import { apiFetch } from './client';
+import { getCached, CACHE_KEYS } from './cache';
 import type { MeV10Response } from './types';
 
 export type { MeV10Response };
@@ -31,9 +32,14 @@ export type { MeV10Response };
  * Throws `ApiError` on non-2xx. Throws `OnboardingRequiredError` only if
  * the server returns the 409 onboarding_required envelope (it doesn't on
  * /me — listed for completeness).
+ *
+ * Cached + deduped (perceived-speed): /me is read by the auth/onboarding
+ * gate plus Plan / Management. The onboarding-complete POST invalidates the
+ * `me` key (see api/onboardingV10.ts) so the gate never serves a stale
+ * `onboarded_at: null` after the user just onboarded.
  */
 export function getMeV10(): Promise<MeV10Response> {
-  return apiFetch<MeV10Response>('/me');
+  return getCached(CACHE_KEYS.me, () => apiFetch<MeV10Response>('/me'));
 }
 
 // ---------- Phase 33: ПДн compliance helpers ----------

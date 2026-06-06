@@ -30,7 +30,6 @@ from app.api.schemas.subscriptions import (
     ChargeNowResponse,
     SubscriptionCreate,
     SubscriptionPostResponse,
-    SubscriptionRead,
     SubscriptionReadV10,
     SubscriptionUpdate,
 )

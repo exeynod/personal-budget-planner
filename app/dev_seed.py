@@ -30,7 +30,6 @@ from datetime import date, datetime, timedelta, timezone
 
 import structlog
 from sqlalchemy import func, select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import (
     ActualSource,

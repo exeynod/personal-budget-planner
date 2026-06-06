@@ -795,6 +795,31 @@ export interface paths {
         patch: operations["update_goal_api_v1_goals__goal_id__patch"];
         trace?: never;
     };
+    "/api/v1/home": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Home
+         * @description GET /api/v1/home — aggregated HOME bootstrap payload.
+         *
+         *     Returns ``{ user, accounts, categories, period, balance, actuals }``. When
+         *     the user has no active budget period (onboarding incomplete), ``period`` /
+         *     ``balance`` are ``None`` and ``actuals`` is ``[]`` — ``user`` / ``accounts``
+         *     / ``categories`` still resolve.
+         */
+        get: operations["get_home_api_v1_home_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/internal/bot/actual": {
         parameters: {
             query?: never;
@@ -2791,6 +2816,25 @@ export interface components {
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /**
+         * HomeResponse
+         * @description Aggregated HOME bootstrap payload (F3).
+         *
+         *     Each field reuses the response model of the endpoint it replaces, so a
+         *     client can drop a field straight into the slot it already consumes from
+         *     the granular endpoints.
+         */
+        HomeResponse: {
+            /** Accounts */
+            accounts: components["schemas"]["AccountRead"][];
+            /** Actuals */
+            actuals: components["schemas"]["ActualRead"][];
+            balance: components["schemas"]["BalanceResponse"] | null;
+            /** Categories */
+            categories: components["schemas"]["CategoryRead"][];
+            period: components["schemas"]["PeriodRead"] | null;
+            user: components["schemas"]["MeV10Response"];
         };
         /**
          * MePatchV10
@@ -4858,6 +4902,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["GoalRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_home_api_v1_home_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-telegram-init-data"?: string | null;
+                authorization?: string | null;
+                "x-test-user"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HomeResponse"];
                 };
             };
             /** @description Validation Error */

@@ -11,18 +11,31 @@
  * NewAccountSheet (Phase 27-04 create form).
  */
 import { apiFetch } from '../client';
+import { getCached, invalidate, CACHE_KEYS } from '../cache';
 import type { AccountResponse, AccountCreatePayload } from '../types';
 
-export type { AccountResponse, AccountKindStr, AccountCreatePayload } from '../types';
+export type {
+  AccountResponse,
+  AccountKindStr,
+  AccountCreatePayload,
+} from '../types';
 
 /**
  * GET /api/v1/accounts
  *
  * No query params today. Returns AccountResponse[] sorted with the
  * user's `primary` account first (mirrors iOS contract).
+ *
+ * Cached + deduped (perceived-speed): the accounts list is read by Home,
+ * Transactions, AddSheet, Accounts and AccountDetail — without the cache
+ * every navigation re-fetched it cold. Short TTL keeps it near-live; any
+ * mutation that changes balances (create / tx submit-delete / deposit)
+ * invalidates the key so we never serve stale balances.
  */
 export async function listAccounts(): Promise<AccountResponse[]> {
-  return apiFetch<AccountResponse[]>('/accounts');
+  return getCached(CACHE_KEYS.accounts, () =>
+    apiFetch<AccountResponse[]>('/accounts'),
+  );
 }
 
 /**
@@ -36,8 +49,11 @@ export async function listAccounts(): Promise<AccountResponse[]> {
 export async function createAccount(
   payload: AccountCreatePayload,
 ): Promise<AccountResponse> {
-  return apiFetch<AccountResponse>('/accounts', {
+  const created = await apiFetch<AccountResponse>('/accounts', {
     method: 'POST',
     body: JSON.stringify(payload),
   });
+  // New account changes the wallet total — drop the cached list.
+  invalidate(CACHE_KEYS.accounts);
+  return created;
 }

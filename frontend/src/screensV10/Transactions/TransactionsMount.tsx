@@ -17,13 +17,7 @@
 // The mount layer is intentionally thin — all filter/group/format logic lives
 // in pure functions in computeTransactions.ts (unit-tested separately).
 
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-  type CSSProperties,
-} from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   listAccounts,
   listActualV10,
@@ -38,8 +32,10 @@ import { deleteActual } from '../../api/actual';
 import { Eyebrow, PosterButton, Toast } from '../../componentsV10';
 import {
   PosterSheet,
+  StatePlate,
   useRefetchToken,
   usePosterRouter,
+  useResource,
   useSelectedPeriodOptional,
 } from '../common';
 import { TransactionsView } from './TransactionsView';
@@ -68,17 +64,10 @@ interface DataPayload {
   period: PeriodRead | null;
 }
 
-type LoadState =
-  | { status: 'loading' }
-  | { status: 'error'; message: string }
-  | { status: 'ready'; data: DataPayload };
-
 // ─────────────────── Component ───────────────────
 
 export function TransactionsMount() {
   const router = usePosterRouter();
-  const [state, setState] = useState<LoadState>({ status: 'loading' });
-  const [reloadToken, setReloadToken] = useState(0);
   const [chip, setChip] = useState<TxFilterChip>('all');
   const [editingTx, setEditingTx] = useState<ActualV10Read | null>(null);
   // P2-11: delete error surface (single toast slot, last error wins).
@@ -98,47 +87,39 @@ export function TransactionsMount() {
     [sel, selectedPeriodId],
   );
 
-  // ─────────── fetch effect ───────────
-  useEffect(() => {
-    let cancelled = false;
-    setState({ status: 'loading' });
+  // ─────────── fetch (useResource) ───────────
+  // keepPreviousData: a period switch / refetch-token bump keeps the previous
+  // registry on screen (status stays 'ready', `refreshing` flips true) instead
+  // of flashing the full-screen loading plate. The initial mount still loads.
+  const fetchTransactions = useCallback(
+    async (isCancelled: () => boolean): Promise<DataPayload> => {
+      const [accounts, categories] = await Promise.all([
+        listAccounts(),
+        listCategoriesV10(),
+      ]);
+      // With the provider: the viewed period. Without it (standalone unit
+      // tests): legacy getCurrentPeriod() (returns null on 404).
+      const period: PeriodRead | null = sel
+        ? selectedPeriod
+        : await getCurrentPeriod();
+      if (isCancelled()) return { accounts, categories, actuals: [], period };
+      const actuals: ActualV10Read[] = period
+        ? await listActualV10(period.id)
+        : [];
+      return { accounts, categories, actuals, period };
+    },
+    // selectedPeriod/sel are the fetch inputs; refetchToken (external bump) and
+    // selectedPeriodId (switch) drive re-fetch via the deps below.
+    [sel, selectedPeriod],
+  );
 
-    async function load() {
-      try {
-        const [accounts, categories] = await Promise.all([
-          listAccounts(),
-          listCategoriesV10(),
-        ]);
-        // With the provider: the viewed period. Without it (standalone unit
-        // tests): legacy getCurrentPeriod() (returns null on 404).
-        const period: PeriodRead | null = sel
-          ? selectedPeriod
-          : await getCurrentPeriod();
-        const actuals: ActualV10Read[] = period
-          ? await listActualV10(period.id)
-          : [];
-        if (cancelled) return;
-        setState({
-          status: 'ready',
-          data: { accounts, categories, actuals, period },
-        });
-      } catch (err) {
-        if (cancelled) return;
-        const message =
-          err instanceof Error
-            ? err.message
-            : 'Не удалось загрузить транзакции';
-        setState({ status: 'error', message });
-      }
-    }
-
-    load();
-    return () => {
-      cancelled = true;
-    };
-    // selectedPeriodId in deps: switching the viewed period re-fetches.
-    // refetchToken in deps: external bump (AddSheet submit) re-runs the fetch.
-  }, [reloadToken, refetchToken, selectedPeriodId, selectedPeriod, sel]);
+  // selectedPeriodId in deps: switching the viewed period re-fetches.
+  // refetchToken in deps: external bump (AddSheet submit) re-runs the fetch.
+  const { status, data, error, reload, refreshing } = useResource<DataPayload>(
+    fetchTransactions,
+    [refetchToken, selectedPeriodId, selectedPeriod, sel],
+    { keepPreviousData: true },
+  );
 
   // Stable today reference for the duration of this render — recreated each
   // render is fine (Date construction is cheap; useMemo would over-engineer).
@@ -146,8 +127,8 @@ export function TransactionsMount() {
 
   // ─────────── computed view-model ───────────
   const vm = useMemo(() => {
-    if (state.status !== 'ready') return null;
-    const { accounts, categories, actuals, period } = state.data;
+    if (data === null) return null;
+    const { accounts, categories, actuals, period } = data;
     const filtered = applyFilterChip(actuals, categories, chip);
     // Phase P2: group-by-day reference = the viewed period, not always today.
     // For the active period `today` lies inside it → «Сегодня»/«Вчера» labels
@@ -161,20 +142,23 @@ export function TransactionsMount() {
     const dayGroups = groupByDay(filtered, groupRef);
     const summary = computeHeaderSummary(filtered);
     return { accounts, categories, dayGroups, summary, period };
-  }, [state, chip, today]);
+  }, [data, chip, today]);
 
   // ─────────── handlers ───────────
   const handleChipChange = useCallback((c: TxFilterChip) => setChip(c), []);
   const handleRowTap = useCallback((tx: ActualV10Read) => setEditingTx(tx), []);
-  const handleRowDelete = useCallback(async (tx: ActualV10Read) => {
-    // View already gates intent (swipe / context-menu) — fire the DELETE directly.
-    try {
-      await deleteActual(tx.id);
-      setReloadToken((t) => t + 1);
-    } catch {
-      setToastMsg('Не удалось удалить операцию — попробуйте снова');
-    }
-  }, []);
+  const handleRowDelete = useCallback(
+    async (tx: ActualV10Read) => {
+      // View already gates intent (swipe / context-menu) — fire the DELETE directly.
+      try {
+        await deleteActual(tx.id);
+        reload();
+      } catch {
+        setToastMsg('Не удалось удалить операцию — попробуйте снова');
+      }
+    },
+    [reload],
+  );
   const handleBack = useCallback(() => {
     if (router.canPop) router.pop();
   }, [router]);
@@ -187,27 +171,36 @@ export function TransactionsMount() {
     <span
       data-testid="parent-refetched"
       data-refetch-token={refetchToken}
+      // Phase 31: keepPreviousData surfaces a subtle 'refreshing' flag during a
+      // period switch / refetch bump (previous data stays on screen). We expose
+      // it on the hidden sentinel — zero visual impact, assertable in tests.
+      data-refreshing={refreshing ? '1' : '0'}
       style={{ display: 'none' }}
       aria-hidden="true"
     />
   );
 
   // ─────────── render ───────────
-  if (state.status === 'loading') {
+  // keepPreviousData: once we have a vm we keep rendering it through a
+  // re-fetch (status may briefly be 'loading' on a non-kept path, but with
+  // keepPreviousData the previous data stays — see useResource). The full
+  // loading plate only shows on the very first cold load.
+  if (status === 'loading' && !vm) {
     return (
       <>
         {refetchSentinel}
-        <LoadingPlate />
+        <StatePlate variant="loading" />
       </>
     );
   }
-  if (state.status === 'error') {
+  if (status === 'error') {
     return (
       <>
         {refetchSentinel}
-        <ErrorPlate
-          message={state.message}
-          onRetry={() => setReloadToken((t) => t + 1)}
+        <StatePlate
+          variant="error"
+          message={error ?? 'Не удалось загрузить транзакции'}
+          onRetry={reload}
         />
       </>
     );
@@ -251,68 +244,7 @@ export function TransactionsMount() {
   );
 }
 
-// ─────────────────── Loading / Error / Edit placeholders ───────────────────
-
-const fillStyle: CSSProperties = {
-  position: 'absolute',
-  inset: 0,
-  background: 'var(--poster-cobalt)',
-  color: 'var(--poster-paper)',
-  padding: '56px 22px 90px',
-  display: 'flex',
-  flexDirection: 'column',
-  gap: 14,
-  fontFamily: 'var(--poster-font-manrope), system-ui, sans-serif',
-};
-
-function LoadingPlate() {
-  return (
-    <div style={fillStyle}>
-      <Eyebrow color="var(--poster-paper)">ЗАГРУЗКА</Eyebrow>
-      <div
-        style={{
-          fontFamily:
-            'var(--poster-font-jet-brains-mono), ui-monospace, monospace',
-          fontSize: 13,
-          opacity: 0.7,
-          marginTop: 18,
-        }}
-      >
-        ···
-      </div>
-    </div>
-  );
-}
-
-interface ErrorPlateProps {
-  message: string;
-  onRetry: () => void;
-}
-
-function ErrorPlate({ message, onRetry }: ErrorPlateProps) {
-  return (
-    <div style={fillStyle}>
-      <Eyebrow color="var(--poster-paper)">ОШИБКА</Eyebrow>
-      <div
-        style={{
-          fontFamily:
-            'var(--poster-font-jet-brains-mono), ui-monospace, monospace',
-          fontSize: 13,
-          opacity: 0.85,
-          marginTop: 18,
-          wordBreak: 'break-word',
-        }}
-      >
-        {message}
-      </div>
-      <div style={{ marginTop: 20 }}>
-        <PosterButton onClick={onRetry} variant="primary">
-          ПОВТОРИТЬ
-        </PosterButton>
-      </div>
-    </div>
-  );
-}
+// ─────────────────── Edit placeholder ───────────────────
 
 interface EditPlaceholderProps {
   tx: ActualV10Read | null;

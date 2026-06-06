@@ -142,6 +142,24 @@ export const AI_OBSERVATION_V10 = {
   generated_at: '2026-05-09T08:00:00Z',
 };
 
+/**
+ * Aggregated `GET /api/v1/home` bootstrap (backend F3). HomeMount now adopts
+ * this single call on the in-shell active-period path, so the V10 home
+ * baseline renders FROM this payload. It mirrors the granular fixtures
+ * field-for-field (same accounts / categories / active period / empty
+ * actuals → same Home render) so the pixel snapshot stays byte-identical.
+ * `balance: null` because the active period sources aggregates from
+ * categories + actuals (not a closed-period balance).
+ */
+export const HOME_BOOTSTRAP_V10 = {
+  user: ME_ONBOARDED_V10,
+  accounts: ACCOUNTS_V10,
+  categories: CATEGORIES_V10,
+  period: PERIOD_CURRENT_V10,
+  balance: null,
+  actuals: [],
+};
+
 // ─────────────────── route installation ───────────────────
 
 /**
@@ -308,6 +326,16 @@ export async function installOnboardedFixture(
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify(ME_ONBOARDED_V10),
+    }),
+  );
+  // HomeMount's single-call bootstrap (GET /api/v1/home). Without this the
+  // catch-all `[]` would force the granular fallback — harmless, but mocking
+  // it exercises the real in-shell fast path the app now uses.
+  await page.route('**/api/v1/home', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(HOME_BOOTSTRAP_V10),
     }),
   );
   await page.route('**/api/v1/accounts', (route) =>

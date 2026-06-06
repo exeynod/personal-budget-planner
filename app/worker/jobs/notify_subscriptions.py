@@ -23,6 +23,7 @@ Threat mitigations:
     T-11-06-03: per-user try/except — failure одного юзера логируется и
                 continue к следующему.
 """
+
 import logging
 from datetime import date
 
@@ -80,15 +81,17 @@ async def notify_subscriptions_job() -> None:
 
                 # Step 2: collect active users with tg_chat_id (push target).
                 users = (
-                    await db.execute(
-                        select(AppUser).where(
-                            AppUser.role.in_(
-                                [UserRole.owner, UserRole.member]
-                            ),
-                            AppUser.tg_chat_id.is_not(None),
+                    (
+                        await db.execute(
+                            select(AppUser).where(
+                                AppUser.role.in_([UserRole.owner, UserRole.member]),
+                                AppUser.tg_chat_id.is_not(None),
+                            )
                         )
                     )
-                ).scalars().all()
+                    .scalars()
+                    .all()
+                )
 
                 if not users:
                     logger.info(
@@ -103,21 +106,31 @@ async def notify_subscriptions_job() -> None:
                     try:
                         await set_tenant_scope(db, user.id)
 
-                        rows = (
-                            await db.execute(
-                                select(Subscription).where(
-                                    Subscription.user_id == user.id,
-                                    Subscription.is_active == True,  # noqa: E712
+                        # F6: push the due-date predicate into SQL. The Python
+                        # filter was ``(next_charge_date - today).days ==
+                        # notify_days_before`` — equivalently
+                        # ``next_charge_date - notify_days_before == today``
+                        # (per-row notify_days_before, integer days). Expressed
+                        # SQL-side as a date arithmetic comparison so we only
+                        # fetch the rows actually due today instead of loading
+                        # every active subscription and filtering in Python.
+                        due = (
+                            (
+                                await db.execute(
+                                    select(Subscription).where(
+                                        Subscription.user_id == user.id,
+                                        Subscription.is_active == True,  # noqa: E712
+                                        (
+                                            Subscription.next_charge_date
+                                            - Subscription.notify_days_before
+                                        )
+                                        == today,
+                                    )
                                 )
                             )
-                        ).scalars().all()
-
-                        due = [
-                            s
-                            for s in rows
-                            if (s.next_charge_date - today).days
-                            == s.notify_days_before
-                        ]
+                            .scalars()
+                            .all()
+                        )
 
                         if not due:
                             logger.info(

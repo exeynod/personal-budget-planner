@@ -52,6 +52,16 @@ export {
 
 export { PeriodSwitcher, type PeriodSwitcherProps } from './PeriodSwitcher';
 
+// Phase 31 (code-quality): async-fetch state machine + parameterised plate
+// extracted from the Mount components (was copy-pasted in each).
+export {
+  useResource,
+  type ResourceStatus,
+  type UseResourceOptions,
+  type UseResourceResult,
+} from './useResource';
+export { StatePlate, type StatePlateProps } from './StatePlate';
+
 // Phase 50-02 (THEME-01): multi-theme runtime selector.
 export {
   useTheme,

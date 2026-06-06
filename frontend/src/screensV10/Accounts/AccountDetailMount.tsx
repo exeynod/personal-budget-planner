@@ -14,8 +14,8 @@
 // Re-fetch is not auto-wired (no mutations on this screen yet); future
 // Tx-edit-from-detail can add a reloadToken if needed.
 
-import { useEffect, useState } from 'react';
-import { usePosterRouter } from '../common';
+import { useCallback } from 'react';
+import { usePosterRouter, useResource } from '../common';
 import {
   listAccounts,
   listActualV10,
@@ -37,75 +37,61 @@ export interface AccountDetailMountProps {
   accountId: number;
 }
 
+interface AccountDetailPayload {
+  account: AccountResponse | null;
+  actuals: ActualV10Read[];
+  categories: CategoryV10[];
+  period: { period_start: string; period_end: string } | null;
+}
+
 export function AccountDetailMount({ accountId }: AccountDetailMountProps) {
   const router = usePosterRouter();
 
-  const [account, setAccount] = useState<AccountResponse | null>(null);
-  const [actuals, setActuals] = useState<ActualV10Read[]>([]);
-  const [categories, setCategories] = useState<CategoryV10[]>([]);
-  const [period, setPeriod] = useState<{
-    period_start: string;
-    period_end: string;
-  } | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const fetchAccountDetail = useCallback(
+    async (isCancelled: () => boolean): Promise<AccountDetailPayload> => {
+      const [accs, cats, periodRow] = await Promise.all([
+        listAccounts(),
+        listCategoriesV10(),
+        getCurrentPeriod(),
+      ]);
 
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    setError(null);
+      const account = accs.find((a) => a.id === accountId) ?? null;
+      const period = periodRow
+        ? {
+            period_start: periodRow.period_start,
+            period_end: periodRow.period_end,
+          }
+        : null;
 
-    async function load() {
-      try {
-        const [accs, cats, periodRow] = await Promise.all([
-          listAccounts(),
-          listCategoriesV10(),
-          getCurrentPeriod(),
-        ]);
-        if (cancelled) return;
-
-        const found = accs.find((a) => a.id === accountId) ?? null;
-        setAccount(found);
-        setCategories(cats);
-        setPeriod(
-          periodRow
-            ? {
-                period_start: periodRow.period_start,
-                period_end: periodRow.period_end,
-              }
-            : null,
-        );
-
-        if (periodRow) {
-          const acts = await listActualV10(periodRow.id);
-          if (cancelled) return;
-          // Filter client-side to this account.
-          setActuals(filterByAccount(acts, accountId));
-        } else {
-          setActuals([]);
-        }
-      } catch (err) {
-        if (cancelled) return;
-        setError(
-          err instanceof Error ? err.message : 'Не удалось загрузить счёт',
-        );
-      } finally {
-        if (!cancelled) setLoading(false);
+      let actuals: ActualV10Read[] = [];
+      if (periodRow) {
+        const acts = await listActualV10(periodRow.id);
+        if (isCancelled())
+          return { account, actuals: [], categories: cats, period };
+        // Filter client-side to this account.
+        actuals = filterByAccount(acts, accountId);
       }
-    }
+      return { account, actuals, categories: cats, period };
+    },
+    [accountId],
+  );
 
-    load();
-    return () => {
-      cancelled = true;
-    };
-  }, [accountId]);
+  const { status, data, error } = useResource<AccountDetailPayload>(
+    fetchAccountDetail,
+    [accountId],
+  );
+
+  // The View keeps consuming loading/error props (it renders its own inline
+  // skeleton + error states), so we adapt useResource's status back to the
+  // boolean/null shape it expects — behaviour identical to the prior useState.
+  const loading = status === 'loading';
 
   return (
     <AccountDetailView
-      account={account}
-      actuals={actuals}
-      categories={categories}
-      period={period}
+      account={data?.account ?? null}
+      actuals={data?.actuals ?? []}
+      categories={data?.categories ?? []}
+      period={data?.period ?? null}
       loading={loading}
       error={error}
       canPop

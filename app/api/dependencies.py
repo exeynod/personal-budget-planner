@@ -14,10 +14,11 @@ Security design (HLD §7 + Phase 12 CONTEXT):
 - Internal endpoints (/api/v1/internal/*): require X-Internal-Token (no role).
 - DEV_MODE=true: bypass HMAC, upsert mock OWNER row with role=owner (D-05 carry-over).
 """
+
 from __future__ import annotations
 
 import hmac
-from typing import Annotated, AsyncGenerator
+from typing import Annotated
 
 from fastapi import Depends, Header, HTTPException, status
 from sqlalchemy import select
@@ -29,11 +30,12 @@ from datetime import datetime, timedelta, timezone
 from app.core.auth import validate_init_data
 from app.core.settings import settings
 from app.db.models import AppUser, AuthToken, UserRole
+
 # R8 (Phase 67): get_db has a SINGLE canonical definition in app.db.session.
 # Re-export it here so the historical import path
 # ``from app.api.dependencies import get_db`` keeps working while there is only
 # one function object (no duplicate session-lifecycle implementation to drift).
-from app.db.session import AsyncSessionLocal, get_db, set_tenant_scope
+from app.db.session import get_db, set_tenant_scope
 
 __all__ = [
     "get_db",
@@ -51,9 +53,7 @@ __all__ = [
 
 async def _resolve_app_user(db: AsyncSession, tg_user_id: int) -> AppUser | None:
     """Look up AppUser ORM by tg_user_id (single SELECT)."""
-    result = await db.execute(
-        select(AppUser).where(AppUser.tg_user_id == tg_user_id)
-    )
+    result = await db.execute(select(AppUser).where(AppUser.tg_user_id == tg_user_id))
     return result.scalar_one_or_none()
 
 
@@ -96,9 +96,7 @@ async def _dev_mode_resolve_owner(db: AsyncSession) -> AppUser:
     return user
 
 
-async def _resolve_bearer(
-    db: AsyncSession, raw_authorization: str
-) -> AppUser | None:
+async def _resolve_bearer(db: AsyncSession, raw_authorization: str) -> AppUser | None:
     """Phase 17 (v0.6 IOSAUTH-01): Bearer token → AppUser.
 
     Возвращает AppUser если токен:
@@ -146,9 +144,7 @@ async def _resolve_bearer(
     return user
 
 
-async def _dev_mode_resolve_test_user(
-    db: AsyncSession, tg_user_id: int
-) -> AppUser:
+async def _dev_mode_resolve_test_user(db: AsyncSession, tg_user_id: int) -> AppUser:
     """Phase 31 REG-01 helper: dev-only `X-Test-User` header → AppUser.
 
     Idempotent upsert on `tg_user_id` with `role=owner`. Used to allow
@@ -252,7 +248,6 @@ async def get_current_user(
         if bearer_user is not None:
             return bearer_user
 
-
     # ---------- DEV_MODE: bypass HMAC, upsert OWNER row ----------
     # NOTE: OWNER_TG_ID is referenced from _dev_mode_resolve_owner (dev-only helper).
     # The production path below does NOT use OWNER_TG_ID — auth is role-based.
@@ -283,9 +278,7 @@ async def get_current_user(
         if not x_telegram_init_data:
             return await _dev_mode_resolve_owner(db)
         try:
-            tg_payload = validate_init_data(
-                x_telegram_init_data, settings.BOT_TOKEN
-            )
+            tg_payload = validate_init_data(x_telegram_init_data, settings.BOT_TOKEN)
             tg_user_id = tg_payload.get("id")
             if isinstance(tg_user_id, int):
                 resolved = await _resolve_app_user(db, tg_user_id)
@@ -439,9 +432,7 @@ async def require_pro(
                 "message": "Эта функция доступна только в Pro-тарифе.",
                 "current_tier": effective_tier(user),
                 "trial_ends_at": (
-                    user.trial_ends_at.isoformat()
-                    if user.trial_ends_at
-                    else None
+                    user.trial_ends_at.isoformat() if user.trial_ends_at else None
                 ),
             },
         )
@@ -491,7 +482,9 @@ async def enforce_spending_cap(
 
 
 async def enforce_spending_cap_for_user(
-    db: AsyncSession, *, user_id: int,
+    db: AsyncSession,
+    *,
+    user_id: int,
 ) -> None:
     """Imperative variant of enforce_spending_cap — for use INSIDE a per-user lock.
 
@@ -540,19 +533,36 @@ async def enforce_spending_cap_for_user(
 
 
 async def get_db_with_tenant_scope(
+    db: Annotated[AsyncSession, Depends(get_db)],
     user_id: Annotated[int, Depends(get_current_user_id)],
-) -> AsyncGenerator[AsyncSession, None]:
-    """Yield AsyncSession with SET LOCAL app.current_user_id (Phase 11 MUL-02).
+) -> AsyncSession:
+    """Yield the request session with SET LOCAL app.current_user_id (Phase 11 MUL-02).
 
-    Unchanged from Phase 11. SET LOCAL = transaction-scoped GUC; reset on
-    COMMIT or ROLLBACK. Used for routes whose queries must be tenant-scoped
-    via RLS + app filter.
+    F2 (perf): previously this dependency opened its **own** second
+    ``AsyncSessionLocal()`` — so a single domain request did:
+
+        1. get_current_user → ``get_db`` session → auth SELECT  (connection #1)
+        2. get_db_with_tenant_scope → a *new* session → SET LOCAL  (connection #2)
+
+    i.e. two pooled connections + two ``BEGIN`` + a redundant SET LOCAL
+    round-trip before any useful work. We now reuse the SAME request-scoped
+    session that ``get_current_user`` already opened (FastAPI caches the
+    ``get_db`` dependency once per request), and simply set the tenant GUC on
+    it. One connection, one transaction, one ``set_config`` round-trip.
+
+    RLS semantics are preserved: ``set_tenant_scope`` issues
+    ``SELECT set_config('app.current_user_id', :uid, true)`` (SET LOCAL —
+    transaction-scoped) on this session BEFORE the route runs any domain
+    query, exactly as before. The auth SELECT in ``get_current_user`` reads
+    ``app_user``, which is deliberately OUTSIDE RLS scope (only the 9 domain
+    tables carry the policy — see alembic 0006), so resolving the user before
+    the scope is set cannot leak or be blocked. Commit/rollback are owned by
+    the ``get_db`` generator's finalizer (single commit at request end), so we
+    must NOT commit here — committing would clear the SET LOCAL GUC mid-request
+    and break RLS for any subsequent query in the same handler.
+
+    Untenant endpoints (/me, compliance, spend-cap aggregation) keep using
+    plain ``get_db`` — they filter by user_id explicitly and need no GUC.
     """
-    async with AsyncSessionLocal() as session:
-        try:
-            await set_tenant_scope(session, user_id)
-            yield session
-            await session.commit()
-        except Exception:
-            await session.rollback()
-            raise
+    await set_tenant_scope(db, user_id)
+    return db

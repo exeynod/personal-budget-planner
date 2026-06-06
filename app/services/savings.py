@@ -42,6 +42,7 @@ enforced here:
   * Goal-bump atomicity: same DB transaction as the txn insert; UPDATE …
     WHERE id=:gid AND user_id=:uid is single-statement atomic.
 """
+
 from __future__ import annotations
 
 from datetime import datetime
@@ -109,12 +110,6 @@ async def get_savings_snapshot(db: AsyncSession, *, user_id: int) -> dict:
     Goals list is ordered by ``created_at`` ascending (oldest first).
     """
     # Σ ABS — both roundup and deposit are stored as negative amounts.
-    base_filter = (
-        ActualTransaction.user_id == user_id,
-    ) + (
-        # SQLAlchemy passes through `where` *args; build a list and unpack.
-    )
-
     total_q = select(
         func.coalesce(func.sum(func.abs(ActualTransaction.amount_cents)), 0)
     ).where(
@@ -133,9 +128,7 @@ async def get_savings_snapshot(db: AsyncSession, *, user_id: int) -> dict:
     )
     month_in = (await db.execute(month_q)).scalar_one()
 
-    cfg = await db.scalar(
-        select(SavingsConfig).where(SavingsConfig.user_id == user_id)
-    )
+    cfg = await db.scalar(select(SavingsConfig).where(SavingsConfig.user_id == user_id))
     if cfg is None:
         config_dict: dict[str, object] = dict(_DEFAULT_CONFIG)
     else:
@@ -145,12 +138,16 @@ async def get_savings_snapshot(db: AsyncSession, *, user_id: int) -> dict:
         }
 
     goals_rows = (
-        await db.execute(
-            select(Goal)
-            .where(Goal.user_id == user_id)
-            .order_by(Goal.created_at.asc(), Goal.id.asc())
+        (
+            await db.execute(
+                select(Goal)
+                .where(Goal.user_id == user_id)
+                .order_by(Goal.created_at.asc(), Goal.id.asc())
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
     goals_list: list[dict] = []
     for g in goals_rows:
@@ -228,9 +225,7 @@ async def upsert_config(
         values["roundup_base"] = roundup_base
 
     # UPDATE-side set: same field subset minus user_id, plus updated_at bump.
-    update_set: dict[str, object] = {
-        k: v for k, v in values.items() if k != "user_id"
-    }
+    update_set: dict[str, object] = {k: v for k, v in values.items() if k != "user_id"}
 
     if not update_set:
         # No-op patch: return existing row if any; otherwise create one with
@@ -264,9 +259,7 @@ async def upsert_config(
 
     # Re-fetch the full row so the caller sees committed-state values
     # (server_default for fields not supplied in INSERT, updated_at).
-    cfg = await db.scalar(
-        select(SavingsConfig).where(SavingsConfig.user_id == user_id)
-    )
+    cfg = await db.scalar(select(SavingsConfig).where(SavingsConfig.user_id == user_id))
     # Refresh ORM attribute cache in case session has a stale instance
     # (e.g. a prior get_savings_snapshot() call loaded the row before this
     # upsert ran).
@@ -347,15 +340,14 @@ async def create_deposit(
         AccountNotFoundError,  # noqa: F401  (re-export for caller)
         get_or_404 as get_account_or_404,
     )
+
     await get_account_or_404(db, user_id=user_id, account_id=account_id)
 
     # Validate goal_id BEFORE writing anything so a bad id can't leave a
     # half-created txn / balance delta behind.
     if goal_id is not None:
         goal_exists = await db.scalar(
-            select(Goal.id).where(
-                Goal.id == goal_id, Goal.user_id == user_id
-            )
+            select(Goal.id).where(Goal.id == goal_id, Goal.user_id == user_id)
         )
         if goal_exists is None:
             # Local import — avoids circular dep at module import time.

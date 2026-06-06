@@ -6,6 +6,7 @@
  * `paused`/`tag` server-defaulted, `parent_id` optional+nullable.
  */
 import { apiFetch } from '../client';
+import { getCached, invalidate, CACHE_KEYS } from '../cache';
 import type { CategoryV10, CategoryRollover } from '../types';
 
 export type { CategoryV10, CategoryRollover } from '../types';
@@ -22,7 +23,11 @@ export async function listCategoriesV10(
   includeArchived = false,
 ): Promise<CategoryV10[]> {
   const qs = includeArchived ? '?include_archived=true' : '';
-  return apiFetch<CategoryV10[]>(`/categories${qs}`);
+  // Cached + deduped per `includeArchived` flag (perceived-speed). A category
+  // PATCH invalidates the family so toggles are never served stale.
+  return getCached(CACHE_KEYS.categories(includeArchived), () =>
+    apiFetch<CategoryV10[]>(`/categories${qs}`),
+  );
 }
 
 /**
@@ -60,8 +65,13 @@ export async function updateCategoryV10(
   id: number,
   payload: CategoryV10UpdatePayload,
 ): Promise<CategoryV10> {
-  return apiFetch<CategoryV10>(`/categories/${id}`, {
+  const updated = await apiFetch<CategoryV10>(`/categories/${id}`, {
     method: 'PATCH',
     body: JSON.stringify(payload),
   });
+  // plan_cents / rollover / paused / archive changed — drop the category
+  // family AND any cached period balances (they aggregate plan by category).
+  invalidate(CACHE_KEYS.categoriesPrefix);
+  invalidate(CACHE_KEYS.balancePrefix);
+  return updated;
 }

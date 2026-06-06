@@ -13,6 +13,7 @@
  * accepting negative / zero literals through caller bugs.
  */
 import { apiFetch } from '../client';
+import { getCached, invalidate, CACHE_KEYS } from '../cache';
 import type { ActualV10Read, ActualV10CreatePayload } from '../types';
 
 export type {
@@ -41,6 +42,14 @@ export async function listActualV10(
     qs.set('category_id', String(filters.category_id));
   }
   const suffix = qs.toString() ? `?${qs.toString()}` : '';
+  // Only the unfiltered per-period read (the hot cross-screen path: Home,
+  // Transactions, CategoryDetail, AccountDetail, Plan, Analytics) is cached.
+  // Filtered reads bypass the cache to avoid key explosion — they are rare.
+  if (!filters) {
+    return getCached(CACHE_KEYS.actuals(periodId), () =>
+      apiFetch<ActualV10Read[]>(`/periods/${periodId}/actual${suffix}`),
+    );
+  }
   return apiFetch<ActualV10Read[]>(`/periods/${periodId}/actual${suffix}`);
 }
 
@@ -63,8 +72,15 @@ export async function createActualV10(
   if (payload.amount_cents <= 0) {
     throw new Error('createActualV10: amount_cents must be positive');
   }
-  return apiFetch<ActualV10Read>('/actual', {
+  const created = await apiFetch<ActualV10Read>('/actual', {
     method: 'POST',
     body: JSON.stringify(payload),
   });
+  // A new fact changes period actuals + balances; an account_id-bound fact
+  // also moves the account balance (delta-balance hook). Invalidate all three
+  // families so the next read never serves a stale list / balance.
+  invalidate(CACHE_KEYS.actualsPrefix);
+  invalidate(CACHE_KEYS.balancePrefix);
+  invalidate(CACHE_KEYS.accounts);
+  return created;
 }

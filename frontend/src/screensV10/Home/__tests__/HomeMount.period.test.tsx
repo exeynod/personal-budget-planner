@@ -16,6 +16,7 @@ import {
   useSelectedPeriod,
 } from '../../common';
 import type { PeriodRead, BalanceResponse } from '../../../api/types';
+import { clearCache } from '../../../api/cache';
 
 const listAccountsMock = vi.fn();
 const listCategoriesV10Mock = vi.fn();
@@ -23,6 +24,7 @@ const listActualV10Mock = vi.fn();
 const listPeriodsMock = vi.fn();
 const getCurrentPeriodMock = vi.fn();
 const getPeriodBalanceMock = vi.fn();
+const getHomeMock = vi.fn();
 
 vi.mock('../../../api/v10', () => ({
   listAccounts: (...a: unknown[]) => listAccountsMock(...a),
@@ -35,6 +37,21 @@ vi.mock('../../../api/periods', () => ({
   getCurrentPeriod: (...a: unknown[]) => getCurrentPeriodMock(...a),
   getPeriodBalance: (...a: unknown[]) => getPeriodBalanceMock(...a),
 }));
+
+// HomeMount adopts GET /api/v1/home on the in-shell ACTIVE-period path (the
+// perceived-speed bootstrap). The PAST/closed period still uses the granular
+// listActualV10 + getPeriodBalance path (the bootstrap only carries the
+// current period), which is exactly what this test asserts after the switch.
+vi.mock('../../../api/home', async () => {
+  const actual =
+    await vi.importActual<typeof import('../../../api/home')>(
+      '../../../api/home',
+    );
+  return {
+    ...actual,
+    getHome: (...a: unknown[]) => getHomeMock(...a),
+  };
+});
 
 function period(over: Partial<PeriodRead> = {}): PeriodRead {
   return {
@@ -86,6 +103,7 @@ const MAY_BALANCE: BalanceResponse = {
 };
 
 beforeEach(() => {
+  clearCache();
   listAccountsMock.mockResolvedValue([]);
   listCategoriesV10Mock.mockResolvedValue([
     { id: 1, name: 'Кафе', code: 'cafe', ord: '01' },
@@ -94,10 +112,20 @@ beforeEach(() => {
   listPeriodsMock.mockResolvedValue([ACTIVE, PAST_MAY]); // newest-first
   getCurrentPeriodMock.mockResolvedValue(ACTIVE);
   getPeriodBalanceMock.mockResolvedValue(MAY_BALANCE);
+  // Active-period bootstrap (mirrors the granular active-period fixtures).
+  getHomeMock.mockResolvedValue({
+    user: { tg_user_id: 1, role: 'owner' },
+    accounts: [],
+    categories: [{ id: 1, name: 'Кафе', code: 'cafe', ord: '01' }],
+    period: ACTIVE,
+    balance: null,
+    actuals: [],
+  });
 });
 
 afterEach(() => {
   cleanup();
+  clearCache();
   vi.clearAllMocks();
 });
 
@@ -140,8 +168,9 @@ describe('HomeMount — period switching re-fetch (Phase P2)', () => {
     render(<Harness />);
     await flushPromises();
 
-    // Initial: active period id=6.
-    expect(listActualV10Mock).toHaveBeenCalledWith(6);
+    // Initial active-period load goes through the /home bootstrap (single
+    // round-trip) — not the granular listActualV10 path.
+    expect(getHomeMock).toHaveBeenCalled();
     // Active period does NOT pull the balance (categories+actuals path).
     expect(getPeriodBalanceMock).not.toHaveBeenCalled();
 

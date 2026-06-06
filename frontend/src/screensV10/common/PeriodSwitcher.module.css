@@ -10,7 +10,10 @@
   padding: 5px 8px;
   background: rgba(255, 246, 232, 0.1);
   border: 1px solid rgba(255, 246, 232, 0.28);
-  color: var(--poster-paper);
+  /* `--ink-on-home` defaults to poster paper (unchanged under MP) and re-points
+     to readable iOS ink under Liquid Glass (where the sheet also gives the pill
+     a frosted surface). */
+  color: var(--ink-on-home);
   font-family: var(--poster-font-jet-brains-mono), ui-monospace, monospace;
   font-size: 12px;
   font-weight: 600;
@@ -23,7 +26,7 @@
   height: 20px;
   border: 0;
   background: transparent;
-  color: var(--poster-paper);
+  color: var(--link-ink);
   font-family: var(--poster-font-jet-brains-mono), ui-monospace, monospace;
   font-size: 16px;
   line-height: 1;

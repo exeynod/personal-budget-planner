@@ -15,13 +15,13 @@
   padding-bottom: calc(56px + env(safe-area-inset-bottom, 0px));
   background: var(--surface-bg, var(--poster-black, #0e0e0e));
   color: var(--text-on-dark, var(--poster-paper, #f4f1ea));
-  font-family: "Manrope Variable", "Manrope", sans-serif;
+  font-family: 'Manrope Variable', 'Manrope', sans-serif;
   text-align: center;
   box-sizing: border-box;
 }
 
 .eyebrow {
-  font-family: "JetBrains Mono Variable", "JetBrains Mono", monospace;
+  font-family: 'JetBrains Mono Variable', 'JetBrains Mono', monospace;
   font-size: 11px;
   letter-spacing: var(--poster-tracking-eye, 0.18em);
   text-transform: uppercase;
@@ -37,7 +37,7 @@
 }
 
 .title {
-  font-family: "PosterSerifItalic", serif;
+  font-family: 'PosterSerifItalic', serif;
   font-style: italic;
   font-size: 40px;
   line-height: 0.95;
@@ -61,7 +61,7 @@
   background: transparent;
   color: inherit;
   padding: 13px 24px;
-  font-family: "JetBrains Mono Variable", "JetBrains Mono", monospace;
+  font-family: 'JetBrains Mono Variable', 'JetBrains Mono', monospace;
   font-size: 12px;
   letter-spacing: var(--poster-tracking-eye, 0.18em);
   text-transform: uppercase;
@@ -70,4 +70,20 @@
 
 .cta:active {
   opacity: 0.7;
+}
+
+/* Manual fallback under the CTA (forbidden only): the bot @handle as
+   selectable text so the user can reach out even if the deep-link fails. */
+.botHandle {
+  margin: 16px 0 0;
+  font-family: 'JetBrains Mono Variable', 'JetBrains Mono', monospace;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  opacity: 0.6;
+}
+
+.botHandleValue {
+  user-select: text;
+  -webkit-user-select: text;
+  opacity: 0.95;
 }

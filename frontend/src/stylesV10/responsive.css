@@ -23,6 +23,30 @@
   --tg-safe-bottom: 0px;
   --tg-safe-left: 0px;
   --letterbox: #0a0a0c;
+
+  /* ── Semantic ink tokens (theme-overridable) ─────────────────────────────
+   * The screens were hardcoding `--poster-paper` (cream) as the light-ink on
+   * the coral/dark surfaces. Under Liquid Glass those surfaces become system
+   * grey, so paper-on-grey vanished. These semantic tokens DEFAULT to the exact
+   * current poster values, so Maximal Poster renders byte-identically, while
+   * `[data-theme='liquid_glass']` (liquid-glass.css) re-points them to readable
+   * iOS ink. Consumers: HomeView/HomeMount/PeriodSwitcher + category rows.
+   *
+   *   --ink-on-home    primary ink on the Home/Loading/Error surface (hero
+   *                    number, eyebrows-on-dark, subline, bar fill, break tick).
+   *   --eyebrow-ink    eyebrow caption ink (Home «КАТЕГОРИИ», Loading/Error).
+   *   --link-ink       interactive deep-links (ВСЕ ОПЕРАЦИИ, wallet, switcher).
+   *   --hairline-ink   category-row top hairline.
+   *   --bar-track-ink  progress-bar track.
+   *   --bar-fill-ink   progress-bar fill.
+   *   --amount-sub-ink faint План/Факт amount sub-labels. */
+  --ink-on-home: var(--poster-paper);
+  --eyebrow-ink: var(--poster-paper);
+  --link-ink: var(--poster-paper);
+  --hairline-ink: rgba(255, 246, 232, 0.22);
+  --bar-track-ink: rgba(255, 246, 232, 0.15);
+  --bar-fill-ink: var(--poster-paper);
+  --amount-sub-ink: var(--poster-paper);
 }
 
 /* Zero the default UA body margin so the v10 shell genuinely fills the

@@ -14,7 +14,7 @@
 // Phase 26-04: «+ ПОДНЯТЬ ЛИМИТ» now pushes the real <PlanMount focusCategoryId>
 // deep-link (Plan 26-04 retrofit; PLAN_FOCUS_TODO marker resolved).
 
-import { useCallback, useEffect, useState, type CSSProperties } from 'react';
+import { useCallback, useState } from 'react';
 import {
   listCategoriesV10,
   listActualV10,
@@ -23,8 +23,8 @@ import {
   type CategoryV10,
 } from '../../api/v10';
 import { getCurrentPeriod } from '../../api/periods';
-import { Eyebrow, PosterButton, Toast } from '../../componentsV10';
-import { usePosterRouter } from '../common';
+import { Toast } from '../../componentsV10';
+import { StatePlate, usePosterRouter, useResource } from '../common';
 // Phase 26-04: real Plan editor with focusCategoryId deep-link replaces the
 // prior WIP PlanViewPlaceholder push.
 import { PlanMount } from '../Plan';
@@ -49,97 +49,72 @@ interface DataPayload {
   actuals: ActualV10Read[];
 }
 
-type LoadState =
-  | { status: 'loading' }
-  | { status: 'error'; message: string }
-  | { status: 'ready'; data: DataPayload };
+/**
+ * Sentinel error message for the «category not found» branch (cross-tenant /
+ * non-existent id, T-26-02-03). Thrown from the fetcher so useResource surfaces
+ * it as a normal error plate — identical copy to the previous hand-rolled path.
+ */
+const NOT_FOUND_MESSAGE = 'Категория не найдена';
 
 // ─────────────────── Component ───────────────────
 
 export function CategoryDetailMount({ categoryId }: CategoryDetailMountProps) {
   const router = usePosterRouter();
-  const [state, setState] = useState<LoadState>({ status: 'loading' });
-  const [reloadToken, setReloadToken] = useState(0);
   // P2-11: mutation error surface (single toast slot, last error wins).
   const [toastMsg, setToastMsg] = useState<string | null>(null);
 
-  useEffect(() => {
-    let cancelled = false;
-    setState({ status: 'loading' });
-
-    async function load() {
-      try {
-        const [cats, period] = await Promise.all([
-          listCategoriesV10(),
-          getCurrentPeriod(),
-        ]);
-        if (cancelled) return;
-        const cat = cats.find((c) => c.id === categoryId);
-        if (!cat) {
-          // T-26-02-03 mitigation: cross-tenant / non-existent id stays
-          // server-side (RLS); to client it just looks like «не найдена».
-          setState({
-            status: 'error',
-            message: 'Категория не найдена',
-          });
-          return;
-        }
-        const acts: ActualV10Read[] = period
-          ? await listActualV10(period.id)
-          : [];
-        if (cancelled) return;
-        setState({
-          status: 'ready',
-          data: { category: cat, actuals: acts },
-        });
-      } catch (err) {
-        if (cancelled) return;
-        const message =
-          err instanceof Error ? err.message : 'Не удалось загрузить категорию';
-        setState({ status: 'error', message });
+  const fetchCategory = useCallback(
+    async (isCancelled: () => boolean): Promise<DataPayload> => {
+      const [cats, period] = await Promise.all([
+        listCategoriesV10(),
+        getCurrentPeriod(),
+      ]);
+      const cat = cats.find((c) => c.id === categoryId);
+      if (!cat) {
+        // T-26-02-03 mitigation: cross-tenant / non-existent id stays
+        // server-side (RLS); to client it just looks like «не найдена».
+        throw new Error(NOT_FOUND_MESSAGE);
       }
-    }
+      if (isCancelled()) return { category: cat, actuals: [] };
+      const acts: ActualV10Read[] = period
+        ? await listActualV10(period.id)
+        : [];
+      return { category: cat, actuals: acts };
+    },
+    [categoryId],
+  );
 
-    load();
-    return () => {
-      cancelled = true;
-    };
-  }, [categoryId, reloadToken]);
+  const { status, data, error, reload, setData } = useResource<DataPayload>(
+    fetchCategory,
+    [categoryId],
+  );
 
   // ─────────── PATCH-backed toggle handlers ───────────
   const handleToggleRollover = useCallback(async () => {
-    if (state.status !== 'ready') return;
-    const current = state.data.category;
+    if (data === null) return;
+    const current = data.category;
     const next = (current.rollover ?? 'misc') === 'misc' ? 'savings' : 'misc';
     try {
       const updated = await updateCategoryV10(current.id, { rollover: next });
-      setState((s) =>
-        s.status === 'ready'
-          ? { status: 'ready', data: { ...s.data, category: updated } }
-          : s,
-      );
+      setData((d) => (d ? { ...d, category: updated } : d));
     } catch {
       // T-26-02-04 mitigation (P2-11): surface via Toast instead of alert.
       setToastMsg('Не удалось обновить «Остаток» — попробуйте снова');
     }
-  }, [state]);
+  }, [data, setData]);
 
   const handleTogglePause = useCallback(async () => {
-    if (state.status !== 'ready') return;
-    const current = state.data.category;
+    if (data === null) return;
+    const current = data.category;
     try {
       const updated = await updateCategoryV10(current.id, {
         paused: !(current.paused ?? false),
       });
-      setState((s) =>
-        s.status === 'ready'
-          ? { status: 'ready', data: { ...s.data, category: updated } }
-          : s,
-      );
+      setData((d) => (d ? { ...d, category: updated } : d));
     } catch {
       setToastMsg('Не удалось переключить «Паузу» — попробуйте снова');
     }
-  }, [state]);
+  }, [data, setData]);
 
   const handlePushPlan = useCallback(
     (catId: number) => {
@@ -155,12 +130,16 @@ export function CategoryDetailMount({ categoryId }: CategoryDetailMountProps) {
   }, [router]);
 
   // ─────────── render ───────────
-  if (state.status === 'loading') return <LoadingPlate />;
-  if (state.status === 'error') {
+  if (status === 'loading') {
+    return <StatePlate variant="loading" testId="cat-detail-loading" />;
+  }
+  if (status === 'error' || data === null) {
     return (
-      <ErrorPlate
-        message={state.message}
-        onRetry={() => setReloadToken((t) => t + 1)}
+      <StatePlate
+        variant="error"
+        testId="cat-detail-error"
+        message={error ?? 'Не удалось загрузить категорию'}
+        onRetry={reload}
         onBack={handleBack}
       />
     );
@@ -168,8 +147,8 @@ export function CategoryDetailMount({ categoryId }: CategoryDetailMountProps) {
   return (
     <>
       <CategoryDetailView
-        category={state.data.category}
-        actuals={state.data.actuals}
+        category={data.category}
+        actuals={data.actuals}
         onPushPlan={handlePushPlan}
         onTogglePause={handleTogglePause}
         onToggleRollover={handleToggleRollover}
@@ -182,72 +161,5 @@ export function CategoryDetailMount({ categoryId }: CategoryDetailMountProps) {
         duration={4000}
       />
     </>
-  );
-}
-
-// ─────────────────── Loading / Error sub-views ───────────────────
-
-const fillStyle: CSSProperties = {
-  position: 'absolute',
-  inset: 0,
-  background: 'var(--poster-cobalt)',
-  color: 'var(--poster-paper)',
-  padding: '56px 22px 90px',
-  display: 'flex',
-  flexDirection: 'column',
-  gap: 14,
-  fontFamily: 'var(--poster-font-manrope), system-ui, sans-serif',
-};
-
-function LoadingPlate() {
-  return (
-    <div style={fillStyle} data-testid="cat-detail-loading">
-      <Eyebrow color="var(--poster-paper)">ЗАГРУЗКА</Eyebrow>
-      <div
-        style={{
-          fontFamily:
-            'var(--poster-font-jet-brains-mono), ui-monospace, monospace',
-          fontSize: 13,
-          opacity: 0.7,
-          marginTop: 18,
-        }}
-      >
-        ···
-      </div>
-    </div>
-  );
-}
-
-interface ErrorPlateProps {
-  message: string;
-  onRetry: () => void;
-  onBack: () => void;
-}
-
-function ErrorPlate({ message, onRetry, onBack }: ErrorPlateProps) {
-  return (
-    <div style={fillStyle} data-testid="cat-detail-error">
-      <Eyebrow color="var(--poster-paper)">ОШИБКА</Eyebrow>
-      <div
-        style={{
-          fontFamily:
-            'var(--poster-font-jet-brains-mono), ui-monospace, monospace',
-          fontSize: 13,
-          opacity: 0.85,
-          marginTop: 18,
-          wordBreak: 'break-word',
-        }}
-      >
-        {message}
-      </div>
-      <div style={{ marginTop: 20, display: 'flex', gap: 10 }}>
-        <PosterButton variant="primary" onClick={onRetry}>
-          ПОВТОРИТЬ
-        </PosterButton>
-        <PosterButton variant="ghost" onClick={onBack}>
-          НАЗАД
-        </PosterButton>
-      </div>
-    </div>
   );
 }

@@ -20,9 +20,16 @@ const TOKENS_CSS = fs.readFileSync(
   path.resolve(__dirname, '../tokens.css'),
   'utf8',
 );
+// responsive.css holds the hand-maintained `:root` semantic-ink defaults
+// (--ink-on-home / --eyebrow-ink / --link-ink …) that DEFAULT to the poster
+// values and are overridden under [data-theme='liquid_glass'].
+const RESPONSIVE_CSS = fs.readFileSync(
+  path.resolve(__dirname, '../responsive.css'),
+  'utf8',
+);
 
 function injectStyles(): void {
-  for (const css of [TOKENS_CSS, LG_CSS]) {
+  for (const css of [TOKENS_CSS, RESPONSIVE_CSS, LG_CSS]) {
     const style = document.createElement('style');
     style.textContent = css;
     document.head.appendChild(style);
@@ -74,6 +81,39 @@ describe('Liquid Glass theme (data-theme="liquid_glass")', () => {
       root.getPropertyValue('--poster-coral').trim().toLowerCase(),
     ).toContain('lg-bg');
   });
+
+  it('re-points the semantic ink tokens to dark/secondary iOS ink (not paper)', () => {
+    document.documentElement.setAttribute('data-theme', 'liquid_glass');
+    const root = getComputedStyle(document.documentElement);
+
+    // Home hero number ink → iOS dark text (`--lg-text` = #1c1c1e), NOT cream.
+    const inkOnHome = root
+      .getPropertyValue('--ink-on-home')
+      .trim()
+      .toLowerCase();
+    expect(inkOnHome).toContain('lg-text');
+    expect(inkOnHome).not.toContain('poster-paper');
+
+    // Eyebrow ink → iOS secondary label (muted), NOT cream paper.
+    const eyebrowInk = root
+      .getPropertyValue('--eyebrow-ink')
+      .trim()
+      .toLowerCase();
+    expect(eyebrowInk).toContain('lg-text-secondary');
+    expect(eyebrowInk).not.toContain('poster-paper');
+
+    // Deep-link ink rides the remapped accent (poster-yellow → iOS blue).
+    const linkInk = root.getPropertyValue('--link-ink').trim().toLowerCase();
+    expect(linkInk).toContain('poster-yellow');
+    expect(linkInk).not.toContain('poster-paper');
+
+    // Hairline → iOS hairline, not cream.
+    const hairlineInk = root
+      .getPropertyValue('--hairline-ink')
+      .trim()
+      .toLowerCase();
+    expect(hairlineInk).toContain('lg-hairline');
+  });
 });
 
 describe('Maximal Poster (default :root) is untouched', () => {
@@ -100,5 +140,20 @@ describe('Maximal Poster (default :root) is untouched', () => {
     const radius = getComputedStyle(el).borderRadius;
     // No LG override applies → default initial value (empty/0).
     expect(radius === '' || radius === '0px').toBe(true);
+  });
+
+  it('defaults the semantic ink tokens to the poster cream values', () => {
+    // No data-theme → ink tokens must resolve to the poster paper/cream defaults
+    // so Maximal Poster renders byte-identically (pixel-snapshot guard).
+    const root = getComputedStyle(document.documentElement);
+    expect(
+      root.getPropertyValue('--ink-on-home').trim().toLowerCase(),
+    ).toContain('poster-paper');
+    expect(
+      root.getPropertyValue('--eyebrow-ink').trim().toLowerCase(),
+    ).toContain('poster-paper');
+    expect(root.getPropertyValue('--link-ink').trim().toLowerCase()).toContain(
+      'poster-paper',
+    );
   });
 });

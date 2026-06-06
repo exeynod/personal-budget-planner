@@ -32,7 +32,6 @@ from app.db.models import (
     ActualSource,
     ActualTransaction,
     AppUser,
-    BudgetPeriod,
     Category,
     PlannedTransaction,
     PlanSource,

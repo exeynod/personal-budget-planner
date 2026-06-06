@@ -3,6 +3,7 @@
 Per Pattern 1 in 01-RESEARCH.md: shared async engine, session per request via
 ``get_db`` dependency. Commits on successful exit, rolls back on exception.
 """
+
 from typing import AsyncGenerator
 
 from sqlalchemy.ext.asyncio import (
@@ -13,7 +14,19 @@ from sqlalchemy.ext.asyncio import (
 
 from app.core.settings import settings
 
-async_engine = create_async_engine(settings.DATABASE_URL, echo=False)
+async_engine = create_async_engine(
+    settings.DATABASE_URL,
+    echo=False,
+    # F5: explicit pool config. Default QueuePool size is 5 / overflow 10 —
+    # too small for the api + worker concurrency once N-per-request round-trips
+    # are collapsed (F2/F3). pool_pre_ping avoids handing out a connection the
+    # DB has already dropped (idle timeout / restart); pool_recycle=1800 retires
+    # connections before common 30-min server-side idle cutoffs.
+    pool_size=10,
+    max_overflow=20,
+    pool_pre_ping=True,
+    pool_recycle=1800,
+)
 AsyncSessionLocal = async_sessionmaker(async_engine, expire_on_commit=False)
 
 

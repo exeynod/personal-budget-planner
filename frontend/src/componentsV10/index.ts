@@ -7,10 +7,7 @@ export type { BigFigProps } from './BigFig';
 export { Plate } from './Plate';
 export type { PlateProps, PlateTone } from './Plate';
 export { PosterButton } from './PosterButton';
-export type {
-  PosterButtonProps,
-  PosterButtonVariant,
-} from './PosterButton';
+export type { PosterButtonProps, PosterButtonVariant } from './PosterButton';
 export { Chip } from './Chip';
 export type { ChipProps } from './Chip';
 export { PosterSlider } from './PosterSlider';
@@ -21,5 +18,3 @@ export { FAB } from './FAB';
 export type { FABProps } from './FAB';
 export { Toast } from './Toast';
 export type { ToastProps } from './Toast';
-export { GlassCard } from './GlassCard';
-export type { GlassCardProps } from './GlassCard';

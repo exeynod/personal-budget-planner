@@ -15,7 +15,7 @@
 // router.pop() to onBack and patchPlanMonth() to onSubmit; tests pass
 // vi.fn() spies and assert call shapes.
 
-import { useEffect, useRef } from 'react';
+import { memo, useEffect, useRef } from 'react';
 import {
   Chip,
   Eyebrow,
@@ -73,7 +73,8 @@ export interface PlanViewProps {
 
 // ─────────── Component ───────────
 
-export function PlanView(props: PlanViewProps) {
+// Phase 31 (code-quality): leaf view wrapped in React.memo (see HomeView).
+function PlanViewInner(props: PlanViewProps) {
   const {
     incomeCents,
     categories,
@@ -97,7 +98,10 @@ export function PlanView(props: PlanViewProps) {
   const focusRowRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
     if (focusCategoryId != null && focusRowRef.current) {
-      focusRowRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      focusRowRef.current.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+      });
     }
   }, [focusCategoryId]);
 
@@ -110,9 +114,9 @@ export function PlanView(props: PlanViewProps) {
   const miscRubles = Math.floor(aggregates.miscCents / 100).toLocaleString(
     'ru-RU',
   );
-  const savingsRubles = Math.floor(aggregates.savingsCents / 100).toLocaleString(
-    'ru-RU',
-  );
+  const savingsRubles = Math.floor(
+    aggregates.savingsCents / 100,
+  ).toLocaleString('ru-RU');
 
   // Phase 29-04 §5 PlanMonth BLOCKER #2 — dynamic month genitive UPPER
   // for the «PLAN / {МАЯ}.» headline. Matches prototype `PLAN<br/>МАЯ.`
@@ -163,7 +167,8 @@ export function PlanView(props: PlanViewProps) {
        * Prototype line 738: <Mass size={56}>PLAN<br/>МАЯ.</Mass>
        * Two-line (br), size 56, dynamic month genitive. */}
       <Mass size={56} className={styles.title}>
-        PLAN<br />
+        PLAN
+        <br />
         {currentMonthGenitiveUpper}.
       </Mass>
 
@@ -257,10 +262,7 @@ export function PlanView(props: PlanViewProps) {
               {Math.floor(r.amountCents / 100).toLocaleString('ru-RU')} ₽
             </div>
             {r.postedTxnId == null ? (
-              <PosterButton
-                variant="ghost"
-                onClick={() => onPostRegular(r.id)}
-              >
+              <PosterButton variant="ghost" onClick={() => onPostRegular(r.id)}>
                 ПРОВЕСТИ →
               </PosterButton>
             ) : (
@@ -343,3 +345,5 @@ export function PlanView(props: PlanViewProps) {
     </div>
   );
 }
+
+export const PlanView = memo(PlanViewInner);

@@ -1938,6 +1938,65 @@
         "title": "HTTPValidationError",
         "type": "object"
       },
+      "HomeResponse": {
+        "description": "Aggregated HOME bootstrap payload (F3).\n\nEach field reuses the response model of the endpoint it replaces, so a\nclient can drop a field straight into the slot it already consumes from\nthe granular endpoints.",
+        "properties": {
+          "accounts": {
+            "items": {
+              "$ref": "#/components/schemas/AccountRead"
+            },
+            "title": "Accounts",
+            "type": "array"
+          },
+          "actuals": {
+            "items": {
+              "$ref": "#/components/schemas/ActualRead"
+            },
+            "title": "Actuals",
+            "type": "array"
+          },
+          "balance": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BalanceResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "categories": {
+            "items": {
+              "$ref": "#/components/schemas/CategoryRead"
+            },
+            "title": "Categories",
+            "type": "array"
+          },
+          "period": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PeriodRead"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "user": {
+            "$ref": "#/components/schemas/MeV10Response"
+          }
+        },
+        "required": [
+          "user",
+          "accounts",
+          "categories",
+          "period",
+          "balance",
+          "actuals"
+        ],
+        "title": "HomeResponse",
+        "type": "object"
+      },
       "MePatchV10": {
         "additionalProperties": false,
         "description": "PATCH /api/v1/me request body — partial v1.0 update (BE-01).\n\nCurrently only carries ``income_cents``. Future fields land here as\nnullable optionals to preserve the \"omit = leave unchanged\" PATCH\ncontract.",
@@ -6948,6 +7007,89 @@
         "tags": [
           "public",
           "goals"
+        ]
+      }
+    },
+    "/api/v1/home": {
+      "get": {
+        "description": "GET /api/v1/home — aggregated HOME bootstrap payload.\n\nReturns ``{ user, accounts, categories, period, balance, actuals }``. When\nthe user has no active budget period (onboarding incomplete), ``period`` /\n``balance`` are ``None`` and ``actuals`` is ``[]`` — ``user`` / ``accounts``\n/ ``categories`` still resolve.",
+        "operationId": "get_home_api_v1_home_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-telegram-init-data",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Telegram-Init-Data"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-test-user",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Test-User"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HomeResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Home",
+        "tags": [
+          "public",
+          "home"
         ]
       }
     },

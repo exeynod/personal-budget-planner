@@ -10,6 +10,7 @@
 // and tolerates `goal === null` (Optional on Pydantic — omit key).
 
 import { apiFetch } from './client';
+import { clearCache } from './cache';
 import type {
   OnboardingDraft,
   OnboardingAccount,
@@ -120,11 +121,17 @@ export function serialiseDraft(draft: OnboardingDraft): OnboardingV10Body {
  * Throws `ApiError` (status 409 → already onboarded; 422 → validation).
  * Caller is responsible for clearing the draft on success.
  */
-export function postOnboardingComplete(
+export async function postOnboardingComplete(
   body: OnboardingV10Body,
 ): Promise<OnboardingV10Response> {
-  return apiFetch<OnboardingV10Response>('/onboarding/complete', {
+  const res = await apiFetch<OnboardingV10Response>('/onboarding/complete', {
     method: 'POST',
     body: JSON.stringify(body),
   });
+  // Onboarding seeds the user's entire dataset server-side (accounts /
+  // categories / period / savings) and flips `onboarded_at`. Clear the whole
+  // client cache so the first post-onboarding reads (and the /me gate) fetch
+  // the freshly-seeded state rather than any pre-onboarding empties.
+  clearCache();
+  return res;
 }

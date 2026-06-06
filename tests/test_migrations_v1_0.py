@@ -48,6 +48,7 @@ section — both require admin. RLS enforcement is covered by the dedicated
 ``tests/test_multitenancy_v1_0_columns.py`` (BE-16 acceptance gate); this
 file checks only *presence* of policies/grants/columns.
 """
+
 from __future__ import annotations
 
 import os
@@ -77,9 +78,7 @@ def _alembic_config():
     from alembic.config import Config
 
     cfg = Config(str(REPO_ROOT / "alembic.ini"))
-    cfg.set_main_option(
-        "script_location", str(REPO_ROOT / "alembic")
-    )
+    cfg.set_main_option("script_location", str(REPO_ROOT / "alembic"))
     # env.py reads ADMIN_DATABASE_URL / DATABASE_URL on its own — we only
     # need to make sure script_location is correct when the test process
     # runs from ``/app`` inside the api container vs. from the host.
@@ -129,8 +128,7 @@ async def _table_exists(session, table: str) -> bool:
 async def _index_exists(session, index_name: str) -> bool:
     res = await session.execute(
         text(
-            "SELECT 1 FROM pg_indexes "
-            "WHERE schemaname = 'public' AND indexname = :idx"
+            "SELECT 1 FROM pg_indexes WHERE schemaname = 'public' AND indexname = :idx"
         ),
         {"idx": index_name},
     )
@@ -150,9 +148,7 @@ async def _index_def(session, index_name: str) -> str | None:
 
 async def _constraint_exists(session, constraint_name: str) -> bool:
     res = await session.execute(
-        text(
-            "SELECT 1 FROM pg_constraint WHERE conname = :name"
-        ),
+        text("SELECT 1 FROM pg_constraint WHERE conname = :name"),
         {"name": constraint_name},
     )
     return res.scalar() is not None
@@ -210,6 +206,7 @@ async def test_alembic_upgrade_from_0011_to_0015_succeeds(db_session):
         "0024_analytics_event",
         "0025_subscription_posted_txn_unique",
         "0026_ai_usage_cost_cents",
+        "0027_perf_composite_indexes",
     }
     assert heads & v10_revs, (
         f"DB is not at a v1.0 alembic head; current revisions: {heads}"
@@ -259,8 +256,7 @@ async def test_after_upgrade_savings_config_table_exists(db_session):
     expected = {"user_id", "roundup_enabled", "roundup_base", "updated_at"}
     missing = expected - cols.keys()
     assert not missing, (
-        f"savings_config table missing columns: {missing}; "
-        f"have {sorted(cols.keys())}"
+        f"savings_config table missing columns: {missing}; have {sorted(cols.keys())}"
     )
 
 
@@ -328,8 +324,7 @@ async def test_subscription_has_v10_columns(db_session):
     expected = {"day_of_month", "account_id", "posted_txn_id"}
     missing = expected - cols.keys()
     assert not missing, (
-        f"subscription missing v1.0 columns: {missing}; "
-        f"have {sorted(cols.keys())}"
+        f"subscription missing v1.0 columns: {missing}; have {sorted(cols.keys())}"
     )
 
 
@@ -339,8 +334,7 @@ async def test_budget_period_has_rollover_columns(db_session):
     expected = {"misc_rollover_cents", "rollover_processed_at"}
     missing = expected - cols.keys()
     assert not missing, (
-        f"budget_period missing rollover columns: {missing}; "
-        f"have {sorted(cols.keys())}"
+        f"budget_period missing rollover columns: {missing}; have {sorted(cols.keys())}"
     )
 
 
@@ -367,9 +361,7 @@ async def test_actual_parent_txn_composite_fk_exists(db_session):
 
     The simple FK ``fk_actual_parent_txn`` from 0014 must have been replaced.
     """
-    assert await _constraint_exists(
-        db_session, "fk_actual_parent_txn_composite"
-    ), (
+    assert await _constraint_exists(db_session, "fk_actual_parent_txn_composite"), (
         "Expected fk_actual_parent_txn_composite on actual_transaction"
         "(parent_txn_id, user_id) → (id, user_id)"
     )
@@ -378,9 +370,7 @@ async def test_actual_parent_txn_composite_fk_exists(db_session):
         "actual_transaction (target for the composite FK)"
     )
     # Simple FK from 0014 must be gone (0015 dropped it before adding composite).
-    assert not await _constraint_exists(
-        db_session, "fk_actual_parent_txn"
-    ), (
+    assert not await _constraint_exists(db_session, "fk_actual_parent_txn"), (
         "Simple FK fk_actual_parent_txn must have been dropped by 0015 "
         "(replaced by fk_actual_parent_txn_composite)"
     )
@@ -402,7 +392,7 @@ async def test_account_partial_unique_primary_index_exists(db_session):
         f"Index missing partial filter on primary column: {indexdef}"
     )
     assert "true" in lower, (
-        f"Index partial filter must be `WHERE \"primary\" = true`: {indexdef}"
+        f'Index partial filter must be `WHERE "primary" = true`: {indexdef}'
     )
 
 
@@ -464,9 +454,7 @@ async def test_round_trip_0013_category_ext():
     not restored — see 0013 downgrade() docstring).
     """
     _skip_if_no_roundtrip()
-    await _alembic_round_trip(
-        "0013_v10_category_ext", "0012_v10_user_account"
-    )
+    await _alembic_round_trip("0013_v10_category_ext", "0012_v10_user_account")
 
 
 async def test_round_trip_0014_actual_goal_savings():
@@ -479,17 +467,13 @@ async def test_round_trip_0014_actual_goal_savings():
     fresh-stack boot satisfies this precondition.
     """
     _skip_if_no_roundtrip()
-    await _alembic_round_trip(
-        "0014_v10_actual_goal_savings", "0013_v10_category_ext"
-    )
+    await _alembic_round_trip("0014_v10_actual_goal_savings", "0013_v10_category_ext")
 
 
 async def test_round_trip_0015_rls_finalize():
     """0015 round-trip: RLS policies on goal/savings_config + composite FK on parent_txn_id."""
     _skip_if_no_roundtrip()
-    await _alembic_round_trip(
-        "0015_v10_rls_finalize", "0014_v10_actual_goal_savings"
-    )
+    await _alembic_round_trip("0015_v10_rls_finalize", "0014_v10_actual_goal_savings")
 
 
 # ---------------------------------------------------------------------------
@@ -666,9 +650,7 @@ async def test_after_upgrade_rls_policies_present(db_session):
         ("tenant_isolation_savings_config", "savings_config"),
     }
     missing = expected - policies
-    assert not missing, (
-        f"Missing tenant_isolation policies: {missing}; got {policies}"
-    )
+    assert not missing, f"Missing tenant_isolation policies: {missing}; got {policies}"
 
 
 async def test_after_upgrade_force_rls_enabled_on_new_tables(db_session):

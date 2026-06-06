@@ -31,6 +31,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { OnboardingFlow } from './OnboardingFlow';
 import { getMeV10, type MeV10Response } from '../../api/me';
+import { invalidate, CACHE_KEYS } from '../../api/cache';
 import { HomeMount } from '../Home';
 import styles from './OnboardingMount.module.css';
 
@@ -52,6 +53,11 @@ export function OnboardingMount() {
   const refetch = useCallback(async (): Promise<void> => {
     setState((s) => ({ ...s, status: 'loading', errorMsg: null }));
     try {
+      // The gate is the source of truth for onboarding state — always read a
+      // FRESH /me (drop any cached value) so the post-onboarding flip
+      // (incl. the 409 «already onboarded» path, which doesn't clear the
+      // cache) is never masked by a stale `onboarded_at: null`.
+      invalidate(CACHE_KEYS.me);
       const me = await getMeV10();
       setState({ status: 'ready', me, errorMsg: null });
     } catch {

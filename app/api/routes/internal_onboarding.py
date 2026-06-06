@@ -78,8 +78,6 @@ from app.db.models import (
 )
 from app.db.session import set_tenant_scope
 from app.services.onboarding_v10 import (
-    DEFAULT_CATEGORIES,
-    SYSTEM_SAVINGS_CATEGORY,
     _upsert_savings_category,
     _upsert_seed_categories,
     reset_v10,
