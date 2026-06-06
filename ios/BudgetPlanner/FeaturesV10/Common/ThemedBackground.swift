@@ -1,23 +1,30 @@
-// ThemedBackground.swift — Phase 53 (LG-IOS-01..04), Phase 71 (theme cull).
+// ThemedBackground.swift — Phase 53 (LG-IOS-01..04), Phase 4 (LG restore 2026-06).
 //
-// Theme-aware background wrapper. After Phase 71 the only V10 theme is
-// Maximal Poster, so this simply paints the supplied solid `maximal` color.
-// The wrapper is retained (rather than inlining `maximal`) so call sites stay
-// stable and a future theme can reintroduce per-theme substitution here.
+// Theme-aware background wrapper. Substitutes Maximal Poster solid color
+// backgrounds with a native adaptive frosted Material surface under the
+// Liquid Glass theme — without rewriting each V10 screen.
 //
 // Usage:
 //   .background(ThemedBackground(maximal: PosterTokens.Color.coral).ignoresSafeArea())
 // or as a content child:
 //   ThemedBackground(maximal: PosterTokens.Color.coral).ignoresSafeArea()
+//
+// ONLY the background substitution layer is theme-aware here. Cards / sheets
+// use GlassCard (componentsV10) gated on the theme; other PosterUI primitives
+// pick up the new background through normal SwiftUI composition.
 
 import SwiftUI
 
 /// Theme-aware background surface.
 ///
 /// - `maximal`: the solid `PosterTokens.Color.*` painted under the
-///              `.maximalPoster` theme — the only V10 theme post Phase 71.
+///              `.maximalPoster` theme — preserves the existing V10 visuals.
+/// - `liquidGlass`: SwiftUI `Material` used under the `.liquidGlass` theme.
+///                  Defaults to `.regularMaterial` (translucent frosted) over
+///                  the system grouped background so it reads as iOS glass.
 struct ThemedBackground: View {
     let maximal: Color
+    var liquidGlass: Material = .regularMaterial
 
     @Environment(\.appTheme) private var theme
 
@@ -25,6 +32,11 @@ struct ThemedBackground: View {
         switch theme {
         case .maximalPoster:
             maximal
+        case .liquidGlass:
+            ZStack {
+                LiquidGlassTokens.bgPrimary
+                Rectangle().fill(liquidGlass)
+            }
         }
     }
 }
@@ -34,5 +46,18 @@ struct ThemedBackground: View {
     ThemedBackground(maximal: PosterTokens.Color.coral)
         .ignoresSafeArea()
         .environment(\.appTheme, .maximalPoster)
+}
+
+#Preview("ThemedBackground · liquid glass") {
+    ZStack {
+        LinearGradient(
+            colors: [.purple, .orange], startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+        .ignoresSafeArea()
+        ThemedBackground(maximal: PosterTokens.Color.coral)
+            .ignoresSafeArea()
+            .environment(\.appTheme, .liquidGlass)
+    }
 }
 #endif

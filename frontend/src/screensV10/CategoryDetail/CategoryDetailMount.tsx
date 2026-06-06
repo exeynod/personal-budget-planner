@@ -14,12 +14,7 @@
 // Phase 26-04: «+ ПОДНЯТЬ ЛИМИТ» now pushes the real <PlanMount focusCategoryId>
 // deep-link (Plan 26-04 retrofit; PLAN_FOCUS_TODO marker resolved).
 
-import {
-  useCallback,
-  useEffect,
-  useState,
-  type CSSProperties,
-} from 'react';
+import { useCallback, useEffect, useState, type CSSProperties } from 'react';
 import {
   listCategoriesV10,
   listActualV10,
@@ -34,6 +29,12 @@ import { usePosterRouter } from '../common';
 // prior WIP PlanViewPlaceholder push.
 import { PlanMount } from '../Plan';
 import { CategoryDetailView } from './CategoryDetailView';
+
+// TODO P2 (period switching): this drill-down still pins to getCurrentPeriod().
+// Scoping it to the viewed period is deferred — the view also exposes
+// rollover/paused PATCH toggles against the LIVE category plan, which must not
+// be applied while «viewing» a closed past period. Wiring useSelectedPeriod
+// here needs a read-only mode for past periods first (out of P2 scope).
 
 // ─────────────────── Props ───────────────────
 

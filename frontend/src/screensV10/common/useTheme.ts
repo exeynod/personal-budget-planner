@@ -21,11 +21,13 @@
 
 import { useCallback, useEffect, useState } from 'react';
 
-export type Theme = 'maximal_poster' | 'liquid_glass' | 'ios_default';
+// Phase 4 (UX refactor, 2026-06): reduced to TWO themes — Maximal Poster
+// (shipping default) and Liquid Glass (iOS look). The former `ios_default`
+// option was removed; stale persisted `ios_default` values map to the default.
+export type Theme = 'maximal_poster' | 'liquid_glass';
 export const THEMES: readonly Theme[] = [
   'maximal_poster',
   'liquid_glass',
-  'ios_default',
 ] as const;
 
 const STORAGE_KEY = 'ui.theme';
@@ -33,9 +35,7 @@ const EVENT = 'theme-changed';
 const DEFAULT: Theme = 'maximal_poster';
 
 function isTheme(v: unknown): v is Theme {
-  return (
-    v === 'maximal_poster' || v === 'liquid_glass' || v === 'ios_default'
-  );
+  return v === 'maximal_poster' || v === 'liquid_glass';
 }
 
 function readStored(): Theme {
@@ -57,8 +57,6 @@ export function themeLabel(t: Theme): string {
       return 'MAXIMAL POSTER';
     case 'liquid_glass':
       return 'LIQUID GLASS';
-    case 'ios_default':
-      return 'iOS DEFAULT';
   }
 }
 
@@ -68,9 +66,7 @@ export function themeDescription(t: Theme): string {
     case 'maximal_poster':
       return 'Кораллово-кобальтовая палитра, Archivo Black + DM Serif Italic';
     case 'liquid_glass':
-      return 'Apple iOS 26 Liquid Glass: прозрачные слои, SF Pro, system materials';
-    case 'ios_default':
-      return 'Минималистичный iOS: SF Pro, system gray/blue, без glass';
+      return 'Apple iOS Liquid Glass: прозрачные слои, SF Pro, system materials';
   }
 }
 

@@ -2,9 +2,9 @@ import {
   retrieveLaunchParams,
   retrieveRawLaunchParams,
   openTelegramLink as sdkOpenTelegramLink,
-} from '@telegram-apps/sdk-react';
+} from "@telegram-apps/sdk-react";
 
-const API_BASE = '/api/v1';
+const API_BASE = "/api/v1";
 
 declare global {
   interface Window {
@@ -47,16 +47,16 @@ export function getInitDataRaw(): string | null {
   try {
     const params = retrieveLaunchParams() as Record<string, unknown>;
     // tgWebAppData is a string in raw form according to @telegram-apps/sdk types.
-    const candidate = (params.tgWebAppData ?? params.initDataRaw ?? params.initData) as
-      | string
-      | undefined;
-    if (typeof candidate === 'string' && candidate.length > 0) return candidate;
+    const candidate = (params.tgWebAppData ??
+      params.initDataRaw ??
+      params.initData) as string | undefined;
+    if (typeof candidate === "string" && candidate.length > 0) return candidate;
     // Some SDK versions expose tgWebAppData as parsed object — fall back to raw query string.
     const raw = retrieveRawLaunchParams();
-    if (typeof raw === 'string' && raw.length > 0) {
+    if (typeof raw === "string" && raw.length > 0) {
       // raw is the full launch params query (e.g. "tgWebAppData=...&tgWebAppVersion=...").
       const usp = new URLSearchParams(raw);
-      const data = usp.get('tgWebAppData');
+      const data = usp.get("tgWebAppData");
       if (data) return data;
     }
   } catch {
@@ -64,7 +64,8 @@ export function getInitDataRaw(): string | null {
   }
 
   // Strategy 2: window.Telegram.WebApp.initData (raw query string).
-  const wa = typeof window !== 'undefined' ? window.Telegram?.WebApp : undefined;
+  const wa =
+    typeof window !== "undefined" ? window.Telegram?.WebApp : undefined;
   if (wa?.initData) return wa.initData;
 
   return null;
@@ -91,8 +92,8 @@ export class ApiError extends Error {
  */
 export class OnboardingRequiredError extends ApiError {
   constructor(body: string) {
-    super('onboarding_required', 409, body);
-    this.name = 'OnboardingRequiredError';
+    super("onboarding_required", 409, body);
+    this.name = "OnboardingRequiredError";
   }
 }
 
@@ -108,23 +109,42 @@ export class ProTierRequiredError extends ApiError {
   readonly currentTier: string;
   readonly trialEndsAt: string | null;
   constructor(body: string, currentTier: string, trialEndsAt: string | null) {
-    super('PRO_TIER_REQUIRED', 402, body);
-    this.name = 'ProTierRequiredError';
+    super("PRO_TIER_REQUIRED", 402, body);
+    this.name = "ProTierRequiredError";
     this.currentTier = currentTier;
     this.trialEndsAt = trialEndsAt;
   }
 }
 
-export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
+/**
+ * Auth failure: backend returned 401 (no/invalid Telegram initData) or 403
+ * (valid identity but not authorized — e.g. not whitelisted). Carries `kind`
+ * so the auth gate can render the static "access required" screen and never
+ * mount the interactive app shell. Distinct from transient 5xx/network errors
+ * which keep a Retry affordance.
+ */
+export class AuthError extends ApiError {
+  readonly kind: "unauthenticated" | "forbidden";
+  constructor(status: number, body: string) {
+    super(status === 401 ? "unauthenticated" : "forbidden", status, body);
+    this.name = "AuthError";
+    this.kind = status === 401 ? "unauthenticated" : "forbidden";
+  }
+}
+
+export async function apiFetch<T>(
+  path: string,
+  init?: RequestInit,
+): Promise<T> {
   const headers = new Headers(init?.headers);
-  headers.set('Content-Type', 'application/json');
+  headers.set("Content-Type", "application/json");
 
   const initDataRaw = getInitDataRaw();
   if (initDataRaw) {
-    headers.set('X-Telegram-Init-Data', initDataRaw);
+    headers.set("X-Telegram-Init-Data", initDataRaw);
   } else if (import.meta.env.DEV) {
     // Backend with DEV_MODE=true ignores header content (Phase 1 D-05).
-    headers.set('X-Telegram-Init-Data', 'dev-mode-stub');
+    headers.set("X-Telegram-Init-Data", "dev-mode-stub");
   }
 
   const response = await fetch(API_BASE + path, { ...init, headers });
@@ -138,7 +158,7 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
       } catch {
         parsed = null;
       }
-      if (parsed?.detail?.error === 'onboarding_required') {
+      if (parsed?.detail?.error === "onboarding_required") {
         throw new OnboardingRequiredError(text);
       }
     }
@@ -156,15 +176,25 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
       } catch {
         parsed = null;
       }
-      if (parsed?.detail?.error === 'PRO_TIER_REQUIRED') {
+      if (parsed?.detail?.error === "PRO_TIER_REQUIRED") {
         throw new ProTierRequiredError(
           text,
-          parsed.detail.current_tier ?? 'free',
+          parsed.detail.current_tier ?? "free",
           parsed.detail.trial_ends_at ?? null,
         );
       }
     }
-    throw new ApiError(`API ${path} → ${response.status}`, response.status, text);
+    // Auth failures: 401 (no/invalid initData) or 403 (not authorized /
+    // not whitelisted). Thrown as AuthError so the auth gate can hard-block
+    // the UI. Subclass of ApiError → existing generic handlers still catch it.
+    if (response.status === 401 || response.status === 403) {
+      throw new AuthError(response.status, text);
+    }
+    throw new ApiError(
+      `API ${path} → ${response.status}`,
+      response.status,
+      text,
+    );
   }
   return text ? (JSON.parse(text) as T) : (undefined as T);
 }
@@ -182,13 +212,14 @@ export function openTelegramLink(url: string): void {
   } catch {
     // SDK function throws if scope isn't supported in current environment.
   }
-  const wa = typeof window !== 'undefined' ? window.Telegram?.WebApp : undefined;
+  const wa =
+    typeof window !== "undefined" ? window.Telegram?.WebApp : undefined;
   if (wa?.openTelegramLink) {
     wa.openTelegramLink(url);
     return;
   }
   // Final fallback (browser dev): open in new tab.
-  if (typeof window !== 'undefined') {
-    window.open(url, '_blank');
+  if (typeof window !== "undefined") {
+    window.open(url, "_blank");
   }
 }

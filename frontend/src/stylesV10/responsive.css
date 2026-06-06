@@ -1,0 +1,46 @@
+/* Phase 3 (web UX): responsiveness + Telegram WebApp viewport/safe-area tokens.
+ *
+ * Hand-maintained (NOT generated) — `tokens.css` in this folder is emitted by
+ * `scripts/gen-tokens.ts` from `design/tokens.json` and carries a «do not edit»
+ * banner, so the responsive layout knobs below live here instead. AppV10
+ * imports this file alongside the generated tokens.
+ *
+ *   --col-width             desktop column clamp (phone-width letterbox).
+ *   --tg-viewport-stable    Telegram `viewportStableHeight` in px, synced by
+ *                           src/utils/safeArea.ts on `viewportChanged`. Falls
+ *                           back to 100dvh outside Telegram (browser / tests),
+ *                           so the mobile no-TG layout is unchanged.
+ *   --tg-safe-*             Telegram safe-area insets (px), synced by safeArea.ts.
+ *                           Default 0 → env(safe-area-inset-*) covers iOS/PWA.
+ *   --letterbox             neutral flat fill behind the column on desktop
+ *                           (NOT the v06 sunset gradient / phone frame).
+ */
+:root {
+  --col-width: 420px;
+  --tg-viewport-stable: 100dvh;
+  --tg-safe-top: 0px;
+  --tg-safe-right: 0px;
+  --tg-safe-bottom: 0px;
+  --tg-safe-left: 0px;
+  --letterbox: #0a0a0c;
+}
+
+/* Zero the default UA body margin so the v10 shell genuinely fills the
+   viewport. Previously the shell used `width: 100vw` to escape the 8px body
+   margin, which overflowed the 374px body content-box by 16px and produced a
+   horizontal scrollbar on desktop. With margin:0 the shell can use width:100%
+   cleanly (full viewport on mobile, clamped column on desktop). */
+html,
+body {
+  margin: 0;
+}
+
+/* Desktop letterbox fill behind the centered phone-width column. Painted on
+   <body> so the gap on either side of the column shows a neutral flat fill.
+   Below 540px this is invisible (column == viewport), so the mobile no-TG
+   snapshots are unaffected. */
+@media (min-width: 540px) {
+  body {
+    background: var(--letterbox);
+  }
+}

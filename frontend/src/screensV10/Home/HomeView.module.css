@@ -27,6 +27,12 @@
   justify-content: space-between;
   align-items: flex-start;
 }
+/* Phase P2 (period switching): pill row under the eyebrow. Only present when
+   the switcher renders (≥2 periods), so the default current view is unaffected. */
+.periodSwitcherRow {
+  margin-top: 12px;
+  display: flex;
+}
 .menuLink {
   font-family: var(--poster-font-jet-brains-mono), ui-monospace, monospace;
   font-size: 11px;

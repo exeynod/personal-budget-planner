@@ -28,6 +28,11 @@ import { getCurrentPeriod } from '../../api/periods';
 import { filterByAccount } from './computeAccounts';
 import { AccountDetailView } from './AccountDetailView';
 
+// TODO P2 (period switching): the «В <месяце>» KPI tx-range still pins to
+// getCurrentPeriod(). Scoping it to the viewed period is deferred — account
+// balances are point-in-time (not period-scoped), so showing a past period's
+// movements alongside the live balance needs a dedicated design (out of P2).
+
 export interface AccountDetailMountProps {
   accountId: number;
 }
@@ -38,9 +43,10 @@ export function AccountDetailMount({ accountId }: AccountDetailMountProps) {
   const [account, setAccount] = useState<AccountResponse | null>(null);
   const [actuals, setActuals] = useState<ActualV10Read[]>([]);
   const [categories, setCategories] = useState<CategoryV10[]>([]);
-  const [period, setPeriod] = useState<
-    { period_start: string; period_end: string } | null
-  >(null);
+  const [period, setPeriod] = useState<{
+    period_start: string;
+    period_end: string;
+  } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 

@@ -146,14 +146,20 @@ test.describe('§14 ТЗ acceptance happy-path', () => {
   test.beforeEach(async ({ page }) => {
     await clearOnboardingDraft(page);
     await installPostOnboardingMocks(page);
-    // /me flips от not-onboarded к onboarded после submit (StrictMode → calls 1+2
-    // initial; refetch after submit = call 3+ → flipped).
+    // /me must stay not-onboarded until the onboarding POST, then flip to
+    // onboarded on refetch. Flip on the actual POST rather than a fixed /me
+    // call count — the AuthGate now probes /me before OnboardingMount and
+    // React StrictMode double-invokes effects, so a call-count threshold is
+    // unreliable (it would flip prematurely and skip the onboarding flow).
+    let submitted = false;
     await mockMe(page, {
       initial: ME_NOT_ONBOARDED,
-      flipAfterCall: 2,
+      flipWhen: () => submitted,
       flipTo: ME_ONBOARDED,
     });
-    await mockOnboardingComplete200(page);
+    await mockOnboardingComplete200(page, () => {
+      submitted = true;
+    });
   });
 
   test('§14.1-14.6: onboarding → home → AddSheet → PLAN → AI → Savings', async ({
@@ -240,7 +246,10 @@ test.describe('§14 ТЗ acceptance happy-path', () => {
     await addSheet.getByRole('button', { name: /^0$/ }).first().click();
     await addSheet.getByRole('button', { name: /^0$/ }).first().click();
     // Категория-чип «Кафе» внутри .catScroll (data-testid=add-sheet-categories).
-    await addSheet.getByTestId('add-sheet-categories').getByText('Кафе').click();
+    await addSheet
+      .getByTestId('add-sheet-categories')
+      .getByText('Кафе')
+      .click();
     // Кнопка СОХРАНИТЬ — закрепляет contract «один tap» (ADD-V10-04).
     // Локатор по data-testid не подвержен изменению label-эмодзи (↵).
     await expect(addSheet.getByTestId('add-sheet-cta')).toHaveText(
@@ -259,12 +268,8 @@ test.describe('§14 ТЗ acceptance happy-path', () => {
     // только наличие tab-кнопок в BottomNav, не глубокое содержимое.
     const tablist = page.locator('[role="tablist"]').first();
     if ((await tablist.count()) > 0) {
-      await expect(
-        tablist.getByRole('tab', { name: /ГЛАВНАЯ/ }),
-      ).toBeVisible();
-      await expect(
-        tablist.getByRole('tab', { name: /КОПИЛКА/ }),
-      ).toBeVisible();
+      await expect(tablist.getByRole('tab', { name: /ГЛАВНАЯ/ })).toBeVisible();
+      await expect(tablist.getByRole('tab', { name: /КОПИЛКА/ })).toBeVisible();
     }
 
     const elapsed = Date.now() - start;

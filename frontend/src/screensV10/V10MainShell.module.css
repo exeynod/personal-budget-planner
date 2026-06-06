@@ -7,8 +7,11 @@
 
 .shellRoot {
   position: relative;
-  width: 100vw;
-  height: 100vh;
+  width: 100%;
+  /* Phase 3: track TG stable viewport (synced by utils/safeArea.ts). Falls
+     back to 100dvh in browser/tests where --tg-viewport-stable is its default,
+     so the no-TG mobile layout is unchanged. */
+  height: var(--tg-viewport-stable, 100dvh);
   overflow: hidden;
   background: var(--poster-coral);
   color: var(--poster-paper);
@@ -16,7 +19,9 @@
 
 .content {
   position: absolute;
-  inset: 0 0 90px 0;
+  /* Reserve nav height (90px) plus the device home-indicator inset. inset=0px
+     in browser/tests → identical to the previous magic 90px (no pixel shift). */
+  inset: 0 0 calc(90px + env(safe-area-inset-bottom, 0px)) 0;
   overflow: hidden;
 }
 

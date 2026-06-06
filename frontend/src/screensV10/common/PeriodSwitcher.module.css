@@ -1,0 +1,62 @@
+/* PeriodSwitcher (v10) — poster-idiom prev/next period pill.
+   Sharp corners, JetBrains Mono caption, paper-on-translucent. Lives in the
+   Home / Transactions header rows under the eyebrow. Colour is inherited from
+   the screen (paper on coral / cobalt) via currentColor. */
+
+.wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  background: rgba(255, 246, 232, 0.1);
+  border: 1px solid rgba(255, 246, 232, 0.28);
+  color: var(--poster-paper);
+  font-family: var(--poster-font-jet-brains-mono), ui-monospace, monospace;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.navBtn {
+  width: 20px;
+  height: 20px;
+  border: 0;
+  background: transparent;
+  color: var(--poster-paper);
+  font-family: var(--poster-font-jet-brains-mono), ui-monospace, monospace;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  padding: 0;
+}
+
+.navBtn:disabled {
+  opacity: 0.3;
+  cursor: default;
+  pointer-events: none;
+}
+
+.navBtn:active {
+  opacity: 0.6;
+}
+
+.label {
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.dot {
+  opacity: 0.45;
+  flex-shrink: 0;
+}
+
+.sub {
+  opacity: 0.6;
+  font-weight: 500;
+  white-space: nowrap;
+}

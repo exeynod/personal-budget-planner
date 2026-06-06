@@ -28,13 +28,7 @@
 // list); selecting a row writes the id back via onSelectAccount and closes
 // the picker. Replaces the legacy `onCycleAccount` UX.
 
-import {
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type ChangeEvent,
-} from 'react';
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 import { Eyebrow, Mass, BigFig, Chip } from '../../componentsV10';
 import {
   listAccounts,
@@ -43,7 +37,11 @@ import {
   type AccountResponse,
   type CategoryV10,
 } from '../../api/v10';
-import { formatTimeHM, MONTHS_RU_GENITIVE } from '../common';
+import {
+  formatTimeHM,
+  MONTHS_RU_GENITIVE,
+  useSelectedPeriodOptional,
+} from '../common';
 import { Keypad } from './Keypad';
 import { AccountPickerSheet } from './AccountPickerSheet';
 import {
@@ -53,6 +51,9 @@ import {
   parseAmountToCents,
   ctaState,
   defaultDateForChip,
+  defaultDateForPeriod,
+  periodDateInputBounds,
+  findPeriodForDate,
   type AddSheetDateChip,
   type AddSheetCtaState,
 } from './computeAddSheet';
@@ -71,6 +72,28 @@ function formatShortDate(d: Date): string {
   const day = d.getDate();
   const month = MONTHS_RU_GENITIVE[d.getMonth()].toUpperCase();
   return `${day} ${month}`;
+}
+
+/** Russian nominative months for the scoped-period caption («Май 2026»). */
+const MONTHS_RU_NOMINATIVE = [
+  'Январь',
+  'Февраль',
+  'Март',
+  'Апрель',
+  'Май',
+  'Июнь',
+  'Июль',
+  'Август',
+  'Сентябрь',
+  'Октябрь',
+  'Ноябрь',
+  'Декабрь',
+] as const;
+
+/** «Май 2026» from a period_start ISO date (local-midnight parse). */
+function formatPeriodScope(periodStartIso: string): string {
+  const [y, m] = periodStartIso.split('-').map(Number);
+  return `${MONTHS_RU_NOMINATIVE[m - 1]} ${y}`;
 }
 
 /** Display `amountString` (e.g. "5.50") on the BigFig. The BigFig component
@@ -156,6 +179,43 @@ export function AddSheet({ onSubmitted, onClose }: AddSheetProps) {
   const today = useMemo(() => new Date(), []);
   const dateInputRef = useRef<HTMLInputElement | null>(null);
 
+  // Phase P2 (period switching): the period the user is VIEWING. Null when the
+  // AddSheet renders without the provider (unit tests) — then the legacy date
+  // chips (Сегодня / Вчера / Своя дата) behave exactly as before.
+  const sel = useSelectedPeriodOptional();
+  const selectedPeriodId = sel?.selectedPeriodId ?? null;
+  const viewedPeriod = useMemo(
+    () => sel?.periods.find((p) => p.id === selectedPeriodId) ?? null,
+    [sel, selectedPeriodId],
+  );
+  // A non-active viewed period means the entry must be back-dated into it.
+  const isScopedPeriod =
+    viewedPeriod != null && viewedPeriod.status !== 'active';
+
+  // When opened while viewing a PAST/closed period, default the date INTO that
+  // period (clamped) and switch the chip UI to the explicit custom date so the
+  // user sees exactly where the entry lands. Runs when the viewed period or its
+  // scoped-ness changes (e.g. user switches period, then opens the sheet).
+  useEffect(() => {
+    if (isScopedPeriod && viewedPeriod) {
+      setDateChip('custom');
+      setCustomDate(defaultDateForPeriod(viewedPeriod, today));
+    }
+    // We intentionally do NOT reset to 'today' for the active period here —
+    // that is already the initial state and resetting would fight the user's
+    // own chip choices during an open session.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isScopedPeriod, viewedPeriod?.id]);
+
+  // Date input bounds — constrain «Своя дата» to the viewed period when scoped.
+  const dateBounds = useMemo(
+    () =>
+      isScopedPeriod && viewedPeriod
+        ? periodDateInputBounds(viewedPeriod, today)
+        : null,
+    [isScopedPeriod, viewedPeriod, today],
+  );
+
   // ── Initial parallel fetch ───────────────────────────────────────
   useEffect(() => {
     let cancelled = false;
@@ -197,10 +257,7 @@ export function AddSheet({ onSubmitted, onClose }: AddSheetProps) {
 
   // ADD-V10-04: filter out savings + paused.
   const visibleCategories = useMemo(
-    () =>
-      categories.filter(
-        (c) => c.code !== 'savings' && c.paused !== true,
-      ),
+    () => categories.filter((c) => c.code !== 'savings' && c.paused !== true),
     [categories],
   );
 
@@ -245,9 +302,7 @@ export function AddSheet({ onSubmitted, onClose }: AddSheetProps) {
     setSubmitError(null);
     const tx_date =
       dateChip === 'custom'
-        ? customDate ||
-          defaultDateForChip('today', today) ||
-          ''
+        ? customDate || defaultDateForChip('today', today) || ''
         : (defaultDateForChip(dateChip, today) ?? '');
     try {
       const res = await createActualV10({
@@ -258,6 +313,22 @@ export function AddSheet({ onSubmitted, onClose }: AddSheetProps) {
         tx_date,
         account_id: accountId,
       });
+      // Phase P2 (period switching): if the entry landed OUTSIDE the viewed
+      // period, switch the provider's selection to the tx's period so the user
+      // sees their new fact (the backend auto-creates a closed past period for
+      // back-dated facts). We reload the list first so a freshly-created period
+      // is present, then resolve + select it; fall back to selecting whatever
+      // period now covers the date.
+      if (sel && tx_date) {
+        const inViewed =
+          viewedPeriod != null &&
+          findPeriodForDate([viewedPeriod], tx_date) !== null;
+        if (!inViewed) {
+          sel.reload();
+          const target = findPeriodForDate(sel.periods, tx_date);
+          if (target) sel.setSelectedPeriodId(target.id);
+        }
+      }
       onSubmitted(res.id);
     } catch (err) {
       setSubmitError(
@@ -331,7 +402,11 @@ export function AddSheet({ onSubmitted, onClose }: AddSheetProps) {
         <Eyebrow color="var(--poster-paper)" opacity={0.55}>
           Когда
         </Eyebrow>
-        <div className={styles.dateChips} role="group" aria-label="Дата операции">
+        <div
+          className={styles.dateChips}
+          role="group"
+          aria-label="Дата операции"
+        >
           <Chip
             active={dateChip === 'today'}
             onClick={() => setDateChip('today')}
@@ -344,10 +419,7 @@ export function AddSheet({ onSubmitted, onClose }: AddSheetProps) {
           >
             Вчера
           </Chip>
-          <Chip
-            active={dateChip === 'custom'}
-            onClick={onPickCustomDate}
-          >
+          <Chip active={dateChip === 'custom'} onClick={onPickCustomDate}>
             {dateChip === 'custom' && customDate ? customDate : 'Своя дата'}
           </Chip>
           <input
@@ -356,10 +428,25 @@ export function AddSheet({ onSubmitted, onClose }: AddSheetProps) {
             className={styles.hiddenDateInput}
             value={customDate}
             onChange={onChangeCustomDate}
+            // Phase P2 (period switching): constrain the picker to the viewed
+            // period when it is a closed/past period, so the entry can only land
+            // inside it.
+            min={dateBounds?.min}
+            max={dateBounds?.max}
             aria-hidden="true"
             tabIndex={-1}
           />
         </div>
+        {/* Phase P2 (period switching): when adding into a CLOSED past period,
+         * make it explicit which period the entry lands in (near the date UI). */}
+        {isScopedPeriod && viewedPeriod && (
+          <div
+            className={styles.periodScopeHint}
+            data-testid="add-sheet-period-scope"
+          >
+            {`Запись в период · ${formatPeriodScope(viewedPeriod.period_start)}`}
+          </div>
+        )}
       </div>
 
       {/* Category chip-scroll */}
@@ -414,9 +501,7 @@ export function AddSheet({ onSubmitted, onClose }: AddSheetProps) {
       {/* Keypad (LAST input section per prototype) */}
       <div className={styles.keypadBlock}>
         <Keypad
-          onAppendDigit={(d) =>
-            setAmountString((cur) => appendDigit(cur, d))
-          }
+          onAppendDigit={(d) => setAmountString((cur) => appendDigit(cur, d))}
           onAppendDot={() => setAmountString((cur) => appendDot(cur))}
           onBackspace={() => setAmountString((cur) => backspace(cur))}
         />

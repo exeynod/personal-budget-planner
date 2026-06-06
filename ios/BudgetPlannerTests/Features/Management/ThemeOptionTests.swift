@@ -1,17 +1,19 @@
-// Phase 66 Plan 01 (RED→GREEN), Phase 71 (theme cull) — unit specs для
-// ThemeOption pure helper (Foundation-only, no SwiftUI runtime).
+// Phase 66 Plan 01 (RED→GREEN), Phase 4 (Liquid Glass restore, 2026-06) — unit
+// specs для ThemeOption pure helper (Foundation-only, no SwiftUI runtime).
 //
-// Phase 71: ровно 2 опции — maximal_poster + v06 sentinel. Stale persisted
-// "liquid_glass"/"ios_default" raw'ы безопасно резолвятся в .maximalPoster.
+// Phase 4: Liquid Glass restored. Two V10 themes (maximal_poster / liquid_glass)
+// + v06 sentinel. Stale persisted "ios_default" raw безопасно резолвится в
+// .maximalPoster; "liquid_glass" теперь снова резолвится в .liquidGlass.
 //
 // Покрывает каждый <behavior> путь:
-//   - selected(forRaw:) для maximal_poster
+//   - selected(forRaw:) для maximal_poster / liquid_glass
 //   - "v06" → .legacyV06
-//   - stale liquid_glass/ios_default/неизвестный/пустой raw → .maximalPoster
-//   - rawValue(for:) для обеих опций
+//   - stale ios_default/неизвестный/пустой raw → .maximalPoster
+//   - liquid_glass round-trips to .liquidGlass
+//   - rawValue(for:) для всех опций
 //   - round-trip option ↔ rawValue по allOptions
-//   - allOptions = [.maximalPoster, .legacyV06]
-//   - Theme.allCases == [.maximalPoster]
+//   - allOptions = [.maximalPoster, .liquidGlass, .legacyV06]
+//   - Theme.allCases == [.maximalPoster, .liquidGlass]
 //   - ruLabel (legacyV06 + паритет с Theme.ruLabel)
 
 import XCTest
@@ -20,10 +22,15 @@ import XCTest
 
 final class ThemeOptionTests: XCTestCase {
 
-    // MARK: - Theme enum (Phase 71)
+    // MARK: - Theme enum (Phase 4 — Liquid Glass restored)
 
-    func testThemeAllCasesIsMaximalPosterOnly() {
-        XCTAssertEqual(Theme.allCases, [.maximalPoster])
+    func testThemeAllCasesAreMaximalPosterAndLiquidGlass() {
+        XCTAssertEqual(Theme.allCases, [.maximalPoster, .liquidGlass])
+    }
+
+    func testThemeRawValueRoundTripForLiquidGlass() {
+        XCTAssertEqual(Theme(rawValue: "liquid_glass"), .liquidGlass)
+        XCTAssertEqual(Theme.liquidGlass.rawValue, "liquid_glass")
     }
 
     // MARK: - selected(forRaw:)
@@ -32,12 +39,12 @@ final class ThemeOptionTests: XCTestCase {
         XCTAssertEqual(ThemeOption.selected(forRaw: "maximal_poster"), .maximalPoster)
     }
 
-    func testSelectedResolvesLegacyV06() {
-        XCTAssertEqual(ThemeOption.selected(forRaw: "v06"), .legacyV06)
+    func testSelectedResolvesLiquidGlass() {
+        XCTAssertEqual(ThemeOption.selected(forRaw: "liquid_glass"), .liquidGlass)
     }
 
-    func testSelectedStaleLiquidGlassFallsBackToMaximalPoster() {
-        XCTAssertEqual(ThemeOption.selected(forRaw: "liquid_glass"), .maximalPoster)
+    func testSelectedResolvesLegacyV06() {
+        XCTAssertEqual(ThemeOption.selected(forRaw: "v06"), .legacyV06)
     }
 
     func testSelectedStaleIosDefaultFallsBackToMaximalPoster() {
@@ -52,10 +59,13 @@ final class ThemeOptionTests: XCTestCase {
         XCTAssertEqual(ThemeOption.selected(forRaw: ""), .maximalPoster)
     }
 
-    // MARK: - Theme.resolve stale raw safety (Phase 71)
+    // MARK: - Theme.resolve raw safety (Phase 4)
+
+    func testThemeResolveLiquidGlassRaw() {
+        XCTAssertEqual(Theme.resolve("liquid_glass"), .liquidGlass)
+    }
 
     func testThemeResolveStaleRawsMapToMaximalPoster() {
-        XCTAssertEqual(Theme.resolve("liquid_glass"), .maximalPoster)
         XCTAssertEqual(Theme.resolve("ios_default"), .maximalPoster)
         XCTAssertEqual(Theme.resolve("anything"), .maximalPoster)
     }
@@ -64,6 +74,10 @@ final class ThemeOptionTests: XCTestCase {
 
     func testRawValueForMaximalPoster() {
         XCTAssertEqual(ThemeOption.rawValue(for: .maximalPoster), "maximal_poster")
+    }
+
+    func testRawValueForLiquidGlass() {
+        XCTAssertEqual(ThemeOption.rawValue(for: .liquidGlass), "liquid_glass")
     }
 
     func testRawValueForLegacyV06() {
@@ -88,7 +102,7 @@ final class ThemeOptionTests: XCTestCase {
     func testAllOptionsOrder() {
         XCTAssertEqual(
             ThemeOption.allOptions,
-            [.maximalPoster, .legacyV06]
+            [.maximalPoster, .liquidGlass, .legacyV06]
         )
     }
 
@@ -100,5 +114,9 @@ final class ThemeOptionTests: XCTestCase {
 
     func testRuLabelMirrorsThemeForMaximalPoster() {
         XCTAssertEqual(ThemeOption.maximalPoster.ruLabel, Theme.maximalPoster.ruLabel)
+    }
+
+    func testRuLabelMirrorsThemeForLiquidGlass() {
+        XCTAssertEqual(ThemeOption.liquidGlass.ruLabel, Theme.liquidGlass.ruLabel)
     }
 }

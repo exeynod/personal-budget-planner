@@ -16,6 +16,8 @@
 
 import type { CSSProperties } from 'react';
 import { BigFig, Eyebrow, Mass } from '../../componentsV10';
+import { PeriodSwitcher } from '../common';
+import type { PeriodRead } from '../../api/types';
 import { formatRubles } from '../Onboarding/format';
 import type { CategoryAggregateRow } from './computeHomeData';
 import { homeColorCssValue, type HomeColor } from './useHomeColor';
@@ -61,6 +63,16 @@ export interface HomeViewProps {
    * HomeMount reads the value via `useHomeColor()` and passes it down.
    */
   homeColor?: HomeColor;
+
+  /**
+   * Phase P2 (period switching): all periods (newest-first) + the viewed id
+   * + a switch handler. The PeriodSwitcher pill renders in the header ONLY
+   * when there are ≥2 periods and a non-null selection + handler — so the
+   * default single-period current view (and the snapshot tests) are unchanged.
+   */
+  periods?: PeriodRead[];
+  selectedPeriodId?: number | null;
+  onSelectPeriod?: (id: number) => void;
 }
 
 export function HomeView(props: HomeViewProps) {
@@ -77,7 +89,19 @@ export function HomeView(props: HomeViewProps) {
     onAllOperationsTap,
     bigFigAnimate = true,
     homeColor = 'coral',
+    periods,
+    selectedPeriodId,
+    onSelectPeriod,
   } = props;
+
+  // Phase P2: only show the switcher when there is something to switch between
+  // (≥2 periods) AND a selection + handler are wired. The default current view
+  // (one period, or no provider) renders exactly as before — no extra DOM.
+  const showSwitcher =
+    !!periods &&
+    periods.length >= 2 &&
+    selectedPeriodId != null &&
+    !!onSelectPeriod;
 
   // Phase 30-07 (DEBT-08): expose user-selected background color via inline
   // CSS-var override on the root. HomeView.module.css `.root` reads
@@ -105,6 +129,19 @@ export function HomeView(props: HomeViewProps) {
         <span className={styles.menuLink}>МЕНЮ ↗</span>
       </div>
 
+      {/* Phase P2 (period switching): prev/next pill under the eyebrow. Only
+       * rendered when ≥2 periods exist (guarded by showSwitcher) so the
+       * default single-period current view keeps its exact layout. */}
+      {showSwitcher && (
+        <div className={styles.periodSwitcherRow}>
+          <PeriodSwitcher
+            periods={periods!}
+            selectedId={selectedPeriodId!}
+            onSelect={onSelectPeriod!}
+          />
+        </div>
+      )}
+
       {/* ─────────── hero block ─────────── */}
       <div className={`${styles.heroHeadline} poster-rise-in`}>
         <Mass italic size={28} className={styles.heroHeadlineMass}>
@@ -112,7 +149,10 @@ export function HomeView(props: HomeViewProps) {
         </Mass>
       </div>
 
-      <div className={`${styles.heroBigFig} poster-rise-in`} style={{ animationDelay: '0.06s' }}>
+      <div
+        className={`${styles.heroBigFig} poster-rise-in`}
+        style={{ animationDelay: '0.06s' }}
+      >
         <BigFig
           sup="₽"
           color="var(--poster-paper)"

@@ -1,11 +1,12 @@
 import { lazy, Suspense, useMemo } from 'react';
 import './stylesV10/tokens.css';
+import './stylesV10/responsive.css';
 import './stylesV10/liquid-glass.css';
-import './stylesV10/ios-default.css';
 import './stylesV10/fonts.css';
 import './stylesV10/animations.css';
 import styles from './AppV10.module.css';
 import { V10MainShell } from './screensV10/V10MainShell';
+import { AuthGate } from './screensV10/Auth/AuthGate';
 
 // Lazy-import preview gallery — keeps prod bundle slim when surface !== 'preview'.
 const PreviewApp = lazy(() => import('./preview/PreviewApp'));
@@ -46,7 +47,9 @@ export default function AppV10() {
 
   return (
     <div className={styles.shellRoot} data-theme="v10">
-      <V10MainShell />
+      <AuthGate>
+        <V10MainShell />
+      </AuthGate>
     </div>
   );
 }

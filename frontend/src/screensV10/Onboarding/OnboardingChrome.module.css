@@ -6,7 +6,10 @@
   position: relative;
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
+  /* Phase 3: track the TG stable viewport (falls back to 100dvh in
+     browser/tests, so the no-TG mobile layout is unchanged). The chrome flows
+     inside the centered shell column, so it needs no desktop re-anchoring. */
+  min-height: var(--tg-viewport-stable, 100dvh);
   width: 100%;
   background: var(--poster-coral);
   color: var(--poster-paper);
@@ -131,7 +134,9 @@
   letter-spacing: 0.18em;
   text-transform: uppercase;
   cursor: pointer;
-  transition: transform 150ms ease, opacity 150ms ease;
+  transition:
+    transform 150ms ease,
+    opacity 150ms ease;
 }
 
 .cta:active:not(.ctaDisabled) {

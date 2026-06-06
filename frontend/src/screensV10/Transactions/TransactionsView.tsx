@@ -27,6 +27,8 @@
 
 import { useState, type CSSProperties } from 'react';
 import { Chip, Eyebrow, Mass } from '../../componentsV10';
+import { PeriodSwitcher } from '../common';
+import type { PeriodRead } from '../../api/types';
 import { formatRubles } from '../Onboarding/format';
 import { formatTimeHM } from '../common/format';
 import {
@@ -71,6 +73,16 @@ export interface TransactionsViewProps {
   onRowDelete: (tx: ActualV10Read) => void;
   /** Top-left ← НАЗАД button. */
   onBack: () => void;
+
+  /**
+   * Phase P2 (period switching): all periods (newest-first) + viewed id +
+   * switch handler. The PeriodSwitcher pill renders only when ≥2 periods exist
+   * and a selection + handler are wired — the default single-period view is
+   * unchanged.
+   */
+  periods?: PeriodRead[];
+  selectedPeriodId?: number | null;
+  onSelectPeriod?: (id: number) => void;
 }
 
 // ─────────────────── Chip metadata ───────────────────
@@ -98,7 +110,17 @@ export function TransactionsView(props: TransactionsViewProps) {
     onRowTap,
     onRowDelete,
     onBack,
+    periods,
+    selectedPeriodId,
+    onSelectPeriod,
   } = props;
+
+  // Phase P2: render the switcher only when there is something to switch to.
+  const showSwitcher =
+    !!periods &&
+    periods.length >= 2 &&
+    selectedPeriodId != null &&
+    !!onSelectPeriod;
 
   // Build O(1) lookups for per-row name / account formatting.
   const catById = new Map<number, CategoryV10>();
@@ -112,11 +134,7 @@ export function TransactionsView(props: TransactionsViewProps) {
     <div className={styles.root}>
       {/* ─────────── back link ─────────── */}
       <div className={styles.headerRow}>
-        <button
-          type="button"
-          className={styles.backLink}
-          onClick={onBack}
-        >
+        <button type="button" className={styles.backLink} onClick={onBack}>
           ← НАЗАД
         </button>
       </div>
@@ -141,8 +159,24 @@ export function TransactionsView(props: TransactionsViewProps) {
         </Eyebrow>
       </div>
 
+      {/* Phase P2 (period switching): prev/next pill above the filter chips.
+       * Only rendered when ≥2 periods exist so the default view is unchanged. */}
+      {showSwitcher && (
+        <div className={styles.periodSwitcherRow}>
+          <PeriodSwitcher
+            periods={periods!}
+            selectedId={selectedPeriodId!}
+            onSelect={onSelectPeriod!}
+          />
+        </div>
+      )}
+
       {/* ─────────── chip-bar ─────────── */}
-      <div className={styles.chipBar} role="tablist" aria-label="Фильтр транзакций">
+      <div
+        className={styles.chipBar}
+        role="tablist"
+        aria-label="Фильтр транзакций"
+      >
         {CHIP_LIST.map((chip) => (
           <Chip
             key={chip.id}
@@ -158,39 +192,43 @@ export function TransactionsView(props: TransactionsViewProps) {
       {!hasRows && (
         <div className={styles.emptyWrap} data-testid="tx-empty-state">
           <div className={styles.emptyHeadline}>Реестр пуст —</div>
-          <div className={styles.emptyHint}>добавьте первую трату через FAB</div>
+          <div className={styles.emptyHint}>
+            добавьте первую трату через FAB
+          </div>
         </div>
       )}
 
       {/* ─────────── day groups ─────────── */}
-      {hasRows && dayGroups.map((group, dayGroupIdx) => (
-        <div key={group.dateKey} className={styles.dayGroup}>
-          <div className={styles.dayGroupHeader}>
-            <div className={styles.dayLabel}>{group.dateLabel}</div>
-            <div className={styles.daySum}>
-              {`${formatRubles(group.sumCents)} ₽`}
+      {hasRows &&
+        dayGroups.map((group, dayGroupIdx) => (
+          <div key={group.dateKey} className={styles.dayGroup}>
+            <div className={styles.dayGroupHeader}>
+              <div className={styles.dayLabel}>{group.dateLabel}</div>
+              <div className={styles.daySum}>
+                {`${formatRubles(group.sumCents)} ₽`}
+              </div>
             </div>
-          </div>
 
-          {group.rows.map((tx, rowIdx) => {
-            const cat = catById.get(tx.category_id);
-            const acc = tx.account_id != null ? accById.get(tx.account_id) : undefined;
-            // Stagger animation delay; mirrors HomeView pattern.
-            const rowDelay = `${(0.07 + dayGroupIdx * 0.07 + rowIdx * 0.045).toFixed(3)}s`;
-            return (
-              <TxRow
-                key={tx.id}
-                tx={tx}
-                cat={cat}
-                acc={acc}
-                animationDelay={rowDelay}
-                onRowTap={onRowTap}
-                onRowDelete={onRowDelete}
-              />
-            );
-          })}
-        </div>
-      ))}
+            {group.rows.map((tx, rowIdx) => {
+              const cat = catById.get(tx.category_id);
+              const acc =
+                tx.account_id != null ? accById.get(tx.account_id) : undefined;
+              // Stagger animation delay; mirrors HomeView pattern.
+              const rowDelay = `${(0.07 + dayGroupIdx * 0.07 + rowIdx * 0.045).toFixed(3)}s`;
+              return (
+                <TxRow
+                  key={tx.id}
+                  tx={tx}
+                  cat={cat}
+                  acc={acc}
+                  animationDelay={rowDelay}
+                  onRowTap={onRowTap}
+                  onRowDelete={onRowDelete}
+                />
+              );
+            })}
+          </div>
+        ))}
     </div>
   );
 }
@@ -213,7 +251,14 @@ interface TxRowProps {
   onRowDelete: (tx: ActualV10Read) => void;
 }
 
-function TxRow({ tx, cat, acc, animationDelay, onRowTap, onRowDelete }: TxRowProps) {
+function TxRow({
+  tx,
+  cat,
+  acc,
+  animationDelay,
+  onRowTap,
+  onRowDelete,
+}: TxRowProps) {
   const [menuOpen, setMenuOpen] = useState(false);
 
   const tag = tagFor(tx);

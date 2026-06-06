@@ -33,9 +33,15 @@ import {
   type CategoryV10,
 } from '../../api/v10';
 import { getCurrentPeriod } from '../../api/periods';
+import type { PeriodRead } from '../../api/types';
 import { deleteActual } from '../../api/actual';
 import { Eyebrow, PosterButton, Toast } from '../../componentsV10';
-import { PosterSheet, useRefetchToken, usePosterRouter } from '../common';
+import {
+  PosterSheet,
+  useRefetchToken,
+  usePosterRouter,
+  useSelectedPeriodOptional,
+} from '../common';
 import { TransactionsView } from './TransactionsView';
 import {
   applyFilterChip,
@@ -44,12 +50,22 @@ import {
   type TxFilterChip,
 } from './computeTransactions';
 
+// ─────────────────── Helpers ───────────────────
+
+/** Parse a wire DATE (`YYYY-MM-DD`) into a LOCAL-midnight Date. */
+function parseLocalDateTx(iso: string): Date {
+  const [y, m, d] = iso.split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+
 // ─────────────────── State ───────────────────
 
 interface DataPayload {
   accounts: AccountResponse[];
   categories: CategoryV10[];
   actuals: ActualV10Read[];
+  /** Phase P2 (period switching): the viewed period (null = legacy fallback). */
+  period: PeriodRead | null;
 }
 
 type LoadState =
@@ -73,6 +89,15 @@ export function TransactionsMount() {
   // Falls back to `0` outside the provider (unit tests rendering Mount alone).
   const refetchToken = useRefetchToken();
 
+  // Phase P2 (period switching): viewed period from the provider (null when
+  // rendered standalone — unit tests — so we fall back to getCurrentPeriod).
+  const sel = useSelectedPeriodOptional();
+  const selectedPeriodId = sel?.selectedPeriodId ?? null;
+  const selectedPeriod = useMemo(
+    () => sel?.periods.find((p) => p.id === selectedPeriodId) ?? null,
+    [sel, selectedPeriodId],
+  );
+
   // ─────────── fetch effect ───────────
   useEffect(() => {
     let cancelled = false;
@@ -80,25 +105,29 @@ export function TransactionsMount() {
 
     async function load() {
       try {
-        const [accounts, categories, period] = await Promise.all([
+        const [accounts, categories] = await Promise.all([
           listAccounts(),
           listCategoriesV10(),
-          // getCurrentPeriod returns null on 404 (no active period yet) —
-          // we propagate other errors.
-          getCurrentPeriod(),
         ]);
+        // With the provider: the viewed period. Without it (standalone unit
+        // tests): legacy getCurrentPeriod() (returns null on 404).
+        const period: PeriodRead | null = sel
+          ? selectedPeriod
+          : await getCurrentPeriod();
         const actuals: ActualV10Read[] = period
           ? await listActualV10(period.id)
           : [];
         if (cancelled) return;
         setState({
           status: 'ready',
-          data: { accounts, categories, actuals },
+          data: { accounts, categories, actuals, period },
         });
       } catch (err) {
         if (cancelled) return;
         const message =
-          err instanceof Error ? err.message : 'Не удалось загрузить транзакции';
+          err instanceof Error
+            ? err.message
+            : 'Не удалось загрузить транзакции';
         setState({ status: 'error', message });
       }
     }
@@ -107,8 +136,9 @@ export function TransactionsMount() {
     return () => {
       cancelled = true;
     };
+    // selectedPeriodId in deps: switching the viewed period re-fetches.
     // refetchToken in deps: external bump (AddSheet submit) re-runs the fetch.
-  }, [reloadToken, refetchToken]);
+  }, [reloadToken, refetchToken, selectedPeriodId, selectedPeriod, sel]);
 
   // Stable today reference for the duration of this render — recreated each
   // render is fine (Date construction is cheap; useMemo would over-engineer).
@@ -117,11 +147,20 @@ export function TransactionsMount() {
   // ─────────── computed view-model ───────────
   const vm = useMemo(() => {
     if (state.status !== 'ready') return null;
-    const { accounts, categories, actuals } = state.data;
+    const { accounts, categories, actuals, period } = state.data;
     const filtered = applyFilterChip(actuals, categories, chip);
-    const dayGroups = groupByDay(filtered, today);
+    // Phase P2: group-by-day reference = the viewed period, not always today.
+    // For the active period `today` lies inside it → «Сегодня»/«Вчера» labels
+    // work as before. For a PAST/closed period today is outside the range, so
+    // we anchor the relative labels to the period_end (its last day) — the
+    // most-recent day of that period reads «Сегодня»-relative correctly.
+    const groupRef =
+      period && period.status !== 'active'
+        ? parseLocalDateTx(period.period_end)
+        : today;
+    const dayGroups = groupByDay(filtered, groupRef);
     const summary = computeHeaderSummary(filtered);
-    return { accounts, categories, dayGroups, summary };
+    return { accounts, categories, dayGroups, summary, period };
   }, [state, chip, today]);
 
   // ─────────── handlers ───────────
@@ -189,6 +228,10 @@ export function TransactionsMount() {
         onRowTap={handleRowTap}
         onRowDelete={handleRowDelete}
         onBack={handleBack}
+        // Phase P2 (period switching): switcher renders only with ≥2 periods.
+        periods={sel?.periods}
+        selectedPeriodId={selectedPeriodId}
+        onSelectPeriod={sel?.setSelectedPeriodId}
       />
       <PosterSheet
         isOpen={editingTx !== null}
@@ -228,7 +271,8 @@ function LoadingPlate() {
       <Eyebrow color="var(--poster-paper)">ЗАГРУЗКА</Eyebrow>
       <div
         style={{
-          fontFamily: 'var(--poster-font-jet-brains-mono), ui-monospace, monospace',
+          fontFamily:
+            'var(--poster-font-jet-brains-mono), ui-monospace, monospace',
           fontSize: 13,
           opacity: 0.7,
           marginTop: 18,
@@ -251,7 +295,8 @@ function ErrorPlate({ message, onRetry }: ErrorPlateProps) {
       <Eyebrow color="var(--poster-paper)">ОШИБКА</Eyebrow>
       <div
         style={{
-          fontFamily: 'var(--poster-font-jet-brains-mono), ui-monospace, monospace',
+          fontFamily:
+            'var(--poster-font-jet-brains-mono), ui-monospace, monospace',
           fontSize: 13,
           opacity: 0.85,
           marginTop: 18,
@@ -307,7 +352,8 @@ function EditPlaceholder({ tx, onClose }: EditPlaceholderProps) {
       </div>
       <div
         style={{
-          fontFamily: 'var(--poster-font-jet-brains-mono), ui-monospace, monospace',
+          fontFamily:
+            'var(--poster-font-jet-brains-mono), ui-monospace, monospace',
           fontSize: 11,
           opacity: 0.7,
           letterSpacing: '0.06em',

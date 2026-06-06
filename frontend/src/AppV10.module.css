@@ -1,8 +1,35 @@
 .shellRoot {
-  min-height: 100vh;
+  /* Phase 3: track TG stable viewport; falls back to 100dvh in browser/tests. */
+  min-height: var(--tg-viewport-stable, 100dvh);
   background: var(--poster-coral);
   color: var(--poster-paper);
   font-family: 'Manrope Variable', 'Manrope', sans-serif;
+  /* Safe-area top/left/right: max(env, TG var) — env covers iOS notch / PWA,
+     the var covers TG fullscreen chrome where env resolves to 0. inset=0 in
+     browser/tests → no padding → mobile layout unchanged. box-sizing keeps the
+     padded root within the viewport. */
+  padding-top: max(env(safe-area-inset-top, 0px), var(--tg-safe-top, 0px));
+  padding-left: max(env(safe-area-inset-left, 0px), var(--tg-safe-left, 0px));
+  padding-right: max(
+    env(safe-area-inset-right, 0px),
+    var(--tg-safe-right, 0px)
+  );
+  box-sizing: border-box;
+}
+
+/* Phase 3: desktop column + neutral letterbox. On viewports wider than a phone
+   the app renders as a centered var(--col-width) (420px) column over a flat
+   neutral letterbox fill — NOT the v06 sunset gradient / phone frame. Fixed /
+   overlay elements (TabBar, sheets, toast) re-anchor to the same column in
+   their own @media rules. */
+@media (min-width: 540px) {
+  .shellRoot {
+    width: var(--col-width);
+    max-width: 100%;
+    /* Center the column; the neutral letterbox is painted on <body>
+       (stylesV10/responsive.css). */
+    margin-inline: auto;
+  }
 }
 
 .placeholder {

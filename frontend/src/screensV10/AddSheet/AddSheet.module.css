@@ -110,6 +110,17 @@
   gap: 6px;
 }
 
+/* Phase P2 (period switching): caption shown when adding into a closed past
+   period — clarifies which period the entry lands in. */
+.periodScopeHint {
+  margin-top: 4px;
+  font-family: var(--poster-font-jet-brains-mono), ui-monospace, monospace;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--poster-yellow);
+  opacity: 0.85;
+}
+
 .hiddenDateInput {
   position: absolute;
   width: 1px;

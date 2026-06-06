@@ -47,10 +47,16 @@ describe('useTheme', () => {
 
   it('applies data-theme attribute on <html>', () => {
     const { result } = renderHook(() => useTheme());
-    act(() => result.current[1]('ios_default'));
+    act(() => result.current[1]('liquid_glass'));
     expect(document.documentElement.getAttribute('data-theme')).toBe(
-      'ios_default',
+      'liquid_glass',
     );
+  });
+
+  it('maps stale ios_default value to default maximal_poster', () => {
+    localStorage.setItem('ui.theme', 'ios_default');
+    const { result } = renderHook(() => useTheme());
+    expect(result.current[0]).toBe('maximal_poster');
   });
 
   it('reads existing localStorage value on mount', () => {
@@ -65,10 +71,10 @@ describe('useTheme', () => {
     expect(result.current[0]).toBe('maximal_poster');
   });
 
-  it('THEMES const has all 3 values', () => {
-    expect(THEMES).toHaveLength(3);
+  it('THEMES const has the 2 supported values', () => {
+    expect(THEMES).toHaveLength(2);
     expect(THEMES).toContain('maximal_poster');
     expect(THEMES).toContain('liquid_glass');
-    expect(THEMES).toContain('ios_default');
+    expect(THEMES).not.toContain('ios_default');
   });
 });

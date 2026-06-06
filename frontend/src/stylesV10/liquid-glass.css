@@ -1,100 +1,227 @@
 /* Liquid Glass theme overrides for V10 screens.
  * Activates when `<html data-theme="liquid_glass">`.
  *
- * Strategy: override `--poster-*` CSS-vars + apply backdrop-filter к surface
- * classes globally. Screens сами unchanged.
+ * Phase 4 (UX refactor, 2026-06): rewritten so Liquid Glass is genuinely
+ * distinct from Maximal Poster — an Apple iOS "Liquid Glass" look: light
+ * system-grey surfaces, frosted translucent material, rounded corners, SF Pro
+ * typography. Maximal Poster is the default `:root` (NO data-theme) and is
+ * NEVER touched here, so its Playwright pixel snapshots stay byte-identical.
+ *
+ * Strategy (no screen module is edited):
+ *   1. Re-map the ACTUAL `--poster-*` CSS-vars the screens consume to iOS
+ *      neutral values (system grey bg, near-black surfaces, SF Pro fonts,
+ *      soft shadows). The earlier version overrode wrong names
+ *      (`--poster-noir`, non-italic `--poster-font-dm-serif`) and so barely
+ *      changed anything — those names are NOT used by screens.
+ *   2. Structural transforms via theme-scoped attribute-substring selectors
+ *      `[class*="..."]` that match hashed CSS-module class names (default Vite
+ *      hashing keeps the source class name as a substring, e.g.
+ *      `_heroBigFig_ab12c`), applying rounded corners + frosted material +
+ *      hairline border + elevation to plates / cards / sheets / rows / pills /
+ *      the tab bar + FAB.
+ *   3. Neutralize the Home client colour (`--color-home`, set inline from
+ *      localStorage `ui.home-color`) so the hero is LG grey, not poster coral.
+ *
+ * Light theme only (kept simple + reliable). `@supports` provides a solid
+ * translucent fallback where `backdrop-filter` is unsupported.
  */
 
-/* Light mode adaptive (default Liquid Glass). */
-[data-theme="liquid_glass"] {
-  /* Background palette → system Light grey-tinted. */
-  --poster-coral:   var(--lg-bg-primary, #f2f2f7);
-  --poster-cobalt:  var(--lg-bg-primary, #f2f2f7);
-  --poster-cream:   var(--lg-bg-primary, #f2f2f7);
-  --poster-paper:   var(--lg-glass-tint-light, rgba(255, 255, 255, 0.72));
-  --poster-noir:    var(--lg-bg-primary, #f2f2f7);
-  --poster-red:     var(--lg-bg-primary, #f2f2f7);
+/* ── 1. Token re-map: the real vars screens use ─────────────────────────── */
+[data-theme='liquid_glass'] {
+  /* iOS system palette. */
+  --lg-bg: #f2f2f7; /* system grouped background */
+  --lg-surface: #ffffff; /* opaque card fallback */
+  --lg-surface-frost: rgba(255, 255, 255, 0.72);
+  --lg-hairline: rgba(60, 60, 67, 0.18);
+  --lg-text: #1c1c1e;
+  --lg-text-on-dark: #f2f2f7;
 
-  /* Text → ink. */
-  --poster-ink:     var(--lg-text-primary, #1c1c1e);
+  /* Backgrounds: every poster "page" colour → system grey. These vars are
+     consumed directly by screen `.root` backgrounds + `--color-home`. */
+  --poster-coral: var(--lg-bg);
+  --poster-cobalt: var(--lg-bg);
+  --poster-cream: var(--lg-bg);
+  --poster-red: var(--lg-bg);
+  /* `--poster-black` is the real "dark surface" token (NOT `--poster-noir`,
+     which no screen uses). Make it a near-black iOS surface so dark plates /
+     tab bar / detail headers read as iOS, not poster black. */
+  --poster-black: #1c1c1e;
+  /* `--poster-paper` is the dominant surface token (260 uses). Frost it. */
+  --poster-paper: var(--lg-surface-frost);
 
-  /* Typography → SF Pro across the board. */
-  --poster-font-archivo-black:  var(--lg-font-display, -apple-system, BlinkMacSystemFont, sans-serif);
-  --poster-font-dm-serif:       var(--lg-font-display, -apple-system, BlinkMacSystemFont, sans-serif);
-  --poster-font-pt-serif:       var(--lg-font-display, -apple-system, BlinkMacSystemFont, sans-serif);
-  --poster-font-manrope:        var(--lg-font-text, -apple-system, BlinkMacSystemFont, sans-serif);
-  --poster-font-jet-brains-mono: var(--lg-font-mono, ui-monospace, SF Mono, monospace);
+  /* Text → iOS ink. */
+  --poster-ink: var(--lg-text);
 
-  /* Yellow accent остаётся (system-yellow approx). */
-  --poster-yellow: #ffcc00;
+  /* Typography → SF Pro / -apple-system. Override the ACTUAL italic display
+     tokens the headings consume (the old file overrode the non-existent
+     non-italic variants). Non-italic SF stack for an iOS title look. */
+  --poster-font-archivo-black:
+    -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
+  --poster-font-dm-serif-italic:
+    -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
+  --poster-font-pt-serif-italic:
+    -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
+  --poster-font-poster-serif-italic:
+    -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
+  --poster-font-manrope:
+    -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
+  --poster-font-jet-brains-mono: ui-monospace, 'SF Mono', Menlo, monospace;
 
-  /* Override font-style: italic — SF Pro NOT italic для display headings. */
+  /* Soft iOS elevation instead of hard poster shadows. */
+  --poster-shadow-tab-bar:
+    0 -0.5px 0 var(--lg-hairline), 0 -8px 24px rgba(0, 0, 0, 0.06);
+  --poster-shadow-fab:
+    0 8px 24px rgba(0, 0, 0, 0.18), 0 2px 6px rgba(0, 0, 0, 0.1);
+  --poster-shadow-thumb: 0 2px 8px rgba(0, 0, 0, 0.1);
+
+  /* Yellow accent → iOS system blue so the FAB / accents read as iOS. */
+  --poster-yellow: #007aff;
+
+  /* The default app body background var, if referenced. */
+  --color-home: var(--lg-bg);
+
+  background: var(--lg-bg);
+  color: var(--lg-text);
+  -webkit-font-smoothing: antialiased;
 }
 
-[data-theme="liquid_glass"] body {
-  background: var(--lg-bg-primary, #f2f2f7);
+[data-theme='liquid_glass'] body {
+  background: var(--lg-bg);
 }
 
-/* Disable italic font-style on display headings (Maximal Poster uses DM Serif Italic — under LG just SF Pro regular). */
-[data-theme="liquid_glass"] .root[class*="Hero"],
-[data-theme="liquid_glass"] [class*="Mass"],
-[data-theme="liquid_glass"] [class*="italic"]:not([class*="not-italic"]) {
+/* Neutralize the Home hero client colour: `--color-home` is pushed inline on
+   the Home `.root` (coral/cobalt/black/cream) — force LG grey + dark ink there.
+   Inline style sets the var, so we override the var at the element + restyle
+   the hero figures to read on a light surface. */
+[data-theme='liquid_glass'] [class*='root'][style*='--color-home'] {
+  --color-home: var(--lg-bg) !important;
+  background: var(--lg-bg) !important;
+  color: var(--lg-text);
+}
+[data-theme='liquid_glass'] [class*='heroHeadline'],
+[data-theme='liquid_glass'] [class*='heroBigFig'],
+[data-theme='liquid_glass'] [class*='heroSubline'] {
+  color: var(--lg-text) !important;
+}
+[data-theme='liquid_glass'] [class*='heroHeadlineMass'] {
+  color: rgba(60, 60, 67, 0.6) !important;
+}
+
+/* ── 2. Typography scale: SF Pro Large-Title feel for hero / eyebrow ─────── */
+/* Strip the poster italic and tighten to an iOS large-title scale where the
+   hero renders. Keep it conservative so layout doesn't break. */
+[data-theme='liquid_glass'] [class*='hero'],
+[data-theme='liquid_glass'] [class*='Hero'],
+[data-theme='liquid_glass'] [class*='Mass'],
+[data-theme='liquid_glass'] [class*='eyebrow'],
+[data-theme='liquid_glass'] [class*='Eyebrow'] {
   font-style: normal !important;
+  letter-spacing: normal !important;
+}
+[data-theme='liquid_glass'] [class*='heroBigFig'] {
   font-weight: 700;
+  letter-spacing: -0.02em !important;
+}
+[data-theme='liquid_glass'] [class*='eyebrow'],
+[data-theme='liquid_glass'] [class*='Eyebrow'] {
+  text-transform: none;
+  font-weight: 600;
 }
 
-/* Surface frosting: V10 plates / cards / sheets get backdrop-filter. */
-[data-theme="liquid_glass"] [class*="plate"],
-[data-theme="liquid_glass"] [class*="Plate"],
-[data-theme="liquid_glass"] [class*="card"],
-[data-theme="liquid_glass"] [class*="Card"]:not([class*="GlassCard"]),
-[data-theme="liquid_glass"] [class*="sheet"],
-[data-theme="liquid_glass"] [class*="Sheet"] {
-  backdrop-filter: var(--lg-material-thin, blur(40px) saturate(180%));
-  -webkit-backdrop-filter: var(--lg-material-thin, blur(40px) saturate(180%));
-  background: var(--lg-glass-tint-light, rgba(255, 255, 255, 0.72)) !important;
-  color: var(--lg-text-primary, #1c1c1e);
+/* ── 3. Structural surfaces: rounded frosted material ────────────────────── */
+/* Plates / cards / sheets / rows / pills get iOS rounded corners + a frosted
+   translucent material + hairline border + soft elevation. The GlassCard
+   component (componentsV10/GlassCard) is excluded so it keeps its own design. */
+[data-theme='liquid_glass'] [class*='plate'],
+[data-theme='liquid_glass'] [class*='Plate'],
+[data-theme='liquid_glass'] [class*='card']:not([class*='GlassCard']),
+[data-theme='liquid_glass'] [class*='Card']:not([class*='GlassCard']),
+[data-theme='liquid_glass'] [class*='goalCard'] {
+  border-radius: 14px !important;
+  background: var(--lg-surface-frost) !important;
+  -webkit-backdrop-filter: blur(30px) saturate(180%);
+  backdrop-filter: blur(30px) saturate(180%);
+  border: 0.5px solid var(--lg-hairline) !important;
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.06),
+    0 0.5px 1px rgba(0, 0, 0, 0.04) !important;
+  color: var(--lg-text);
 }
 
-/* Bottom nav под LG — frosted bar. */
-[data-theme="liquid_glass"] [class*="bottomNav"],
-[data-theme="liquid_glass"] [class*="BottomNav"] {
-  backdrop-filter: var(--lg-material-regular, blur(60px) saturate(180%));
-  -webkit-backdrop-filter: var(--lg-material-regular, blur(60px) saturate(180%));
-  background: var(--lg-glass-tint-light, rgba(255, 255, 255, 0.72)) !important;
-  border-top: 0.5px solid var(--lg-glass-border, rgba(255, 255, 255, 0.18));
+/* Rows: softer rounding + the same light surface so list items read as iOS
+   grouped cells (not poster slabs). */
+[data-theme='liquid_glass'] [class*='Row']:not([class*='Arrow']),
+[data-theme='liquid_glass'] [class*='categoryRow'],
+[data-theme='liquid_glass'] [class*='accountRow'] {
+  border-radius: 10px !important;
 }
 
-/* Dark mode adaptive. */
-@media (prefers-color-scheme: dark) {
-  [data-theme="liquid_glass"] {
-    --lg-bg-primary: #000000;
-    --poster-coral:   #000000;
-    --poster-cobalt:  #000000;
-    --poster-cream:   #1c1c1e;
-    --poster-paper:   var(--lg-glass-tint-dark, rgba(28, 28, 30, 0.72));
-    --poster-noir:    #000000;
-    --poster-red:     #000000;
-    --poster-ink:     #ffffff;
-  }
-  [data-theme="liquid_glass"] body {
-    background: #000000;
-  }
-  [data-theme="liquid_glass"] [class*="plate"],
-  [data-theme="liquid_glass"] [class*="Plate"],
-  [data-theme="liquid_glass"] [class*="card"],
-  [data-theme="liquid_glass"] [class*="Card"]:not([class*="GlassCard"]),
-  [data-theme="liquid_glass"] [class*="sheet"],
-  [data-theme="liquid_glass"] [class*="Sheet"],
-  [data-theme="liquid_glass"] [class*="bottomNav"] {
-    background: var(--lg-glass-tint-dark, rgba(28, 28, 30, 0.72)) !important;
-    color: #ffffff;
+/* Pills / chips → fully rounded iOS capsules. */
+[data-theme='liquid_glass'] [class*='pill'],
+[data-theme='liquid_glass'] [class*='Pill'],
+[data-theme='liquid_glass']
+  [class*='chip']:not([class*='chipRow']):not([class*='chipsRow']):not(
+    [class*='chipArrow']
+  ),
+[data-theme='liquid_glass']
+  [class*='Chip']:not([class*='ChipRow']):not([class*='ChipArrow']) {
+  border-radius: 999px !important;
+}
+
+/* Bottom sheets: large top corner radius + frosted material. */
+[data-theme='liquid_glass'] [class*='sheet'],
+[data-theme='liquid_glass'] [class*='Sheet'] {
+  border-radius: 16px 16px 0 0 !important;
+  background: var(--lg-surface-frost) !important;
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
+  backdrop-filter: blur(40px) saturate(180%);
+  color: var(--lg-text);
+}
+
+/* Tab bar: frosted floating material bar with rounded corners + hairline. */
+[data-theme='liquid_glass'] [class*='tabBar'] {
+  border-radius: 22px !important;
+  background: var(--lg-surface-frost) !important;
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
+  backdrop-filter: blur(40px) saturate(180%);
+  border: 0.5px solid var(--lg-hairline) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1) !important;
+  color: var(--lg-text);
+}
+[data-theme='liquid_glass'] [class*='tabBar'] [class*='label'],
+[data-theme='liquid_glass'] [class*='tabBar'] [class*='glyph'] {
+  color: var(--lg-text);
+}
+
+/* FAB: rounded iOS circular blue button with material shadow. */
+[data-theme='liquid_glass'] [class*='fab'] {
+  border-radius: 50% !important;
+  background: #007aff !important;
+  color: #ffffff !important;
+  box-shadow:
+    0 8px 24px rgba(0, 122, 255, 0.35),
+    0 2px 6px rgba(0, 0, 0, 0.12) !important;
+}
+
+/* ── Graceful fallback where backdrop-filter is unsupported ──────────────── */
+@supports not (
+  (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))
+) {
+  [data-theme='liquid_glass'] [class*='plate'],
+  [data-theme='liquid_glass'] [class*='Plate'],
+  [data-theme='liquid_glass'] [class*='card']:not([class*='GlassCard']),
+  [data-theme='liquid_glass'] [class*='Card']:not([class*='GlassCard']),
+  [data-theme='liquid_glass'] [class*='sheet'],
+  [data-theme='liquid_glass'] [class*='Sheet'],
+  [data-theme='liquid_glass'] [class*='tabBar'] {
+    /* Solid translucent surface (no blur) — still light + rounded. */
+    background: rgba(255, 255, 255, 0.96) !important;
   }
 }
 
 /* prefers-reduced-motion — no animations under LG theme. */
 @media (prefers-reduced-motion: reduce) {
-  [data-theme="liquid_glass"] * {
+  [data-theme='liquid_glass'] * {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;

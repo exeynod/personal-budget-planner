@@ -3,9 +3,17 @@
 .root {
   position: absolute;
   inset: 0;
-  background: var(--poster-ink, #0E0E0E);
-  color: var(--poster-paper, #FFF6E8);
-  padding: 56px 22px 90px;
+  background: var(--poster-ink, #0e0e0e);
+  color: var(--poster-paper, #fff6e8);
+  /* Phase 3: top clears TG fullscreen chrome / iOS notch; bottom clears the
+     device home-indicator. inset=0 in browser/tests → 56px / 90px, identical
+     to the previous values (no mobile pixel shift). scroll-padding-bottom keeps
+     the last row from hiding under the fixed TabBar when scrolled to the end. */
+  padding: calc(
+      56px + max(var(--tg-safe-top, 0px), env(safe-area-inset-top, 0px))
+    )
+    22px calc(90px + env(safe-area-inset-bottom, 0px));
+  scroll-padding-bottom: calc(90px + env(safe-area-inset-bottom, 0px));
   overflow: auto;
   font-family: var(--poster-font-manrope), system-ui, sans-serif;
 }
@@ -25,7 +33,7 @@
   text-transform: uppercase;
   cursor: pointer;
   opacity: 0.7;
-  color: var(--poster-paper, #FFF6E8);
+  color: var(--poster-paper, #fff6e8);
   background: transparent;
   border: none;
   padding: 0;
@@ -37,8 +45,8 @@
 
 .headlineMass {
   margin-top: 6px;
-  color: var(--poster-paper, #FFF6E8);
-  line-height: 1.0;
+  color: var(--poster-paper, #fff6e8);
+  line-height: 1;
 }
 
 .numberedList {
@@ -59,7 +67,7 @@
   gap: 16px;
   align-items: baseline;
   background: transparent;
-  color: var(--poster-paper, #FFF6E8);
+  color: var(--poster-paper, #fff6e8);
   cursor: pointer;
   text-align: left;
   border-left: none;
@@ -84,12 +92,12 @@
   font-size: 16px;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: var(--poster-paper, #FFF6E8);
+  color: var(--poster-paper, #fff6e8);
 }
 
 .rowArrow {
   font-family: var(--poster-font-jet-brains-mono), ui-monospace, monospace;
   font-size: 16px;
   opacity: 0.7;
-  color: var(--poster-paper, #FFF6E8);
+  color: var(--poster-paper, #fff6e8);
 }

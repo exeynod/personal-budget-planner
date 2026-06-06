@@ -2,8 +2,8 @@
 // Settings → row «Тема» posterSheet picker.
 //
 // Symmetric to web `frontend/src/screensV10/Management/ThemePickerSheet.tsx`:
-//   - Vertical list of 2 options: maximalPoster (Theme.allCases) + the v06
-//     sentinel «СТАРЫЙ IOS» row (Phase 71).
+//   - Vertical list of the 2 V10 themes (maximalPoster + liquidGlass,
+//     Theme.allCases) + the v06 sentinel «СТАРЫЙ IOS» row (Phase 4 LG restore).
 //   - Each row: colour swatch (36×36 rounded) + label + description + ✓ marker
 //     на текущем.
 //   - Tap on row → updates @AppStorage("ui.theme") value AND dismisses sheet.
@@ -150,6 +150,7 @@ struct ThemePickerSheet: View {
         let color: Color = {
             switch theme {
             case .maximalPoster: return PosterTokens.Color.coral
+            case .liquidGlass: return LiquidGlassTokens.bgPrimary
             }
         }()
         RoundedRectangle(cornerRadius: 8, style: .continuous)
@@ -164,6 +165,7 @@ struct ThemePickerSheet: View {
     private func themeDescription(_ t: Theme) -> String {
         switch t {
         case .maximalPoster: return "Кораллово-кобальтовая палитра, Archivo Black"
+        case .liquidGlass: return "Apple iOS Liquid Glass: прозрачные слои, SF Pro, материалы"
         }
     }
 }

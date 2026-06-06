@@ -3,9 +3,17 @@
 .root {
   position: absolute;
   inset: 0;
-  background: var(--poster-paper, #FFF6E8);
-  color: var(--poster-ink, #0E0E0E);
-  padding: 56px 22px 90px;
+  background: var(--poster-paper, #fff6e8);
+  color: var(--poster-ink, #0e0e0e);
+  /* Phase 3: top clears TG fullscreen chrome / iOS notch; bottom clears the
+     device home-indicator. inset=0 in browser/tests → 56px / 90px, identical
+     to the previous values (no mobile pixel shift). scroll-padding-bottom keeps
+     the last row from hiding under the fixed TabBar when scrolled to the end. */
+  padding: calc(
+      56px + max(var(--tg-safe-top, 0px), env(safe-area-inset-top, 0px))
+    )
+    22px calc(90px + env(safe-area-inset-bottom, 0px));
+  scroll-padding-bottom: calc(90px + env(safe-area-inset-bottom, 0px));
   overflow: auto;
   font-family: var(--poster-font-manrope), system-ui, sans-serif;
 }
@@ -25,7 +33,7 @@
   text-transform: uppercase;
   cursor: pointer;
   opacity: 0.7;
-  color: var(--poster-ink, #0E0E0E);
+  color: var(--poster-ink, #0e0e0e);
   background: transparent;
   border: none;
   padding: 0;
@@ -37,8 +45,8 @@
 
 .headlineMass {
   margin-top: 6px;
-  color: var(--poster-ink, #0E0E0E);
-  line-height: 1.0;
+  color: var(--poster-ink, #0e0e0e);
+  line-height: 1;
 }
 
 .errorBanner {
@@ -92,7 +100,7 @@
   width: 34px;
   height: 34px;
   background: transparent;
-  color: var(--poster-ink, #0E0E0E);
+  color: var(--poster-ink, #0e0e0e);
   border: 1px solid rgba(0, 0, 0, 0.4);
   border-radius: 6px;
   cursor: pointer;
@@ -108,7 +116,7 @@
   font-weight: 700;
   min-width: 48px;
   text-align: center;
-  color: var(--poster-ink, #0E0E0E);
+  color: var(--poster-ink, #0e0e0e);
 }
 
 .toggleRow {
@@ -120,7 +128,7 @@
 .toggleInput {
   width: 22px;
   height: 22px;
-  accent-color: var(--poster-ink, #0E0E0E);
+  accent-color: var(--poster-ink, #0e0e0e);
   cursor: pointer;
 }
 
@@ -128,7 +136,7 @@
   font-family: var(--poster-font-jet-brains-mono), ui-monospace, monospace;
   font-size: 18px;
   font-weight: 700;
-  color: var(--poster-ink, #0E0E0E);
+  color: var(--poster-ink, #0e0e0e);
 }
 
 /* Phase 30-07 (DEBT-08): Home-color row — same layout as `.row` but rendered
@@ -163,7 +171,7 @@
   font-family: var(--poster-font-jet-brains-mono), ui-monospace, monospace;
   font-size: 11px;
   letter-spacing: 0.14em;
-  color: var(--poster-ink, #0E0E0E);
+  color: var(--poster-ink, #0e0e0e);
   font-weight: 600;
 }
 

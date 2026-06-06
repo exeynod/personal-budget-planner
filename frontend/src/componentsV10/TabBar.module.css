@@ -1,6 +1,8 @@
 .tabBar {
   position: fixed;
-  bottom: 18px;
+  /* Lift above the device home-indicator. inset=0px in browser/tests → 18px,
+     identical to the previous value (no mobile pixel shift). */
+  bottom: calc(18px + env(safe-area-inset-bottom, 0px));
   left: 14px;
   right: 14px;
   display: grid;
@@ -9,6 +11,18 @@
   height: 68px;
   box-shadow: var(--poster-shadow-tab-bar);
   z-index: 200;
+}
+
+/* Phase 3: on desktop the bar is position:fixed against the raw viewport, so
+   re-anchor it to the centered var(--col-width) column (preserving the 14px
+   side gutters). */
+@media (min-width: 540px) {
+  .tabBar {
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
+    width: calc(var(--col-width) - 28px);
+  }
 }
 .light {
   background: var(--poster-paper);
@@ -25,7 +39,9 @@
   height: 2px;
   width: 20%;
   background: var(--poster-ink);
-  transition: left 350ms cubic-bezier(0.32, 0.72, 0, 1), background 200ms;
+  transition:
+    left 350ms cubic-bezier(0.32, 0.72, 0, 1),
+    background 200ms;
 }
 .dark .indicator {
   background: var(--poster-yellow);

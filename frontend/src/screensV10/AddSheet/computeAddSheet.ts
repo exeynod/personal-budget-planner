@@ -107,7 +107,9 @@ export function backspace(current: string): string {
 export function parseAmountToCents(amountString: string): number {
   if (amountString === '') return 0;
   if (!/^\d+(\.\d{0,2})?$/.test(amountString)) {
-    throw new Error(`parseAmountToCents: invalid amount string «${amountString}»`);
+    throw new Error(
+      `parseAmountToCents: invalid amount string «${amountString}»`,
+    );
   }
   const dotIdx = amountString.indexOf('.');
   const intPart = dotIdx === -1 ? amountString : amountString.slice(0, dotIdx);
@@ -178,4 +180,86 @@ export function defaultDateForChip(
   const y = new Date(today);
   y.setDate(y.getDate() - 1);
   return toISODateLocal(y);
+}
+
+// ─────────────────── Period-aware date helpers (Phase P2) ───────────────────
+
+/** Minimal period shape the AddSheet needs (subset of PeriodRead). */
+export interface AddSheetPeriodBounds {
+  id: number;
+  period_start: string; // ISO YYYY-MM-DD
+  period_end: string; // ISO YYYY-MM-DD
+}
+
+/** Parse a wire DATE (`YYYY-MM-DD`) into a LOCAL-midnight Date. */
+function parseISODateLocal(iso: string): Date {
+  const [y, m, d] = iso.split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+
+/**
+ * Phase P2 (period switching): default an entry's date INTO the viewed period.
+ *
+ * Returns the ISO date the AddSheet should pre-fill when opened while viewing
+ * `period`, clamped to `[period_start, min(today, period_end)]`:
+ *   - viewing the ACTIVE period (today within range)  → today
+ *   - viewing a CLOSED past period (today after end)   → period_end (its last day)
+ *   - viewing a FUTURE period (today before start)     → period_start
+ *
+ * This guarantees the pre-filled date always lands inside the viewed period so
+ * the backend attributes the new fact to the period the user is looking at.
+ */
+export function defaultDateForPeriod(
+  period: AddSheetPeriodBounds,
+  today: Date,
+): string {
+  const start = parseISODateLocal(period.period_start);
+  const end = parseISODateLocal(period.period_end);
+  const todayMid = new Date(
+    today.getFullYear(),
+    today.getMonth(),
+    today.getDate(),
+  );
+  // upper bound = min(today, end)
+  const upper = todayMid.getTime() < end.getTime() ? todayMid : end;
+  // clamp(start, upper)
+  const clamped = upper.getTime() < start.getTime() ? start : upper;
+  return toISODateLocal(clamped);
+}
+
+/** Inclusive [min, max] ISO date bounds for the date input when scoped. */
+export function periodDateInputBounds(
+  period: AddSheetPeriodBounds,
+  today: Date,
+): { min: string; max: string } {
+  const end = parseISODateLocal(period.period_end);
+  const todayMid = new Date(
+    today.getFullYear(),
+    today.getMonth(),
+    today.getDate(),
+  );
+  // Never allow a future date beyond today even inside an active period.
+  const max = todayMid.getTime() < end.getTime() ? todayMid : end;
+  return { min: period.period_start, max: toISODateLocal(max) };
+}
+
+/**
+ * Phase P2: find the period an ISO date falls into (inclusive bounds).
+ *
+ * Used after a successful submit to auto-switch the viewed period when the
+ * entry landed outside it. Returns null when no period covers the date (e.g.
+ * the server just auto-created one and the local list is stale — caller then
+ * reloads the provider).
+ */
+export function findPeriodForDate<T extends AddSheetPeriodBounds>(
+  periods: ReadonlyArray<T>,
+  isoDate: string,
+): T | null {
+  const t = parseISODateLocal(isoDate).getTime();
+  for (const p of periods) {
+    const start = parseISODateLocal(p.period_start).getTime();
+    const end = parseISODateLocal(p.period_end).getTime();
+    if (t >= start && t <= end) return p;
+  }
+  return null;
 }

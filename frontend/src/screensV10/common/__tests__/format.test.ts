@@ -9,7 +9,22 @@ import {
   formatTimeHM,
   pluralDays,
   formatPeriodEyebrow,
+  formatPeriodEyebrowFromPeriod,
 } from '../format';
+import type { PeriodRead } from '../../../api/types';
+
+function makePeriod(over: Partial<PeriodRead> = {}): PeriodRead {
+  return {
+    id: 1,
+    period_start: '2026-05-01',
+    period_end: '2026-05-31',
+    starting_balance_cents: 0,
+    ending_balance_cents: null,
+    status: 'closed',
+    closed_at: null,
+    ...over,
+  };
+}
 
 describe('format — constants', () => {
   it('MONTHS_EN has 12 uppercase 3-letter abbreviations starting JAN', () => {
@@ -160,5 +175,45 @@ describe('format — formatPeriodEyebrow', () => {
     expect(formatPeriodEyebrow(d2)).toBe('VOL.17 / MAY 2026 · 2 ДНЯ');
     const d5 = new Date(2026, 4, 27); // 31 - 27 + 1 = 5
     expect(formatPeriodEyebrow(d5)).toBe('VOL.17 / MAY 2026 · 5 ДНЕЙ');
+  });
+});
+
+describe('format — formatPeriodEyebrowFromPeriod (Phase P2)', () => {
+  it('shows MAY (from period_start) when the clock reads June — past period', () => {
+    // The viewed period is May 2026 but "today" is in June → eyebrow must
+    // reflect the PERIOD's month (MAY), not today's, and daysLeft = 0.
+    const may = makePeriod({
+      period_start: '2026-05-01',
+      period_end: '2026-05-31',
+      status: 'closed',
+    });
+    const todayJune = new Date(2026, 5, 6); // 6 June 2026
+    expect(formatPeriodEyebrowFromPeriod(may, todayJune)).toBe(
+      'VOL.17 / MAY 2026 · 0 ДНЕЙ',
+    );
+  });
+
+  it('active period: today inside range → daysLeft = end − today + 1', () => {
+    const may = makePeriod({
+      period_start: '2026-05-01',
+      period_end: '2026-05-31',
+      status: 'active',
+    });
+    const todayMay9 = new Date(2026, 4, 9); // 9 May → 31 - 9 + 1 = 23
+    expect(formatPeriodEyebrowFromPeriod(may, todayMay9)).toBe(
+      'VOL.17 / MAY 2026 · 23 ДНЯ',
+    );
+  });
+
+  it('future period: today before start → full span (inclusive)', () => {
+    const july = makePeriod({
+      period_start: '2026-07-01',
+      period_end: '2026-07-31',
+      status: 'active',
+    });
+    const todayJune = new Date(2026, 5, 6); // before July → 31 days
+    expect(formatPeriodEyebrowFromPeriod(july, todayJune)).toBe(
+      'VOL.19 / JUL 2026 · 31 ДЕНЬ',
+    );
   });
 });

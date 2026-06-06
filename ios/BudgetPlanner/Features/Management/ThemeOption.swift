@@ -2,18 +2,19 @@
 // v06 SettingsView. Foundation-only (НЕ SwiftUI) — резолв/round-trip покрыты
 // unit-тестами.
 //
-// Phase 71 (owner request): сведено к 2 опциям — единственный Theme-кейс
-// maximal_poster (MAXIMAL POSTER) + sentinel `"v06"` (СТАРЫЙ IOS), который не
+// Phase 4 (UX refactor, 2026-06): Liquid Glass restored. Опции = 2 Theme-кейса
+// (maximal_poster / liquid_glass) + sentinel `"v06"` (СТАРЫЙ IOS), который не
 // входит в Theme.allCases, но управляет AppRouter (themeRaw == "v06" →
-// нативный MainShell, иначе → V10MainShell / Maximal Poster).
+// нативный MainShell, иначе → V10MainShell).
 //
-// Зеркалит Theme.resolve: неизвестный raw (вкл. stale "liquid_glass"/
-// "ios_default") → .maximalPoster.
+// Зеркалит Theme.resolve: неизвестный raw (вкл. stale "ios_default") →
+// .maximalPoster.
 
 import Foundation
 
 enum ThemeOption: CaseIterable, Equatable {
     case maximalPoster
+    case liquidGlass
     case legacyV06
 
     /// Sentinel rawValue для нативного v06-шелла (вне Theme.allCases).
@@ -21,15 +22,16 @@ enum ThemeOption: CaseIterable, Equatable {
 
     /// Порядок отображения в picker.
     static var allOptions: [ThemeOption] {
-        [.maximalPoster, .legacyV06]
+        [.maximalPoster, .liquidGlass, .legacyV06]
     }
 
     /// Резолвит сохранённый @AppStorage("ui.theme") raw в опцию.
-    /// "v06" → .legacyV06; любой другой raw → .maximalPoster (mirror Theme.resolve).
+    /// "v06" → .legacyV06; неизвестный raw → .maximalPoster (mirror Theme.resolve).
     static func selected(forRaw raw: String) -> ThemeOption {
         if raw == legacyV06Raw { return .legacyV06 }
         switch Theme.resolve(raw) {
         case .maximalPoster: return .maximalPoster
+        case .liquidGlass: return .liquidGlass
         }
     }
 
@@ -37,6 +39,7 @@ enum ThemeOption: CaseIterable, Equatable {
     static func rawValue(for option: ThemeOption) -> String {
         switch option {
         case .maximalPoster: return Theme.maximalPoster.rawValue
+        case .liquidGlass: return Theme.liquidGlass.rawValue
         case .legacyV06: return legacyV06Raw
         }
     }
@@ -45,6 +48,7 @@ enum ThemeOption: CaseIterable, Equatable {
     var ruLabel: String {
         switch self {
         case .maximalPoster: return Theme.maximalPoster.ruLabel
+        case .liquidGlass: return Theme.liquidGlass.ruLabel
         case .legacyV06: return "СТАРЫЙ IOS"
         }
     }

@@ -50,6 +50,9 @@ import {
   PosterSheet,
   BottomNavV10,
   RefetchTokenProvider,
+  // Phase P2 (period switching): viewed-period context shared by Home /
+  // Transactions / AddSheet so they all read + write the same selection.
+  SelectedPeriodProvider,
   usePosterRouter,
 } from './common';
 import type { TabId } from '../componentsV10';
@@ -73,7 +76,12 @@ interface ShellChromeProps {
   isAddSheetOpen: boolean;
 }
 
-function ShellChrome({ active, onTab, onFab, isAddSheetOpen }: ShellChromeProps) {
+function ShellChrome({
+  active,
+  onTab,
+  onFab,
+  isAddSheetOpen,
+}: ShellChromeProps) {
   const router = usePosterRouter();
 
   const handleTab = (id: TabId) => {
@@ -129,32 +137,38 @@ export function V10MainShell() {
 
   return (
     <>
-      <RefetchTokenProvider value={refetchToken}>
-        <PosterRouterProvider root={<OnboardingMount />}>
-          <ShellChrome
-            active={active}
-            onTab={setActive}
-            onFab={() => setAddSheet(true)}
-            isAddSheetOpen={isAddSheetOpen}
-          />
-        </PosterRouterProvider>
-        <PosterSheet
-          isOpen={isAddSheetOpen}
-          onClose={closeSheet}
-          backgroundColor="#0E0E0E"
-        >
-          <AddSheet
-            onSubmitted={(_id) => {
-              // Phase 30-02 (DEBT-02): close the sheet AND bump refetchToken
-              // so HomeMount / TransactionsMount re-fetch with fresh actuals.
-              // Replaces the Plan 25-10 «refetch deferred to 25-12» note.
-              setAddSheet(false);
-              setRefetchToken((t) => t + 1);
-            }}
+      {/* Phase P2 (period switching): SelectedPeriodProvider wraps BOTH the
+       * router tree (Home / Transactions) AND the AddSheet PosterSheet so all
+       * three read + write the same viewed period. Sits OUTSIDE
+       * RefetchTokenProvider — the two are orthogonal concerns. */}
+      <SelectedPeriodProvider>
+        <RefetchTokenProvider value={refetchToken}>
+          <PosterRouterProvider root={<OnboardingMount />}>
+            <ShellChrome
+              active={active}
+              onTab={setActive}
+              onFab={() => setAddSheet(true)}
+              isAddSheetOpen={isAddSheetOpen}
+            />
+          </PosterRouterProvider>
+          <PosterSheet
+            isOpen={isAddSheetOpen}
             onClose={closeSheet}
-          />
-        </PosterSheet>
-      </RefetchTokenProvider>
+            backgroundColor="#0E0E0E"
+          >
+            <AddSheet
+              onSubmitted={(_id) => {
+                // Phase 30-02 (DEBT-02): close the sheet AND bump refetchToken
+                // so HomeMount / TransactionsMount re-fetch with fresh actuals.
+                // Replaces the Plan 25-10 «refetch deferred to 25-12» note.
+                setAddSheet(false);
+                setRefetchToken((t) => t + 1);
+              }}
+              onClose={closeSheet}
+            />
+          </PosterSheet>
+        </RefetchTokenProvider>
+      </SelectedPeriodProvider>
     </>
   );
 }

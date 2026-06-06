@@ -1,7 +1,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { init } from '@telegram-apps/sdk-react';
-import { setupSafeArea } from './utils/safeArea';
+import { setupSafeArea, expandWebApp } from './utils/safeArea';
 
 // Initialise Telegram SDK (best-effort — tolerate missing/altered API surface
 // or running outside Telegram during browser dev).
@@ -17,6 +17,11 @@ try {
 if (typeof window !== 'undefined' && window.Telegram?.WebApp?.ready) {
   window.Telegram.WebApp.ready();
 }
+
+// Phase 3 (web UX): best-effort expand to the full TG viewport. No-op outside
+// Telegram. Combined with setupSafeArea() below this binds the stable viewport
+// height into --tg-viewport-stable so the AI composer stays above the keyboard.
+expandWebApp();
 
 // Sync TG safe-area insets into CSS vars (--tg-safe-top/etc).
 // .appRoot применяет max(env, var(--tg-safe-*)) — корректно в обычном browser
@@ -42,7 +47,9 @@ const LEGACY_SHELL_KEY = 'ui.theme';
 function readTheme(): Theme {
   // Env wins — controlled by CI/QA/prod build config (see vite-env.d.ts).
   // Env override stays VITE_UI_THEME (documented) to minimise build-config churn.
-  const envTheme = (import.meta.env.VITE_UI_THEME as string | undefined)?.toLowerCase();
+  const envTheme = (
+    import.meta.env.VITE_UI_THEME as string | undefined
+  )?.toLowerCase();
   if (envTheme === 'v06' || envTheme === 'v10') return envTheme;
 
   // localStorage fallback — VALIDATED to prevent tampering (T-67-06-01).
@@ -78,17 +85,16 @@ function readTheme(): Theme {
 // a flash of the default theme. Must run before createRoot(...).render().
 //
 // This reads the THEME key `ui.theme` (vocabulary `maximal_poster`/
-// `liquid_glass`/`ios_default`) — distinct from the SHELL key `ui.shell` read
+// `liquid_glass`) — distinct from the SHELL key `ui.shell` read
 // by readTheme() above (P1-6). Whitelist mirrors `useTheme` hook in
 // screensV10/common/useTheme.ts. After the P1-6 key split, `ui.theme` only ever
 // holds theme values, so shell choice never leaks in here.
 (() => {
   try {
     const raw = localStorage.getItem('ui.theme');
+    // Phase 4: two themes only. Stale `ios_default` / unknown → default.
     const initial =
-      raw === 'maximal_poster' ||
-      raw === 'liquid_glass' ||
-      raw === 'ios_default'
+      raw === 'maximal_poster' || raw === 'liquid_glass'
         ? raw
         : 'maximal_poster';
     document.documentElement.setAttribute('data-theme', initial);

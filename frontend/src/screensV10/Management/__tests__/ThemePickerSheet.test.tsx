@@ -5,7 +5,7 @@ import { ThemePickerSheet } from '../ThemePickerSheet';
 afterEach(cleanup);
 
 describe('ThemePickerSheet', () => {
-  it('renders 3 theme options when open', () => {
+  it('renders 2 theme options when open', () => {
     render(
       <ThemePickerSheet
         isOpen={true}
@@ -16,7 +16,8 @@ describe('ThemePickerSheet', () => {
     );
     expect(screen.getByTestId('theme-maximal_poster')).toBeInTheDocument();
     expect(screen.getByTestId('theme-liquid_glass')).toBeInTheDocument();
-    expect(screen.getByTestId('theme-ios_default')).toBeInTheDocument();
+    expect(screen.queryByTestId('theme-ios_default')).not.toBeInTheDocument();
+    expect(screen.getAllByRole('radio')).toHaveLength(2);
   });
 
   it('marks current theme as aria-checked', () => {

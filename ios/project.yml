@@ -76,9 +76,9 @@ targets:
     scheme:
       environmentVariables:
         # Симулятор: localhost. Real iPhone: твой Mac IP в той же WiFi
-        # (узнать: `ipconfig getifaddr en0`). Перегенерировать xcodeproj
-        # после смены: `cd ios && xcodegen generate`.
-        BACKEND_URL: http://192.168.31.117:8000
+        # (узнать: `ipconfig getifaddr en0`). Real backend (prod): https-домен.
+        # Перегенерировать xcodeproj после смены: `cd ios && xcodegen generate`.
+        BACKEND_URL: https://exypersonal.ru
         DEV_AUTH_AUTOLOGIN: "1"
         DEV_AUTH_SECRET: test-secret-for-curl
       testTargets:

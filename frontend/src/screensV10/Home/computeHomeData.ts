@@ -23,6 +23,7 @@ import type {
   ActualV10Read,
   CategoryV10,
 } from '../../api/v10';
+import type { BalanceCategoryRow } from '../../api/types';
 
 // ─────────────────── Types ───────────────────
 
@@ -192,6 +193,73 @@ export function sortCategoriesForHome(
     if (a.ratio !== b.ratio) return b.ratio - a.ratio;
     return b.plan_cents - a.plan_cents;
   });
+}
+
+// ─────────────────── computeCategoryAggregatesFromBalance ───────────────────
+
+export interface BalanceAggregateInputs {
+  /** `by_category` rows from GET /periods/{id}/balance (period-scoped). */
+  byCategory: ReadonlyArray<BalanceCategoryRow>;
+  /**
+   * Full category list — used only to recover `code` / `ord` (the balance
+   * row carries neither). Categories absent from this map fall back to
+   * `code = null`, `ord = '00'` and are NOT dropped (the period balance is
+   * authoritative for which categories had plan/fact in that period).
+   */
+  categories: ReadonlyArray<CategoryV10>;
+}
+
+/**
+ * Phase P2 (period switching): build HomeView aggregate rows for a PAST /
+ * closed period from its `getPeriodBalance(...).by_category` payload.
+ *
+ * For a past period the live `listCategoriesV10()` plan no longer reflects
+ * what was planned THEN — only the period balance does. We therefore source
+ * `plan_cents` (= row.planned_cents) and `fact_cents` (= row.actual_cents)
+ * from the balance row, and recover `code` / `ord` from the category list
+ * for display + the savings filter.
+ *
+ * Mirrors `computeCategoryAggregates` semantics:
+ *   - expense rows only (income categories are surfaced elsewhere);
+ *   - drop the system 'savings' category (T-25-04-01 parity);
+ *   - ratio / isOver computed identically.
+ */
+export function computeCategoryAggregatesFromBalance(
+  input: BalanceAggregateInputs,
+): CategoryAggregateRow[] {
+  const catById = new Map<number, CategoryV10>();
+  for (const c of input.categories) catById.set(c.id, c);
+
+  const rows: CategoryAggregateRow[] = [];
+  for (const br of input.byCategory) {
+    // Only expense categories drive the Home category bars.
+    if (br.kind !== 'expense') continue;
+    const cat = catById.get(br.category_id);
+    // T-25-04-01 parity: drop the system 'savings' category.
+    if (cat?.code === 'savings') continue;
+
+    const planCents = br.planned_cents;
+    const factCents = br.actual_cents;
+
+    let ratio: number;
+    if (planCents === 0) {
+      ratio = factCents === 0 ? 0 : Infinity;
+    } else {
+      ratio = factCents / planCents;
+    }
+
+    rows.push({
+      id: br.category_id,
+      name: br.name,
+      code: cat?.code ?? null,
+      ord: cat?.ord ?? '00',
+      plan_cents: planCents,
+      fact_cents: factCents,
+      ratio,
+      isOver: factCents > planCents,
+    });
+  }
+  return rows;
 }
 
 // ─────────────────── computePlanTotalCents ───────────────────

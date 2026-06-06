@@ -49,7 +49,7 @@
 .headlineMass {
   margin-top: 6px;
   color: var(--poster-paper);
-  line-height: 1.0;
+  line-height: 1;
 }
 
 /* ───── eyebrow count row (below headline) ───── */
@@ -58,18 +58,29 @@
 }
 
 /* ───── chip-bar ───── */
+/* Phase P2 (period switching): pill row above the filter chips. Only present
+   when the switcher renders (≥2 periods), so the default view is unaffected. */
+.periodSwitcherRow {
+  margin-top: 18px;
+  display: flex;
+}
+
 .chipBar {
   display: flex;
   gap: 8px;
   margin-top: 22px;
   margin-bottom: 18px;
   overflow-x: auto;
-  scrollbar-width: none;     /* Firefox */
+  scrollbar-width: none; /* Firefox */
   -webkit-overflow-scrolling: touch;
   padding-bottom: 4px;
 }
-.chipBar::-webkit-scrollbar { display: none; }
-.chipBar > * { flex-shrink: 0; }
+.chipBar::-webkit-scrollbar {
+  display: none;
+}
+.chipBar > * {
+  flex-shrink: 0;
+}
 
 /* ───── day group ───── */
 .dayGroup {
@@ -89,7 +100,9 @@
    * are NOT defined in stylesV10/tokens.css — they resolved to empty and
    * the chain fell through to literal `'PT Serif'`. Use the canonical
    * `*-italic` tokens that ARE defined (tokens.css lines 28-29). */
-  font-family: var(--poster-font-dm-serif-italic), var(--poster-font-pt-serif-italic), 'PT Serif', 'DM Serif Display', Georgia, serif;
+  font-family:
+    var(--poster-font-dm-serif-italic), var(--poster-font-pt-serif-italic),
+    'PT Serif', 'DM Serif Display', Georgia, serif;
   font-style: italic;
   font-size: 28px;
   color: var(--poster-paper);
@@ -227,7 +240,9 @@
 }
 .emptyHeadline {
   /* Phase 29-04 §2 BLOCKER #3 — see .dayLabel comment above. */
-  font-family: var(--poster-font-dm-serif-italic), var(--poster-font-pt-serif-italic), 'PT Serif', Georgia, serif;
+  font-family:
+    var(--poster-font-dm-serif-italic), var(--poster-font-pt-serif-italic),
+    'PT Serif', Georgia, serif;
   font-style: italic;
   font-size: 36px;
   color: var(--poster-paper);

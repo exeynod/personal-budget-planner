@@ -28,10 +28,16 @@ import {
   type CategoryV10,
   type ActualV10Read,
 } from '../../api/v10';
-import { getCurrentPeriod } from '../../api/periods';
-import type { PeriodRead } from '../../api/types';
+import { getCurrentPeriod, getPeriodBalance } from '../../api/periods';
+import type { BalanceResponse, PeriodRead } from '../../api/types';
 import { Eyebrow, PosterButton } from '../../componentsV10';
-import { formatPeriodEyebrow, useRefetchToken, usePosterRouter } from '../common';
+import {
+  formatPeriodEyebrow,
+  formatPeriodEyebrowFromPeriod,
+  useRefetchToken,
+  usePosterRouter,
+  useSelectedPeriodOptional,
+} from '../common';
 // Phase 27-04 (gap-fix during milestone audit): real AccountsListMount
 // replaces AccountsListPlaceholder for HOME-V10-02 wallet-link tap target.
 import { AccountsListMount } from '../Accounts';
@@ -45,12 +51,24 @@ import { HomeView } from './HomeView';
 import { useHomeColor } from './useHomeColor';
 import {
   computeCategoryAggregates,
+  computeCategoryAggregatesFromBalance,
   computeDailyPace,
   computePlanTotalCents,
   computeSurplus,
   computeWalletTotal,
   sortCategoriesForHome,
 } from './computeHomeData';
+
+// ─────────────────── Helpers ───────────────────
+
+/**
+ * Parse a wire DATE (`YYYY-MM-DD`) into a LOCAL-midnight Date so daysLeft
+ * diffs honour the user's wall clock (mirrors format.ts parseLocalDate).
+ */
+function parseLocalDateLocal(iso: string): Date {
+  const [y, m, d] = iso.split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
 
 // ─────────────────── State ───────────────────
 
@@ -59,6 +77,12 @@ interface DataPayload {
   categories: CategoryV10[];
   period: PeriodRead | null;
   actuals: ActualV10Read[];
+  /**
+   * Phase P2 (period switching): present only when viewing a PAST / closed
+   * period — its category aggregates come from the period balance, not the
+   * live category plan. Null for the active period (existing path).
+   */
+  balance: BalanceResponse | null;
 }
 
 type LoadState =
@@ -81,27 +105,59 @@ export function HomeMount() {
   // Setter is wired up in SettingsMount; here we only read for rendering.
   const [homeColor] = useHomeColor();
 
+  // Phase P2 (period switching): the period the user is VIEWING. Outside the
+  // SelectedPeriodProvider (standalone Mount unit tests) `sel` is null and we
+  // fall back to the legacy getCurrentPeriod() path — current-period output is
+  // identical to pre-P2 behaviour. When the provider IS present we scope every
+  // fetch to `selectedPeriodId`, and a PAST/closed period sources its category
+  // aggregates from getPeriodBalance(...) rather than the live category plan.
+  const sel = useSelectedPeriodOptional();
+  const selectedPeriodId = sel?.selectedPeriodId ?? null;
+  // Resolve the selected period object so the effect can branch active vs past
+  // without an extra fetch. `periods` is newest-first from the provider.
+  const selectedPeriod = useMemo(
+    () => sel?.periods.find((p) => p.id === selectedPeriodId) ?? null,
+    [sel, selectedPeriodId],
+  );
+
   useEffect(() => {
     let cancelled = false;
     setState({ status: 'loading' });
 
     async function load() {
       try {
-        const [accounts, categories, period] = await Promise.all([
+        const [accounts, categories] = await Promise.all([
           listAccounts(),
           listCategoriesV10(),
+        ]);
+
+        // ── Period resolution ──────────────────────────────────────────
+        // With the provider: use the viewed period. Without it (standalone
+        // unit tests): legacy getCurrentPeriod() (returns null on 404).
+        let period: PeriodRead | null;
+        if (sel) {
+          period = selectedPeriod;
+        } else {
           // getCurrentPeriod returns null on 404 (no active period yet) —
           // we propagate other errors.
-          getCurrentPeriod(),
-        ]);
-        // Sequential — needs period.id once it's known.
+          period = await getCurrentPeriod();
+        }
+
+        // The PAST/closed branch sources category aggregates from the period
+        // balance (the live plan no longer reflects what was planned then).
+        // The active period keeps the categories+actuals path (no regression).
+        const isPastView = period != null && period.status !== 'active';
+
         const actuals: ActualV10Read[] = period
           ? await listActualV10(period.id)
           : [];
+        const balance: BalanceResponse | null =
+          isPastView && period ? await getPeriodBalance(period.id) : null;
+
         if (cancelled) return;
         setState({
           status: 'ready',
-          data: { accounts, categories, period, actuals },
+          data: { accounts, categories, period, actuals, balance },
         });
       } catch (err) {
         if (cancelled) return;
@@ -115,8 +171,9 @@ export function HomeMount() {
     return () => {
       cancelled = true;
     };
+    // selectedPeriodId in deps: switching the viewed period re-fetches.
     // refetchToken in deps: external bump (AddSheet submit) re-runs the fetch.
-  }, [reloadToken, refetchToken]);
+  }, [reloadToken, refetchToken, selectedPeriodId, selectedPeriod, sel]);
 
   // ─────────── push handlers (router-bound) ───────────
   const onWalletTap = useCallback(() => {
@@ -139,29 +196,79 @@ export function HomeMount() {
   // ─────────── computed view-model (memoised on state.data) ───────────
   const vm = useMemo(() => {
     if (state.status !== 'ready') return null;
-    const { accounts, categories, period, actuals } = state.data;
+    const { accounts, categories, period, actuals, balance } = state.data;
 
     const today = new Date();
-    const eyebrow = formatPeriodEyebrow(today);
 
-    // daysLeft = lastDayOfMonth - today + 1 (today inclusive). Mirrors
-    // formatPeriodEyebrow's denominator so dailyPace and the eyebrow
-    // counter stay in sync.
-    const lastDayOfMonth = new Date(
-      today.getFullYear(),
-      today.getMonth() + 1,
-      0,
-    ).getDate();
-    const daysLeft = Math.max(1, lastDayOfMonth - today.getDate() + 1);
+    // Phase P2: eyebrow + daysLeft come from the VIEWED period when known so
+    // a closed past period shows its own month. With no period (standalone
+    // test / no active period) we keep the legacy today-derived eyebrow —
+    // current-period rendering is byte-identical to pre-P2.
+    let eyebrow: string;
+    let daysLeft: number;
+    if (period) {
+      eyebrow = formatPeriodEyebrowFromPeriod(period, today);
+      // daysLeft mirrors the eyebrow denominator: active → today inclusive,
+      // past/closed → 0, future → full span. Clamp ≥1 only for the active
+      // dailyPace divisor (a closed period's pace is moot — fact is final).
+      const start = parseLocalDateLocal(period.period_start);
+      const end = parseLocalDateLocal(period.period_end);
+      const todayMid = new Date(
+        today.getFullYear(),
+        today.getMonth(),
+        today.getDate(),
+      );
+      const MS = 24 * 60 * 60 * 1000;
+      if (todayMid.getTime() > end.getTime()) {
+        daysLeft = 0;
+      } else if (todayMid.getTime() < start.getTime()) {
+        daysLeft = Math.round((end.getTime() - start.getTime()) / MS) + 1;
+      } else {
+        daysLeft = Math.round((end.getTime() - todayMid.getTime()) / MS) + 1;
+      }
+    } else {
+      eyebrow = formatPeriodEyebrow(today);
+      const lastDayOfMonth = new Date(
+        today.getFullYear(),
+        today.getMonth() + 1,
+        0,
+      ).getDate();
+      daysLeft = Math.max(1, lastDayOfMonth - today.getDate() + 1);
+    }
 
-    const planTotalCents = computePlanTotalCents(categories);
-    const factTotalExpenseCents = actuals
-      .filter((a) => a.kind === 'expense')
-      .reduce((s, a) => s + a.amount_cents, 0);
+    // ── Category aggregates + plan/fact totals ─────────────────────────
+    // PAST/closed period → balance.by_category (authoritative for that period).
+    // Active / no-provider period → live categories + actuals (no regression).
+    let categoryRows;
+    let planTotalCents: number;
+    let factTotalExpenseCents: number;
+    if (balance) {
+      categoryRows = sortCategoriesForHome(
+        computeCategoryAggregatesFromBalance({
+          byCategory: balance.by_category,
+          categories,
+        }),
+      );
+      planTotalCents = categoryRows.reduce((s, r) => s + r.plan_cents, 0);
+      factTotalExpenseCents = categoryRows.reduce(
+        (s, r) => s + r.fact_cents,
+        0,
+      );
+    } else {
+      planTotalCents = computePlanTotalCents(categories);
+      factTotalExpenseCents = actuals
+        .filter((a) => a.kind === 'expense')
+        .reduce((s, a) => s + a.amount_cents, 0);
+      categoryRows = sortCategoriesForHome(
+        computeCategoryAggregates({ categories, actuals }),
+      );
+    }
 
     const dailyPaceCents = computeDailyPace({
       planTotalCents,
       factTotalExpenseCents,
+      // For a closed period daysLeft is 0; computeDailyPace clamps the divisor
+      // to ≥1 internally so this stays a finite (often 0 once over) value.
       daysLeft,
     });
     const surplusCents = computeSurplus({
@@ -169,9 +276,6 @@ export function HomeMount() {
       factTotalExpenseCents,
     });
     const walletCents = computeWalletTotal(accounts);
-    const categoryRows = sortCategoriesForHome(
-      computeCategoryAggregates({ categories, actuals }),
-    );
 
     return {
       eyebrow,
@@ -235,6 +339,11 @@ export function HomeMount() {
         onCategoryTap={onCategoryTap}
         onAllOperationsTap={onAllOperationsTap}
         homeColor={homeColor}
+        // Phase P2 (period switching): the switcher renders only when the
+        // provider supplied ≥2 periods and a selection (HomeView guards this).
+        periods={sel?.periods}
+        selectedPeriodId={selectedPeriodId}
+        onSelectPeriod={sel?.setSelectedPeriodId}
       />
     </>
   );
@@ -260,7 +369,8 @@ function LoadingPlate() {
       <Eyebrow color="var(--poster-paper)">ЗАГРУЗКА</Eyebrow>
       <div
         style={{
-          fontFamily: 'var(--poster-font-jet-brains-mono), ui-monospace, monospace',
+          fontFamily:
+            'var(--poster-font-jet-brains-mono), ui-monospace, monospace',
           fontSize: 13,
           opacity: 0.7,
           marginTop: 18,
@@ -283,7 +393,8 @@ function ErrorPlate({ message, onRetry }: ErrorPlateProps) {
       <Eyebrow color="var(--poster-paper)">ОШИБКА</Eyebrow>
       <div
         style={{
-          fontFamily: 'var(--poster-font-jet-brains-mono), ui-monospace, monospace',
+          fontFamily:
+            'var(--poster-font-jet-brains-mono), ui-monospace, monospace',
           fontSize: 13,
           opacity: 0.85,
           marginTop: 18,

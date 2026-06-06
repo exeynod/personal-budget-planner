@@ -36,7 +36,21 @@ export {
   formatTimeHM,
   pluralDays,
   formatPeriodEyebrow,
+  // Phase P2 (period switching): eyebrow built from a PeriodRead so a closed
+  // past period shows its own month rather than today's.
+  formatPeriodEyebrowFromPeriod,
 } from './format';
+
+// Phase P2 (period switching): viewed-period context + v10 prev/next pill.
+export {
+  SelectedPeriodProvider,
+  useSelectedPeriod,
+  useSelectedPeriodOptional,
+  type SelectedPeriodAPI,
+  type SelectedPeriodProviderProps,
+} from './SelectedPeriodProvider';
+
+export { PeriodSwitcher, type PeriodSwitcherProps } from './PeriodSwitcher';
 
 // Phase 50-02 (THEME-01): multi-theme runtime selector.
 export {
