@@ -56,8 +56,6 @@ function mkCategory(over: Partial<CategoryV10> = {}): CategoryV10 {
     code: 'food',
     ord: '01',
     plan_cents: 50000,
-    paused: false,
-    rollover: 'misc',
     ...over,
   };
 }
@@ -174,8 +172,18 @@ describe('groupActualsByWeek', () => {
 
   it('skips non-expense kinds', () => {
     const acts = [
-      mkActual({ id: 1, tx_date: '2026-05-01', amount_cents: 100, kind: 'income' }),
-      mkActual({ id: 2, tx_date: '2026-05-01', amount_cents: 50, kind: 'expense' }),
+      mkActual({
+        id: 1,
+        tx_date: '2026-05-01',
+        amount_cents: 100,
+        kind: 'income',
+      }),
+      mkActual({
+        id: 2,
+        tx_date: '2026-05-01',
+        amount_cents: 50,
+        kind: 'expense',
+      }),
     ];
     const out = groupActualsByWeek(acts, '2026-05-01');
     expect(out).toHaveLength(1);
@@ -216,10 +224,16 @@ describe('groupActualsByCategory', () => {
 
   it('skips actuals without category_id', () => {
     const acts = [
-      mkActual({ id: 1, category_id: null as unknown as number, amount_cents: 100 }),
+      mkActual({
+        id: 1,
+        category_id: null as unknown as number,
+        amount_cents: 100,
+      }),
       mkActual({ id: 2, category_id: 1, amount_cents: 200 }),
     ];
-    const out = groupActualsByCategory(acts, [mkCategory({ id: 1, name: 'X' })]);
+    const out = groupActualsByCategory(acts, [
+      mkCategory({ id: 1, name: 'X' }),
+    ]);
     expect(out).toHaveLength(1);
     expect(out[0].sumCents).toBe(200);
   });
@@ -283,15 +297,12 @@ describe('computeKPISaved', () => {
     expect(computeKPISaved(acts, cats)).toEqual({ sumCents: 3000 });
   });
 
-  it('skips system "savings" code and paused categories', () => {
+  it('skips system "savings" code category', () => {
     const cats = [
       mkCategory({ id: 1, code: 'savings', plan_cents: 99999 }),
-      mkCategory({ id: 2, paused: true, plan_cents: 99999 }),
       mkCategory({ id: 3, plan_cents: 1000 }),
     ];
-    const acts = [
-      mkActual({ id: 1, category_id: 3, amount_cents: 100 }),
-    ];
+    const acts = [mkActual({ id: 1, category_id: 3, amount_cents: 100 })];
     expect(computeKPISaved(acts, cats)).toEqual({ sumCents: 900 });
   });
 });

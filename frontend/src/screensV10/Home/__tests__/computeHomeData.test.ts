@@ -4,11 +4,11 @@
 //  - computeDailyPace: floor((plan-fact)/max(1,daysLeft)) clamped to ≥0
 //  - computeSurplus: signed plan-fact
 //  - computeWalletTotal: Σ account.balance_cents (handles negatives)
-//  - computeCategoryAggregates: filters savings + paused; per-row fact = Σ expenses
+//  - computeCategoryAggregates: filters savings; per-row fact = Σ expenses
 //  - sortCategoriesForHome: ratio DESC, plan_cents DESC tie-break
 //
 // Threat coverage:
-//  - T-25-04-01 (info disclosure): savings/paused categories filtered out
+//  - T-25-04-01 (info disclosure): savings category filtered out
 //  - T-25-04-02 (negative daysLeft): denominator guard max(1, daysLeft)
 
 import { describe, it, expect } from 'vitest';
@@ -20,7 +20,11 @@ import {
   sortCategoriesForHome,
   type CategoryAggregateRow,
 } from '../computeHomeData';
-import type { AccountResponse, ActualV10Read, CategoryV10 } from '../../../api/v10';
+import type {
+  AccountResponse,
+  ActualV10Read,
+  CategoryV10,
+} from '../../../api/v10';
 
 // ─────────────────── helpers ───────────────────
 
@@ -48,8 +52,6 @@ function mkCategory(over: Partial<CategoryV10> = {}): CategoryV10 {
     code: 'cafe',
     ord: '01',
     plan_cents: 0,
-    rollover: 'misc',
-    paused: false,
     parent_id: null,
     ...over,
   };
@@ -188,12 +190,12 @@ describe('computeWalletTotal', () => {
 
 describe('computeCategoryAggregates', () => {
   it('returns empty list when categories are empty', () => {
-    expect(
-      computeCategoryAggregates({ categories: [], actuals: [] }),
-    ).toEqual([]);
+    expect(computeCategoryAggregates({ categories: [], actuals: [] })).toEqual(
+      [],
+    );
   });
 
-  it("filters out savings categories (T-25-04-01)", () => {
+  it('filters out savings categories (T-25-04-01)', () => {
     const categories = [
       mkCategory({ id: 1, code: 'cafe', plan_cents: 1000 }),
       mkCategory({ id: 2, code: 'savings', plan_cents: 2000 }),
@@ -202,38 +204,39 @@ describe('computeCategoryAggregates', () => {
     expect(rows.map((r) => r.id)).toEqual([1]);
   });
 
-  it('filters out paused categories (T-25-04-01)', () => {
-    const categories = [
-      mkCategory({ id: 1, code: 'cafe', paused: false }),
-      mkCategory({ id: 2, code: 'transit', paused: true }),
-    ];
-    const rows = computeCategoryAggregates({ categories, actuals: [] });
-    expect(rows.map((r) => r.id)).toEqual([1]);
-  });
-
-  it('returns empty list when ALL categories paused', () => {
-    const categories = [
-      mkCategory({ id: 1, paused: true }),
-      mkCategory({ id: 2, paused: true }),
-    ];
-    expect(
-      computeCategoryAggregates({ categories, actuals: [] }),
-    ).toEqual([]);
-  });
-
   it('aggregates fact_cents per category from expense actuals only', () => {
     const categories = [
       mkCategory({ id: 1, code: 'cafe', plan_cents: 10_000_00 }),
     ];
     const actuals = [
-      mkActual({ id: 100, category_id: 1, kind: 'expense', amount_cents: 1500_00 }),
-      mkActual({ id: 101, category_id: 1, kind: 'expense', amount_cents: 500_00 }),
+      mkActual({
+        id: 100,
+        category_id: 1,
+        kind: 'expense',
+        amount_cents: 1500_00,
+      }),
+      mkActual({
+        id: 101,
+        category_id: 1,
+        kind: 'expense',
+        amount_cents: 500_00,
+      }),
       // roundup must NOT count toward category fact (mirror prototype semantics)
       mkActual({ id: 102, category_id: 1, kind: 'roundup', amount_cents: 50 }),
       // deposit must NOT count
-      mkActual({ id: 103, category_id: 1, kind: 'deposit', amount_cents: 200_00 }),
+      mkActual({
+        id: 103,
+        category_id: 1,
+        kind: 'deposit',
+        amount_cents: 200_00,
+      }),
       // wrong category — must be ignored
-      mkActual({ id: 104, category_id: 2, kind: 'expense', amount_cents: 999_00 }),
+      mkActual({
+        id: 104,
+        category_id: 2,
+        kind: 'expense',
+        amount_cents: 999_00,
+      }),
     ];
     const rows = computeCategoryAggregates({ categories, actuals });
     expect(rows).toHaveLength(1);
@@ -282,12 +285,12 @@ describe('computeCategoryAggregates', () => {
         created_at: '2026-04-01T00:00:00+00:00',
         code: 'cafe',
         ord: '01',
-        // defaulted-optional v1.0 fields (plan_cents/rollover/paused/parent_id/tag)
+        // defaulted-optional v1.0 fields (plan_cents/parent_id/tag)
         // omitted on purpose — exercises the consumer's defensive defaulting.
       },
     ];
     const rows = computeCategoryAggregates({ categories, actuals: [] });
-    // No filter knockout: code missing ≠ 'savings'; paused missing → false (defaults).
+    // No filter knockout: code missing ≠ 'savings'.
     expect(rows).toHaveLength(1);
     expect(rows[0].plan_cents).toBe(0);
   });

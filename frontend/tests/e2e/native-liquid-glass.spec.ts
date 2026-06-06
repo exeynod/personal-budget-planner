@@ -275,12 +275,12 @@ test.describe('Liquid Glass native shell (web)', () => {
   });
 
   // Management-hub detail screens: tab → row → screenshot.
+  // 'Счета' (accounts) and 'Копилка' (savings) rows removed in the v1.1
+  // planning rework — their hub rows + screens no longer exist.
   for (const { row, file } of [
     { row: 'План месяца', file: 'plan' },
-    { row: 'Счета', file: 'accounts' },
     { row: 'Аналитика', file: 'analytics' },
     { row: 'Подписки', file: 'subscriptions' },
-    { row: 'Копилка', file: 'savings' },
     { row: 'Настройки', file: 'settings' },
     { row: 'Доступ', file: 'access' },
   ]) {

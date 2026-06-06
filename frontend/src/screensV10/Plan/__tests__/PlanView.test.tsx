@@ -5,22 +5,20 @@
 //   2. OK plate renders «+ X ₽» tone yellow when surplus ≥ 0; CTA enabled.
 //   3. OVER plate renders «− X ₽» tone red when surplus < 0; CTA disabled +
 //      inline error visible.
-//   4. Rollover plates show «→ ПРОЧЕЕ» / «→ НАКОПЛЕНИЯ» with formatted values.
-//   5. Regulars block renders 1 row per regular; «ПРОВЕСТИ →» when not posted.
-//   6. Click «ПРОВЕСТИ →» calls onPostRegular(subId).
-//   7. Click «ОТМЕНА» calls onUnpostRegular(subId).
-//   8. N PosterSliders rendered for N categories; slider input change calls
+//   4. Regulars block renders 1 row per regular; «ПРОВЕСТИ →» when not posted.
+//   5. Click «ПРОВЕСТИ →» calls onPostRegular(subId).
+//   6. Click «ОТМЕНА» calls onUnpostRegular(subId).
+//   7. N PosterSliders rendered for N categories; slider input change calls
 //      onSliderChange(catId, newCents).
-//   9. Chip-pair clicks call onRolloverChip(catId, next).
-//  10. focusCategoryId — corresponding row receives `.focused` class.
-//  11. ← НАЗАД calls onBack.
+//   8. focusCategoryId — corresponding row receives `.focused` class.
+//   9. ← НАЗАД calls onBack.
 
 import { describe, it, expect, vi, afterEach, beforeAll } from 'vitest';
 import { render, fireEvent, cleanup, within } from '@testing-library/react';
 import { PlanView } from '../PlanView';
 import type { CategoryV10 } from '../../../api/v10';
 import type { PlanMonthItem } from '../../../api/types';
-import type { RegularRow, RolloverAggregates } from '../computePlan';
+import type { RegularRow } from '../computePlan';
 
 afterEach(cleanup);
 
@@ -40,8 +38,6 @@ function mkCat(over: Partial<CategoryV10> = {}): CategoryV10 {
     code: 'food',
     ord: '01',
     plan_cents: 30_000_00,
-    rollover: 'misc',
-    paused: false,
     parent_id: null,
     ...over,
   };
@@ -52,7 +48,6 @@ function makeProps(
 ) {
   const onSliderChange = vi.fn();
   const onSliderCommit = vi.fn();
-  const onRolloverChip = vi.fn();
   const onPostRegular = vi.fn();
   const onUnpostRegular = vi.fn();
   const onSubmit = vi.fn();
@@ -60,15 +55,14 @@ function makeProps(
 
   const incomeCents = 100_000_00;
   const categories: CategoryV10[] = [
-    mkCat({ id: 1, name: 'Продукты', plan_cents: 30_000_00, rollover: 'misc' }),
-    mkCat({ id: 2, name: 'Кафе', plan_cents: 20_000_00, rollover: 'savings' }),
+    mkCat({ id: 1, name: 'Продукты', plan_cents: 30_000_00 }),
+    mkCat({ id: 2, name: 'Кафе', plan_cents: 20_000_00 }),
   ];
   const plans: PlanMonthItem[] = [
     { category_id: 1, plan_cents: 30_000_00 },
     { category_id: 2, plan_cents: 20_000_00 },
   ];
   const regulars: RegularRow[] = [];
-  const aggregates: RolloverAggregates = { miscCents: 0, savingsCents: 0 };
   const surplusCents = 50_000_00;
   const isOverflow = false;
 
@@ -76,7 +70,6 @@ function makeProps(
     spies: {
       onSliderChange,
       onSliderCommit,
-      onRolloverChip,
       onPostRegular,
       onUnpostRegular,
       onSubmit,
@@ -87,7 +80,6 @@ function makeProps(
       categories,
       plans,
       regulars,
-      aggregates,
       surplusCents,
       isOverflow,
       submitting: false,
@@ -95,7 +87,6 @@ function makeProps(
       focusCategoryId: null,
       onSliderChange,
       onSliderCommit,
-      onRolloverChip,
       onPostRegular,
       onUnpostRegular,
       onSubmit,
@@ -115,8 +106,18 @@ describe('PlanView', () => {
     // textContent drops the <br/> so we only check that both PLAN and the
     // current month's genitive form are present.
     const MONTHS_RU_GENITIVE_UPPER = [
-      'ЯНВАРЯ', 'ФЕВРАЛЯ', 'МАРТА', 'АПРЕЛЯ', 'МАЯ', 'ИЮНЯ',
-      'ИЮЛЯ', 'АВГУСТА', 'СЕНТЯБРЯ', 'ОКТЯБРЯ', 'НОЯБРЯ', 'ДЕКАБРЯ',
+      'ЯНВАРЯ',
+      'ФЕВРАЛЯ',
+      'МАРТА',
+      'АПРЕЛЯ',
+      'МАЯ',
+      'ИЮНЯ',
+      'ИЮЛЯ',
+      'АВГУСТА',
+      'СЕНТЯБРЯ',
+      'ОКТЯБРЯ',
+      'НОЯБРЯ',
+      'ДЕКАБРЯ',
     ];
     const month = MONTHS_RU_GENITIVE_UPPER[new Date().getMonth()];
     const { props } = makeProps();
@@ -152,21 +153,6 @@ describe('PlanView', () => {
     expect(getByTestId('plan-save-error').textContent).toContain('превышает');
     const cta = getByText('СОХРАНИТЬ ↵').closest('button');
     expect(cta?.disabled).toBe(true);
-  });
-
-  it('renders 2 rollover aggregate plates with formatted values', () => {
-    const { props } = makeProps({
-      aggregates: { miscCents: 12_500_00, savingsCents: 7_000_00 },
-    });
-    const { getByTestId } = render(<PlanView {...props} />);
-    expect(getByTestId('agg-misc').textContent).toContain('ПРОЧЕЕ');
-    expect(getByTestId('agg-misc').textContent?.replace(/\s+/g, ' ')).toMatch(
-      /12[ ]?500/,
-    );
-    expect(getByTestId('agg-savings').textContent).toContain('НАКОПЛЕНИЯ');
-    expect(getByTestId('agg-savings').textContent?.replace(/\s+/g, ' ')).toMatch(
-      /7[ ]?000/,
-    );
   });
 
   it('renders empty hint when no regulars; renders rows otherwise', () => {
@@ -248,20 +234,6 @@ describe('PlanView', () => {
     // Drag the first slider — vitest-dom + RTL change event should propagate to PosterSlider's handler.
     fireEvent.change(sliders[0], { target: { value: '5000000' } });
     expect(spies.onSliderChange).toHaveBeenCalledWith(1, 5_000_000);
-  });
-
-  it('renders chip-pair per category; clicking «НАКОПЛЕНИЯ» calls onRolloverChip(catId, savings)', () => {
-    const { props, spies } = makeProps();
-    const { getByTestId } = render(<PlanView {...props} />);
-    const row = getByTestId('cat-row-1');
-    const savingsChip = within(row).getByText('НАКОПЛЕНИЯ');
-    fireEvent.click(savingsChip);
-    expect(spies.onRolloverChip).toHaveBeenCalledWith(1, 'savings');
-
-    const row2 = getByTestId('cat-row-2');
-    const miscChip = within(row2).getByText('ПРОЧЕЕ');
-    fireEvent.click(miscChip);
-    expect(spies.onRolloverChip).toHaveBeenCalledWith(2, 'misc');
   });
 
   it('focusCategoryId — applies .focused class to that category row', () => {

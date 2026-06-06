@@ -6,9 +6,7 @@
 //  - Background tone: cobalt when !isOver, red when isOver.
 //  - BigFig shows fact / 100 (with suffix ₽); bigFigAnimate=false for synchronous read.
 //  - Progress bar element exists; tick visible when over-budget.
-//  - Rollover plate label flips by rollover value; click → onToggleRollover.
 //  - «+ ПОДНЯТЬ ЛИМИТ» click → onPushPlan(categoryId).
-//  - «ПАУЗА» / «ВКЛЮЧИТЬ» button label flips by paused; click → onTogglePause.
 //  - Day-grouped operations list renders rows; empty state when no operations.
 //  - ← НАЗАД → onBack.
 //
@@ -34,8 +32,6 @@ function mkCategory(over: Partial<CategoryV10> = {}): CategoryV10 {
     code: 'food',
     ord: '02',
     plan_cents: 10_000_00,
-    rollover: 'misc',
-    paused: false,
     parent_id: null,
     ...over,
   };
@@ -62,8 +58,6 @@ function makeProps(
   propOverrides: Partial<React.ComponentProps<typeof CategoryDetailView>> = {},
 ) {
   const onPushPlan = vi.fn();
-  const onTogglePause = vi.fn();
-  const onToggleRollover = vi.fn();
   const onBack = vi.fn();
 
   const today = new Date(2026, 4, 10); // 10 May 2026
@@ -107,8 +101,6 @@ function makeProps(
       today={today}
       bigFigAnimate={false}
       onPushPlan={onPushPlan}
-      onTogglePause={onTogglePause}
-      onToggleRollover={onToggleRollover}
       onBack={onBack}
       {...propOverrides}
     />,
@@ -116,8 +108,6 @@ function makeProps(
   return {
     ...utils,
     onPushPlan,
-    onTogglePause,
-    onToggleRollover,
     onBack,
     category,
     actuals,
@@ -180,7 +170,9 @@ describe('CategoryDetailView — BigFig fact', () => {
 describe('CategoryDetailView — progress bar', () => {
   it('renders bar fill width based on fact/plan when under-budget', () => {
     const { container } = makeProps();
-    const fill = container.querySelector('[data-testid="cat-bar-fill"]') as HTMLElement;
+    const fill = container.querySelector(
+      '[data-testid="cat-bar-fill"]',
+    ) as HTMLElement;
     expect(fill).not.toBeNull();
     // fillRatio = 2500/10000 = 0.25 → width 25%.
     expect(fill.style.width).toBe('25%');
@@ -189,36 +181,15 @@ describe('CategoryDetailView — progress bar', () => {
   it('renders bar fill width 100% with a tick child when over-budget', () => {
     const category = mkCategory({ plan_cents: 1_000_00 });
     const { container } = makeProps({ category });
-    const fill = container.querySelector('[data-testid="cat-bar-fill"]') as HTMLElement;
-    const tick = container.querySelector('[data-testid="cat-bar-tick"]') as HTMLElement;
+    const fill = container.querySelector(
+      '[data-testid="cat-bar-fill"]',
+    ) as HTMLElement;
+    const tick = container.querySelector(
+      '[data-testid="cat-bar-tick"]',
+    ) as HTMLElement;
     expect(fill).not.toBeNull();
     expect(fill.style.width).toBe('100%');
     expect(tick).not.toBeNull();
-  });
-});
-
-describe('CategoryDetailView — rollover plate', () => {
-  it('renders «ОСТАТОК ПО КАТЕГОРИИ → ПРОЧЕЕ» eyebrow when rollover=misc', () => {
-    // Phase 29-04 §4 BLOCKER #4 — plate now carries the full prototype
-    // eyebrow text «ОСТАТОК ПО КАТЕГОРИИ → {dest}» followed by a mono
-    // money line beneath. Regex tolerates intervening text between
-    // «ОСТАТОК» and «→» so both the old and new shapes pass.
-    const { getByTestId } = makeProps();
-    const plate = getByTestId('rollover-plate');
-    expect(plate.textContent).toMatch(/ОСТАТОК[\s\S]*→\s*ПРОЧЕЕ/);
-  });
-
-  it('renders «ОСТАТОК ПО КАТЕГОРИИ → НАКОПЛЕНИЯ» eyebrow when rollover=savings', () => {
-    const category = mkCategory({ rollover: 'savings' });
-    const { getByTestId } = makeProps({ category });
-    const plate = getByTestId('rollover-plate');
-    expect(plate.textContent).toMatch(/ОСТАТОК[\s\S]*→\s*НАКОПЛЕНИЯ/);
-  });
-
-  it('clicking the rollover plate invokes onToggleRollover', () => {
-    const { getByTestId, onToggleRollover } = makeProps();
-    fireEvent.click(getByTestId('rollover-plate'));
-    expect(onToggleRollover).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -227,19 +198,6 @@ describe('CategoryDetailView — CTA row', () => {
     const { getByText, onPushPlan, category } = makeProps();
     fireEvent.click(getByText(/ПОДНЯТЬ\s+ЛИМИТ/));
     expect(onPushPlan).toHaveBeenCalledWith(category.id);
-  });
-
-  it('«ПАУЗА» click → onTogglePause when paused=false', () => {
-    const { getByText, onTogglePause } = makeProps();
-    fireEvent.click(getByText('ПАУЗА'));
-    expect(onTogglePause).toHaveBeenCalledTimes(1);
-  });
-
-  it('shows «ВКЛЮЧИТЬ» when paused=true (instead of «ПАУЗА»)', () => {
-    const category = mkCategory({ paused: true });
-    const { getByText, onTogglePause } = makeProps({ category });
-    fireEvent.click(getByText('ВКЛЮЧИТЬ'));
-    expect(onTogglePause).toHaveBeenCalledTimes(1);
   });
 });
 

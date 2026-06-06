@@ -162,7 +162,9 @@ test.describe('§14 ТЗ acceptance happy-path', () => {
     });
   });
 
-  test('§14.1-14.6: onboarding → home → AddSheet → PLAN → AI → Savings', async ({
+  // Skipped in the v1.1 planning rework: this flow asserts the removed Savings
+  // («Копилка») tab/screen. Re-enable + rewrite once the new planning UI lands.
+  test.skip('§14.1-14.6: onboarding → home → AddSheet → PLAN → AI → Savings', async ({
     page,
   }) => {
     test.setTimeout(60_000); // §14.1 hard budget

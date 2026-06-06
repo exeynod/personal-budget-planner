@@ -32,7 +32,10 @@
 // before the snapshot to freeze BigFig count-up, FAB pulse, etc.
 
 import { expect, test, type Page } from '@playwright/test';
-import { freezeMotion, installOnboardedFixture } from './fixtures/onboarded-user';
+import {
+  freezeMotion,
+  installOnboardedFixture,
+} from './fixtures/onboarded-user';
 
 // ─────────────────── per-screen setup helpers ───────────────────
 
@@ -90,12 +93,6 @@ async function gotoSubscriptions(page: Page) {
   await freezeMotion(page);
 }
 
-async function gotoSavings(page: Page) {
-  await gotoHome(page);
-  await page.getByRole('tab', { name: /КОПИЛКА/ }).click();
-  await freezeMotion(page);
-}
-
 async function gotoAi(page: Page) {
   await gotoHome(page);
   await page.getByRole('tab', { name: /AI/i }).click();
@@ -114,7 +111,7 @@ const SCREENS: Screen[] = [
   { name: 'category-detail', setup: gotoCategoryDetail },
   { name: 'plan-month', setup: gotoPlanMonth },
   { name: 'subscriptions', setup: gotoSubscriptions },
-  { name: 'savings', setup: gotoSavings },
+  // 'savings' scenario removed in the v1.1 planning rework (Копилка screen gone).
   { name: 'ai-initial', setup: gotoAi },
 ];
 

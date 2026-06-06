@@ -7,12 +7,11 @@ import { describe, it, expect } from 'vitest';
 import {
   computeSurplus,
   computeIsOverflow,
-  computeRolloverAggregates,
   computeRegularsList,
   applyPlanEdit,
   plansFromCategories,
 } from '../computePlan';
-import type { CategoryV10, ActualV10Read } from '../../../api/v10';
+import type { CategoryV10 } from '../../../api/v10';
 import type { SubscriptionV10Read } from '../../../api/v10';
 
 // ─────────── factories ───────────
@@ -28,26 +27,7 @@ function makeCat(over: Partial<CategoryV10>): CategoryV10 {
     code: 'food',
     plan_cents: 0,
     ord: '01',
-    rollover: 'misc',
-    paused: false,
     parent_id: null,
-    ...over,
-  };
-}
-
-function makeActual(over: Partial<ActualV10Read>): ActualV10Read {
-  return {
-    id: 1,
-    period_id: 10,
-    kind: 'expense',
-    amount_cents: 0,
-    description: null,
-    category_id: 1,
-    tx_date: '2026-05-10',
-    source: 'mini_app',
-    created_at: '2026-05-10T12:00:00Z',
-    account_id: null,
-    parent_txn_id: null,
     ...over,
   };
 }
@@ -127,113 +107,6 @@ describe('computeIsOverflow', () => {
   });
 });
 
-// ─────────── computeRolloverAggregates ───────────
-
-describe('computeRolloverAggregates', () => {
-  it('aggregates remainders into misc when rollover=misc', () => {
-    const cats: CategoryV10[] = [
-      makeCat({ id: 1, plan_cents: 100_000, rollover: 'misc' }),
-      makeCat({ id: 2, plan_cents: 50_000, rollover: 'misc' }),
-    ];
-    const plans = [
-      { category_id: 1, plan_cents: 100_000 },
-      { category_id: 2, plan_cents: 50_000 },
-    ];
-    const actuals = [
-      makeActual({ id: 1, category_id: 1, amount_cents: 30_000 }),
-      makeActual({ id: 2, category_id: 2, amount_cents: 10_000 }),
-    ];
-    const out = computeRolloverAggregates(cats, plans, actuals);
-    expect(out.miscCents).toBe(70_000 + 40_000);
-    expect(out.savingsCents).toBe(0);
-  });
-
-  it('aggregates remainders into savings when rollover=savings', () => {
-    const cats: CategoryV10[] = [
-      makeCat({ id: 1, plan_cents: 100_000, rollover: 'savings' }),
-      makeCat({ id: 2, plan_cents: 50_000, rollover: 'savings' }),
-    ];
-    const plans = [
-      { category_id: 1, plan_cents: 100_000 },
-      { category_id: 2, plan_cents: 50_000 },
-    ];
-    const actuals = [
-      makeActual({ id: 1, category_id: 1, amount_cents: 60_000 }),
-      makeActual({ id: 2, category_id: 2, amount_cents: 10_000 }),
-    ];
-    const out = computeRolloverAggregates(cats, plans, actuals);
-    expect(out.savingsCents).toBe(40_000 + 40_000);
-    expect(out.miscCents).toBe(0);
-  });
-
-  it('mixes misc and savings buckets', () => {
-    const cats: CategoryV10[] = [
-      makeCat({ id: 1, plan_cents: 50_000, rollover: 'misc' }),
-      makeCat({ id: 2, plan_cents: 100_000, rollover: 'savings' }),
-    ];
-    const plans = [
-      { category_id: 1, plan_cents: 50_000 },
-      { category_id: 2, plan_cents: 100_000 },
-    ];
-    const actuals = [
-      makeActual({ id: 1, category_id: 1, amount_cents: 20_000 }),
-      makeActual({ id: 2, category_id: 2, amount_cents: 25_000 }),
-    ];
-    const out = computeRolloverAggregates(cats, plans, actuals);
-    expect(out.miscCents).toBe(30_000);
-    expect(out.savingsCents).toBe(75_000);
-  });
-
-  it('skips paused categories', () => {
-    const cats: CategoryV10[] = [
-      makeCat({ id: 1, plan_cents: 100_000, rollover: 'misc', paused: true }),
-    ];
-    const plans = [{ category_id: 1, plan_cents: 100_000 }];
-    const actuals = [
-      makeActual({ id: 1, category_id: 1, amount_cents: 30_000 }),
-    ];
-    const out = computeRolloverAggregates(cats, plans, actuals);
-    expect(out.miscCents).toBe(0);
-    expect(out.savingsCents).toBe(0);
-  });
-
-  it("skips category with code='savings'", () => {
-    const cats: CategoryV10[] = [
-      makeCat({ id: 1, plan_cents: 100_000, rollover: 'savings', code: 'savings' }),
-    ];
-    const plans = [{ category_id: 1, plan_cents: 100_000 }];
-    const actuals: ActualV10Read[] = [];
-    const out = computeRolloverAggregates(cats, plans, actuals);
-    expect(out.miscCents).toBe(0);
-    expect(out.savingsCents).toBe(0);
-  });
-
-  it('contributes 0 when fact >= plan (over-budget cats)', () => {
-    const cats: CategoryV10[] = [
-      makeCat({ id: 1, plan_cents: 50_000, rollover: 'misc' }),
-    ];
-    const plans = [{ category_id: 1, plan_cents: 50_000 }];
-    const actuals = [
-      makeActual({ id: 1, category_id: 1, amount_cents: 60_000 }),
-    ];
-    const out = computeRolloverAggregates(cats, plans, actuals);
-    expect(out.miscCents).toBe(0);
-    expect(out.savingsCents).toBe(0);
-  });
-
-  it('uses category.plan_cents fallback when not in plans array', () => {
-    const cats: CategoryV10[] = [
-      makeCat({ id: 1, plan_cents: 80_000, rollover: 'misc' }),
-    ];
-    const plans: { category_id: number; plan_cents: number }[] = [];
-    const actuals = [
-      makeActual({ id: 1, category_id: 1, amount_cents: 30_000 }),
-    ];
-    const out = computeRolloverAggregates(cats, plans, actuals);
-    expect(out.miscCents).toBe(50_000);
-  });
-});
-
 // ─────────── computeRegularsList ───────────
 
 describe('computeRegularsList', () => {
@@ -275,9 +148,7 @@ describe('computeRegularsList', () => {
       makeSub({ id: 1, category_id: 42, day_of_month: 10 }),
       makeSub({ id: 2, category_id: 99, day_of_month: 15 }),
     ];
-    const cats: CategoryV10[] = [
-      makeCat({ id: 42, name: 'Развлечения' }),
-    ];
+    const cats: CategoryV10[] = [makeCat({ id: 42, name: 'Развлечения' })];
     const out = computeRegularsList(subs, cats);
     expect(out[0].categoryName).toBe('Развлечения');
     expect(out[1].categoryName).toBe('—'); // unknown category falls back
@@ -335,12 +206,14 @@ describe('plansFromCategories', () => {
     const cats: CategoryV10[] = [
       makeCat({ id: 1, plan_cents: 50_000, code: 'food' }),
       makeCat({ id: 2, plan_cents: 30_000, code: 'savings' }),
-      makeCat({ id: 3, plan_cents: 20_000, code: 'cafe', paused: true }),
+      makeCat({ id: 3, plan_cents: 20_000, code: 'cafe' }),
       makeCat({ id: 4, plan_cents: 10_000, code: 'transport' }),
     ];
     const out = plansFromCategories(cats);
+    // Only the system 'savings' category is filtered out.
     expect(out).toEqual([
       { category_id: 1, plan_cents: 50_000 },
+      { category_id: 3, plan_cents: 20_000 },
       { category_id: 4, plan_cents: 10_000 },
     ]);
   });

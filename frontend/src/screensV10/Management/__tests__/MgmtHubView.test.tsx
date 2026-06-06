@@ -10,7 +10,9 @@ import { MgmtHubView, type MgmtRowId } from '../MgmtHubView';
 
 afterEach(cleanup);
 
-function makeProps(overrides: Partial<React.ComponentProps<typeof MgmtHubView>> = {}) {
+function makeProps(
+  overrides: Partial<React.ComponentProps<typeof MgmtHubView>> = {},
+) {
   return {
     isOwner: true,
     onRowTap: vi.fn(),
@@ -34,8 +36,8 @@ describe('MgmtHubView — composition', () => {
   it('renders all 5 numbered rows when isOwner=true', () => {
     render(<MgmtHubView {...makeProps({ isOwner: true })} />);
     expect(screen.getByText(/PLAN МЕСЯЦА/)).toBeInTheDocument();
-    expect(screen.getByText(/СЧЕТА/)).toBeInTheDocument();
     expect(screen.getByText(/АНАЛИТИКА/)).toBeInTheDocument();
+    expect(screen.getByText(/ПОДПИСКИ/)).toBeInTheDocument();
     expect(screen.getByText(/НАСТРОЙКИ/)).toBeInTheDocument();
     expect(screen.getByText(/ДОСТУП/)).toBeInTheDocument();
   });
@@ -43,8 +45,8 @@ describe('MgmtHubView — composition', () => {
   it('renders only 4 rows when isOwner=false (no «ДОСТУП»)', () => {
     render(<MgmtHubView {...makeProps({ isOwner: false })} />);
     expect(screen.getByText(/PLAN МЕСЯЦА/)).toBeInTheDocument();
-    expect(screen.getByText(/СЧЕТА/)).toBeInTheDocument();
     expect(screen.getByText(/АНАЛИТИКА/)).toBeInTheDocument();
+    expect(screen.getByText(/ПОДПИСКИ/)).toBeInTheDocument();
     expect(screen.getByText(/НАСТРОЙКИ/)).toBeInTheDocument();
     expect(screen.queryByText(/ДОСТУП/)).toBeNull();
   });
@@ -65,11 +67,11 @@ describe('MgmtHubView — composition', () => {
     expect(onRowTap).toHaveBeenCalledWith('plan' satisfies MgmtRowId);
   });
 
-  it('row click on «СЧЕТА» calls onRowTap("accounts")', () => {
+  it('row click on «ПОДПИСКИ» calls onRowTap("subscriptions")', () => {
     const onRowTap = vi.fn();
     render(<MgmtHubView {...makeProps({ onRowTap })} />);
-    fireEvent.click(screen.getByText(/СЧЕТА/));
-    expect(onRowTap).toHaveBeenCalledWith('accounts' satisfies MgmtRowId);
+    fireEvent.click(screen.getByText(/ПОДПИСКИ/));
+    expect(onRowTap).toHaveBeenCalledWith('subscriptions' satisfies MgmtRowId);
   });
 
   it('row click on «АНАЛИТИКА» calls onRowTap("analytics")', () => {

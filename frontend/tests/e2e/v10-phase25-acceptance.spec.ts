@@ -157,28 +157,23 @@ test.describe('Phase 25 — Home + Transactions + AddSheet acceptance', () => {
     await expect(page.getByText(/Кафе/)).toBeVisible();
 
     // ─────────── TXN-V10-06 — no Транзакции tab in BottomNav ───────────
-    // The V10 BottomNav has tabs ГЛАВНАЯ / КОПИЛКА / AI / УПР. and a
-    // center FAB — NO «Транзакции» tab. We assert by aria-label:
+    // The V10 BottomNav has tabs ГЛАВНАЯ / AI / УПР. and a
+    // center FAB — NO «Транзакции» tab. (КОПИЛКА tab removed in the v1.1
+    // planning rework.) We assert by aria-label:
     // BottomNavV10 (V10 wrapper) does not set a Транзакции aria-label
     // anywhere — only the FAB's «Добавить транзакцию» label contains the
     // word «транзакц». So we explicitly check the [role="tablist"] subtree
     // for a tab named «Транзакции», which must yield zero matches.
     const tablist = page.locator('[role="tablist"]').first();
     await expect(tablist).toBeVisible();
-    await expect(
-      tablist.getByRole('tab', { name: /Транзакции/i }),
-    ).toHaveCount(0);
+    await expect(tablist.getByRole('tab', { name: /Транзакции/i })).toHaveCount(
+      0,
+    );
     // Belt-and-braces: no tab labelled «Реестр» either.
-    await expect(
-      tablist.getByRole('tab', { name: /Реестр/i }),
-    ).toHaveCount(0);
+    await expect(tablist.getByRole('tab', { name: /Реестр/i })).toHaveCount(0);
     // Required V10 tab labels are present.
-    await expect(
-      tablist.getByRole('tab', { name: /ГЛАВНАЯ/ }),
-    ).toBeVisible();
-    await expect(
-      tablist.getByRole('tab', { name: /КОПИЛКА/ }),
-    ).toBeVisible();
+    await expect(tablist.getByRole('tab', { name: /ГЛАВНАЯ/ })).toBeVisible();
+    await expect(tablist.getByRole('tab', { name: /AI/ })).toBeVisible();
 
     // ─────────── push TransactionsView ───────────
     await page.getByText(/ВСЕ ОПЕРАЦИИ/).click();
