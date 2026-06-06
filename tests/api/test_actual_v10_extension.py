@@ -87,29 +87,19 @@ class TestActualCreateSchema:
                 tx_date=date.today(),
             )
 
-    def test_actual_create_account_id_zero_rejected(self):
+    def test_actual_create_account_id_non_positive_rejected(self):
+        """account_id must be a positive int — both 0 and negatives rejected."""
         from app.api.schemas.actual import ActualCreate
 
-        with pytest.raises(ValidationError):
-            ActualCreate(
-                kind="expense",
-                amount_cents=100,
-                category_id=1,
-                tx_date=date.today(),
-                account_id=0,
-            )
-
-    def test_actual_create_account_id_negative_rejected(self):
-        from app.api.schemas.actual import ActualCreate
-
-        with pytest.raises(ValidationError):
-            ActualCreate(
-                kind="expense",
-                amount_cents=100,
-                category_id=1,
-                tx_date=date.today(),
-                account_id=-1,
-            )
+        for bad in (0, -1):
+            with pytest.raises(ValidationError):
+                ActualCreate(
+                    kind="expense",
+                    amount_cents=100,
+                    category_id=1,
+                    tx_date=date.today(),
+                    account_id=bad,
+                )
 
     def test_actual_create_unknown_field_rejected(self):
         """ConfigDict(extra='forbid') protects against typos and tampering (T-25-01-02)."""
@@ -163,28 +153,6 @@ class TestActualReadSchema:
         assert d["kind"] == "roundup"
         assert d["account_id"] == 42
         assert d["parent_txn_id"] == 99
-
-    def test_actual_read_with_no_account_id(self):
-        from app.api.schemas.actual import ActualRead
-
-        class FakeOrm:
-            id = 1
-            period_id = 10
-            kind = "expense"
-            amount_cents = -100
-            description = "X"
-            category_id = 7
-            tx_date = date.today()
-            source = "mini_app"
-            created_at = datetime.now(timezone.utc)
-            account_id = None
-            parent_txn_id = None
-
-        read = ActualRead.model_validate(FakeOrm())
-        d = read.model_dump()
-        assert d["account_id"] is None
-        assert d["parent_txn_id"] is None
-        assert d["kind"] == "expense"
 
     def test_actual_kind_str_alias_includes_4_values(self):
         from app.api.schemas.actual import ActualKindStr
@@ -516,42 +484,7 @@ async def test_post_actual_kind_deposit_via_v10_path(
     assert r.json()["account_id"] == seed["account_id"]
 
 
-# Test: ActualRead response shape — keys present even when None.
-@pytest.mark.asyncio
-async def test_actual_read_response_shape_includes_v10_fields(
-    db_setup, auth_headers, seeded_with_account_savings_and_categories
-):
-    client, _ = db_setup
-    seed = seeded_with_account_savings_and_categories
-
-    # POST any valid txn (with account_id so we exercise v10 surface).
-    r = await client.post(
-        "/api/v1/actual",
-        json={
-            "kind": "expense",
-            "amount_cents": 100_00,  # aligned — no roundup, but parent still has account_id
-            "category_id": seed["food_cat_id"],
-            "tx_date": str(date.today()),
-            "account_id": seed["account_id"],
-        },
-        headers=auth_headers,
-    )
-    assert r.status_code == 200, r.text
-    body = r.json()
-    # Keys MUST be present (None or value) — UI requires them for
-    # roundup / deposit spec-tag rendering (TXN-V10-04).
-    assert "kind" in body
-    assert "account_id" in body
-    assert "parent_txn_id" in body
-
-    # Same for GET listing.
-    listing = (
-        await client.get(
-            f"/api/v1/periods/{seed['period_id']}/actual", headers=auth_headers
-        )
-    ).json()
-    assert len(listing) >= 1
-    for row in listing:
-        assert "kind" in row
-        assert "account_id" in row
-        assert "parent_txn_id" in row
+# NOTE (prune): test_actual_read_response_shape_includes_v10_fields removed —
+# test_post_actual_with_account_id_triggers_v10_path already asserts the
+# kind/account_id/parent_txn_id keys on both the POST response and the period
+# GET listing, and the ActualRead schema unit test covers the read shape.

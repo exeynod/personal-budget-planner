@@ -32,10 +32,11 @@ or 22.13 (routers); delete-protection in this plan covers only
 ``subscription.account_id`` references. The service code includes a
 ``hasattr`` guard for forward-compat once the column lands.
 """
+
 from __future__ import annotations
 
 import os
-from datetime import date, datetime, timezone
+from datetime import datetime, timezone
 
 import pytest
 import pytest_asyncio
@@ -116,24 +117,9 @@ async def two_users(db_session):
 # ---------- Tests ----------
 
 
-@pytest.mark.asyncio
-async def test_service_module_importable():
-    """Sanity: module imports cleanly with all required symbols."""
-    from app.services import accounts as svc
-
-    for name in (
-        "create_account",
-        "list_accounts",
-        "get_account",
-        "get_or_404",
-        "update_account",
-        "delete_account",
-        "set_primary",
-        "apply_balance_delta",
-        "AccountNotFoundError",
-        "AccountHasTxnsError",
-    ):
-        assert hasattr(svc, name), f"missing symbol: {name}"
+# NOTE (prune): test_service_module_importable removed — every functional test
+# below imports and calls these service symbols directly, so a missing export
+# already fails them.
 
 
 @pytest.mark.asyncio
@@ -158,7 +144,9 @@ async def test_create_account_first_is_auto_primary(db_session, owner_user):
 
 
 @pytest.mark.asyncio
-async def test_create_account_second_with_primary_true_demotes_prior(db_session, owner_user):
+async def test_create_account_second_with_primary_true_demotes_prior(
+    db_session, owner_user
+):
     """Second account with primary=True flips first account to is_primary=False."""
     from app.db.models import Account, AccountKind
     from app.db.session import set_tenant_scope
@@ -166,14 +154,21 @@ async def test_create_account_second_with_primary_true_demotes_prior(db_session,
 
     await set_tenant_scope(db_session, owner_user["id"])
     first = await svc.create_account(
-        db_session, user_id=owner_user["id"],
-        bank="Т-Банк", kind=AccountKind.card, balance_cents=0,
+        db_session,
+        user_id=owner_user["id"],
+        bank="Т-Банк",
+        kind=AccountKind.card,
+        balance_cents=0,
     )
     assert first.is_primary is True
 
     second = await svc.create_account(
-        db_session, user_id=owner_user["id"],
-        bank="СБЕР", kind=AccountKind.card, balance_cents=5000, primary=True,
+        db_session,
+        user_id=owner_user["id"],
+        bank="СБЕР",
+        kind=AccountKind.card,
+        balance_cents=5000,
+        primary=True,
     )
     assert second.is_primary is True
 
@@ -183,15 +178,19 @@ async def test_create_account_second_with_primary_true_demotes_prior(db_session,
 
     # Verify exactly one primary remains.
     from sqlalchemy import func, select
+
     primary_count = await db_session.scalar(
-        select(func.count()).select_from(Account)
+        select(func.count())
+        .select_from(Account)
         .where(Account.user_id == owner_user["id"], Account.is_primary.is_(True))
     )
     assert primary_count == 1
 
 
 @pytest.mark.asyncio
-async def test_create_account_second_with_primary_false_keeps_prior(db_session, owner_user):
+async def test_create_account_second_with_primary_false_keeps_prior(
+    db_session, owner_user
+):
     """Second account with primary=False does NOT demote first."""
     from app.db.models import AccountKind
     from app.db.session import set_tenant_scope
@@ -199,12 +198,19 @@ async def test_create_account_second_with_primary_false_keeps_prior(db_session, 
 
     await set_tenant_scope(db_session, owner_user["id"])
     first = await svc.create_account(
-        db_session, user_id=owner_user["id"],
-        bank="Т-Банк", kind=AccountKind.card, balance_cents=0,
+        db_session,
+        user_id=owner_user["id"],
+        bank="Т-Банк",
+        kind=AccountKind.card,
+        balance_cents=0,
     )
     second = await svc.create_account(
-        db_session, user_id=owner_user["id"],
-        bank="Наличные", kind=AccountKind.cash, balance_cents=300, primary=False,
+        db_session,
+        user_id=owner_user["id"],
+        bank="Наличные",
+        kind=AccountKind.cash,
+        balance_cents=300,
+        primary=False,
     )
     await db_session.refresh(first)
     assert first.is_primary is True
@@ -220,8 +226,11 @@ async def test_apply_balance_delta_updates_in_place(db_session, owner_user):
 
     await set_tenant_scope(db_session, owner_user["id"])
     acct = await svc.create_account(
-        db_session, user_id=owner_user["id"],
-        bank="Т-Банк", kind=AccountKind.card, balance_cents=10000,
+        db_session,
+        user_id=owner_user["id"],
+        bank="Т-Банк",
+        kind=AccountKind.card,
+        balance_cents=10000,
     )
 
     new_balance = await svc.apply_balance_delta(
@@ -264,17 +273,21 @@ async def test_delete_account_with_no_refs_succeeds(db_session, owner_user):
     await set_tenant_scope(db_session, owner_user["id"])
     # Two accounts so the deleted one is non-primary (delete protection refuses sole primary).
     acct1 = await svc.create_account(
-        db_session, user_id=owner_user["id"],
-        bank="Т-Банк", kind=AccountKind.card, balance_cents=0,
+        db_session,
+        user_id=owner_user["id"],
+        bank="Т-Банк",
+        kind=AccountKind.card,
+        balance_cents=0,
     )
     acct2 = await svc.create_account(
-        db_session, user_id=owner_user["id"],
-        bank="Наличные", kind=AccountKind.cash, balance_cents=0,
+        db_session,
+        user_id=owner_user["id"],
+        bank="Наличные",
+        kind=AccountKind.cash,
+        balance_cents=0,
     )
     # acct2 is non-primary (acct1 was first → auto primary). Delete acct2.
-    await svc.delete_account(
-        db_session, account_id=acct2.id, user_id=owner_user["id"]
-    )
+    await svc.delete_account(db_session, account_id=acct2.id, user_id=owner_user["id"])
     with pytest.raises(AccountNotFoundError):
         await svc.get_or_404(db_session, account_id=acct2.id, user_id=owner_user["id"])
 
@@ -303,17 +316,23 @@ async def test_delete_account_with_subscription_blocks(db_session, owner_user):
 
     await set_tenant_scope(db_session, owner_user["id"])
     acct = await svc.create_account(
-        db_session, user_id=owner_user["id"],
-        bank="Т-Банк", kind=AccountKind.card, balance_cents=10000,
+        db_session,
+        user_id=owner_user["id"],
+        bank="Т-Банк",
+        kind=AccountKind.card,
+        balance_cents=10000,
     )
     # Need a category for the subscription FK. Phase 22 added Category.code/ord
     # NOT NULL columns (migration 0013) — supply them explicitly so the
     # service-layer test is decoupled from any onboarding-seed helper.
     cat = await seed_category(
         db_session,
-        user_id=owner_user["id"], name="Подписки",
-        kind=CategoryKind.expense, sort_order=10,
-        code="subs", ord="10",
+        user_id=owner_user["id"],
+        name="Подписки",
+        kind=CategoryKind.expense,
+        sort_order=10,
+        code="subs",
+        ord="10",
     )
     await db_session.flush()
 
@@ -348,12 +367,18 @@ async def test_delete_account_sole_primary_blocked(db_session, owner_user):
 
     await set_tenant_scope(db_session, owner_user["id"])
     primary = await svc.create_account(
-        db_session, user_id=owner_user["id"],
-        bank="Т-Банк", kind=AccountKind.card, balance_cents=0,
+        db_session,
+        user_id=owner_user["id"],
+        bank="Т-Банк",
+        kind=AccountKind.card,
+        balance_cents=0,
     )
     await svc.create_account(
-        db_session, user_id=owner_user["id"],
-        bank="Наличные", kind=AccountKind.cash, balance_cents=0,
+        db_session,
+        user_id=owner_user["id"],
+        bank="Наличные",
+        kind=AccountKind.cash,
+        balance_cents=0,
     )
     # Deleting primary while another non-primary exists → ValueError ("would orphan primary").
     with pytest.raises(ValueError):
@@ -371,12 +396,18 @@ async def test_set_primary_demotes_prior_atomically(db_session, owner_user):
 
     await set_tenant_scope(db_session, owner_user["id"])
     a = await svc.create_account(
-        db_session, user_id=owner_user["id"],
-        bank="Т-Банк", kind=AccountKind.card, balance_cents=0,
+        db_session,
+        user_id=owner_user["id"],
+        bank="Т-Банк",
+        kind=AccountKind.card,
+        balance_cents=0,
     )
     b = await svc.create_account(
-        db_session, user_id=owner_user["id"],
-        bank="Наличные", kind=AccountKind.cash, balance_cents=0,
+        db_session,
+        user_id=owner_user["id"],
+        bank="Наличные",
+        kind=AccountKind.cash,
+        balance_cents=0,
     )
     assert a.is_primary is True
     assert b.is_primary is False
@@ -392,8 +423,10 @@ async def test_set_primary_demotes_prior_atomically(db_session, owner_user):
 
     # Exactly one primary remains.
     from sqlalchemy import func, select
+
     primary_count = await db_session.scalar(
-        select(func.count()).select_from(Account)
+        select(func.count())
+        .select_from(Account)
         .where(Account.user_id == owner_user["id"], Account.is_primary.is_(True))
     )
     assert primary_count == 1
@@ -410,11 +443,19 @@ async def test_list_accounts_only_returns_user_scope(db_session, two_users):
 
     await set_tenant_scope(db_session, a_id)
     a1 = await svc.create_account(
-        db_session, user_id=a_id, bank="A-Bank", kind=AccountKind.card, balance_cents=100,
+        db_session,
+        user_id=a_id,
+        bank="A-Bank",
+        kind=AccountKind.card,
+        balance_cents=100,
     )
     await set_tenant_scope(db_session, b_id)
     b1 = await svc.create_account(
-        db_session, user_id=b_id, bank="B-Bank", kind=AccountKind.cash, balance_cents=200,
+        db_session,
+        user_id=b_id,
+        bank="B-Bank",
+        kind=AccountKind.cash,
+        balance_cents=200,
     )
 
     await set_tenant_scope(db_session, a_id)
@@ -437,7 +478,11 @@ async def test_get_or_404_cross_tenant_returns_not_found(db_session, two_users):
 
     await set_tenant_scope(db_session, a_id)
     a_acct = await svc.create_account(
-        db_session, user_id=a_id, bank="A-Bank", kind=AccountKind.card, balance_cents=0,
+        db_session,
+        user_id=a_id,
+        bank="A-Bank",
+        kind=AccountKind.card,
+        balance_cents=0,
     )
 
     # User B tries to read user A's account by id → 404 (not 403, not data leak).
@@ -468,17 +513,25 @@ async def test_update_account_primary_true_demotes_prior(db_session, owner_user)
 
     await set_tenant_scope(db_session, owner_user["id"])
     a = await svc.create_account(
-        db_session, user_id=owner_user["id"],
-        bank="Т-Банк", kind=AccountKind.card, balance_cents=0,
+        db_session,
+        user_id=owner_user["id"],
+        bank="Т-Банк",
+        kind=AccountKind.card,
+        balance_cents=0,
     )
     b = await svc.create_account(
-        db_session, user_id=owner_user["id"],
-        bank="Наличные", kind=AccountKind.cash, balance_cents=0,
+        db_session,
+        user_id=owner_user["id"],
+        bank="Наличные",
+        kind=AccountKind.cash,
+        balance_cents=0,
     )
     assert a.is_primary is True
 
     updated = await svc.update_account(
-        db_session, account_id=b.id, user_id=owner_user["id"],
+        db_session,
+        account_id=b.id,
+        user_id=owner_user["id"],
         primary=True,
     )
     assert updated.is_primary is True
@@ -496,12 +549,18 @@ async def test_update_account_balance_field(db_session, owner_user):
 
     await set_tenant_scope(db_session, owner_user["id"])
     acct = await svc.create_account(
-        db_session, user_id=owner_user["id"],
-        bank="Т-Банк", kind=AccountKind.card, balance_cents=0,
+        db_session,
+        user_id=owner_user["id"],
+        bank="Т-Банк",
+        kind=AccountKind.card,
+        balance_cents=0,
     )
     updated = await svc.update_account(
-        db_session, account_id=acct.id, user_id=owner_user["id"],
-        balance_cents=12345, mask="·· 4408",
+        db_session,
+        account_id=acct.id,
+        user_id=owner_user["id"],
+        balance_cents=12345,
+        mask="·· 4408",
     )
     assert updated.balance_cents == 12345
     assert updated.mask == "·· 4408"

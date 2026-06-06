@@ -10,6 +10,7 @@ Wave 0 RED state: imports of `app.api.dependencies.get_db` and
 all HTTP calls return 404 / fail assertions until Plans 02-03..02-04
 implement them.
 """
+
 import os
 
 import pytest
@@ -51,6 +52,7 @@ async def db_client(async_client, bot_token, owner_tg_id):
 
     # Clean state — TRUNCATE all domain tables.
     from tests.helpers.seed import truncate_db
+
     await truncate_db()
 
     async def real_get_db():
@@ -156,7 +158,12 @@ async def test_archive_hides_from_default_list(db_client, auth_headers):
 
 
 @pytest.mark.asyncio
-async def test_include_archived_returns_archived(db_client, auth_headers):
+async def test_include_archived_and_unarchive(db_client, auth_headers):
+    """include_archived=true surfaces a soft-deleted category; PATCH restores it.
+
+    Consolidates the former include-archived + can-be-unarchived tests — both
+    exercise the same soft-delete/restore round-trip on one row.
+    """
     create = await db_client.post(
         "/api/v1/categories",
         json={"name": "Архивная", "kind": "expense"},
@@ -171,19 +178,7 @@ async def test_include_archived_returns_archived(db_client, auth_headers):
     )
     assert listing.status_code == 200
     items = listing.json()
-    assert len(items) == 1
-    assert items[0]["is_archived"] is True
-
-
-@pytest.mark.asyncio
-async def test_archived_can_be_unarchived(db_client, auth_headers):
-    create = await db_client.post(
-        "/api/v1/categories",
-        json={"name": "Восстановимая", "kind": "expense"},
-        headers=auth_headers,
-    )
-    cat_id = create.json()["id"]
-    await db_client.delete(f"/api/v1/categories/{cat_id}", headers=auth_headers)
+    assert len(items) == 1 and items[0]["is_archived"] is True
 
     restore = await db_client.patch(
         f"/api/v1/categories/{cat_id}",
@@ -217,6 +212,7 @@ async def _prep_for_onboarding(owner_tg_id: int) -> None:
     import os
     from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
     from sqlalchemy import text as _text
+
     _engine = create_async_engine(os.environ["DATABASE_URL"], echo=False)
     _SessionLocal = async_sessionmaker(_engine, expire_on_commit=False)
     async with _SessionLocal() as _s:
@@ -253,48 +249,11 @@ async def test_seed_creates_14_categories(db_client, auth_headers, owner_tg_id):
     assert len(listing.json()) == 9
 
 
-@pytest.mark.asyncio
-async def test_seed_idempotent_skips_when_categories_exist(db_client, auth_headers, owner_tg_id):
-    """v1.0 onboarding seeds the 9 system categories; re-running 409s (idempotent).
-
-    NOTE (Phase 68 A2): the legacy "skip seed if any category exists" semantics
-    were dropped in v1.0. ``onboarding_v10`` seeds the 8 default categories +
-    'savings' (9 total) and is a one-shot flow — re-posting after onboarding
-    returns 409 already-onboarded (no duplicate seed). A user-created category
-    added afterward coexists with the 9 system rows (its own unique code), so
-    the total becomes 10 and re-onboarding does not clobber it.
-    """
-    await _prep_for_onboarding(owner_tg_id)
-
-    # v1.0 onboarding seeds the 9 system categories.
-    onb = await db_client.post(
-        "/api/v1/onboarding/complete",
-        json=_V10_ONBOARDING_BODY,
-        headers=auth_headers,
-    )
-    assert onb.status_code == 200, onb.text
-    listing = await db_client.get("/api/v1/categories", headers=auth_headers)
-    assert len(listing.json()) == 9
-
-    # A manually-created category coexists with the 9 system rows → 10.
-    created = await db_client.post(
-        "/api/v1/categories",
-        json={"name": "Existing", "kind": "expense"},
-        headers=auth_headers,
-    )
-    assert created.status_code in (200, 201), created.text
-
-    # Re-running onboarding is rejected (already onboarded) — no duplicate seed.
-    onb2 = await db_client.post(
-        "/api/v1/onboarding/complete",
-        json=_V10_ONBOARDING_BODY,
-        headers=auth_headers,
-    )
-    assert onb2.status_code == 409, onb2.text
-
-    listing = await db_client.get("/api/v1/categories", headers=auth_headers)
-    # 9 system + 1 manual ("Existing"); re-onboard 409 added nothing.
-    assert len(listing.json()) == 10
+# NOTE (prune): test_seed_idempotent_skips_when_categories_exist was removed —
+# the seed-count happy-path above covers the 9-category seed, and the
+# already-onboarded 409 / re-onboard guard is covered by
+# tests/services/test_onboarding_v10.py::test_complete_v10_returns_409_when_account_exists
+# and tests/api/test_onboarding_v10_api.py::test_complete_v10_retry_409.
 
 
 # ---------------------------------------------------------------------------
@@ -328,9 +287,11 @@ async def test_refresh_embedding_persists_row_for_user_category():
     SessionLocal = async_sessionmaker(engine, expire_on_commit=False)
 
     from tests.helpers.seed import truncate_db
+
     await truncate_db()
 
     from tests.helpers.seed import seed_category
+
     async with SessionLocal() as session:
         user = await seed_user(session, tg_user_id=9_670_400_001)
         cat = await seed_category(

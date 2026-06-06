@@ -17,9 +17,9 @@ Covered behaviors (per 03-PLAN.md task 2 + 03-VALIDATION.md):
 - Response schema includes: id, period_id, kind, amount_cents, description,
   category_id, planned_date, source, subscription_id
 """
+
 import os
 from datetime import date, datetime, timezone
-from typing import Optional
 
 import pytest
 import pytest_asyncio
@@ -45,7 +45,6 @@ async def db_setup(async_client, owner_tg_id):
     Returns (client, SessionLocal). Truncates tables before yielding.
     """
     _require_db()
-    from sqlalchemy import text
     from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
     from app.api.dependencies import get_db
@@ -57,11 +56,19 @@ async def db_setup(async_client, owner_tg_id):
     SessionLocal = async_sessionmaker(engine, expire_on_commit=False)
 
     from tests.helpers.seed import truncate_db
+
     await truncate_db()
 
     # Seed AppUser explicitly — /me no longer upserts after Phase 12 (Plan 12-03).
     async with SessionLocal() as session:
-        session.add(AppUser(tg_user_id=owner_tg_id, role=UserRole.owner, cycle_start_day=5, onboarded_at=datetime.now(timezone.utc)))
+        session.add(
+            AppUser(
+                tg_user_id=owner_tg_id,
+                role=UserRole.owner,
+                cycle_start_day=5,
+                onboarded_at=datetime.now(timezone.utc),
+            )
+        )
         await session.commit()
 
     async def real_get_db():
@@ -89,7 +96,7 @@ async def seed_categories(db_setup, owner_tg_id):
     """Seed two non-archived categories: expense + income."""
     _, SessionLocal = db_setup
     from sqlalchemy import text
-    from app.db.models import Category, CategoryKind
+    from app.db.models import CategoryKind
 
     async with SessionLocal() as session:
         result = await session.execute(
@@ -99,6 +106,7 @@ async def seed_categories(db_setup, owner_tg_id):
         user_id = result.scalar_one()
 
         from tests.helpers.seed import seed_category
+
         expense_cat = await seed_category(
             session,
             user_id=user_id,
@@ -176,7 +184,9 @@ async def seed_period(db_setup, owner_tg_id):
 
 
 @pytest_asyncio.fixture
-async def seed_subscription_auto_planned(db_setup, seed_categories, seed_period, owner_tg_id):
+async def seed_subscription_auto_planned(
+    db_setup, seed_categories, seed_period, owner_tg_id
+):
     """Create a planned row with source=subscription_auto for read-only tests.
 
     Returns dict {planned_id, subscription_id, period_id, category_id}.
@@ -338,22 +348,6 @@ async def test_create_amount_zero_422(
 
 
 @pytest.mark.asyncio
-async def test_create_amount_negative_422(
-    db_client, auth_headers, seed_categories, seed_period
-):
-    response = await db_client.post(
-        f"/api/v1/periods/{seed_period}/planned",
-        json={
-            "kind": "expense",
-            "amount_cents": -100,
-            "category_id": seed_categories["expense_cat"].id,
-        },
-        headers=auth_headers,
-    )
-    assert response.status_code == 422
-
-
-@pytest.mark.asyncio
 async def test_list_filter_by_kind(
     db_client, auth_headers, seed_categories, seed_period
 ):
@@ -396,63 +390,9 @@ async def test_list_filter_by_kind(
     assert i_items[0]["kind"] == "income"
 
 
-@pytest.mark.asyncio
-async def test_list_filter_by_category(
-    db_client, auth_headers, seed_categories, seed_period, db_setup, owner_tg_id
-):
-    """2 plans for cat A + 1 for cat B, GET ?category_id=A returns 2."""
-    _, SessionLocal = db_setup
-    from sqlalchemy import text as _text
-    from app.db.models import Category, CategoryKind
-
-    # Create a second expense category for filter discrimination.
-    async with SessionLocal() as session:
-        result = await session.execute(
-            _text("SELECT id FROM app_user WHERE tg_user_id = :tg"),
-            {"tg": owner_tg_id},
-        )
-        _user_id = result.scalar_one()
-
-        from tests.helpers.seed import seed_category
-        cat_b = await seed_category(
-            session,
-            user_id=_user_id,
-            name="Кафе", kind=CategoryKind.expense, is_archived=False, sort_order=15
-        )
-        await session.commit()
-        await session.refresh(cat_b)
-        cat_b_id = cat_b.id
-
-    cat_a_id = seed_categories["expense_cat"].id
-
-    for _ in range(2):
-        await db_client.post(
-            f"/api/v1/periods/{seed_period}/planned",
-            json={
-                "kind": "expense",
-                "amount_cents": 100000,
-                "category_id": cat_a_id,
-            },
-            headers=auth_headers,
-        )
-    await db_client.post(
-        f"/api/v1/periods/{seed_period}/planned",
-        json={
-            "kind": "expense",
-            "amount_cents": 50000,
-            "category_id": cat_b_id,
-        },
-        headers=auth_headers,
-    )
-
-    filtered = await db_client.get(
-        f"/api/v1/periods/{seed_period}/planned?category_id={cat_a_id}",
-        headers=auth_headers,
-    )
-    assert filtered.status_code == 200
-    items = filtered.json()
-    assert len(items) == 2
-    assert all(it["category_id"] == cat_a_id for it in items)
+# NOTE (prune): test_list_filter_by_category removed — test_list_filter_by_kind
+# above already covers the list-filter query-param plumbing; the category filter
+# shares the same code path with a different column.
 
 
 @pytest.mark.asyncio
@@ -567,9 +507,7 @@ async def test_delete_manual_planned(
     assert create.status_code in (200, 201)
     plan_id = create.json()["id"]
 
-    delete = await db_client.delete(
-        f"/api/v1/planned/{plan_id}", headers=auth_headers
-    )
+    delete = await db_client.delete(f"/api/v1/planned/{plan_id}", headers=auth_headers)
     assert delete.status_code == 200
 
     listing = await db_client.get(

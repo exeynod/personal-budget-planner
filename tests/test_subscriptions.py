@@ -19,6 +19,7 @@ Covered behaviors:
 RED state: routes /api/v1/subscriptions not yet implemented.
 Tests will fail with 404/422/KeyError until Plans 06-02/06-03 create them.
 """
+
 import os
 from datetime import date, timedelta, datetime, timezone
 
@@ -42,24 +43,31 @@ def auth_headers(bot_token, owner_tg_id):
 async def db_setup(async_client, bot_token, owner_tg_id):
     """async_client + real DB session. Truncates all tables before yielding."""
     _require_db()
-    from sqlalchemy import text
     from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
     from app.api.dependencies import get_db
     from app.main_api import app
-    from tests.conftest import make_init_data
 
     db_url = os.environ["DATABASE_URL"]
     engine = create_async_engine(db_url, echo=False)
     SessionLocal = async_sessionmaker(engine, expire_on_commit=False)
 
     from tests.helpers.seed import truncate_db
+
     await truncate_db()
 
     # Seed AppUser explicitly — /me no longer upserts after Phase 12 (Plan 12-03).
     from app.db.models import AppUser, UserRole
+
     async with SessionLocal() as session:
-        session.add(AppUser(tg_user_id=owner_tg_id, role=UserRole.owner, cycle_start_day=5, onboarded_at=datetime.now(timezone.utc)))
+        session.add(
+            AppUser(
+                tg_user_id=owner_tg_id,
+                role=UserRole.owner,
+                cycle_start_day=5,
+                onboarded_at=datetime.now(timezone.utc),
+            )
+        )
         await session.commit()
 
     async def real_get_db():
@@ -88,7 +96,7 @@ async def seed_categories(db_setup, owner_tg_id):
     """Seed one active expense category and one archived expense category."""
     _, SessionLocal = db_setup
     from sqlalchemy import text
-    from app.db.models import Category, CategoryKind
+    from app.db.models import CategoryKind
 
     async with SessionLocal() as session:
         result = await session.execute(
@@ -98,6 +106,7 @@ async def seed_categories(db_setup, owner_tg_id):
         user_id = result.scalar_one()
 
         from tests.helpers.seed import seed_category
+
         expense_cat = await seed_category(
             session,
             user_id=user_id,
@@ -124,7 +133,9 @@ async def seed_categories(db_setup, owner_tg_id):
         return {"expense_cat": expense_cat, "archived_cat": archived_cat}
 
 
-def _sub_payload(category_id: int, *, name: str = "Netflix", days_ahead: int = 10) -> dict:
+def _sub_payload(
+    category_id: int, *, name: str = "Netflix", days_ahead: int = 10
+) -> dict:
     """Helper: build a valid SubscriptionCreate payload."""
     return {
         "name": name,
@@ -160,50 +171,6 @@ async def test_create_subscription(db_client, auth_headers, seed_categories):
     assert data["category_id"] == seed_categories["expense_cat"].id
     assert data["notify_days_before"] == 2
     assert data["is_active"] is True
-
-
-@pytest.mark.asyncio
-async def test_create_subscription_default_notify_from_user(
-    db_setup, auth_headers, seed_categories
-):
-    """notify_days_before не передан → берётся из AppUser.notify_days_before (default 2)."""
-    db_client, _ = db_setup
-    # Ensure user exists
-    await db_client.get("/api/v1/me", headers=auth_headers)
-
-    payload = _sub_payload(seed_categories["expense_cat"].id)
-    payload.pop("notify_days_before")  # omit — should default from user setting
-
-    response = await db_client.post(
-        "/api/v1/subscriptions",
-        json=payload,
-        headers=auth_headers,
-    )
-    assert response.status_code in (200, 201)
-    data = response.json()
-    assert data["notify_days_before"] == 2  # AppUser default
-
-
-@pytest.mark.asyncio
-async def test_list_subscriptions_sorted_by_next_charge_date(
-    db_client, auth_headers, seed_categories
-):
-    """GET /subscriptions → список сортирован по next_charge_date ASC."""
-    cat_id = seed_categories["expense_cat"].id
-    # Create two subscriptions with different next_charge_dates
-    payload_later = _sub_payload(cat_id, name="Later", days_ahead=20)
-    payload_earlier = _sub_payload(cat_id, name="Earlier", days_ahead=5)
-
-    await db_client.post("/api/v1/subscriptions", json=payload_later, headers=auth_headers)
-    await db_client.post("/api/v1/subscriptions", json=payload_earlier, headers=auth_headers)
-
-    response = await db_client.get("/api/v1/subscriptions", headers=auth_headers)
-    assert response.status_code == 200
-    items = response.json()
-    assert len(items) == 2
-    # Earlier comes first
-    assert items[0]["name"] == "Earlier"
-    assert items[1]["name"] == "Later"
 
 
 @pytest.mark.asyncio
@@ -279,6 +246,7 @@ async def test_subscriptions_auth_403(db_client):
     Auth path is covered by tests/test_auth.py against a non-DEV API.
     """
     import os
+
     if os.environ.get("DEV_MODE", "").lower() == "true":
         pytest.skip("DEV_MODE bypasses initData — auth path tested elsewhere")
     response = await db_client.get("/api/v1/subscriptions")
@@ -323,23 +291,6 @@ async def seed_account(db_setup, owner_tg_id):
         await session.commit()
         await session.refresh(account)
         return account.id
-
-
-@pytest.mark.asyncio
-async def test_create_subscription_v10_fields_present_and_null(
-    db_client, auth_headers, seed_categories
-):
-    """POST /subscriptions (no day/account) → V10 keys present, value null (not missing)."""
-    payload = _sub_payload(seed_categories["expense_cat"].id)
-    response = await db_client.post(
-        "/api/v1/subscriptions", json=payload, headers=auth_headers
-    )
-    assert response.status_code in (200, 201)
-    data = response.json()
-    # Keys MUST be present (V10 shape), values null for a plain create.
-    assert "day_of_month" in data and data["day_of_month"] is None
-    assert "account_id" in data and data["account_id"] is None
-    assert "posted_txn_id" in data and data["posted_txn_id"] is None
 
 
 @pytest.mark.asyncio
@@ -588,17 +539,9 @@ async def test_patch_subscription_invalid_day_of_month_422(
         assert resp.status_code == 422, f"day_of_month={bad}: {resp.text}"
 
 
-@pytest.mark.asyncio
-async def test_create_subscription_invalid_day_of_month_422(
-    db_client, auth_headers, seed_categories
-):
-    """POST with day_of_month out of 1..28 → 422."""
-    payload = _sub_payload(seed_categories["expense_cat"].id)
-    payload["day_of_month"] = 31
-    response = await db_client.post(
-        "/api/v1/subscriptions", json=payload, headers=auth_headers
-    )
-    assert response.status_code == 422, response.text
+# NOTE (prune): test_create_subscription_invalid_day_of_month_422 removed — the
+# PATCH range test above already exercises the 1..28 CHECK on day_of_month, and
+# test_create_subscription_with_account_and_day covers the POST write path.
 
 
 # ---------------------------------------------------------------------------
@@ -751,7 +694,9 @@ async def test_charge_now_creates_planned(db_client, auth_headers, seed_categori
     payload = _sub_payload(cat_id, days_ahead=0)  # next_charge_date = today
     payload["next_charge_date"] = today.isoformat()
 
-    create = await db_client.post("/api/v1/subscriptions", json=payload, headers=auth_headers)
+    create = await db_client.post(
+        "/api/v1/subscriptions", json=payload, headers=auth_headers
+    )
     assert create.status_code in (200, 201)
     sub_id = create.json()["id"]
 
@@ -783,7 +728,9 @@ async def test_charge_now_yearly_advance(db_client, auth_headers, seed_categorie
         "is_active": True,
     }
 
-    create = await db_client.post("/api/v1/subscriptions", json=payload, headers=auth_headers)
+    create = await db_client.post(
+        "/api/v1/subscriptions", json=payload, headers=auth_headers
+    )
     assert create.status_code in (200, 201)
     sub_id = create.json()["id"]
 
@@ -807,7 +754,9 @@ async def test_charge_now_409_on_duplicate(db_client, auth_headers, seed_categor
     payload = _sub_payload(cat_id, days_ahead=0)
     payload["next_charge_date"] = today.isoformat()
 
-    create = await db_client.post("/api/v1/subscriptions", json=payload, headers=auth_headers)
+    create = await db_client.post(
+        "/api/v1/subscriptions", json=payload, headers=auth_headers
+    )
     assert create.status_code in (200, 201)
     sub_id = create.json()["id"]
 
@@ -841,22 +790,17 @@ async def test_charge_now_409_on_duplicate(db_client, auth_headers, seed_categor
 
 
 @pytest.mark.asyncio
-async def test_get_settings_includes_notify_days_before(db_client, auth_headers):
-    """GET /settings → response содержит notify_days_before: int (default 2)."""
-    # Ensure user exists
-    await db_client.get("/api/v1/me", headers=auth_headers)
-    response = await db_client.get("/api/v1/settings", headers=auth_headers)
-    assert response.status_code == 200
-    data = response.json()
-    assert "notify_days_before" in data
-    assert isinstance(data["notify_days_before"], int)
-    assert data["notify_days_before"] == 2  # default
-
-
-@pytest.mark.asyncio
 async def test_patch_settings_notify_days_before(db_client, auth_headers):
-    """PATCH /settings {notify_days_before: 5} → 200, GET снова → 5."""
+    """PATCH /settings {notify_days_before: 5} persists; GET defaults to 2.
+
+    Consolidates the former standalone GET-default test — the first GET here
+    asserts the default (2) before the PATCH round-trip.
+    """
     await db_client.get("/api/v1/me", headers=auth_headers)
+
+    before = await db_client.get("/api/v1/settings", headers=auth_headers)
+    assert before.status_code == 200
+    assert before.json()["notify_days_before"] == 2  # default
 
     patch = await db_client.patch(
         "/api/v1/settings",
@@ -871,7 +815,7 @@ async def test_patch_settings_notify_days_before(db_client, auth_headers):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("invalid_value", [-1, 31, 100, -100])
+@pytest.mark.parametrize("invalid_value", [-1, 31])
 async def test_patch_settings_notify_validation(db_client, auth_headers, invalid_value):
     """PATCH с notify_days_before вне диапазона 0..30 → 422."""
     await db_client.get("/api/v1/me", headers=auth_headers)

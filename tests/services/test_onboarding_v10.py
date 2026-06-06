@@ -130,26 +130,9 @@ def _valid_body() -> dict:
     }
 
 
-# =============================================================================
-# Section 0: import smoke
-# =============================================================================
-
-
-@pytest.mark.asyncio
-async def test_module_importable_with_required_symbols():
-    """Sanity: module imports cleanly with all required symbols."""
-    from app.services import onboarding_v10 as svc
-
-    for name in (
-        "complete_v10",
-        "reset_v10",
-        "OnboardingConflictError",
-        "PlanExceedsIncomeError",
-        "DEFAULT_CATEGORIES",
-        "SYSTEM_ADJUSTMENT_CATEGORY",
-        "INCOME_MAX_CENTS",
-    ):
-        assert hasattr(svc, name), f"missing symbol: {name}"
+# NOTE (prune): test_module_importable_with_required_symbols removed — every
+# functional test imports and calls these symbols, so a missing export fails
+# them directly.
 
 
 # =============================================================================
@@ -480,24 +463,16 @@ async def test_complete_v10_rollback_on_invalid_input(db_session, fresh_user):
 
 
 @pytest.mark.asyncio
-async def test_complete_v10_rejects_income_zero(db_session, fresh_user):
+@pytest.mark.parametrize("bad_income", [0, -100])
+async def test_complete_v10_rejects_income_non_positive(
+    db_session, fresh_user, bad_income
+):
+    """income_cents <= 0 (zero and negative) → ValueError."""
     from app.db.session import set_tenant_scope
     from app.services.onboarding_v10 import complete_v10
 
     body = _valid_body()
-    body["income_cents"] = 0
-    await set_tenant_scope(db_session, fresh_user["id"])
-    with pytest.raises(ValueError):
-        await complete_v10(db_session, user_id=fresh_user["id"], **body)
-
-
-@pytest.mark.asyncio
-async def test_complete_v10_rejects_income_negative(db_session, fresh_user):
-    from app.db.session import set_tenant_scope
-    from app.services.onboarding_v10 import complete_v10
-
-    body = _valid_body()
-    body["income_cents"] = -100
+    body["income_cents"] = bad_income
     await set_tenant_scope(db_session, fresh_user["id"])
     with pytest.raises(ValueError):
         await complete_v10(db_session, user_id=fresh_user["id"], **body)
@@ -606,19 +581,24 @@ async def test_complete_v10_rejects_multiple_explicit_primary(db_session, fresh_
 
 
 @pytest.mark.asyncio
-async def test_reset_v10_wipes_account(db_session, fresh_user):
-    from sqlalchemy import select, func
+async def test_reset_v10_wipes_account_income_and_plan_cents(db_session, fresh_user):
+    """reset_v10 deletes accounts, NULLs income/onboarded_at, zeroes plan_cents.
 
-    from app.db.models import Account
+    Consolidates the former wipes_account / resets_income_to_null /
+    resets_plan_cents_to_zero tests — all assert post-conditions of the same
+    single reset_v10 call.
+    """
+    from sqlalchemy import func, select
+
+    from app.db.models import Account, AppUser, Category
     from app.db.session import set_tenant_scope
     from app.services.onboarding_v10 import complete_v10, reset_v10
 
-    body = _valid_body()
     await set_tenant_scope(db_session, fresh_user["id"])
-    await complete_v10(db_session, user_id=fresh_user["id"], **body)
+    await complete_v10(db_session, user_id=fresh_user["id"], **_valid_body())
     await db_session.commit()
 
-    # Before reset
+    # Precondition: one account exists.
     acc_before = await db_session.scalar(
         select(func.count())
         .select_from(Account)
@@ -626,40 +606,20 @@ async def test_reset_v10_wipes_account(db_session, fresh_user):
     )
     assert acc_before == 1
 
-    # Reset
     await set_tenant_scope(db_session, fresh_user["id"])
     summary = await reset_v10(db_session, user_id=fresh_user["id"])
     await db_session.commit()
-
     assert "deleted_account_ids" in summary
 
-    # After reset: no Account (v1.1: goal/savings_config tables removed).
-    count = await db_session.scalar(
+    # Accounts wiped.
+    acc_after = await db_session.scalar(
         select(func.count())
         .select_from(Account)
         .where(Account.user_id == fresh_user["id"])
     )
-    assert count == 0, "Account not wiped"
+    assert acc_after == 0, "Account not wiped"
 
-
-@pytest.mark.asyncio
-async def test_reset_v10_resets_income_to_null(db_session, fresh_user):
-    from sqlalchemy import select
-
-    from app.db.models import AppUser
-    from app.db.session import set_tenant_scope
-    from app.services.onboarding_v10 import complete_v10, reset_v10
-
-    await set_tenant_scope(db_session, fresh_user["id"])
-    await complete_v10(db_session, user_id=fresh_user["id"], **_valid_body())
-    await db_session.commit()
-
-    await set_tenant_scope(db_session, fresh_user["id"])
-    await reset_v10(db_session, user_id=fresh_user["id"])
-    await db_session.commit()
-
-    # reset_v10 uses raw SQL UPDATE so any in-session AppUser instance is
-    # expired by the service; re-query from DB to verify.
+    # income_cents + onboarded_at NULLed (raw SQL UPDATE → re-query).
     db_session.expire_all()
     user = await db_session.scalar(
         select(AppUser).where(AppUser.id == fresh_user["id"])
@@ -667,30 +627,13 @@ async def test_reset_v10_resets_income_to_null(db_session, fresh_user):
     assert user.income_cents is None
     assert user.onboarded_at is None
 
-
-@pytest.mark.asyncio
-async def test_reset_v10_resets_plan_cents_to_zero(db_session, fresh_user):
-    from sqlalchemy import select, func
-
-    from app.db.models import Category
-    from app.db.session import set_tenant_scope
-    from app.services.onboarding_v10 import complete_v10, reset_v10
-
-    await set_tenant_scope(db_session, fresh_user["id"])
-    await complete_v10(db_session, user_id=fresh_user["id"], **_valid_body())
-    await db_session.commit()
-
-    await set_tenant_scope(db_session, fresh_user["id"])
-    await reset_v10(db_session, user_id=fresh_user["id"])
-    await db_session.commit()
-
-    # Sum of plan_cents over all user's categories must be 0.
-    s = await db_session.scalar(
+    # plan_cents zeroed across all categories.
+    plan_sum = await db_session.scalar(
         select(func.coalesce(func.sum(Category.plan_cents), 0)).where(
             Category.user_id == fresh_user["id"]
         )
     )
-    assert int(s) == 0
+    assert int(plan_sum) == 0
 
 
 @pytest.mark.asyncio

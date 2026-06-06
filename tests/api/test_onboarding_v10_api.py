@@ -187,55 +187,17 @@ async def test_complete_v10_retry_409(db_setup, auth_headers):
 
 @pytest.mark.asyncio
 async def test_complete_v10_plan_exceeds_income_422(db_setup, auth_headers):
+    """Representative validation→422 mapping at the API layer (the most
+    business-critical rule). The exhaustive validator matrix (negative income,
+    unknown category code, empty accounts, two-primary accounts) lives in
+    tests/services/test_onboarding_v10.py — those test the same validators one
+    layer down without the HTTP round-trip, so only one 422-mapping smoke is
+    kept here.
+    """
     client, _ = db_setup
     body = _payload(
         income_cents=10_000_00,
         category_plans={"food": 50_000_00},  # plan > income
-    )
-    r = await client.post(
-        "/api/v1/onboarding/complete", json=body, headers=auth_headers
-    )
-    assert r.status_code == 422
-
-
-@pytest.mark.asyncio
-async def test_complete_v10_unknown_category_code_422(db_setup, auth_headers):
-    client, _ = db_setup
-    body = _payload(category_plans={"food": 100_00, "totally_made_up": 100_00})
-    r = await client.post(
-        "/api/v1/onboarding/complete", json=body, headers=auth_headers
-    )
-    assert r.status_code == 422
-
-
-@pytest.mark.asyncio
-async def test_complete_v10_negative_income_422(db_setup, auth_headers):
-    client, _ = db_setup
-    body = _payload(income_cents=-1)
-    r = await client.post(
-        "/api/v1/onboarding/complete", json=body, headers=auth_headers
-    )
-    assert r.status_code == 422
-
-
-@pytest.mark.asyncio
-async def test_complete_v10_no_accounts_422(db_setup, auth_headers):
-    client, _ = db_setup
-    body = _payload(accounts=[])
-    r = await client.post(
-        "/api/v1/onboarding/complete", json=body, headers=auth_headers
-    )
-    assert r.status_code == 422
-
-
-@pytest.mark.asyncio
-async def test_complete_v10_two_primary_accounts_422(db_setup, auth_headers):
-    client, _ = db_setup
-    body = _payload(
-        accounts=[
-            {"bank": "A", "kind": "card", "balance_cents": 0, "primary": True},
-            {"bank": "B", "kind": "card", "balance_cents": 0, "primary": True},
-        ]
     )
     r = await client.post(
         "/api/v1/onboarding/complete", json=body, headers=auth_headers

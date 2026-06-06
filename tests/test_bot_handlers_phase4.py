@@ -13,6 +13,7 @@ Covered behaviors:
 - format_kopecks: 150000 → "1 500"
 - format_kopecks_with_sign: signed formatting
 """
+
 from __future__ import annotations
 
 import os
@@ -55,46 +56,42 @@ def _make_callback(*, user_id: int, data: str, chat_id: int = 999) -> MagicMock:
     return cb
 
 
-def test_commands_module_exports_router():
-    from aiogram import Router
-    from app.bot.commands import router
-    assert isinstance(router, Router)
+# NOTE (prune): test_commands_module_exports_router removed — the cmd_* handler
+# tests below import from app.bot.commands and would fail on any import error.
 
 
 def test_format_kopecks():
     from app.bot.commands import format_kopecks
+
     assert format_kopecks(150000) == "1 500"
     assert format_kopecks(0) == "0"
     assert format_kopecks(100) == "1"
     assert format_kopecks(1234500) == "12 345"
 
 
-def test_format_kopecks_with_sign_positive():
+def test_format_kopecks_with_sign():
+    """+/- prefix by sign (positive/negative/zero) — consolidates 3 tests."""
     from app.bot.commands import format_kopecks_with_sign
-    result = format_kopecks_with_sign(150000)
-    assert result.startswith("+")
 
-
-def test_format_kopecks_with_sign_negative():
-    from app.bot.commands import format_kopecks_with_sign
-    result = format_kopecks_with_sign(-50000)
-    assert result.startswith("-")
-
-
-def test_format_kopecks_with_sign_zero():
-    from app.bot.commands import format_kopecks_with_sign
-    result = format_kopecks_with_sign(0)
-    assert "0" in result
+    assert format_kopecks_with_sign(150000).startswith("+")
+    assert format_kopecks_with_sign(-50000).startswith("-")
+    assert "0" in format_kopecks_with_sign(0)
 
 
 @pytest.mark.asyncio
 async def test_cmd_add_rejects_non_owner():
     from app.bot.commands import cmd_add
     from app.db.models import UserRole
+
     message = _make_message(user_id=999_999_999)
     command = _make_command("1500 продукты")
-    with patch("app.bot.commands.bot_create_actual", new=AsyncMock()) as mock_api, \
-         patch("app.bot.commands.bot_resolve_user_role", new=AsyncMock(return_value=UserRole.revoked)):
+    with (
+        patch("app.bot.commands.bot_create_actual", new=AsyncMock()) as mock_api,
+        patch(
+            "app.bot.commands.bot_resolve_user_role",
+            new=AsyncMock(return_value=UserRole.revoked),
+        ),
+    ):
         await cmd_add(message, command)
     mock_api.assert_not_called()
     message.answer.assert_not_called()
@@ -112,18 +109,31 @@ async def test_cmd_add_created_reply():
     mock_response = {
         "status": "created",
         "actual": {
-            "id": 1, "period_id": 1, "kind": "expense",
-            "amount_cents": 150000, "description": None,
-            "category_id": 1, "tx_date": "2026-05-03",
-            "source": "bot", "created_at": "2026-05-03T10:00:00Z",
+            "id": 1,
+            "period_id": 1,
+            "kind": "expense",
+            "amount_cents": 150000,
+            "description": None,
+            "category_id": 1,
+            "tx_date": "2026-05-03",
+            "source": "bot",
+            "created_at": "2026-05-03T10:00:00Z",
         },
         "category": {"id": 1, "name": "Продукты", "kind": "expense"},
         "category_balance_cents": 100000,
         "candidates": None,
     }
 
-    with patch("app.bot.commands.bot_create_actual", new=AsyncMock(return_value=mock_response)), \
-         patch("app.bot.commands.bot_resolve_user_role", new=AsyncMock(return_value=UserRole.owner)):
+    with (
+        patch(
+            "app.bot.commands.bot_create_actual",
+            new=AsyncMock(return_value=mock_response),
+        ),
+        patch(
+            "app.bot.commands.bot_resolve_user_role",
+            new=AsyncMock(return_value=UserRole.owner),
+        ),
+    ):
         await cmd_add(message, command)
 
     message.answer.assert_awaited_once()
@@ -153,8 +163,16 @@ async def test_cmd_add_ambiguous_sends_inline_keyboard():
         ],
     }
 
-    with patch("app.bot.commands.bot_create_actual", new=AsyncMock(return_value=mock_response)), \
-         patch("app.bot.commands.bot_resolve_user_role", new=AsyncMock(return_value=UserRole.owner)):
+    with (
+        patch(
+            "app.bot.commands.bot_create_actual",
+            new=AsyncMock(return_value=mock_response),
+        ),
+        patch(
+            "app.bot.commands.bot_resolve_user_role",
+            new=AsyncMock(return_value=UserRole.owner),
+        ),
+    ):
         await cmd_add(message, command)
 
     message.answer.assert_awaited_once()
@@ -180,8 +198,16 @@ async def test_cmd_add_not_found_reply():
         "candidates": [],
     }
 
-    with patch("app.bot.commands.bot_create_actual", new=AsyncMock(return_value=mock_response)), \
-         patch("app.bot.commands.bot_resolve_user_role", new=AsyncMock(return_value=UserRole.owner)):
+    with (
+        patch(
+            "app.bot.commands.bot_create_actual",
+            new=AsyncMock(return_value=mock_response),
+        ),
+        patch(
+            "app.bot.commands.bot_resolve_user_role",
+            new=AsyncMock(return_value=UserRole.owner),
+        ),
+    ):
         await cmd_add(message, command)
 
     message.answer.assert_awaited_once()
@@ -208,13 +234,27 @@ async def test_cmd_balance_reply():
         "planned_total_income_cents": 700000,
         "actual_total_income_cents": 750000,
         "by_category": [
-            {"category_id": 1, "name": "Продукты", "kind": "expense",
-             "planned_cents": 300000, "actual_cents": 200000, "delta_cents": 100000},
+            {
+                "category_id": 1,
+                "name": "Продукты",
+                "kind": "expense",
+                "planned_cents": 300000,
+                "actual_cents": 200000,
+                "delta_cents": 100000,
+            },
         ],
     }
 
-    with patch("app.bot.commands.bot_get_balance", new=AsyncMock(return_value=mock_response)), \
-         patch("app.bot.commands.bot_resolve_user_role", new=AsyncMock(return_value=UserRole.owner)):
+    with (
+        patch(
+            "app.bot.commands.bot_get_balance",
+            new=AsyncMock(return_value=mock_response),
+        ),
+        patch(
+            "app.bot.commands.bot_resolve_user_role",
+            new=AsyncMock(return_value=UserRole.owner),
+        ),
+    ):
         await cmd_balance(message)
 
     message.answer.assert_awaited_once()
@@ -236,8 +276,15 @@ async def test_cmd_today_empty_reply():
         "total_income_cents": 0,
     }
 
-    with patch("app.bot.commands.bot_get_today", new=AsyncMock(return_value=mock_response)), \
-         patch("app.bot.commands.bot_resolve_user_role", new=AsyncMock(return_value=UserRole.owner)):
+    with (
+        patch(
+            "app.bot.commands.bot_get_today", new=AsyncMock(return_value=mock_response)
+        ),
+        patch(
+            "app.bot.commands.bot_resolve_user_role",
+            new=AsyncMock(return_value=UserRole.owner),
+        ),
+    ):
         await cmd_today(message)
 
     message.answer.assert_awaited_once()
@@ -253,7 +300,10 @@ async def test_cmd_app_sends_webapp_button():
     from app.db.models import UserRole
 
     message = _make_message(user_id=settings.OWNER_TG_ID)
-    with patch("app.bot.commands.bot_resolve_user_role", new=AsyncMock(return_value=UserRole.owner)):
+    with patch(
+        "app.bot.commands.bot_resolve_user_role",
+        new=AsyncMock(return_value=UserRole.owner),
+    ):
         await cmd_app(message)
 
     message.answer.assert_awaited_once()
@@ -290,18 +340,31 @@ async def test_cb_disambiguation_flow():
     mock_response = {
         "status": "created",
         "actual": {
-            "id": 1, "period_id": 1, "kind": "expense",
-            "amount_cents": 150000, "description": None,
-            "category_id": 5, "tx_date": "2026-05-03",
-            "source": "bot", "created_at": "2026-05-03T10:00:00Z",
+            "id": 1,
+            "period_id": 1,
+            "kind": "expense",
+            "amount_cents": 150000,
+            "description": None,
+            "category_id": 5,
+            "tx_date": "2026-05-03",
+            "source": "bot",
+            "created_at": "2026-05-03T10:00:00Z",
         },
         "category": {"id": 5, "name": "Продукты", "kind": "expense"},
         "category_balance_cents": 50000,
         "candidates": None,
     }
 
-    with patch("app.bot.commands.bot_create_actual", new=AsyncMock(return_value=mock_response)), \
-         patch("app.bot.commands.bot_resolve_user_role", new=AsyncMock(return_value=UserRole.owner)):
+    with (
+        patch(
+            "app.bot.commands.bot_create_actual",
+            new=AsyncMock(return_value=mock_response),
+        ),
+        patch(
+            "app.bot.commands.bot_resolve_user_role",
+            new=AsyncMock(return_value=UserRole.owner),
+        ),
+    ):
         await cb_disambiguation(callback)
 
     callback.message.edit_text.assert_awaited_once()

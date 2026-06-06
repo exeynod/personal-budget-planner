@@ -631,66 +631,16 @@ async def test_existing_categories_plan_cents_source_of_truth(db_session):
 
 
 # ---------------------------------------------------------------------------
-# Section F: RLS smoke (2 tests)
+# Section F: RLS smoke
+#
+# NOTE (prune): the former test_after_upgrade_rls_policies_present and
+# test_after_upgrade_force_rls_enabled_on_new_tables were removed — they probed
+# the exact same tenant_isolation_<table> policies + ENABLE/FORCE RLS flags on
+# the exact same tables (account / plan_template_item / plan_template_line /
+# period_category_plan) as tests/test_multitenancy_v1_0_columns.py Section A
+# (test_*_has_tenant_isolation_policy + test_v10_tables_force_rls_enabled), which
+# additionally proves RLS *enforces* under the non-superuser runtime role.
 # ---------------------------------------------------------------------------
-
-
-async def test_after_upgrade_rls_policies_present(db_session):
-    """tenant_isolation_<table> policies exist on tenant tables.
-
-    Account policy ships in 0012; v1.1 plan-template + per-period-plan policies
-    ship in 0028 (goal/savings_config dropped in 0031).
-    """
-    res = await db_session.execute(
-        text(
-            "SELECT polname, c.relname "
-            "FROM pg_policy p "
-            "JOIN pg_class c ON p.polrelid = c.oid "
-            "WHERE c.relname IN ('account', 'plan_template_item', "
-            "'plan_template_line', 'period_category_plan')"
-        )
-    )
-    policies = {(r[0], r[1]) for r in res.all()}
-    expected = {
-        ("tenant_isolation_account", "account"),
-        ("tenant_isolation_plan_template_item", "plan_template_item"),
-        ("tenant_isolation_plan_template_line", "plan_template_line"),
-        ("tenant_isolation_period_category_plan", "period_category_plan"),
-    }
-    missing = expected - policies
-    assert not missing, f"Missing tenant_isolation policies: {missing}; got {policies}"
-
-
-async def test_after_upgrade_force_rls_enabled_on_new_tables(db_session):
-    """0012/0014/0015: ENABLE + FORCE ROW LEVEL SECURITY on all new v1.0 tables.
-
-    pg_class.relrowsecurity == true means RLS is ENABLED.
-    pg_class.relforcerowsecurity == true means policy applies even to the
-    table owner (defence-in-depth — see 0006_multitenancy and CONTEXT D-08).
-    """
-    res = await db_session.execute(
-        text(
-            "SELECT relname, relrowsecurity, relforcerowsecurity "
-            "FROM pg_class "
-            "WHERE relname IN ('account', 'plan_template_item', "
-            "'plan_template_line', 'period_category_plan') "
-            "AND relkind = 'r'"
-        )
-    )
-    rows = {r[0]: (r[1], r[2]) for r in res.all()}
-    for tbl in (
-        "account",
-        "plan_template_item",
-        "plan_template_line",
-        "period_category_plan",
-    ):
-        assert tbl in rows, f"Table {tbl} not visible in pg_class"
-        rls_enabled, rls_forced = rows[tbl]
-        assert rls_enabled, f"{tbl}: RLS not ENABLEd (relrowsecurity=false)"
-        assert rls_forced, (
-            f"{tbl}: FORCE ROW LEVEL SECURITY not set "
-            f"(relforcerowsecurity=false) — table owner would bypass RLS"
-        )
 
 
 # ---------------------------------------------------------------------------

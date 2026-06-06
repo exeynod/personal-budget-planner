@@ -6,6 +6,7 @@ T-cycle-validation (Pydantic 1..28).
 Wave 0 RED state: routes /api/v1/settings (GET/PATCH) will be created
 in Plan 02-03..02-04. DB fixture self-skips when DATABASE_URL is unset.
 """
+
 import os
 
 import pytest
@@ -38,6 +39,7 @@ async def db_client(async_client, bot_token, owner_tg_id):
     SessionLocal = async_sessionmaker(engine, expire_on_commit=False)
 
     from tests.helpers.seed import truncate_db
+
     await truncate_db()
 
     async def real_get_db():
@@ -93,7 +95,7 @@ async def test_patch_updates_cycle_day(db_client, auth_headers):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("invalid_day", [0, 29, -1, 100])
+@pytest.mark.parametrize("invalid_day", [0, 29])  # just-below-1 + just-above-28
 async def test_invalid_cycle_day_422(db_client, auth_headers, invalid_day):
     """T-cycle-validation: Field(ge=1, le=28) → 422 для out-of-range."""
     await db_client.get("/api/v1/me", headers=auth_headers)
@@ -106,7 +108,9 @@ async def test_invalid_cycle_day_422(db_client, auth_headers, invalid_day):
 
 
 @pytest.mark.asyncio
-async def test_patch_does_not_recompute_existing_period(db_client, auth_headers, owner_tg_id):
+async def test_patch_does_not_recompute_existing_period(
+    db_client, auth_headers, owner_tg_id
+):
     """SET-01 / D-17: изменение cycle_start_day не пересчитывает текущий период.
 
     Phase 14 test-infra note: db_client fixture flips onboarded_at=NOW() right
@@ -123,6 +127,7 @@ async def test_patch_does_not_recompute_existing_period(db_client, auth_headers,
 
     from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
     from sqlalchemy import text as _text
+
     _engine = create_async_engine(os.environ["DATABASE_URL"], echo=False)
     _SessionLocal = async_sessionmaker(_engine, expire_on_commit=False)
     async with _SessionLocal() as _s:
@@ -147,8 +152,10 @@ async def test_patch_does_not_recompute_existing_period(db_client, auth_headers,
     actual = await db_client.post(
         "/api/v1/actual",
         json={
-            "kind": "expense", "amount_cents": 10_00,
-            "category_id": cat_id, "tx_date": date.today().isoformat(),
+            "kind": "expense",
+            "amount_cents": 10_00,
+            "category_id": cat_id,
+            "tx_date": date.today().isoformat(),
         },
         headers=auth_headers,
     )

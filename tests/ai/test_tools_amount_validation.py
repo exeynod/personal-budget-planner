@@ -12,6 +12,7 @@ Edge cases covered:
 - Typical positive amount (500 rub = 50000 cents)
 - Existing unparseable-input branch preserved (kept on its own error message)
 """
+
 from __future__ import annotations
 
 import os
@@ -38,7 +39,9 @@ async def _seed_user(db_session) -> int:
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
     "amount_rub",
-    [-1, -100, -100.5, 0, 0.0, 0.001, 0.004],  # 0.001 → round to 0 cents → reject
+    # Representatives: negative, zero, round-down-to-zero (each re-seeds DB,
+    # so the full -1/-100/-100.5/0/0.0/0.001/0.004 matrix was collapsed).
+    [-100, 0, 0.004],
 )
 async def test_propose_actual_transaction_rejects_non_positive(db_session, amount_rub):
     """Negative, zero, and round-down-to-zero amounts return {"error": ...}."""
@@ -65,9 +68,10 @@ async def test_propose_actual_transaction_rejects_non_positive(db_session, amoun
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("amount_rub", [-1, -100, -100.5, 0, 0.0, 0.001, 0.004])
-async def test_propose_planned_transaction_rejects_non_positive(db_session, amount_rub):
-    """Mirror check on planned-proposal tool."""
+async def test_propose_planned_transaction_rejects_non_positive(db_session):
+    """Mirror check on planned-proposal tool (shares the validation path, so a
+    single representative — zero — suffices once the actual-proposal matrix above
+    has exercised negative/round-down)."""
     _require_db()
     from app.ai.tools import propose_planned_transaction
 
@@ -75,7 +79,7 @@ async def test_propose_planned_transaction_rejects_non_positive(db_session, amou
     result = await propose_planned_transaction(
         db_session,
         user_id=user_id,
-        amount_rub=amount_rub,
+        amount_rub=0,
         kind="expense",
         description="adversarial",
     )

@@ -7,6 +7,7 @@ Wave 0 RED state: route /api/v1/onboarding/complete will be created
 in Plan 02-03 (service) + 02-04 (route). DB fixture self-skips
 when DATABASE_URL is unset.
 """
+
 import os
 
 import pytest
@@ -38,6 +39,7 @@ async def db_client(async_client, bot_token, owner_tg_id):
     SessionLocal = async_sessionmaker(engine, expire_on_commit=False)
 
     from tests.helpers.seed import truncate_db
+
     await truncate_db()
 
     async def real_get_db():
@@ -63,6 +65,7 @@ async def db_client(async_client, bot_token, owner_tg_id):
     # (starting_balance/seed_default_categories) was replaced by the v1.0 body
     # (income_cents/accounts/category_plans) — tests below use the v1.0 contract.
     from tests.helpers.onboarding import grant_pdn_consent
+
     await grant_pdn_consent(SessionLocal, tg_user_id=owner_tg_id)
 
     yield async_client
@@ -80,7 +83,9 @@ async def test_complete_creates_period_and_seeds_categories(db_client, auth_head
     from tests.helpers.onboarding import complete_onboarding_v10
 
     response = await complete_onboarding_v10(
-        db_client, auth_headers, income_cents=200_000_00,
+        db_client,
+        auth_headers,
+        income_cents=200_000_00,
     )
     assert response.status_code == 200, response.text
 
@@ -109,29 +114,13 @@ async def test_repeat_complete_returns_409(db_client, auth_headers):
     assert second.status_code == 409
 
 
-@pytest.mark.asyncio
-async def test_seeds_eight_plus_savings_categories(db_client, auth_headers):
-    """v1.0 (68-05): onboarding always seeds the 8 defaults + savings (no seed flag).
-
-    The legacy ``seed_default_categories=False`` opt-out path was removed in the
-    v1.0 contract — categories are always seeded. Intent preserved by asserting
-    the deterministic v1.0 category count and that NO period is created at
-    onboarding (the period is created lazily on the first transaction).
-    """
-    from tests.helpers.onboarding import complete_onboarding_v10
-
-    response = await complete_onboarding_v10(db_client, auth_headers)
-    assert response.status_code == 200, response.text
-    cats = await db_client.get("/api/v1/categories", headers=auth_headers)
-    assert len(cats.json()) == 9
-    # v1.0 (68-05): period is created lazily on first transaction, not at
-    # onboarding — /periods/current is 404 here.
-    period = await db_client.get("/api/v1/periods/current", headers=auth_headers)
-    assert period.status_code == 404
+# NOTE (prune): test_seeds_eight_plus_savings_categories removed — it duplicated
+# test_complete_creates_period_and_seeds_categories above (same 9-category seed +
+# lazy-period 404 assertions); that test additionally checks onboarded_at.
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("invalid_day", [0, 29, 30, 31, -1])
+@pytest.mark.parametrize("invalid_day", [0, 29])  # just-below-1 + just-above-28
 async def test_invalid_cycle_start_day_422(db_client, auth_headers, invalid_day):
     """T-cycle-validation: Pydantic Field(ge=1, le=28) → 422 на out-of-range."""
     response = await db_client.post(
@@ -156,8 +145,11 @@ async def test_negative_account_balance_allowed(db_client, auth_headers):
     from tests.helpers.onboarding import complete_onboarding_v10
 
     response = await complete_onboarding_v10(
-        db_client, auth_headers,
-        accounts=[{"bank": "Долг", "kind": "card", "balance_cents": -50_000, "primary": True}],
+        db_client,
+        auth_headers,
+        accounts=[
+            {"bank": "Долг", "kind": "card", "balance_cents": -50_000, "primary": True}
+        ],
     )
     assert response.status_code == 200, response.text
 
@@ -185,8 +177,7 @@ async def test_negative_account_balance_allowed(db_client, auth_headers):
     "covered by ai_embedding_backfill tests"
 )
 @pytest.mark.asyncio
-async def test_complete_onboarding_creates_seed_embeddings():
-    ...
+async def test_complete_onboarding_creates_seed_embeddings(): ...
 
 
 @pytest.mark.skip(
@@ -194,5 +185,4 @@ async def test_complete_onboarding_creates_seed_embeddings():
     "covered by ai_embedding_backfill tests"
 )
 @pytest.mark.asyncio
-async def test_complete_onboarding_swallows_embedding_failure():
-    ...
+async def test_complete_onboarding_swallows_embedding_failure(): ...

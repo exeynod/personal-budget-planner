@@ -7,6 +7,7 @@ Covered behaviours:
 - post: 200 happy / 404 missing / 409 already-posted / 409 inactive / 422 no account.
 - unpost: 204 happy / 404 missing / 404 not-posted.
 """
+
 import os
 from datetime import date, datetime, timedelta, timezone
 
@@ -22,6 +23,7 @@ def _require_db():
 @pytest.fixture
 def auth_headers(bot_token, owner_tg_id):
     from tests.conftest import make_init_data
+
     return {"X-Telegram-Init-Data": make_init_data(owner_tg_id, bot_token)}
 
 
@@ -41,10 +43,14 @@ async def db_setup(async_client, owner_tg_id):
 
     await truncate_db()
     async with SessionLocal() as session:
-        session.add(AppUser(
-            tg_user_id=owner_tg_id, role=UserRole.owner, cycle_start_day=5,
-            onboarded_at=datetime.now(timezone.utc),
-        ))
+        session.add(
+            AppUser(
+                tg_user_id=owner_tg_id,
+                role=UserRole.owner,
+                cycle_start_day=5,
+                onboarded_at=datetime.now(timezone.utc),
+            )
+        )
         await session.commit()
 
     async def real_get_db():
@@ -66,32 +72,51 @@ async def seed_sub_with_account(db_setup, owner_tg_id):
     _, SessionLocal = db_setup
     from sqlalchemy import text
     from app.db.models import (
-        Account, AccountKind, Category, CategoryKind,
-        Subscription, SubCycle,
+        Account,
+        AccountKind,
+        CategoryKind,
+        Subscription,
+        SubCycle,
     )
 
     async with SessionLocal() as session:
-        uid = (await session.execute(
-            text("SELECT id FROM app_user WHERE tg_user_id = :tg"),
-            {"tg": owner_tg_id},
-        )).scalar_one()
+        uid = (
+            await session.execute(
+                text("SELECT id FROM app_user WHERE tg_user_id = :tg"),
+                {"tg": owner_tg_id},
+            )
+        ).scalar_one()
 
         # Need savings cat for create_actual_v10's roundup hook (savings can be
         # absent, hook is a no-op when SavingsConfig.roundup_enabled=false).
         from tests.helpers.seed import seed_category
+
         cat = await seed_category(
             session,
-            user_id=uid, name="Подписки", code="subs", ord="08",
-            kind=CategoryKind.expense, plan_cents=0, sort_order=10,
+            user_id=uid,
+            name="Подписки",
+            code="subs",
+            ord="08",
+            kind=CategoryKind.expense,
+            plan_cents=0,
+            sort_order=10,
         )
         savings_cat = await seed_category(
             session,
-            user_id=uid, name="КОПИЛКА", code="savings", ord="99",
-            kind=CategoryKind.expense, plan_cents=0, sort_order=99,
+            user_id=uid,
+            name="КОПИЛКА",
+            code="savings",
+            ord="99",
+            kind=CategoryKind.expense,
+            plan_cents=0,
+            sort_order=99,
         )
         acc = Account(
-            user_id=uid, bank="Т-Банк", kind=AccountKind.card,
-            balance_cents=10_000_00, is_primary=True,
+            user_id=uid,
+            bank="Т-Банк",
+            kind=AccountKind.card,
+            balance_cents=10_000_00,
+            is_primary=True,
         )
         session.add(acc)
         await session.commit()
@@ -99,11 +124,15 @@ async def seed_sub_with_account(db_setup, owner_tg_id):
         await session.refresh(acc)
 
         sub = Subscription(
-            user_id=uid, name="Netflix", amount_cents=99900,
+            user_id=uid,
+            name="Netflix",
+            amount_cents=99900,
             cycle=SubCycle.monthly,
             next_charge_date=date.today() + timedelta(days=10),
-            category_id=cat.id, notify_days_before=2,
-            is_active=True, account_id=acc.id,
+            category_id=cat.id,
+            notify_days_before=2,
+            is_active=True,
+            account_id=acc.id,
         )
         session.add(sub)
         await session.commit()
@@ -130,9 +159,7 @@ async def test_post_subscription_requires_auth_403(async_client):
 
 
 @pytest.mark.asyncio
-async def test_post_subscription_happy(
-    db_setup, auth_headers, seed_sub_with_account
-):
+async def test_post_subscription_happy(db_setup, auth_headers, seed_sub_with_account):
     client, _ = db_setup
     seed = seed_sub_with_account
     r = await client.post(
@@ -143,15 +170,6 @@ async def test_post_subscription_happy(
     assert body["subscription_id"] == seed["sub_id"]
     assert isinstance(body["txn_id"], int)
     assert body["posted_at"]
-
-
-@pytest.mark.asyncio
-async def test_post_subscription_404_missing(db_setup, auth_headers):
-    client, _ = db_setup
-    r = await client.post(
-        "/api/v1/subscriptions/999999/post", headers=auth_headers
-    )
-    assert r.status_code == 404
 
 
 @pytest.mark.asyncio
@@ -178,9 +196,7 @@ async def test_post_subscription_409_already_posted(
 
 
 @pytest.mark.asyncio
-async def test_unpost_subscription_happy(
-    db_setup, auth_headers, seed_sub_with_account
-):
+async def test_unpost_subscription_happy(db_setup, auth_headers, seed_sub_with_account):
     client, _ = db_setup
     seed = seed_sub_with_account
     posted = await client.post(
@@ -194,13 +210,9 @@ async def test_unpost_subscription_happy(
     assert unposted.status_code == 204
 
 
-@pytest.mark.asyncio
-async def test_unpost_subscription_404_missing(db_setup, auth_headers):
-    client, _ = db_setup
-    r = await client.post(
-        "/api/v1/subscriptions/999999/unpost", headers=auth_headers
-    )
-    assert r.status_code == 404
+# NOTE (prune): the post/unpost _404_missing tests were removed — both exercise
+# the shared get_or_404 lookup, covered by tests/services/test_subscriptions_post.py
+# cross-tenant/lookup tests and the 404_not_posted case below.
 
 
 @pytest.mark.asyncio

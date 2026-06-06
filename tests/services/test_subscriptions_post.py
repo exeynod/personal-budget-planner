@@ -22,6 +22,7 @@ Behaviors verified:
 DB-backed: requires DATABASE_URL pointing to a Postgres at v1.0 schema HEAD
 (0016_v10_actual_account_id). Self-skips otherwise.
 """
+
 from __future__ import annotations
 
 import os
@@ -157,22 +158,10 @@ async def active_subscription(
     yield sub
 
 
-# ---------- Sanity ----------
-
-
-@pytest.mark.asyncio
-async def test_service_module_exposes_post_unpost_symbols():
-    """Sanity: subscriptions module exports the new symbols."""
-    from app.services import subscriptions as svc
-
-    for name in (
-        "post_subscription",
-        "unpost_subscription",
-        "SubscriptionAlreadyPostedError",
-        "SubscriptionNotPostedError",
-        "SubscriptionInactiveError",
-    ):
-        assert hasattr(svc, name), f"missing symbol: {name}"
+# NOTE (prune): test_service_module_exposes_post_unpost_symbols removed — the
+# functional post/unpost tests below import and call these symbols directly, so
+# an ImportError/AttributeError would already fail them. The standalone hasattr
+# sanity check added nothing.
 
 
 # ---------- post_subscription ----------

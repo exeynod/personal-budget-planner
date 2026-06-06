@@ -10,11 +10,11 @@ Covered behaviors (per 04-PLAN.md):
 - parse_add_command: parses (amount, category, description) tuple
 - parse_add_command: returns None when args is None or unparseable
 """
+
 from __future__ import annotations
 
 import os
 
-import pytest
 
 # Minimal env for settings import
 os.environ.setdefault("BOT_TOKEN", "1234567890:test_bot_token_for_testing_only")
@@ -25,108 +25,60 @@ os.environ.setdefault("PUBLIC_DOMAIN", "localhost")
 os.environ.setdefault("MINI_APP_URL", "https://example.test")
 
 
-def test_parse_amount_integer():
+def test_parse_amount_numeric_forms():
+    """Integer + decimal (dot/comma) + single-decimal kopeck conversion."""
     from app.bot.parsers import parse_amount
+
     assert parse_amount("1500") == 150000
-
-
-def test_parse_amount_decimal_dot():
-    from app.bot.parsers import parse_amount
     assert parse_amount("1500.50") == 150050
-
-
-def test_parse_amount_decimal_comma():
-    from app.bot.parsers import parse_amount
     assert parse_amount("1500,50") == 150050
-
-
-def test_parse_amount_single_decimal():
-    from app.bot.parsers import parse_amount
-    # "15.5" → 1550 kopecks
     assert parse_amount("15.5") == 1550
 
 
-def test_parse_amount_strips_ruble_sign():
+def test_parse_amount_strips_suffixes_and_separators():
+    """₽ / руб / р suffixes (with/without space) and NBSP between digits."""
     from app.bot.parsers import parse_amount
+
     assert parse_amount("1500₽") == 150000
     assert parse_amount("1500 ₽") == 150000
-
-
-def test_parse_amount_strips_rub_suffix():
-    from app.bot.parsers import parse_amount
     assert parse_amount("1500 руб") == 150000
     assert parse_amount("1500руб") == 150000
-
-
-def test_parse_amount_strips_r_suffix():
-    from app.bot.parsers import parse_amount
     assert parse_amount("1500р") == 150000
     assert parse_amount("1500 р") == 150000
+    assert parse_amount("1\xa0500") == 150000  # NBSP
 
 
-def test_parse_amount_strips_nbsp():
+def test_parse_amount_rejects_invalid():
+    """Zero, negative, non-numeric, multi-dot all → None."""
     from app.bot.parsers import parse_amount
-    # Non-breaking space between digits
-    result = parse_amount("1\xa0500")
-    assert result == 150000
 
-
-def test_parse_amount_zero_returns_none():
-    from app.bot.parsers import parse_amount
     assert parse_amount("0") is None
-
-
-def test_parse_amount_negative_returns_none():
-    from app.bot.parsers import parse_amount
     assert parse_amount("-100") is None
-
-
-def test_parse_amount_non_numeric_returns_none():
-    from app.bot.parsers import parse_amount
     assert parse_amount("abc") is None
     assert parse_amount("") is None
     assert parse_amount("1.2.3") is None
 
 
-def test_parse_amount_too_large_returns_none():
+def test_parse_amount_cap_boundary():
     from app.bot.parsers import parse_amount
-    # 10^10 rubles = 10^12 kopecks → capped
+
+    # Exactly 10^10 rubles succeeds; one kopeck over the 10^12 cap → None.
+    assert parse_amount("10000000000") is not None
     assert parse_amount("10000000000001") is None
 
 
-def test_parse_amount_cap_boundary():
-    from app.bot.parsers import parse_amount
-    # Exactly 10^10 rubles should succeed
-    assert parse_amount("10000000000") is not None
-
-
-def test_parse_add_command_amount_and_category():
+def test_parse_add_command_amount_category_and_description():
     from app.bot.parsers import parse_add_command
-    result = parse_add_command("1500 продукты")
-    assert result == (150000, "продукты", None)
+
+    assert parse_add_command("1500 продукты") == (150000, "продукты", None)
+    amount, cat, desc = parse_add_command("750 кафе Обед с коллегами")
+    assert (amount, cat, desc) == (75000, "кафе", "Обед с коллегами")
 
 
-def test_parse_add_command_with_description():
+def test_parse_add_command_rejects_invalid():
+    """None args, amount-only (no category), and bad amount all → None."""
     from app.bot.parsers import parse_add_command
-    result = parse_add_command("750 кафе Обед с коллегами")
-    assert result is not None
-    amount, cat, desc = result
-    assert amount == 75000
-    assert cat == "кафе"
-    assert desc == "Обед с коллегами"
 
-
-def test_parse_add_command_none_args():
-    from app.bot.parsers import parse_add_command
     assert parse_add_command(None) is None
-
-
-def test_parse_add_command_only_amount_returns_none():
-    from app.bot.parsers import parse_add_command
-    # Need at least amount + category
     assert parse_add_command("1500") is None
-
-
-def test_parse_add_command_bad_amount_returns_none():
-    from app.bot.parsers import parse_add_command
     assert parse_add_command("abc продукты") is None

@@ -17,6 +17,7 @@ Covered behaviors:
 - GET /actual/balance returns period totals + by_category breakdown
 - Auth: 403 without X-Telegram-Init-Data
 """
+
 import os
 from datetime import date, timedelta, datetime, timezone
 
@@ -32,13 +33,13 @@ def _require_db():
 @pytest.fixture
 def auth_headers(bot_token, owner_tg_id):
     from tests.conftest import make_init_data
+
     return {"X-Telegram-Init-Data": make_init_data(owner_tg_id, bot_token)}
 
 
 @pytest_asyncio.fixture
 async def db_setup(async_client, owner_tg_id):
     _require_db()
-    from sqlalchemy import text
     from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
     from app.api.dependencies import get_db
@@ -50,11 +51,19 @@ async def db_setup(async_client, owner_tg_id):
     SessionLocal = async_sessionmaker(engine, expire_on_commit=False)
 
     from tests.helpers.seed import truncate_db
+
     await truncate_db()
 
     # Seed AppUser explicitly — /me no longer upserts after Phase 12 (Plan 12-03).
     async with SessionLocal() as session:
-        session.add(AppUser(tg_user_id=owner_tg_id, role=UserRole.owner, cycle_start_day=5, onboarded_at=datetime.now(timezone.utc)))
+        session.add(
+            AppUser(
+                tg_user_id=owner_tg_id,
+                role=UserRole.owner,
+                cycle_start_day=5,
+                onboarded_at=datetime.now(timezone.utc),
+            )
+        )
         await session.commit()
 
     async def real_get_db():
@@ -91,8 +100,22 @@ async def seed_categories(db_setup, owner_tg_id):
         )
         user_id = result.scalar_one()
 
-        expense_cat = await seed_category(session, user_id=user_id, name="Продукты", kind=CategoryKind.expense, is_archived=False, sort_order=10)
-        income_cat = await seed_category(session, user_id=user_id, name="Зарплата", kind=CategoryKind.income, is_archived=False, sort_order=20)
+        expense_cat = await seed_category(
+            session,
+            user_id=user_id,
+            name="Продукты",
+            kind=CategoryKind.expense,
+            is_archived=False,
+            sort_order=10,
+        )
+        income_cat = await seed_category(
+            session,
+            user_id=user_id,
+            name="Зарплата",
+            kind=CategoryKind.income,
+            is_archived=False,
+            sort_order=20,
+        )
         await session.commit()
         await session.refresh(expense_cat)
         await session.refresh(income_cat)
@@ -113,7 +136,14 @@ async def seed_archived_category(db_setup, owner_tg_id):
         )
         user_id = result.scalar_one()
 
-        cat = await seed_category(session, user_id=user_id, name="Архивная", kind=CategoryKind.expense, is_archived=True, sort_order=99)
+        cat = await seed_category(
+            session,
+            user_id=user_id,
+            name="Архивная",
+            kind=CategoryKind.expense,
+            is_archived=True,
+            sort_order=99,
+        )
         await session.commit()
         await session.refresh(cat)
         return cat
@@ -149,6 +179,7 @@ async def seed_period(db_setup, owner_tg_id):
 @pytest.mark.asyncio
 async def test_list_actual_empty(db_client, auth_headers, seed_period):
     from app.services.actual import ActualNotFoundError  # noqa: F401 — RED import check
+
     response = await db_client.get(
         f"/api/v1/periods/{seed_period}/actual", headers=auth_headers
     )
@@ -157,7 +188,9 @@ async def test_list_actual_empty(db_client, auth_headers, seed_period):
 
 
 @pytest.mark.asyncio
-async def test_create_actual_expense(db_client, auth_headers, seed_categories, seed_period):
+async def test_create_actual_expense(
+    db_client, auth_headers, seed_categories, seed_period
+):
     response = await db_client.post(
         "/api/v1/actual",
         json={
@@ -178,21 +211,9 @@ async def test_create_actual_expense(db_client, auth_headers, seed_categories, s
     assert "period_id" in data
 
 
-@pytest.mark.asyncio
-async def test_create_actual_source_forced_mini_app(db_client, auth_headers, seed_categories, seed_period):
-    """Source is always mini_app when created via public API."""
-    response = await db_client.post(
-        "/api/v1/actual",
-        json={
-            "kind": "expense",
-            "amount_cents": 50000,
-            "category_id": seed_categories["expense_cat"].id,
-            "tx_date": str(date.today()),
-        },
-        headers=auth_headers,
-    )
-    assert response.status_code in (200, 201)
-    assert response.json()["source"] == "mini_app"
+# NOTE (prune): test_create_actual_source_forced_mini_app removed — its sole
+# assertion (source == "mini_app" on public-API create) is covered by
+# test_actual_response_includes_all_fields below.
 
 
 @pytest.mark.asyncio
@@ -213,7 +234,9 @@ async def test_create_actual_with_archived_category_400(
 
 
 @pytest.mark.asyncio
-async def test_create_actual_kind_mismatch_400(db_client, auth_headers, seed_categories, seed_period):
+async def test_create_actual_kind_mismatch_400(
+    db_client, auth_headers, seed_categories, seed_period
+):
     response = await db_client.post(
         "/api/v1/actual",
         json={
@@ -228,7 +251,9 @@ async def test_create_actual_kind_mismatch_400(db_client, auth_headers, seed_cat
 
 
 @pytest.mark.asyncio
-async def test_create_actual_amount_zero_422(db_client, auth_headers, seed_categories, seed_period):
+async def test_create_actual_amount_zero_422(
+    db_client, auth_headers, seed_categories, seed_period
+):
     response = await db_client.post(
         "/api/v1/actual",
         json={
@@ -250,6 +275,7 @@ async def test_create_actual_future_date_beyond_7_days_400(
     # in late-MSK-evening container slides into next day and falsifies the
     # ">7 days" boundary by exactly 1 day.
     from app.services.periods import _today_in_app_tz
+
     future_date = _today_in_app_tz() + timedelta(days=8)
     response = await db_client.post(
         "/api/v1/actual",
@@ -264,22 +290,9 @@ async def test_create_actual_future_date_beyond_7_days_400(
     assert response.status_code == 400
 
 
-@pytest.mark.asyncio
-async def test_create_actual_date_within_7_days_ok(
-    db_client, auth_headers, seed_categories, seed_period
-):
-    future_date = date.today() + timedelta(days=5)
-    response = await db_client.post(
-        "/api/v1/actual",
-        json={
-            "kind": "expense",
-            "amount_cents": 100000,
-            "category_id": seed_categories["expense_cat"].id,
-            "tx_date": str(future_date),
-        },
-        headers=auth_headers,
-    )
-    assert response.status_code in (200, 201)
+# NOTE (prune): test_create_actual_date_within_7_days_ok removed — the
+# >7-days-→400 guard above defines the boundary, and test_create_actual_expense
+# already covers the accept path for a near-term tx_date.
 
 
 @pytest.mark.asyncio
@@ -356,7 +369,9 @@ async def test_no_init_data_403(db_client, seed_period):
 
 
 @pytest.mark.asyncio
-async def test_actual_response_includes_all_fields(db_client, auth_headers, seed_categories, seed_period):
+async def test_actual_response_includes_all_fields(
+    db_client, auth_headers, seed_categories, seed_period
+):
     create = await db_client.post(
         "/api/v1/actual",
         json={
@@ -370,6 +385,16 @@ async def test_actual_response_includes_all_fields(db_client, auth_headers, seed
     )
     assert create.status_code in (200, 201)
     body = create.json()
-    expected_keys = {"id", "period_id", "kind", "amount_cents", "description", "category_id", "tx_date", "source", "created_at"}
+    expected_keys = {
+        "id",
+        "period_id",
+        "kind",
+        "amount_cents",
+        "description",
+        "category_id",
+        "tx_date",
+        "source",
+        "created_at",
+    }
     assert expected_keys.issubset(body.keys())
     assert body["source"] == "mini_app"

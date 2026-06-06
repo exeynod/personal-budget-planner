@@ -12,6 +12,7 @@ Covered behaviors:
 - GET /periods/{id}/balance returns 404 for missing period_id
 - GET /periods/{id}/balance works for closed periods
 """
+
 import os
 from datetime import date, datetime, timezone
 
@@ -27,13 +28,13 @@ def _require_db():
 @pytest.fixture
 def auth_headers(bot_token, owner_tg_id):
     from tests.conftest import make_init_data
+
     return {"X-Telegram-Init-Data": make_init_data(owner_tg_id, bot_token)}
 
 
 @pytest_asyncio.fixture
 async def db_setup(async_client, owner_tg_id):
     _require_db()
-    from sqlalchemy import text
     from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
     from app.api.dependencies import get_db
@@ -45,11 +46,19 @@ async def db_setup(async_client, owner_tg_id):
     SessionLocal = async_sessionmaker(engine, expire_on_commit=False)
 
     from tests.helpers.seed import truncate_db
+
     await truncate_db()
 
     # Seed AppUser explicitly — /me no longer upserts after Phase 12 (Plan 12-03).
     async with SessionLocal() as session:
-        session.add(AppUser(tg_user_id=owner_tg_id, role=UserRole.owner, cycle_start_day=5, onboarded_at=datetime.now(timezone.utc)))
+        session.add(
+            AppUser(
+                tg_user_id=owner_tg_id,
+                role=UserRole.owner,
+                cycle_start_day=5,
+                onboarded_at=datetime.now(timezone.utc),
+            )
+        )
         await session.commit()
 
     async def real_get_db():
@@ -123,6 +132,7 @@ async def seed_periods(db_setup, owner_tg_id):
 
 # ---------- Tests for GET /api/v1/periods ----------
 
+
 @pytest.mark.asyncio
 async def test_list_periods_requires_init_data(async_client):
     """GET /api/v1/periods without X-Telegram-Init-Data → 403."""
@@ -140,36 +150,36 @@ async def test_list_periods_empty_returns_empty_list(db_setup, auth_headers):
 
 
 @pytest.mark.asyncio
-async def test_list_periods_returns_all_sorted_desc(db_setup, seed_periods, auth_headers):
-    """3 periods inserted → GET /periods returns 3 items sorted period_start DESC."""
+async def test_list_periods_returns_all_sorted_desc_with_shape(
+    db_setup, seed_periods, auth_headers
+):
+    """3 periods → GET /periods returns 3 items, DESC by period_start, each
+    carrying the full read shape. Consolidates the former sorted + response_shape
+    tests (same GET request)."""
     client, _ = db_setup
     response = await client.get("/api/v1/periods", headers=auth_headers)
     assert response.status_code == 200
     data = response.json()
     assert len(data) == 3
-    # Verify descending order by period_start
     starts = [item["period_start"] for item in data]
     assert starts == sorted(starts, reverse=True), f"Not sorted DESC: {starts}"
-
-
-@pytest.mark.asyncio
-async def test_list_periods_response_shape(db_setup, seed_periods, auth_headers):
-    """Each period item must contain all required fields."""
-    client, _ = db_setup
-    response = await client.get("/api/v1/periods", headers=auth_headers)
-    assert response.status_code == 200
-    data = response.json()
-    assert len(data) >= 1
     required_keys = {
-        "id", "period_start", "period_end",
-        "starting_balance_cents", "ending_balance_cents",
-        "status", "closed_at",
+        "id",
+        "period_start",
+        "period_end",
+        "starting_balance_cents",
+        "ending_balance_cents",
+        "status",
+        "closed_at",
     }
     for item in data:
-        assert required_keys.issubset(item.keys()), f"Missing keys: {required_keys - item.keys()}"
+        assert required_keys.issubset(item.keys()), (
+            f"Missing keys: {required_keys - item.keys()}"
+        )
 
 
 # ---------- Tests for GET /api/v1/periods/{id}/balance ----------
+
 
 @pytest.mark.asyncio
 async def test_get_period_balance_requires_init_data(async_client):
@@ -188,7 +198,6 @@ async def test_get_period_balance_returns_balance_for_existing_period(
         ActualSource,
         ActualTransaction,
         BudgetPeriod,
-        Category,
         CategoryKind,
         PeriodStatus,
         PlannedTransaction,
@@ -197,6 +206,7 @@ async def test_get_period_balance_returns_balance_for_existing_period(
 
     async with SessionLocal() as session:
         from sqlalchemy import text as _text
+
         result = await session.execute(
             _text("SELECT id FROM app_user WHERE tg_user_id = :tg"),
             {"tg": owner_tg_id},
@@ -204,10 +214,14 @@ async def test_get_period_balance_returns_balance_for_existing_period(
         _user_id = result.scalar_one()
 
         from tests.helpers.seed import seed_category
+
         cat = await seed_category(
             session,
             user_id=_user_id,
-            name="Тест", kind=CategoryKind.expense, is_archived=False, sort_order=1
+            name="Тест",
+            kind=CategoryKind.expense,
+            is_archived=False,
+            sort_order=1,
         )
         await session.flush()
 
@@ -265,7 +279,9 @@ async def test_get_period_balance_404_when_period_missing(db_setup, auth_headers
 
 
 @pytest.mark.asyncio
-async def test_get_period_balance_works_for_closed_period(db_setup, auth_headers, owner_tg_id):
+async def test_get_period_balance_works_for_closed_period(
+    db_setup, auth_headers, owner_tg_id
+):
     """Closed period → GET /periods/{id}/balance returns 200 (not blocked)."""
     client, SessionLocal = db_setup
     from sqlalchemy import text as _text
