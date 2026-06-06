@@ -92,182 +92,45 @@ async def test_list_accounts_empty(db_setup, auth_headers):
     assert r.json() == []
 
 
-@pytest.mark.asyncio
-async def test_create_account_auto_primary_on_first(db_setup, auth_headers):
-    """First account auto-promoted to primary regardless of payload."""
-    client, _ = db_setup
-    body = {
-        "bank": "Т-Банк",
-        "kind": "card",
-        "balance_cents": 100_00,
-        "primary": False,  # explicitly false — service still promotes (auto-rule)
-    }
-    r = await client.post("/api/v1/accounts", json=body, headers=auth_headers)
-    assert r.status_code == 201, r.text
-    data = r.json()
-    assert data["bank"] == "Т-Банк"
-    assert data["kind"] == "card"
-    assert data["balance_cents"] == 100_00
-    assert data["primary"] is True  # auto-promoted
-    assert "id" in data
-    assert "created_at" in data
+# v1.1 (AGREED §G2): account-management routes removed — only GET /accounts
+# remains (read-only single-balance surface). The mutating verbs now 404/405.
 
 
 @pytest.mark.asyncio
-async def test_create_account_explicit_primary_demotes_others(
-    db_setup, auth_headers
-):
-    """primary=true on a second account demotes the prior primary atomically."""
-    client, _ = db_setup
-    # First → auto-primary
-    r1 = await client.post(
-        "/api/v1/accounts",
-        json={"bank": "T-Bank", "kind": "card", "balance_cents": 0},
-        headers=auth_headers,
-    )
-    first_id = r1.json()["id"]
-    assert r1.json()["primary"] is True
-
-    # Second with explicit primary=true → demotes first
-    r2 = await client.post(
-        "/api/v1/accounts",
-        json={"bank": "Tinkoff", "kind": "card", "balance_cents": 50_00, "primary": True},
-        headers=auth_headers,
-    )
-    assert r2.status_code == 201
-    assert r2.json()["primary"] is True
-
-    # GET /accounts → primary first; first_id no longer primary
-    listing = await client.get("/api/v1/accounts", headers=auth_headers)
-    items = listing.json()
-    assert len(items) == 2
-    primaries = [a for a in items if a["primary"]]
-    assert len(primaries) == 1
-    assert primaries[0]["bank"] == "Tinkoff"
-    assert next(a for a in items if a["id"] == first_id)["primary"] is False
-
-
-# ---------------------------------------------------------------------------
-# update / patch
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.asyncio
-async def test_update_account_partial(db_setup, auth_headers):
+async def test_create_account_route_removed(db_setup, auth_headers):
+    """POST /accounts removed in v1.1 → 405 Method Not Allowed."""
     client, _ = db_setup
     r = await client.post(
         "/api/v1/accounts",
-        json={"bank": "Bank A", "kind": "card", "balance_cents": 0},
+        json={"bank": "X", "kind": "card", "balance_cents": 0},
         headers=auth_headers,
     )
-    aid = r.json()["id"]
-
-    patch = await client.patch(
-        f"/api/v1/accounts/{aid}",
-        json={"bank": "Bank B", "balance_cents": 250_00},
-        headers=auth_headers,
-    )
-    assert patch.status_code == 200
-    body = patch.json()
-    assert body["bank"] == "Bank B"
-    assert body["balance_cents"] == 250_00
-    assert body["kind"] == "card"  # unchanged
+    assert r.status_code in (404, 405), r.text
 
 
 @pytest.mark.asyncio
-async def test_update_account_404_when_missing(db_setup, auth_headers):
+async def test_update_account_route_removed(db_setup, auth_headers):
+    """PATCH /accounts/{id} removed in v1.1 → 404/405."""
     client, _ = db_setup
     r = await client.patch(
-        "/api/v1/accounts/9999", json={"bank": "Nope"}, headers=auth_headers
+        "/api/v1/accounts/1", json={"bank": "Y"}, headers=auth_headers
     )
-    assert r.status_code == 404
+    assert r.status_code in (404, 405), r.text
 
 
 @pytest.mark.asyncio
-async def test_update_account_invalid_kind_422(db_setup, auth_headers):
+async def test_delete_account_route_removed(db_setup, auth_headers):
+    """DELETE /accounts/{id} removed in v1.1 → 404/405."""
+    client, _ = db_setup
+    r = await client.delete("/api/v1/accounts/1", headers=auth_headers)
+    assert r.status_code in (404, 405), r.text
+
+
+@pytest.mark.asyncio
+async def test_set_primary_route_removed(db_setup, auth_headers):
+    """POST /accounts/{id}/set-primary removed in v1.1 → 404/405."""
     client, _ = db_setup
     r = await client.post(
-        "/api/v1/accounts",
-        json={"bank": "B", "kind": "card", "balance_cents": 0},
-        headers=auth_headers,
+        "/api/v1/accounts/1/set-primary", headers=auth_headers
     )
-    aid = r.json()["id"]
-    patch = await client.patch(
-        f"/api/v1/accounts/{aid}",
-        json={"kind": "WRONG"},
-        headers=auth_headers,
-    )
-    # Pydantic Literal["card","cash","savings"] surfaces as 422
-    assert patch.status_code == 422
-
-
-# ---------------------------------------------------------------------------
-# delete
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.asyncio
-async def test_delete_account_204(db_setup, auth_headers):
-    """Single account can be deleted (orphan-primary guard does not trip)."""
-    client, _ = db_setup
-    r = await client.post(
-        "/api/v1/accounts",
-        json={"bank": "Tmp", "kind": "card", "balance_cents": 0},
-        headers=auth_headers,
-    )
-    aid = r.json()["id"]
-    delete = await client.delete(
-        f"/api/v1/accounts/{aid}", headers=auth_headers
-    )
-    assert delete.status_code == 204
-    listing = await client.get("/api/v1/accounts", headers=auth_headers)
-    assert listing.json() == []
-
-
-@pytest.mark.asyncio
-async def test_delete_account_404_when_missing(db_setup, auth_headers):
-    client, _ = db_setup
-    r = await client.delete("/api/v1/accounts/9999", headers=auth_headers)
-    assert r.status_code == 404
-
-
-# ---------------------------------------------------------------------------
-# set-primary
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.asyncio
-async def test_set_primary_flips(db_setup, auth_headers):
-    client, _ = db_setup
-    a1 = (await client.post(
-        "/api/v1/accounts",
-        json={"bank": "A", "kind": "card", "balance_cents": 0},
-        headers=auth_headers,
-    )).json()["id"]
-    a2 = (await client.post(
-        "/api/v1/accounts",
-        json={"bank": "B", "kind": "cash", "balance_cents": 0},
-        headers=auth_headers,
-    )).json()["id"]
-
-    # a1 was auto-primary; flip to a2
-    r = await client.post(
-        f"/api/v1/accounts/{a2}/set-primary", headers=auth_headers
-    )
-    assert r.status_code == 200
-    assert r.json()["primary"] is True
-
-    listing = (await client.get(
-        "/api/v1/accounts", headers=auth_headers
-    )).json()
-    assert next(x for x in listing if x["id"] == a1)["primary"] is False
-    assert next(x for x in listing if x["id"] == a2)["primary"] is True
-
-
-@pytest.mark.asyncio
-async def test_set_primary_404_on_missing(db_setup, auth_headers):
-    client, _ = db_setup
-    r = await client.post(
-        "/api/v1/accounts/99999/set-primary", headers=auth_headers
-    )
-    assert r.status_code == 404
+    assert r.status_code in (404, 405), r.text

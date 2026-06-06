@@ -15,6 +15,7 @@ DB-backed: requires DATABASE_URL pointing at v1.0 schema HEAD. Self-skips
 otherwise. Mirrors the pattern from tests/api/test_onboarding_v10_api.py and
 tests/test_internal_bot.py.
 """
+
 from __future__ import annotations
 
 import os
@@ -88,11 +89,7 @@ async def _seed_onboarded_user(
         Account,
         AccountKind,
         AppUser,
-        Category,
         CategoryKind,
-        Goal,
-        RolloverPolicy,
-        SavingsConfig,
         UserRole,
     )
 
@@ -121,9 +118,11 @@ async def _seed_onboarded_user(
         await session.flush()
 
         from tests.helpers.seed import seed_category
+
         # 8 default categories with non-zero plan_cents — reset must zero them.
         for i, code in enumerate(
-            ["food", "cafe", "home", "transit", "fun", "gifts", "health", "subs"], start=1
+            ["food", "cafe", "home", "transit", "fun", "gifts", "health", "subs"],
+            start=1,
         ):
             await seed_category(
                 session,
@@ -133,40 +132,10 @@ async def _seed_onboarded_user(
                 ord=f"{i:02d}",
                 kind=CategoryKind.expense,
                 plan_cents=10_000_00,
-                rollover=RolloverPolicy.misc,
-                paused=False,
                 is_archived=False,
                 sort_order=i,
             )
-        # System savings category (kept after reset).
-        await seed_category(
-            session,
-            user_id=user.id,
-            name="КОПИЛКА",
-            code="savings",
-            ord="99",
-            kind=CategoryKind.expense,
-            plan_cents=0,
-            rollover=RolloverPolicy.savings,
-            paused=True,
-            is_archived=False,
-            sort_order=99,
-        )
-
-        session.add(
-            Goal(
-                user_id=user.id,
-                name="Машина",
-                target_cents=1_000_000_00,
-            )
-        )
-        session.add(
-            SavingsConfig(
-                user_id=user.id,
-                roundup_enabled=True,
-                roundup_base=10,
-            )
-        )
+        # v1.1: savings category / Goal / SavingsConfig removed (AGREED §G1).
         await session.commit()
         return user.id
 
@@ -179,9 +148,7 @@ async def _seed_onboarded_user(
 @pytest.mark.asyncio
 async def test_reset_without_token_returns_403(async_client):
     """No ``X-Internal-Token`` header → 403 from ``verify_internal_token``."""
-    resp = await async_client.delete(
-        "/api/v1/internal/onboarding/reset?user_id=1"
-    )
+    resp = await async_client.delete("/api/v1/internal/onboarding/reset?user_id=1")
     assert resp.status_code == 403
 
 
@@ -221,9 +188,7 @@ async def test_reset_with_zero_user_id_returns_422(async_client, internal_header
 
 
 @pytest.mark.asyncio
-async def test_reset_with_negative_user_id_returns_422(
-    async_client, internal_headers
-):
+async def test_reset_with_negative_user_id_returns_422(async_client, internal_headers):
     """``user_id=-5`` violates ``Query(gt=0)`` → 422."""
     resp = await async_client.delete(
         "/api/v1/internal/onboarding/reset?user_id=-5",
@@ -262,12 +227,10 @@ async def test_reset_clears_accounts_goals_savings_and_zeros_plans(
         Account,
         AppUser,
         Category,
-        Goal,
-        SavingsConfig,
     )
 
     async with SessionLocal() as session:
-        # Account / Goal / SavingsConfig wiped.
+        # Account wiped (v1.1: goal/savings_config tables removed).
         assert (
             await session.scalar(
                 select(func.count())
@@ -275,35 +238,19 @@ async def test_reset_clears_accounts_goals_savings_and_zeros_plans(
                 .where(Account.user_id == user_id)
             )
         ) == 0
-        assert (
-            await session.scalar(
-                select(func.count())
-                .select_from(Goal)
-                .where(Goal.user_id == user_id)
-            )
-        ) == 0
-        assert (
-            await session.scalar(
-                select(func.count())
-                .select_from(SavingsConfig)
-                .where(SavingsConfig.user_id == user_id)
-            )
-        ) == 0
 
         # AppUser.income / onboarded_at nulled.
-        user = await session.scalar(
-            select(AppUser).where(AppUser.id == user_id)
-        )
+        user = await session.scalar(select(AppUser).where(AppUser.id == user_id))
         assert user.income_cents is None
         assert user.onboarded_at is None
 
         # Categories preserved (FK integrity), plan_cents zeroed.
         cats = (
-            await session.execute(
-                select(Category).where(Category.user_id == user_id)
-            )
-        ).scalars().all()
-        assert len(cats) == 9  # 8 default + 1 savings
+            (await session.execute(select(Category).where(Category.user_id == user_id)))
+            .scalars()
+            .all()
+        )
+        assert len(cats) == 8  # 8 default (v1.1: savings category removed)
         for c in cats:
             assert c.plan_cents == 0, f"category {c.code} plan_cents not zeroed"
 
@@ -322,9 +269,7 @@ async def test_reset_clears_accounts_goals_savings_and_zeros_plans(
 
 
 @pytest.mark.asyncio
-async def test_reset_for_user_a_does_not_affect_user_b(
-    db_setup, internal_headers
-):
+async def test_reset_for_user_a_does_not_affect_user_b(db_setup, internal_headers):
     """Admin reset targeting user A leaves user B's state fully intact."""
     from sqlalchemy import func, select
 
@@ -343,14 +288,14 @@ async def test_reset_for_user_a_does_not_affect_user_b(
     )
     assert resp.status_code == 200
 
-    from app.db.models import Account, AppUser, Category, Goal, SavingsConfig
+    from app.db.models import Account, AppUser, Category
     from sqlalchemy import text
 
     async with SessionLocal() as session:
         # Bypass RLS so we can read user_b's rows from an unscoped session.
         await session.execute(text("SET LOCAL row_security = off"))
 
-        # User B's accounts / goal / savings_config still present.
+        # User B's account still present (v1.1: goal/savings_config removed).
         b_acc_count = await session.scalar(
             select(func.count())
             .select_from(Account)
@@ -362,24 +307,8 @@ async def test_reset_for_user_a_does_not_affect_user_b(
         )
         assert b_acc.balance_cents == 99_999_00
 
-        b_goals = await session.scalar(
-            select(func.count())
-            .select_from(Goal)
-            .where(Goal.user_id == user_b_id)
-        )
-        assert b_goals == 1
-
-        b_cfg = await session.scalar(
-            select(func.count())
-            .select_from(SavingsConfig)
-            .where(SavingsConfig.user_id == user_b_id)
-        )
-        assert b_cfg == 1
-
         # User B's income / onboarded_at intact.
-        user_b = await session.scalar(
-            select(AppUser).where(AppUser.id == user_b_id)
-        )
+        user_b = await session.scalar(select(AppUser).where(AppUser.id == user_b_id))
         assert user_b.income_cents == 200_000_00
         assert user_b.onboarded_at is not None
 

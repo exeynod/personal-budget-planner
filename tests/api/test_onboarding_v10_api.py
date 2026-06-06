@@ -14,6 +14,7 @@ Covered behaviours:
 - Optional goal honoured.
 - Optional savings_config honoured.
 """
+
 import os
 from datetime import datetime, timezone
 
@@ -29,6 +30,7 @@ def _require_db():
 @pytest.fixture
 def auth_headers(bot_token, owner_tg_id):
     from tests.conftest import make_init_data
+
     return {"X-Telegram-Init-Data": make_init_data(owner_tg_id, bot_token)}
 
 
@@ -52,13 +54,15 @@ async def db_setup(async_client, owner_tg_id):
         # Pre-onboarding: onboarded_at = NULL. 68-05 (class B): grant
         # pdn_consent_at so POST /onboarding/complete passes the Phase 33
         # CMP-33-04 consent gate (NULL → 403 pdn_consent_required).
-        session.add(AppUser(
-            tg_user_id=owner_tg_id,
-            role=UserRole.owner,
-            cycle_start_day=5,
-            onboarded_at=None,
-            pdn_consent_at=datetime.now(timezone.utc),
-        ))
+        session.add(
+            AppUser(
+                tg_user_id=owner_tg_id,
+                role=UserRole.owner,
+                cycle_start_day=5,
+                onboarded_at=None,
+                pdn_consent_at=datetime.now(timezone.utc),
+            )
+        )
         await session.commit()
 
     async def real_get_db():
@@ -79,7 +83,12 @@ def _payload(**overrides):
     base = {
         "income_cents": 200_000_00,
         "accounts": [
-            {"bank": "Т-Банк", "kind": "card", "balance_cents": 10_000_00, "primary": True},
+            {
+                "bank": "Т-Банк",
+                "kind": "card",
+                "balance_cents": 10_000_00,
+                "primary": True,
+            },
         ],
         "category_plans": {
             "food": 30_000_00,
@@ -105,9 +114,7 @@ def _payload(**overrides):
 async def test_onboarding_complete_requires_auth_403(async_client):
     if os.environ.get("DEV_MODE", "").lower() == "true":
         pytest.skip("DEV_MODE bypasses initData — auth path tested elsewhere")
-    response = await async_client.post(
-        "/api/v1/onboarding/complete", json=_payload()
-    )
+    response = await async_client.post("/api/v1/onboarding/complete", json=_payload())
     assert response.status_code == 403
 
 
@@ -129,34 +136,21 @@ async def test_complete_v10_happy(db_setup, auth_headers):
     assert data["income_cents"] == 200_000_00
     assert len(data["account_ids"]) == 1
     assert set(data["category_ids_by_code"].keys()) == {
-        "food", "cafe", "home", "transit", "fun", "gifts", "health", "subs"
+        "food",
+        "cafe",
+        "home",
+        "transit",
+        "fun",
+        "gifts",
+        "health",
+        "subs",
     }
-    assert isinstance(data["savings_category_id"], int)
-    assert data["savings_config"]["roundup_enabled"] is False
-    assert data["savings_config"]["roundup_base"] == 10
+    assert isinstance(data["adjustment_category_id"], int)
     assert data["onboarded_at"]
 
 
-@pytest.mark.asyncio
-async def test_complete_v10_with_goal_and_config(db_setup, auth_headers):
-    client, _ = db_setup
-    from datetime import date, timedelta
-    body = _payload(
-        goal={
-            "name": "Машина",
-            "target_cents": 1_000_000_00,
-            "due": (date.today() + timedelta(days=365)).isoformat(),
-        },
-        savings_config={"roundup_enabled": True, "base": 50},
-    )
-    r = await client.post(
-        "/api/v1/onboarding/complete", json=body, headers=auth_headers
-    )
-    assert r.status_code == 200, r.text
-    data = r.json()
-    assert isinstance(data["goal_id"], int)
-    assert data["savings_config"]["roundup_enabled"] is True
-    assert data["savings_config"]["roundup_base"] == 50
+# v1.1: goal/savings_config onboarding slots removed (AGREED §G1) —
+# test_complete_v10_with_goal_and_config deleted.
 
 
 # ---------------------------------------------------------------------------
@@ -237,10 +231,12 @@ async def test_complete_v10_no_accounts_422(db_setup, auth_headers):
 @pytest.mark.asyncio
 async def test_complete_v10_two_primary_accounts_422(db_setup, auth_headers):
     client, _ = db_setup
-    body = _payload(accounts=[
-        {"bank": "A", "kind": "card", "balance_cents": 0, "primary": True},
-        {"bank": "B", "kind": "card", "balance_cents": 0, "primary": True},
-    ])
+    body = _payload(
+        accounts=[
+            {"bank": "A", "kind": "card", "balance_cents": 0, "primary": True},
+            {"bank": "B", "kind": "card", "balance_cents": 0, "primary": True},
+        ]
+    )
     r = await client.post(
         "/api/v1/onboarding/complete", json=body, headers=auth_headers
     )
