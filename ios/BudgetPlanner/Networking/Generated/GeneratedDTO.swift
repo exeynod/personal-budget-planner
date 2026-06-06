@@ -16,20 +16,6 @@
 import Foundation
 
 enum Gen {
-    struct AccountCreate: Codable, Equatable {
-        enum Kind: String, Codable, Equatable {
-            case card
-            case cash
-            case savings
-        }
-
-        let balanceCents: Int?
-        let bank: String
-        let kind: Kind
-        let mask: String?
-        let primary: Bool?
-    }
-
     struct AccountDeleteResponse: Codable, Equatable {
         let deletedAt: String
         let message: String
@@ -50,20 +36,6 @@ enum Gen {
         let kind: Kind
         let mask: String?
         let primary: Bool
-    }
-
-    struct AccountUpdate: Codable, Equatable {
-        enum Kind: String, Codable, Equatable {
-            case card
-            case cash
-            case savings
-        }
-
-        let balanceCents: Int?
-        let bank: String?
-        let kind: Kind?
-        let mask: String?
-        let primary: Bool?
     }
 
     struct ActualCreate: Codable, Equatable {
@@ -337,11 +309,6 @@ enum Gen {
             case income
         }
 
-        enum Rollover: String, Codable, Equatable {
-            case misc
-            case savings
-        }
-
         enum Tag: String, Codable, Equatable {
             case personal
             case business
@@ -356,19 +323,12 @@ enum Gen {
         let name: String
         let ord: String
         let parentId: Int?
-        let paused: Bool?
         let planCents: Int?
-        let rollover: Rollover?
         let sortOrder: Int
         let tag: Tag?
     }
 
     struct CategoryUpdate: Codable, Equatable {
-        enum Rollover: String, Codable, Equatable {
-            case misc
-            case savings
-        }
-
         enum Tag: String, Codable, Equatable {
             case personal
             case business
@@ -378,9 +338,7 @@ enum Gen {
         let isArchived: Bool?
         let name: String?
         let parentId: Int?
-        let paused: Bool?
         let planCents: Int?
-        let rollover: Rollover?
         let sortOrder: Int?
         let tag: Tag?
     }
@@ -421,21 +379,6 @@ enum Gen {
         let revoked: Bool
     }
 
-    struct DepositCreate: Codable, Equatable {
-        let accountId: Int
-        let amountCents: Int
-        let goalId: Int?
-    }
-
-    struct DepositResponse: Codable, Equatable {
-        let accountId: Int?
-        let amountCents: Int
-        let categoryId: Int
-        let description: String?
-        let id: Int
-        let txDate: BusinessDate
-    }
-
     struct DevExchangeRequest: Codable, Equatable {
         let secret: String
     }
@@ -456,27 +399,6 @@ enum Gen {
         let requestedPeriods: Int?
         let startingBalanceCents: Int?
         let totalNetCents: Int?
-    }
-
-    struct GoalCreate: Codable, Equatable {
-        let due: BusinessDate?
-        let name: String
-        let targetCents: Int
-    }
-
-    struct GoalRead: Codable, Equatable {
-        let createdAt: Date
-        let currentCents: Int
-        let due: BusinessDate?
-        let id: Int
-        let name: String
-        let targetCents: Int
-    }
-
-    struct GoalUpdate: Codable, Equatable {
-        let due: BusinessDate?
-        let name: String?
-        let targetCents: Int?
     }
 
     struct HomeResponse: Codable, Equatable {
@@ -523,39 +445,19 @@ enum Gen {
         let primary: Bool?
     }
 
-    struct OnboardingGoalItem: Codable, Equatable {
-        let due: BusinessDate?
-        let name: String
-        let targetCents: Int
-    }
-
-    struct OnboardingSavingsConfigItem: Codable, Equatable {
-        let base: Int?
-        let roundupEnabled: Bool?
-    }
-
     struct OnboardingV10Body: Codable, Equatable {
         let accounts: [Gen.OnboardingAccountItem]
         let categoryPlans: [String: Int]
-        let goal: Gen.OnboardingGoalItem?
         let incomeCents: Int
-        let savingsConfig: Gen.OnboardingSavingsConfigItem?
     }
 
     struct OnboardingV10Response: Codable, Equatable {
         let accountIds: [Int]
+        let adjustmentCategoryId: Int
         let categoryIdsByCode: [String: Int]
-        let goalId: Int?
         let incomeCents: Int
         let onboardedAt: String
-        let savingsCategoryId: Int
-        let savingsConfig: Gen.OnboardingV10SavingsConfigRead
         let userId: Int
-    }
-
-    struct OnboardingV10SavingsConfigRead: Codable, Equatable {
-        let roundupBase: Int
-        let roundupEnabled: Bool
     }
 
     struct OverspendItem: Codable, Equatable {
@@ -585,6 +487,19 @@ enum Gen {
         let refundedAt: Date?
         let status: String
         let yookassaPaymentId: String
+    }
+
+    struct PeriodPlanResponse: Codable, Equatable {
+        let plans: [Gen.PeriodPlanRow]
+    }
+
+    struct PeriodPlanRow: Codable, Equatable {
+        let categoryId: Int
+        let limitCents: Int
+    }
+
+    struct PeriodPlanUpdate: Codable, Equatable {
+        let plans: [Gen.PeriodPlanRow]
     }
 
     struct PeriodRead: Codable, Equatable {
@@ -647,6 +562,7 @@ enum Gen {
         let kind: Kind
         let periodId: Int
         let plannedDate: BusinessDate?
+        let postedTxnId: Int?
         let source: Source
         let subscriptionId: Int?
     }
@@ -664,21 +580,32 @@ enum Gen {
         let plannedDate: BusinessDate?
     }
 
-    struct SavingsConfigPatch: Codable, Equatable {
-        let roundupBase: Int?
-        let roundupEnabled: Bool?
+    struct PostPlannedBatchRequest: Codable, Equatable {
+        let plannedIds: [Int]
+        let txDate: BusinessDate?
     }
 
-    struct SavingsConfigRead: Codable, Equatable {
-        let roundupBase: Int
-        let roundupEnabled: Bool
+    struct PostPlannedBatchResponse: Codable, Equatable {
+        let posted: [Int]
+        let skipped: [Int]
     }
 
-    struct SavingsSnapshotResponse: Codable, Equatable {
-        let config: Gen.SavingsConfigRead
-        let goals: [Gen.GoalRead]
-        let monthInCents: Int
-        let totalCents: Int
+    struct PostPlannedRequest: Codable, Equatable {
+        let txDate: BusinessDate
+    }
+
+    struct PostPlannedResponse: Codable, Equatable {
+        let plannedId: Int
+        let txnId: Int
+    }
+
+    struct ReconcileBalanceRequest: Codable, Equatable {
+        let targetBalanceCents: Int
+    }
+
+    struct ReconcileBalanceResponse: Codable, Equatable {
+        let adjustmentTxnId: Int?
+        let balanceNowCents: Int
     }
 
     struct SettingsRead: Codable, Equatable {
@@ -762,12 +689,52 @@ enum Gen {
     }
 
     struct TemplateItemRead: Codable, Equatable {
+        let categoryId: Int
+        let limitCents: Int
+    }
+
+    struct TemplateItemUpsert: Codable, Equatable {
+        let limitCents: Int
+    }
+
+    struct TemplateLineCreate: Codable, Equatable {
+        enum Kind: String, Codable, Equatable {
+            case expense
+            case income
+        }
+
         let amountCents: Int
         let categoryId: Int
         let dayOfPeriod: Int?
-        let description: String?
+        let kind: Kind
+        let title: String
+    }
+
+    struct TemplateLineRead: Codable, Equatable {
+        enum Kind: String, Codable, Equatable {
+            case expense
+            case income
+        }
+
+        let amountCents: Int
+        let categoryId: Int
+        let dayOfPeriod: Int?
         let id: Int
-        let sortOrder: Int
+        let kind: Kind
+        let title: String
+    }
+
+    struct TemplateLineUpdate: Codable, Equatable {
+        enum Kind: String, Codable, Equatable {
+            case expense
+            case income
+        }
+
+        let amountCents: Int?
+        let categoryId: Int?
+        let dayOfPeriod: Int?
+        let kind: Kind?
+        let title: String?
     }
 
     struct TierResponse: Codable, Equatable {

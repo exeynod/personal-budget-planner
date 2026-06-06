@@ -1,57 +1,6 @@
 {
   "components": {
     "schemas": {
-      "AccountCreate": {
-        "additionalProperties": false,
-        "description": "POST /api/v1/accounts request body.",
-        "properties": {
-          "balance_cents": {
-            "default": 0,
-            "maximum": 10000000000.0,
-            "minimum": -10000000000.0,
-            "title": "Balance Cents",
-            "type": "integer"
-          },
-          "bank": {
-            "maxLength": 40,
-            "minLength": 1,
-            "title": "Bank",
-            "type": "string"
-          },
-          "kind": {
-            "enum": [
-              "card",
-              "cash",
-              "savings"
-            ],
-            "title": "Kind",
-            "type": "string"
-          },
-          "mask": {
-            "anyOf": [
-              {
-                "maxLength": 16,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Mask"
-          },
-          "primary": {
-            "default": false,
-            "title": "Primary",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "bank",
-          "kind"
-        ],
-        "title": "AccountCreate",
-        "type": "object"
-      },
       "AccountDeleteResponse": {
         "description": "DELETE /api/v1/me/account response — soft-delete scheduled.\n\nFixed structured shape (not a free-form dump), so it gets a typed\nmodel. ``deleted_at`` is an ISO-8601 wire-string; ``purge_after_days``\nis the cooling window (30).",
         "properties": {
@@ -131,79 +80,6 @@
           "created_at"
         ],
         "title": "AccountRead",
-        "type": "object"
-      },
-      "AccountUpdate": {
-        "additionalProperties": false,
-        "description": "PATCH /api/v1/accounts/{id} request body — all fields optional.",
-        "properties": {
-          "balance_cents": {
-            "anyOf": [
-              {
-                "maximum": 10000000000.0,
-                "minimum": -10000000000.0,
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Balance Cents"
-          },
-          "bank": {
-            "anyOf": [
-              {
-                "maxLength": 40,
-                "minLength": 1,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Bank"
-          },
-          "kind": {
-            "anyOf": [
-              {
-                "enum": [
-                  "card",
-                  "cash",
-                  "savings"
-                ],
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Kind"
-          },
-          "mask": {
-            "anyOf": [
-              {
-                "maxLength": 16,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Mask"
-          },
-          "primary": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Primary"
-          }
-        },
-        "title": "AccountUpdate",
         "type": "object"
       },
       "ActualCreate": {
@@ -1239,24 +1115,10 @@
             ],
             "title": "Parent Id"
           },
-          "paused": {
-            "default": false,
-            "title": "Paused",
-            "type": "boolean"
-          },
           "plan_cents": {
             "default": 0,
             "title": "Plan Cents",
             "type": "integer"
-          },
-          "rollover": {
-            "default": "misc",
-            "enum": [
-              "misc",
-              "savings"
-            ],
-            "title": "Rollover",
-            "type": "string"
           },
           "sort_order": {
             "title": "Sort Order",
@@ -1324,17 +1186,6 @@
             ],
             "title": "Parent Id"
           },
-          "paused": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Paused"
-          },
           "plan_cents": {
             "anyOf": [
               {
@@ -1346,21 +1197,6 @@
               }
             ],
             "title": "Plan Cents"
-          },
-          "rollover": {
-            "anyOf": [
-              {
-                "enum": [
-                  "misc",
-                  "savings"
-                ],
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Rollover"
           },
           "sort_order": {
             "anyOf": [
@@ -1557,96 +1393,6 @@
         "title": "ConsentRevokeResponse",
         "type": "object"
       },
-      "DepositCreate": {
-        "additionalProperties": false,
-        "description": "POST /api/v1/savings/deposit request body (BE-10).\n\nThe wire contract carries ``amount_cents`` as a positive integer —\nthe service layer (``app.services.savings.deposit``) inserts an\n``ActualTransaction`` with a negated amount internally so deposits\nshow as outflow on the source account and inflow on the savings\nside. Callers never deal with signed values.\n\n``goal_id`` is optional: a deposit without a linked goal still\nincrements the savings total but does not bump any\n``goal.current_cents``.",
-        "properties": {
-          "account_id": {
-            "exclusiveMinimum": 0.0,
-            "title": "Account Id",
-            "type": "integer"
-          },
-          "amount_cents": {
-            "description": "Positive amount in копейки (service negates internally)",
-            "exclusiveMinimum": 0.0,
-            "maximum": 10000000000.0,
-            "title": "Amount Cents",
-            "type": "integer"
-          },
-          "goal_id": {
-            "anyOf": [
-              {
-                "exclusiveMinimum": 0.0,
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Goal Id"
-          }
-        },
-        "required": [
-          "amount_cents",
-          "account_id"
-        ],
-        "title": "DepositCreate",
-        "type": "object"
-      },
-      "DepositResponse": {
-        "description": "Response for POST /api/v1/savings/deposit (BE-10).\n\n``amount_cents`` is the SIGNED storage amount (negative — deposits\ndebit the source account). Frontend should display ``|amount|``.",
-        "properties": {
-          "account_id": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Account Id"
-          },
-          "amount_cents": {
-            "title": "Amount Cents",
-            "type": "integer"
-          },
-          "category_id": {
-            "title": "Category Id",
-            "type": "integer"
-          },
-          "description": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Description"
-          },
-          "id": {
-            "title": "Id",
-            "type": "integer"
-          },
-          "tx_date": {
-            "format": "date",
-            "title": "Tx Date",
-            "type": "string"
-          }
-        },
-        "required": [
-          "id",
-          "amount_cents",
-          "account_id",
-          "category_id",
-          "tx_date",
-          "description"
-        ],
-        "title": "DepositResponse",
-        "type": "object"
-      },
       "DevExchangeRequest": {
         "description": "POST /auth/dev-exchange request body.\n\nFields:\n    secret: значение должно совпадать с settings.DEV_AUTH_SECRET. Любое\n        несовпадение → 403. min_length=1 защищает от пустой строки\n        (тривиальный bypass если секрет в env тоже пустой).",
         "properties": {
@@ -1793,136 +1539,6 @@
           "mode"
         ],
         "title": "ForecastResponse",
-        "type": "object"
-      },
-      "GoalCreate": {
-        "additionalProperties": false,
-        "description": "POST /api/v1/goals request body.",
-        "properties": {
-          "due": {
-            "anyOf": [
-              {
-                "format": "date",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Due"
-          },
-          "name": {
-            "maxLength": 80,
-            "minLength": 1,
-            "title": "Name",
-            "type": "string"
-          },
-          "target_cents": {
-            "exclusiveMinimum": 0.0,
-            "maximum": 10000000000.0,
-            "title": "Target Cents",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "name",
-          "target_cents"
-        ],
-        "title": "GoalCreate",
-        "type": "object"
-      },
-      "GoalRead": {
-        "description": "GET /api/v1/goals response item (also returned by POST/PATCH).\n\nMirrors :class:`app.db.models.Goal` ORM columns. ``current_cents``\nis incremented by ``app.services.savings.deposit_to_goal`` and read\nhere verbatim — no derivation.",
-        "properties": {
-          "created_at": {
-            "format": "date-time",
-            "title": "Created At",
-            "type": "string"
-          },
-          "current_cents": {
-            "title": "Current Cents",
-            "type": "integer"
-          },
-          "due": {
-            "anyOf": [
-              {
-                "format": "date",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Due"
-          },
-          "id": {
-            "title": "Id",
-            "type": "integer"
-          },
-          "name": {
-            "title": "Name",
-            "type": "string"
-          },
-          "target_cents": {
-            "title": "Target Cents",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "id",
-          "name",
-          "target_cents",
-          "current_cents",
-          "due",
-          "created_at"
-        ],
-        "title": "GoalRead",
-        "type": "object"
-      },
-      "GoalUpdate": {
-        "additionalProperties": false,
-        "description": "PATCH /api/v1/goals/{id} request body — all fields optional.",
-        "properties": {
-          "due": {
-            "anyOf": [
-              {
-                "format": "date",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Due"
-          },
-          "name": {
-            "anyOf": [
-              {
-                "maxLength": 80,
-                "minLength": 1,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Name"
-          },
-          "target_cents": {
-            "anyOf": [
-              {
-                "exclusiveMinimum": 0.0,
-                "maximum": 10000000000.0,
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Target Cents"
-          }
-        },
-        "title": "GoalUpdate",
         "type": "object"
       },
       "HTTPValidationError": {
@@ -2164,65 +1780,6 @@
         "title": "OnboardingAccountItem",
         "type": "object"
       },
-      "OnboardingGoalItem": {
-        "additionalProperties": false,
-        "description": "Optional ``goal`` slot inside the onboarding body.\n\nDistinct from :class:`app.api.schemas.goals.GoalCreate` only in that\nthe standalone create schema lives in its own module — fields and\nvalidators are kept in lock-step.",
-        "properties": {
-          "due": {
-            "anyOf": [
-              {
-                "format": "date",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Due"
-          },
-          "name": {
-            "maxLength": 80,
-            "minLength": 1,
-            "title": "Name",
-            "type": "string"
-          },
-          "target_cents": {
-            "exclusiveMinimum": 0.0,
-            "maximum": 10000000000.0,
-            "title": "Target Cents",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "name",
-          "target_cents"
-        ],
-        "title": "OnboardingGoalItem",
-        "type": "object"
-      },
-      "OnboardingSavingsConfigItem": {
-        "additionalProperties": false,
-        "description": "Optional ``savings_config`` slot inside the onboarding body.\n\nDefaults match :data:`app.services.onboarding_v10._DEFAULT_SAVINGS_CONFIG`\nso omitting the whole object on the wire produces the same final\nstate as sending ``{\"roundup_enabled\": false, \"base\": 10}``.",
-        "properties": {
-          "base": {
-            "default": 10,
-            "enum": [
-              10,
-              50,
-              100
-            ],
-            "title": "Base",
-            "type": "integer"
-          },
-          "roundup_enabled": {
-            "default": false,
-            "title": "Roundup Enabled",
-            "type": "boolean"
-          }
-        },
-        "title": "OnboardingSavingsConfigItem",
-        "type": "object"
-      },
       "OnboardingV10Body": {
         "additionalProperties": false,
         "description": "POST /api/v1/onboarding/complete request body (BE-15).\n\nAll cross-field rules (T-22-12-04/05/06) live here so the route\nhandler can rely on a single ``model_validate`` to sanitise the\npayload before forwarding to ``complete_v10``.",
@@ -2244,31 +1801,11 @@
             "title": "Category Plans",
             "type": "object"
           },
-          "goal": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/OnboardingGoalItem"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
           "income_cents": {
             "exclusiveMinimum": 0.0,
             "maximum": 10000000000.0,
             "title": "Income Cents",
             "type": "integer"
-          },
-          "savings_config": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/OnboardingSavingsConfigItem"
-              },
-              {
-                "type": "null"
-              }
-            ]
           }
         },
         "required": [
@@ -2289,23 +1826,16 @@
             "title": "Account Ids",
             "type": "array"
           },
+          "adjustment_category_id": {
+            "title": "Adjustment Category Id",
+            "type": "integer"
+          },
           "category_ids_by_code": {
             "additionalProperties": {
               "type": "integer"
             },
             "title": "Category Ids By Code",
             "type": "object"
-          },
-          "goal_id": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Goal Id"
           },
           "income_cents": {
             "title": "Income Cents",
@@ -2314,13 +1844,6 @@
           "onboarded_at": {
             "title": "Onboarded At",
             "type": "string"
-          },
-          "savings_category_id": {
-            "title": "Savings Category Id",
-            "type": "integer"
-          },
-          "savings_config": {
-            "$ref": "#/components/schemas/OnboardingV10SavingsConfigRead"
           },
           "user_id": {
             "title": "User Id",
@@ -2332,31 +1855,10 @@
           "income_cents",
           "account_ids",
           "category_ids_by_code",
-          "savings_category_id",
-          "goal_id",
-          "savings_config",
+          "adjustment_category_id",
           "onboarded_at"
         ],
         "title": "OnboardingV10Response",
-        "type": "object"
-      },
-      "OnboardingV10SavingsConfigRead": {
-        "description": "Inlined ``SavingsConfigRead`` shape used by ``OnboardingV10Response``.\n\nDefined as a separate class (rather than re-using\n:class:`app.api.schemas.savings.SavingsConfigRead`) to avoid a\ncircular import — ``savings.py`` already imports from this module's\nsibling ``goals.py`` and we keep the dependency graph\nonboarding_v10 → (none in schemas/).",
-        "properties": {
-          "roundup_base": {
-            "title": "Roundup Base",
-            "type": "integer"
-          },
-          "roundup_enabled": {
-            "title": "Roundup Enabled",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "roundup_enabled",
-          "roundup_base"
-        ],
-        "title": "OnboardingV10SavingsConfigRead",
         "type": "object"
       },
       "OverspendItem": {
@@ -2501,6 +2003,56 @@
           "created_at"
         ],
         "title": "PaymentRead",
+        "type": "object"
+      },
+      "PeriodPlanResponse": {
+        "properties": {
+          "plans": {
+            "items": {
+              "$ref": "#/components/schemas/PeriodPlanRow"
+            },
+            "title": "Plans",
+            "type": "array"
+          }
+        },
+        "required": [
+          "plans"
+        ],
+        "title": "PeriodPlanResponse",
+        "type": "object"
+      },
+      "PeriodPlanRow": {
+        "properties": {
+          "category_id": {
+            "title": "Category Id",
+            "type": "integer"
+          },
+          "limit_cents": {
+            "title": "Limit Cents",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "category_id",
+          "limit_cents"
+        ],
+        "title": "PeriodPlanRow",
+        "type": "object"
+      },
+      "PeriodPlanUpdate": {
+        "properties": {
+          "plans": {
+            "items": {
+              "$ref": "#/components/schemas/PeriodPlanRow"
+            },
+            "title": "Plans",
+            "type": "array"
+          }
+        },
+        "required": [
+          "plans"
+        ],
+        "title": "PeriodPlanUpdate",
         "type": "object"
       },
       "PeriodRead": {
@@ -2730,6 +2282,17 @@
             ],
             "title": "Planned Date"
           },
+          "posted_txn_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Posted Txn Id"
+          },
           "source": {
             "enum": [
               "template",
@@ -2835,89 +2398,127 @@
         "title": "PlannedUpdate",
         "type": "object"
       },
-      "SavingsConfigPatch": {
-        "additionalProperties": false,
-        "description": "PATCH /api/v1/savings/config request body — partial update.\n\nBoth fields optional: caller may toggle ``roundup_enabled`` without\ntouching ``roundup_base`` or vice versa. Empty body is a no-op.",
+      "PostPlannedBatchRequest": {
         "properties": {
-          "roundup_base": {
+          "planned_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "minItems": 1,
+            "title": "Planned Ids",
+            "type": "array"
+          },
+          "tx_date": {
             "anyOf": [
               {
-                "enum": [
-                  10,
-                  50,
-                  100
-                ],
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tx Date"
+          }
+        },
+        "required": [
+          "planned_ids"
+        ],
+        "title": "PostPlannedBatchRequest",
+        "type": "object"
+      },
+      "PostPlannedBatchResponse": {
+        "properties": {
+          "posted": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Posted",
+            "type": "array"
+          },
+          "skipped": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Skipped",
+            "type": "array"
+          }
+        },
+        "required": [
+          "posted",
+          "skipped"
+        ],
+        "title": "PostPlannedBatchResponse",
+        "type": "object"
+      },
+      "PostPlannedRequest": {
+        "properties": {
+          "tx_date": {
+            "format": "date",
+            "title": "Tx Date",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tx_date"
+        ],
+        "title": "PostPlannedRequest",
+        "type": "object"
+      },
+      "PostPlannedResponse": {
+        "properties": {
+          "planned_id": {
+            "title": "Planned Id",
+            "type": "integer"
+          },
+          "txn_id": {
+            "title": "Txn Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "txn_id",
+          "planned_id"
+        ],
+        "title": "PostPlannedResponse",
+        "type": "object"
+      },
+      "ReconcileBalanceRequest": {
+        "properties": {
+          "target_balance_cents": {
+            "title": "Target Balance Cents",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "target_balance_cents"
+        ],
+        "title": "ReconcileBalanceRequest",
+        "type": "object"
+      },
+      "ReconcileBalanceResponse": {
+        "properties": {
+          "adjustment_txn_id": {
+            "anyOf": [
+              {
                 "type": "integer"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Roundup Base"
+            "title": "Adjustment Txn Id"
           },
-          "roundup_enabled": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Roundup Enabled"
-          }
-        },
-        "title": "SavingsConfigPatch",
-        "type": "object"
-      },
-      "SavingsConfigRead": {
-        "description": "Per-user roundup configuration (mirrors ORM ``SavingsConfig``).",
-        "properties": {
-          "roundup_base": {
-            "title": "Roundup Base",
-            "type": "integer"
-          },
-          "roundup_enabled": {
-            "title": "Roundup Enabled",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "roundup_enabled",
-          "roundup_base"
-        ],
-        "title": "SavingsConfigRead",
-        "type": "object"
-      },
-      "SavingsSnapshotResponse": {
-        "description": "GET /api/v1/savings response (BE-09).\n\nAggregates the savings dashboard payload:\n- ``total_cents``: balance of all accounts marked ``kind='savings'``\n  plus deposit-class transactions (computed by service).\n- ``month_in_cents``: sum of inflows during the current period (the\n  \"into the piggy bank this month\" UI label).\n- ``config``: current roundup settings.\n- ``goals``: every goal owned by the user.\n\nAll four fields are filled by the service from the same DB\ntransaction so the snapshot is internally consistent.",
-        "properties": {
-          "config": {
-            "$ref": "#/components/schemas/SavingsConfigRead"
-          },
-          "goals": {
-            "items": {
-              "$ref": "#/components/schemas/GoalRead"
-            },
-            "title": "Goals",
-            "type": "array"
-          },
-          "month_in_cents": {
-            "title": "Month In Cents",
-            "type": "integer"
-          },
-          "total_cents": {
-            "title": "Total Cents",
+          "balance_now_cents": {
+            "title": "Balance Now Cents",
             "type": "integer"
           }
         },
         "required": [
-          "total_cents",
-          "month_in_cents",
-          "config",
-          "goals"
+          "adjustment_txn_id",
+          "balance_now_cents"
         ],
-        "title": "SavingsSnapshotResponse",
+        "title": "ReconcileBalanceResponse",
         "type": "object"
       },
       "SettingsRead": {
@@ -3390,7 +2991,87 @@
         "type": "object"
       },
       "TemplateItemRead": {
-        "description": "GET /template/items response item — also returned by POST/PATCH.",
+        "properties": {
+          "category_id": {
+            "title": "Category Id",
+            "type": "integer"
+          },
+          "limit_cents": {
+            "title": "Limit Cents",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "category_id",
+          "limit_cents"
+        ],
+        "title": "TemplateItemRead",
+        "type": "object"
+      },
+      "TemplateItemUpsert": {
+        "properties": {
+          "limit_cents": {
+            "minimum": 0.0,
+            "title": "Limit Cents",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "limit_cents"
+        ],
+        "title": "TemplateItemUpsert",
+        "type": "object"
+      },
+      "TemplateLineCreate": {
+        "properties": {
+          "amount_cents": {
+            "exclusiveMinimum": 0.0,
+            "title": "Amount Cents",
+            "type": "integer"
+          },
+          "category_id": {
+            "exclusiveMinimum": 0.0,
+            "title": "Category Id",
+            "type": "integer"
+          },
+          "day_of_period": {
+            "anyOf": [
+              {
+                "maximum": 31.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Day Of Period"
+          },
+          "kind": {
+            "enum": [
+              "expense",
+              "income"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "category_id",
+          "title",
+          "amount_cents",
+          "kind"
+        ],
+        "title": "TemplateLineCreate",
+        "type": "object"
+      },
+      "TemplateLineRead": {
         "properties": {
           "amount_cents": {
             "title": "Amount Cents",
@@ -3411,35 +3092,103 @@
             ],
             "title": "Day Of Period"
           },
-          "description": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "kind": {
+            "enum": [
+              "expense",
+              "income"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "category_id",
+          "title",
+          "amount_cents",
+          "day_of_period",
+          "kind"
+        ],
+        "title": "TemplateLineRead",
+        "type": "object"
+      },
+      "TemplateLineUpdate": {
+        "properties": {
+          "amount_cents": {
             "anyOf": [
               {
+                "exclusiveMinimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amount Cents"
+          },
+          "category_id": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category Id"
+          },
+          "day_of_period": {
+            "anyOf": [
+              {
+                "maximum": 31.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Day Of Period"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "enum": [
+                  "expense",
+                  "income"
+                ],
                 "type": "string"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Description"
+            "title": "Kind"
           },
-          "id": {
-            "title": "Id",
-            "type": "integer"
-          },
-          "sort_order": {
-            "title": "Sort Order",
-            "type": "integer"
+          "title": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
           }
         },
-        "required": [
-          "id",
-          "category_id",
-          "amount_cents",
-          "description",
-          "day_of_period",
-          "sort_order"
-        ],
-        "title": "TemplateItemRead",
+        "title": "TemplateLineUpdate",
         "type": "object"
       },
       "TierResponse": {
@@ -3733,7 +3482,7 @@
   "paths": {
     "/api/v1/accounts": {
       "get": {
-        "description": "GET /api/v1/accounts — list user's accounts (primary first).",
+        "description": "GET /api/v1/accounts — list user's accounts (primary first, read-only).",
         "operationId": "list_accounts_api_v1_accounts_get",
         "parameters": [
           {
@@ -3812,374 +3561,6 @@
           }
         },
         "summary": "List Accounts",
-        "tags": [
-          "public",
-          "accounts"
-        ]
-      },
-      "post": {
-        "description": "POST /api/v1/accounts — create a new account.\n\nStatus codes:\n    201: created\n    422: validation (Pydantic strict types, balance bounds, kind enum)",
-        "operationId": "create_account_api_v1_accounts_post",
-        "parameters": [
-          {
-            "in": "header",
-            "name": "x-telegram-init-data",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Telegram-Init-Data"
-            }
-          },
-          {
-            "in": "header",
-            "name": "authorization",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
-          },
-          {
-            "in": "header",
-            "name": "x-test-user",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Test-User"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/AccountCreate"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AccountRead"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Create Account",
-        "tags": [
-          "public",
-          "accounts"
-        ]
-      }
-    },
-    "/api/v1/accounts/{account_id}": {
-      "delete": {
-        "description": "DELETE /api/v1/accounts/{id} — hard delete.\n\nStatus codes:\n    204: deleted\n    404: account not found / cross-tenant\n    409: account has subscriptions or transactions referencing it\n    422: orphan-primary guard (account is sole primary, others exist)",
-        "operationId": "delete_account_api_v1_accounts__account_id__delete",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "account_id",
-            "required": true,
-            "schema": {
-              "title": "Account Id",
-              "type": "integer"
-            }
-          },
-          {
-            "in": "header",
-            "name": "x-telegram-init-data",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Telegram-Init-Data"
-            }
-          },
-          {
-            "in": "header",
-            "name": "authorization",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
-          },
-          {
-            "in": "header",
-            "name": "x-test-user",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Test-User"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Delete Account",
-        "tags": [
-          "public",
-          "accounts"
-        ]
-      },
-      "patch": {
-        "description": "PATCH /api/v1/accounts/{id} — partial update.\n\nStatus codes:\n    200: updated\n    404: account not found / cross-tenant\n    422: orphan-primary guard or kind enum violation",
-        "operationId": "update_account_api_v1_accounts__account_id__patch",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "account_id",
-            "required": true,
-            "schema": {
-              "title": "Account Id",
-              "type": "integer"
-            }
-          },
-          {
-            "in": "header",
-            "name": "x-telegram-init-data",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Telegram-Init-Data"
-            }
-          },
-          {
-            "in": "header",
-            "name": "authorization",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
-          },
-          {
-            "in": "header",
-            "name": "x-test-user",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Test-User"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/AccountUpdate"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AccountRead"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Update Account",
-        "tags": [
-          "public",
-          "accounts"
-        ]
-      }
-    },
-    "/api/v1/accounts/{account_id}/set-primary": {
-      "post": {
-        "description": "POST /api/v1/accounts/{id}/set-primary — atomic primary flip.\n\nDemotes any current primary to ``is_primary=False`` and promotes\n``account_id`` in a single DB transaction. Useful for the\nAccountsScreen \"Сделать основным\" button.\n\nStatus codes:\n    200: updated; returns the freshly promoted account row.\n    404: account not found / cross-tenant.",
-        "operationId": "set_primary_account_api_v1_accounts__account_id__set_primary_post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "account_id",
-            "required": true,
-            "schema": {
-              "title": "Account Id",
-              "type": "integer"
-            }
-          },
-          {
-            "in": "header",
-            "name": "x-telegram-init-data",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Telegram-Init-Data"
-            }
-          },
-          {
-            "in": "header",
-            "name": "authorization",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
-          },
-          {
-            "in": "header",
-            "name": "x-test-user",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Test-User"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AccountRead"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Set Primary Account",
         "tags": [
           "public",
           "accounts"
@@ -6043,6 +5424,99 @@
         ]
       }
     },
+    "/api/v1/balance/reconcile": {
+      "post": {
+        "description": "POST /api/v1/balance/reconcile — set displayed balance to target.",
+        "operationId": "reconcile_api_v1_balance_reconcile_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-telegram-init-data",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Telegram-Init-Data"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-test-user",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Test-User"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReconcileBalanceRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReconcileBalanceResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Reconcile",
+        "tags": [
+          "public",
+          "balance"
+        ]
+      }
+    },
     "/api/v1/billing/create-payment": {
       "post": {
         "description": "Create a YooKassa payment + persist pending Payment row.\n\nIdempotency-Key генерируется на сервере (uuid4) — клиент не может вызвать\n\"double charge\" повтором запроса (each call → new YooKassa payment).\nWebhook (``/webhooks/yookassa``) переведёт row в succeeded/canceled.",
@@ -6598,369 +6072,6 @@
         "tags": [
           "public",
           "categories"
-        ]
-      }
-    },
-    "/api/v1/goals": {
-      "get": {
-        "description": "GET /api/v1/goals — list goals (oldest first).",
-        "operationId": "list_goals_api_v1_goals_get",
-        "parameters": [
-          {
-            "in": "header",
-            "name": "x-telegram-init-data",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Telegram-Init-Data"
-            }
-          },
-          {
-            "in": "header",
-            "name": "authorization",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
-          },
-          {
-            "in": "header",
-            "name": "x-test-user",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Test-User"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/GoalRead"
-                  },
-                  "title": "Response List Goals Api V1 Goals Get",
-                  "type": "array"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "List Goals",
-        "tags": [
-          "public",
-          "goals"
-        ]
-      },
-      "post": {
-        "description": "POST /api/v1/goals — create a new savings goal.\n\nStatus codes:\n    201: created\n    422: Pydantic validation (name length, target>0, due in future)\n         or service-layer ``GoalValidationError``.",
-        "operationId": "create_goal_api_v1_goals_post",
-        "parameters": [
-          {
-            "in": "header",
-            "name": "x-telegram-init-data",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Telegram-Init-Data"
-            }
-          },
-          {
-            "in": "header",
-            "name": "authorization",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
-          },
-          {
-            "in": "header",
-            "name": "x-test-user",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Test-User"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/GoalCreate"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/GoalRead"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Create Goal",
-        "tags": [
-          "public",
-          "goals"
-        ]
-      }
-    },
-    "/api/v1/goals/{goal_id}": {
-      "delete": {
-        "description": "DELETE /api/v1/goals/{id} — hard delete.\n\nPast deposits referencing this goal_id remain in actual_transaction\nas ``kind=deposit`` rows (no FK cascade — by design, BE-11).\n\nStatus codes:\n    204: deleted\n    404: goal not found / cross-tenant",
-        "operationId": "delete_goal_api_v1_goals__goal_id__delete",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "goal_id",
-            "required": true,
-            "schema": {
-              "title": "Goal Id",
-              "type": "integer"
-            }
-          },
-          {
-            "in": "header",
-            "name": "x-telegram-init-data",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Telegram-Init-Data"
-            }
-          },
-          {
-            "in": "header",
-            "name": "authorization",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
-          },
-          {
-            "in": "header",
-            "name": "x-test-user",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Test-User"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Delete Goal",
-        "tags": [
-          "public",
-          "goals"
-        ]
-      },
-      "patch": {
-        "description": "PATCH /api/v1/goals/{id} — partial update.\n\nStatus codes:\n    200: updated\n    404: goal not found / cross-tenant\n    422: validation error",
-        "operationId": "update_goal_api_v1_goals__goal_id__patch",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "goal_id",
-            "required": true,
-            "schema": {
-              "title": "Goal Id",
-              "type": "integer"
-            }
-          },
-          {
-            "in": "header",
-            "name": "x-telegram-init-data",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Telegram-Init-Data"
-            }
-          },
-          {
-            "in": "header",
-            "name": "authorization",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
-          },
-          {
-            "in": "header",
-            "name": "x-test-user",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Test-User"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/GoalUpdate"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/GoalRead"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Update Goal",
-        "tags": [
-          "public",
-          "goals"
         ]
       }
     },
@@ -8812,6 +7923,198 @@
         ]
       }
     },
+    "/api/v1/periods/{period_id}/plan": {
+      "get": {
+        "description": "GET /api/v1/periods/{id}/plan — per-category limits (fallback plan_cents).",
+        "operationId": "get_period_plan_api_v1_periods__period_id__plan_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "period_id",
+            "required": true,
+            "schema": {
+              "title": "Period Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-telegram-init-data",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Telegram-Init-Data"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-test-user",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Test-User"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PeriodPlanResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Period Plan",
+        "tags": [
+          "public",
+          "planned"
+        ]
+      },
+      "patch": {
+        "description": "PATCH /api/v1/periods/{id}/plan — UPSERT per-category limits.",
+        "operationId": "update_period_plan_api_v1_periods__period_id__plan_patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "period_id",
+            "required": true,
+            "schema": {
+              "title": "Period Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-telegram-init-data",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Telegram-Init-Data"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-test-user",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Test-User"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PeriodPlanUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PeriodPlanResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Period Plan",
+        "tags": [
+          "public",
+          "planned"
+        ]
+      }
+    },
     "/api/v1/periods/{period_id}/planned": {
       "get": {
         "description": "GET /api/v1/periods/{period_id}/planned — list planned rows for a period.\n\nOptional filters: ``kind=expense|income``, ``category_id=<int>``.\nReturns an empty list if the period does not exist (no 404 — UI uses\nGET /periods/current separately to detect onboarding state).",
@@ -9039,6 +8342,313 @@
           }
         },
         "summary": "Create Manual Planned",
+        "tags": [
+          "public",
+          "planned"
+        ]
+      }
+    },
+    "/api/v1/periods/{period_id}/planned/post-batch": {
+      "post": {
+        "description": "POST .../planned/post-batch — bulk-post; one actual per line.",
+        "operationId": "post_planned_batch_api_v1_periods__period_id__planned_post_batch_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "period_id",
+            "required": true,
+            "schema": {
+              "title": "Period Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-telegram-init-data",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Telegram-Init-Data"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-test-user",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Test-User"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PostPlannedBatchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PostPlannedBatchResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Post Planned Batch",
+        "tags": [
+          "public",
+          "planned"
+        ]
+      }
+    },
+    "/api/v1/periods/{period_id}/planned/{planned_id}/post": {
+      "post": {
+        "description": "POST .../planned/{id}/post — post a planned row into a real actual.",
+        "operationId": "post_planned_api_v1_periods__period_id__planned__planned_id__post_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "period_id",
+            "required": true,
+            "schema": {
+              "title": "Period Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "planned_id",
+            "required": true,
+            "schema": {
+              "title": "Planned Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-telegram-init-data",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Telegram-Init-Data"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-test-user",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Test-User"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PostPlannedRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PostPlannedResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Post Planned",
+        "tags": [
+          "public",
+          "planned"
+        ]
+      }
+    },
+    "/api/v1/periods/{period_id}/planned/{planned_id}/unpost": {
+      "post": {
+        "description": "POST .../planned/{id}/unpost — reverse a posted planned row.",
+        "operationId": "unpost_planned_api_v1_periods__period_id__planned__planned_id__unpost_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "period_id",
+            "required": true,
+            "schema": {
+              "title": "Period Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "planned_id",
+            "required": true,
+            "schema": {
+              "title": "Planned Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-telegram-init-data",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Telegram-Init-Data"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-test-user",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Test-User"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Unpost Planned",
         "tags": [
           "public",
           "planned"
@@ -9327,275 +8937,6 @@
         "tags": [
           "public",
           "planned"
-        ]
-      }
-    },
-    "/api/v1/savings": {
-      "get": {
-        "description": "GET /api/v1/savings — full snapshot (BE-09).\n\nReturns total_cents, month_in_cents (current MSK month), config,\nand the user's full goals list.",
-        "operationId": "get_savings_snapshot_api_v1_savings_get",
-        "parameters": [
-          {
-            "in": "header",
-            "name": "x-telegram-init-data",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Telegram-Init-Data"
-            }
-          },
-          {
-            "in": "header",
-            "name": "authorization",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
-          },
-          {
-            "in": "header",
-            "name": "x-test-user",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Test-User"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SavingsSnapshotResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Get Savings Snapshot",
-        "tags": [
-          "public",
-          "savings"
-        ]
-      }
-    },
-    "/api/v1/savings/config": {
-      "patch": {
-        "description": "PATCH /api/v1/savings/config — partial update (BE-08).\n\nStatus codes:\n    200: updated (or default-seeded if no row existed yet)\n    422: roundup_base outside {10, 50, 100}",
-        "operationId": "patch_savings_config_api_v1_savings_config_patch",
-        "parameters": [
-          {
-            "in": "header",
-            "name": "x-telegram-init-data",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Telegram-Init-Data"
-            }
-          },
-          {
-            "in": "header",
-            "name": "authorization",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
-          },
-          {
-            "in": "header",
-            "name": "x-test-user",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Test-User"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/SavingsConfigPatch"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SavingsConfigRead"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Patch Savings Config",
-        "tags": [
-          "public",
-          "savings"
-        ]
-      }
-    },
-    "/api/v1/savings/deposit": {
-      "post": {
-        "description": "POST /api/v1/savings/deposit — manual deposit (BE-10).\n\nCreates an actual_transaction(kind='deposit'), debits the source\naccount balance, optionally bumps Goal.current_cents — all in one\nDB transaction.\n\nStatus codes:\n    201: created\n    404: account_id or goal_id not found / cross-tenant\n    422: amount_cents == 0\n    500: system 'savings' Category missing (onboarding incomplete)",
-        "operationId": "post_deposit_api_v1_savings_deposit_post",
-        "parameters": [
-          {
-            "in": "header",
-            "name": "x-telegram-init-data",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Telegram-Init-Data"
-            }
-          },
-          {
-            "in": "header",
-            "name": "authorization",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
-          },
-          {
-            "in": "header",
-            "name": "x-test-user",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Test-User"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/DepositCreate"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DepositResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Post Deposit",
-        "tags": [
-          "public",
-          "savings"
         ]
       }
     },
@@ -10409,8 +9750,6 @@
     },
     "/api/v1/template/items": {
       "get": {
-        "deprecated": true,
-        "description": "DEPRECATED: GET /api/v1/template/items — returns empty list.\n\nPlan 22.13: ``plan_template_item`` table was dropped (CONTEXT D-02).\nUse ``GET /api/v1/categories`` and read ``plan_cents`` instead.\n\nNo DB dependency: the endpoint always returns ``[]`` so we skip the\n``SET LOCAL app.current_user_id`` round-trip the deprecated handler\nwould otherwise force on every legacy poll (CR-05 fix).",
         "operationId": "list_template_items_api_v1_template_items_get",
         "parameters": [
           {
@@ -10491,14 +9830,132 @@
         "summary": "List Template Items",
         "tags": [
           "public",
-          "templates"
+          "template"
         ]
-      },
-      "post": {
-        "deprecated": true,
-        "description": "DEPRECATED: POST /api/v1/template/items — 410 Gone.\n\nNo request body parsing or DB dependency: the endpoint short-circuits to\n410 immediately so malformed bodies cannot trigger 422 validators on a\ndeprecated surface (CR-05 fix).",
-        "operationId": "create_template_item_deprecated_api_v1_template_items_post",
+      }
+    },
+    "/api/v1/template/items/{category_id}": {
+      "put": {
+        "operationId": "upsert_template_item_api_v1_template_items__category_id__put",
         "parameters": [
+          {
+            "in": "path",
+            "name": "category_id",
+            "required": true,
+            "schema": {
+              "title": "Category Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-telegram-init-data",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Telegram-Init-Data"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-test-user",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Test-User"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TemplateItemUpsert"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TemplateItemRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Upsert Template Item",
+        "tags": [
+          "public",
+          "template"
+        ]
+      }
+    },
+    "/api/v1/template/lines": {
+      "get": {
+        "operationId": "list_template_lines_api_v1_template_lines_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "category_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "exclusiveMinimum": 0,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Category Id"
+            }
+          },
           {
             "in": "header",
             "name": "x-telegram-init-data",
@@ -10549,10 +10006,16 @@
           }
         ],
         "responses": {
-          "410": {
+          "200": {
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TemplateLineRead"
+                  },
+                  "title": "Response List Template Lines Api V1 Template Lines Get",
+                  "type": "array"
+                }
               }
             },
             "description": "Successful Response"
@@ -10568,25 +10031,113 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Create Template Item Deprecated",
+        "summary": "List Template Lines",
         "tags": [
           "public",
-          "templates"
+          "template"
+        ]
+      },
+      "post": {
+        "operationId": "create_template_line_api_v1_template_lines_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-telegram-init-data",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Telegram-Init-Data"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-test-user",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Test-User"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TemplateLineCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TemplateLineRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Template Line",
+        "tags": [
+          "public",
+          "template"
         ]
       }
     },
-    "/api/v1/template/items/{item_id}": {
+    "/api/v1/template/lines/{line_id}": {
       "delete": {
-        "deprecated": true,
-        "description": "DEPRECATED: DELETE /api/v1/template/items/{id} — 410 Gone (CR-05 fix).",
-        "operationId": "delete_template_item_deprecated_api_v1_template_items__item_id__delete",
+        "operationId": "delete_template_line_api_v1_template_lines__line_id__delete",
         "parameters": [
           {
             "in": "path",
-            "name": "item_id",
+            "name": "line_id",
             "required": true,
             "schema": {
-              "title": "Item Id",
+              "title": "Line Id",
               "type": "integer"
             }
           },
@@ -10640,12 +10191,7 @@
           }
         ],
         "responses": {
-          "410": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
+          "204": {
             "description": "Successful Response"
           },
           "422": {
@@ -10659,23 +10205,21 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Delete Template Item Deprecated",
+        "summary": "Delete Template Line",
         "tags": [
           "public",
-          "templates"
+          "template"
         ]
       },
       "patch": {
-        "deprecated": true,
-        "description": "DEPRECATED: PATCH /api/v1/template/items/{id} — 410 Gone.\n\nThe path parameter is preserved so OpenAPI advertises the same URL\nshape, but no body / DB / auth-side-effect dependencies run before the\n410 is raised (CR-05 fix).",
-        "operationId": "update_template_item_deprecated_api_v1_template_items__item_id__patch",
+        "operationId": "update_template_line_api_v1_template_lines__line_id__patch",
         "parameters": [
           {
             "in": "path",
-            "name": "item_id",
+            "name": "line_id",
             "required": true,
             "schema": {
-              "title": "Item Id",
+              "title": "Line Id",
               "type": "integer"
             }
           },
@@ -10728,11 +10272,23 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TemplateLineUpdate"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
-          "410": {
+          "200": {
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/TemplateLineRead"
+                }
               }
             },
             "description": "Successful Response"
@@ -10748,101 +10304,10 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Update Template Item Deprecated",
+        "summary": "Update Template Line",
         "tags": [
           "public",
-          "templates"
-        ]
-      }
-    },
-    "/api/v1/template/snapshot-from-period/{period_id}": {
-      "post": {
-        "deprecated": true,
-        "description": "DEPRECATED: POST /api/v1/template/snapshot-from-period/{id} — 410 Gone (CR-05 fix).",
-        "operationId": "snapshot_from_period_deprecated_api_v1_template_snapshot_from_period__period_id__post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "period_id",
-            "required": true,
-            "schema": {
-              "title": "Period Id",
-              "type": "integer"
-            }
-          },
-          {
-            "in": "header",
-            "name": "x-telegram-init-data",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Telegram-Init-Data"
-            }
-          },
-          {
-            "in": "header",
-            "name": "authorization",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
-          },
-          {
-            "in": "header",
-            "name": "x-test-user",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Test-User"
-            }
-          }
-        ],
-        "responses": {
-          "410": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Snapshot From Period Deprecated",
-        "tags": [
-          "public",
-          "templates"
+          "template"
         ]
       }
     },

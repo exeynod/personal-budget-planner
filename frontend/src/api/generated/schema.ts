@@ -13,82 +13,11 @@ export interface paths {
         };
         /**
          * List Accounts
-         * @description GET /api/v1/accounts — list user's accounts (primary first).
+         * @description GET /api/v1/accounts — list user's accounts (primary first, read-only).
          */
         get: operations["list_accounts_api_v1_accounts_get"];
         put?: never;
-        /**
-         * Create Account
-         * @description POST /api/v1/accounts — create a new account.
-         *
-         *     Status codes:
-         *         201: created
-         *         422: validation (Pydantic strict types, balance bounds, kind enum)
-         */
-        post: operations["create_account_api_v1_accounts_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/accounts/{account_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
         post?: never;
-        /**
-         * Delete Account
-         * @description DELETE /api/v1/accounts/{id} — hard delete.
-         *
-         *     Status codes:
-         *         204: deleted
-         *         404: account not found / cross-tenant
-         *         409: account has subscriptions or transactions referencing it
-         *         422: orphan-primary guard (account is sole primary, others exist)
-         */
-        delete: operations["delete_account_api_v1_accounts__account_id__delete"];
-        options?: never;
-        head?: never;
-        /**
-         * Update Account
-         * @description PATCH /api/v1/accounts/{id} — partial update.
-         *
-         *     Status codes:
-         *         200: updated
-         *         404: account not found / cross-tenant
-         *         422: orphan-primary guard or kind enum violation
-         */
-        patch: operations["update_account_api_v1_accounts__account_id__patch"];
-        trace?: never;
-    };
-    "/api/v1/accounts/{account_id}/set-primary": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Set Primary Account
-         * @description POST /api/v1/accounts/{id}/set-primary — atomic primary flip.
-         *
-         *     Demotes any current primary to ``is_primary=False`` and promotes
-         *     ``account_id`` in a single DB transaction. Useful for the
-         *     AccountsScreen "Сделать основным" button.
-         *
-         *     Status codes:
-         *         200: updated; returns the freshly promoted account row.
-         *         404: account not found / cross-tenant.
-         */
-        post: operations["set_primary_account_api_v1_accounts__account_id__set_primary_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -623,6 +552,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/balance/reconcile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reconcile
+         * @description POST /api/v1/balance/reconcile — set displayed balance to target.
+         */
+        post: operations["reconcile_api_v1_balance_reconcile_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/billing/create-payment": {
         parameters: {
             query?: never;
@@ -728,71 +677,6 @@ export interface paths {
          *     refresh as a background task so the suggestion index stays up to date (AICAT-04).
          */
         patch: operations["update_category_api_v1_categories__category_id__patch"];
-        trace?: never;
-    };
-    "/api/v1/goals": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List Goals
-         * @description GET /api/v1/goals — list goals (oldest first).
-         */
-        get: operations["list_goals_api_v1_goals_get"];
-        put?: never;
-        /**
-         * Create Goal
-         * @description POST /api/v1/goals — create a new savings goal.
-         *
-         *     Status codes:
-         *         201: created
-         *         422: Pydantic validation (name length, target>0, due in future)
-         *              or service-layer ``GoalValidationError``.
-         */
-        post: operations["create_goal_api_v1_goals_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/goals/{goal_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /**
-         * Delete Goal
-         * @description DELETE /api/v1/goals/{id} — hard delete.
-         *
-         *     Past deposits referencing this goal_id remain in actual_transaction
-         *     as ``kind=deposit`` rows (no FK cascade — by design, BE-11).
-         *
-         *     Status codes:
-         *         204: deleted
-         *         404: goal not found / cross-tenant
-         */
-        delete: operations["delete_goal_api_v1_goals__goal_id__delete"];
-        options?: never;
-        head?: never;
-        /**
-         * Update Goal
-         * @description PATCH /api/v1/goals/{id} — partial update.
-         *
-         *     Status codes:
-         *         200: updated
-         *         404: goal not found / cross-tenant
-         *         422: validation error
-         */
-        patch: operations["update_goal_api_v1_goals__goal_id__patch"];
         trace?: never;
     };
     "/api/v1/home": {
@@ -1404,6 +1288,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/periods/{period_id}/plan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Period Plan
+         * @description GET /api/v1/periods/{id}/plan — per-category limits (fallback plan_cents).
+         */
+        get: operations["get_period_plan_api_v1_periods__period_id__plan_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update Period Plan
+         * @description PATCH /api/v1/periods/{id}/plan — UPSERT per-category limits.
+         */
+        patch: operations["update_period_plan_api_v1_periods__period_id__plan_patch"];
+        trace?: never;
+    };
     "/api/v1/periods/{period_id}/planned": {
         parameters: {
             query?: never;
@@ -1432,6 +1340,66 @@ export interface paths {
          *         400: category archived OR kind mismatch with category
          */
         post: operations["create_manual_planned_api_v1_periods__period_id__planned_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/periods/{period_id}/planned/post-batch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Post Planned Batch
+         * @description POST .../planned/post-batch — bulk-post; one actual per line.
+         */
+        post: operations["post_planned_batch_api_v1_periods__period_id__planned_post_batch_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/periods/{period_id}/planned/{planned_id}/post": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Post Planned
+         * @description POST .../planned/{id}/post — post a planned row into a real actual.
+         */
+        post: operations["post_planned_api_v1_periods__period_id__planned__planned_id__post_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/periods/{period_id}/planned/{planned_id}/unpost": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Unpost Planned
+         * @description POST .../planned/{id}/unpost — reverse a posted planned row.
+         */
+        post: operations["unpost_planned_api_v1_periods__period_id__planned__planned_id__unpost_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1496,83 +1464,6 @@ export interface paths {
          *         400: new category archived OR kind mismatch OR row is subscription_auto (D-37)
          */
         patch: operations["update_planned_api_v1_planned__planned_id__patch"];
-        trace?: never;
-    };
-    "/api/v1/savings": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Savings Snapshot
-         * @description GET /api/v1/savings — full snapshot (BE-09).
-         *
-         *     Returns total_cents, month_in_cents (current MSK month), config,
-         *     and the user's full goals list.
-         */
-        get: operations["get_savings_snapshot_api_v1_savings_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/savings/config": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        /**
-         * Patch Savings Config
-         * @description PATCH /api/v1/savings/config — partial update (BE-08).
-         *
-         *     Status codes:
-         *         200: updated (or default-seeded if no row existed yet)
-         *         422: roundup_base outside {10, 50, 100}
-         */
-        patch: operations["patch_savings_config_api_v1_savings_config_patch"];
-        trace?: never;
-    };
-    "/api/v1/savings/deposit": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Post Deposit
-         * @description POST /api/v1/savings/deposit — manual deposit (BE-10).
-         *
-         *     Creates an actual_transaction(kind='deposit'), debits the source
-         *     account balance, optionally bumps Goal.current_cents — all in one
-         *     DB transaction.
-         *
-         *     Status codes:
-         *         201: created
-         *         404: account_id or goal_id not found / cross-tenant
-         *         422: amount_cents == 0
-         *         500: system 'savings' Category missing (onboarding incomplete)
-         */
-        post: operations["post_deposit_api_v1_savings_deposit_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
         trace?: never;
     };
     "/api/v1/settings": {
@@ -1776,37 +1667,52 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /**
-         * List Template Items
-         * @deprecated
-         * @description DEPRECATED: GET /api/v1/template/items — returns empty list.
-         *
-         *     Plan 22.13: ``plan_template_item`` table was dropped (CONTEXT D-02).
-         *     Use ``GET /api/v1/categories`` and read ``plan_cents`` instead.
-         *
-         *     No DB dependency: the endpoint always returns ``[]`` so we skip the
-         *     ``SET LOCAL app.current_user_id`` round-trip the deprecated handler
-         *     would otherwise force on every legacy poll (CR-05 fix).
-         */
+        /** List Template Items */
         get: operations["list_template_items_api_v1_template_items_get"];
         put?: never;
-        /**
-         * Create Template Item Deprecated
-         * @deprecated
-         * @description DEPRECATED: POST /api/v1/template/items — 410 Gone.
-         *
-         *     No request body parsing or DB dependency: the endpoint short-circuits to
-         *     410 immediately so malformed bodies cannot trigger 422 validators on a
-         *     deprecated surface (CR-05 fix).
-         */
-        post: operations["create_template_item_deprecated_api_v1_template_items_post"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/template/items/{item_id}": {
+    "/api/v1/template/items/{category_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Upsert Template Item */
+        put: operations["upsert_template_item_api_v1_template_items__category_id__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/template/lines": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Template Lines */
+        get: operations["list_template_lines_api_v1_template_lines_get"];
+        put?: never;
+        /** Create Template Line */
+        post: operations["create_template_line_api_v1_template_lines_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/template/lines/{line_id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -1816,45 +1722,12 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        /**
-         * Delete Template Item Deprecated
-         * @deprecated
-         * @description DEPRECATED: DELETE /api/v1/template/items/{id} — 410 Gone (CR-05 fix).
-         */
-        delete: operations["delete_template_item_deprecated_api_v1_template_items__item_id__delete"];
+        /** Delete Template Line */
+        delete: operations["delete_template_line_api_v1_template_lines__line_id__delete"];
         options?: never;
         head?: never;
-        /**
-         * Update Template Item Deprecated
-         * @deprecated
-         * @description DEPRECATED: PATCH /api/v1/template/items/{id} — 410 Gone.
-         *
-         *     The path parameter is preserved so OpenAPI advertises the same URL
-         *     shape, but no body / DB / auth-side-effect dependencies run before the
-         *     410 is raised (CR-05 fix).
-         */
-        patch: operations["update_template_item_deprecated_api_v1_template_items__item_id__patch"];
-        trace?: never;
-    };
-    "/api/v1/template/snapshot-from-period/{period_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Snapshot From Period Deprecated
-         * @deprecated
-         * @description DEPRECATED: POST /api/v1/template/snapshot-from-period/{id} — 410 Gone (CR-05 fix).
-         */
-        post: operations["snapshot_from_period_deprecated_api_v1_template_snapshot_from_period__period_id__post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
+        /** Update Template Line */
+        patch: operations["update_template_line_api_v1_template_lines__line_id__patch"];
         trace?: never;
     };
     "/healthz": {
@@ -1949,31 +1822,6 @@ export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
         /**
-         * AccountCreate
-         * @description POST /api/v1/accounts request body.
-         */
-        AccountCreate: {
-            /**
-             * Balance Cents
-             * @default 0
-             */
-            balance_cents: number;
-            /** Bank */
-            bank: string;
-            /**
-             * Kind
-             * @enum {string}
-             */
-            kind: "card" | "cash" | "savings";
-            /** Mask */
-            mask?: string | null;
-            /**
-             * Primary
-             * @default false
-             */
-            primary: boolean;
-        };
-        /**
          * AccountDeleteResponse
          * @description DELETE /api/v1/me/account response — soft-delete scheduled.
          *
@@ -2020,22 +1868,6 @@ export interface components {
             mask: string | null;
             /** Primary */
             primary: boolean;
-        };
-        /**
-         * AccountUpdate
-         * @description PATCH /api/v1/accounts/{id} request body — all fields optional.
-         */
-        AccountUpdate: {
-            /** Balance Cents */
-            balance_cents?: number | null;
-            /** Bank */
-            bank?: string | null;
-            /** Kind */
-            kind?: ("card" | "cash" | "savings") | null;
-            /** Mask */
-            mask?: string | null;
-            /** Primary */
-            primary?: boolean | null;
         };
         /** ActualCreate */
         ActualCreate: {
@@ -2459,21 +2291,10 @@ export interface components {
             /** Parent Id */
             parent_id?: number | null;
             /**
-             * Paused
-             * @default false
-             */
-            paused: boolean;
-            /**
              * Plan Cents
              * @default 0
              */
             plan_cents: number;
-            /**
-             * Rollover
-             * @default misc
-             * @enum {string}
-             */
-            rollover: "misc" | "savings";
             /** Sort Order */
             sort_order: number;
             /**
@@ -2508,12 +2329,8 @@ export interface components {
             name?: string | null;
             /** Parent Id */
             parent_id?: number | null;
-            /** Paused */
-            paused?: boolean | null;
             /** Plan Cents */
             plan_cents?: number | null;
-            /** Rollover */
-            rollover?: ("misc" | "savings") | null;
             /** Sort Order */
             sort_order?: number | null;
             /** Tag */
@@ -2613,55 +2430,6 @@ export interface components {
             revoked: boolean;
         };
         /**
-         * DepositCreate
-         * @description POST /api/v1/savings/deposit request body (BE-10).
-         *
-         *     The wire contract carries ``amount_cents`` as a positive integer —
-         *     the service layer (``app.services.savings.deposit``) inserts an
-         *     ``ActualTransaction`` with a negated amount internally so deposits
-         *     show as outflow on the source account and inflow on the savings
-         *     side. Callers never deal with signed values.
-         *
-         *     ``goal_id`` is optional: a deposit without a linked goal still
-         *     increments the savings total but does not bump any
-         *     ``goal.current_cents``.
-         */
-        DepositCreate: {
-            /** Account Id */
-            account_id: number;
-            /**
-             * Amount Cents
-             * @description Positive amount in копейки (service negates internally)
-             */
-            amount_cents: number;
-            /** Goal Id */
-            goal_id?: number | null;
-        };
-        /**
-         * DepositResponse
-         * @description Response for POST /api/v1/savings/deposit (BE-10).
-         *
-         *     ``amount_cents`` is the SIGNED storage amount (negative — deposits
-         *     debit the source account). Frontend should display ``|amount|``.
-         */
-        DepositResponse: {
-            /** Account Id */
-            account_id: number | null;
-            /** Amount Cents */
-            amount_cents: number;
-            /** Category Id */
-            category_id: number;
-            /** Description */
-            description: string | null;
-            /** Id */
-            id: number;
-            /**
-             * Tx Date
-             * Format: date
-             */
-            tx_date: string;
-        };
-        /**
          * DevExchangeRequest
          * @description POST /auth/dev-exchange request body.
          *
@@ -2719,55 +2487,6 @@ export interface components {
             starting_balance_cents?: number | null;
             /** Total Net Cents */
             total_net_cents?: number | null;
-        };
-        /**
-         * GoalCreate
-         * @description POST /api/v1/goals request body.
-         */
-        GoalCreate: {
-            /** Due */
-            due?: string | null;
-            /** Name */
-            name: string;
-            /** Target Cents */
-            target_cents: number;
-        };
-        /**
-         * GoalRead
-         * @description GET /api/v1/goals response item (also returned by POST/PATCH).
-         *
-         *     Mirrors :class:`app.db.models.Goal` ORM columns. ``current_cents``
-         *     is incremented by ``app.services.savings.deposit_to_goal`` and read
-         *     here verbatim — no derivation.
-         */
-        GoalRead: {
-            /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
-            /** Current Cents */
-            current_cents: number;
-            /** Due */
-            due: string | null;
-            /** Id */
-            id: number;
-            /** Name */
-            name: string;
-            /** Target Cents */
-            target_cents: number;
-        };
-        /**
-         * GoalUpdate
-         * @description PATCH /api/v1/goals/{id} request body — all fields optional.
-         */
-        GoalUpdate: {
-            /** Due */
-            due?: string | null;
-            /** Name */
-            name?: string | null;
-            /** Target Cents */
-            target_cents?: number | null;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -2892,43 +2611,6 @@ export interface components {
             primary: boolean;
         };
         /**
-         * OnboardingGoalItem
-         * @description Optional ``goal`` slot inside the onboarding body.
-         *
-         *     Distinct from :class:`app.api.schemas.goals.GoalCreate` only in that
-         *     the standalone create schema lives in its own module — fields and
-         *     validators are kept in lock-step.
-         */
-        OnboardingGoalItem: {
-            /** Due */
-            due?: string | null;
-            /** Name */
-            name: string;
-            /** Target Cents */
-            target_cents: number;
-        };
-        /**
-         * OnboardingSavingsConfigItem
-         * @description Optional ``savings_config`` slot inside the onboarding body.
-         *
-         *     Defaults match :data:`app.services.onboarding_v10._DEFAULT_SAVINGS_CONFIG`
-         *     so omitting the whole object on the wire produces the same final
-         *     state as sending ``{"roundup_enabled": false, "base": 10}``.
-         */
-        OnboardingSavingsConfigItem: {
-            /**
-             * Base
-             * @default 10
-             * @enum {integer}
-             */
-            base: 10 | 50 | 100;
-            /**
-             * Roundup Enabled
-             * @default false
-             */
-            roundup_enabled: boolean;
-        };
-        /**
          * OnboardingV10Body
          * @description POST /api/v1/onboarding/complete request body (BE-15).
          *
@@ -2943,10 +2625,8 @@ export interface components {
             category_plans: {
                 [key: string]: number;
             };
-            goal?: components["schemas"]["OnboardingGoalItem"] | null;
             /** Income Cents */
             income_cents: number;
-            savings_config?: components["schemas"]["OnboardingSavingsConfigItem"] | null;
         };
         /**
          * OnboardingV10Response
@@ -2960,37 +2640,18 @@ export interface components {
         OnboardingV10Response: {
             /** Account Ids */
             account_ids: number[];
+            /** Adjustment Category Id */
+            adjustment_category_id: number;
             /** Category Ids By Code */
             category_ids_by_code: {
                 [key: string]: number;
             };
-            /** Goal Id */
-            goal_id: number | null;
             /** Income Cents */
             income_cents: number;
             /** Onboarded At */
             onboarded_at: string;
-            /** Savings Category Id */
-            savings_category_id: number;
-            savings_config: components["schemas"]["OnboardingV10SavingsConfigRead"];
             /** User Id */
             user_id: number;
-        };
-        /**
-         * OnboardingV10SavingsConfigRead
-         * @description Inlined ``SavingsConfigRead`` shape used by ``OnboardingV10Response``.
-         *
-         *     Defined as a separate class (rather than re-using
-         *     :class:`app.api.schemas.savings.SavingsConfigRead`) to avoid a
-         *     circular import — ``savings.py`` already imports from this module's
-         *     sibling ``goals.py`` and we keep the dependency graph
-         *     onboarding_v10 → (none in schemas/).
-         */
-        OnboardingV10SavingsConfigRead: {
-            /** Roundup Base */
-            roundup_base: number;
-            /** Roundup Enabled */
-            roundup_enabled: boolean;
         };
         /** OverspendItem */
         OverspendItem: {
@@ -3040,6 +2701,23 @@ export interface components {
             status: string;
             /** Yookassa Payment Id */
             yookassa_payment_id: string;
+        };
+        /** PeriodPlanResponse */
+        PeriodPlanResponse: {
+            /** Plans */
+            plans: components["schemas"]["PeriodPlanRow"][];
+        };
+        /** PeriodPlanRow */
+        PeriodPlanRow: {
+            /** Category Id */
+            category_id: number;
+            /** Limit Cents */
+            limit_cents: number;
+        };
+        /** PeriodPlanUpdate */
+        PeriodPlanUpdate: {
+            /** Plans */
+            plans: components["schemas"]["PeriodPlanRow"][];
         };
         /**
          * PeriodRead
@@ -3148,6 +2826,8 @@ export interface components {
             period_id: number;
             /** Planned Date */
             planned_date: string | null;
+            /** Posted Txn Id */
+            posted_txn_id?: number | null;
             /**
              * Source
              * @enum {string}
@@ -3172,52 +2852,46 @@ export interface components {
             /** Planned Date */
             planned_date?: string | null;
         };
-        /**
-         * SavingsConfigPatch
-         * @description PATCH /api/v1/savings/config request body — partial update.
-         *
-         *     Both fields optional: caller may toggle ``roundup_enabled`` without
-         *     touching ``roundup_base`` or vice versa. Empty body is a no-op.
-         */
-        SavingsConfigPatch: {
-            /** Roundup Base */
-            roundup_base?: (10 | 50 | 100) | null;
-            /** Roundup Enabled */
-            roundup_enabled?: boolean | null;
+        /** PostPlannedBatchRequest */
+        PostPlannedBatchRequest: {
+            /** Planned Ids */
+            planned_ids: number[];
+            /** Tx Date */
+            tx_date?: string | null;
         };
-        /**
-         * SavingsConfigRead
-         * @description Per-user roundup configuration (mirrors ORM ``SavingsConfig``).
-         */
-        SavingsConfigRead: {
-            /** Roundup Base */
-            roundup_base: number;
-            /** Roundup Enabled */
-            roundup_enabled: boolean;
+        /** PostPlannedBatchResponse */
+        PostPlannedBatchResponse: {
+            /** Posted */
+            posted: number[];
+            /** Skipped */
+            skipped: number[];
         };
-        /**
-         * SavingsSnapshotResponse
-         * @description GET /api/v1/savings response (BE-09).
-         *
-         *     Aggregates the savings dashboard payload:
-         *     - ``total_cents``: balance of all accounts marked ``kind='savings'``
-         *       plus deposit-class transactions (computed by service).
-         *     - ``month_in_cents``: sum of inflows during the current period (the
-         *       "into the piggy bank this month" UI label).
-         *     - ``config``: current roundup settings.
-         *     - ``goals``: every goal owned by the user.
-         *
-         *     All four fields are filled by the service from the same DB
-         *     transaction so the snapshot is internally consistent.
-         */
-        SavingsSnapshotResponse: {
-            config: components["schemas"]["SavingsConfigRead"];
-            /** Goals */
-            goals: components["schemas"]["GoalRead"][];
-            /** Month In Cents */
-            month_in_cents: number;
-            /** Total Cents */
-            total_cents: number;
+        /** PostPlannedRequest */
+        PostPlannedRequest: {
+            /**
+             * Tx Date
+             * Format: date
+             */
+            tx_date: string;
+        };
+        /** PostPlannedResponse */
+        PostPlannedResponse: {
+            /** Planned Id */
+            planned_id: number;
+            /** Txn Id */
+            txn_id: number;
+        };
+        /** ReconcileBalanceRequest */
+        ReconcileBalanceRequest: {
+            /** Target Balance Cents */
+            target_balance_cents: number;
+        };
+        /** ReconcileBalanceResponse */
+        ReconcileBalanceResponse: {
+            /** Adjustment Txn Id */
+            adjustment_txn_id: number | null;
+            /** Balance Now Cents */
+            balance_now_cents: number;
         };
         /**
          * SettingsRead
@@ -3426,23 +3100,64 @@ export interface components {
             /** Name */
             name?: string | null;
         };
-        /**
-         * TemplateItemRead
-         * @description GET /template/items response item — also returned by POST/PATCH.
-         */
+        /** TemplateItemRead */
         TemplateItemRead: {
+            /** Category Id */
+            category_id: number;
+            /** Limit Cents */
+            limit_cents: number;
+        };
+        /** TemplateItemUpsert */
+        TemplateItemUpsert: {
+            /** Limit Cents */
+            limit_cents: number;
+        };
+        /** TemplateLineCreate */
+        TemplateLineCreate: {
+            /** Amount Cents */
+            amount_cents: number;
+            /** Category Id */
+            category_id: number;
+            /** Day Of Period */
+            day_of_period?: number | null;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "expense" | "income";
+            /** Title */
+            title: string;
+        };
+        /** TemplateLineRead */
+        TemplateLineRead: {
             /** Amount Cents */
             amount_cents: number;
             /** Category Id */
             category_id: number;
             /** Day Of Period */
             day_of_period: number | null;
-            /** Description */
-            description: string | null;
             /** Id */
             id: number;
-            /** Sort Order */
-            sort_order: number;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "expense" | "income";
+            /** Title */
+            title: string;
+        };
+        /** TemplateLineUpdate */
+        TemplateLineUpdate: {
+            /** Amount Cents */
+            amount_cents?: number | null;
+            /** Category Id */
+            category_id?: number | null;
+            /** Day Of Period */
+            day_of_period?: number | null;
+            /** Kind */
+            kind?: ("expense" | "income") | null;
+            /** Title */
+            title?: string | null;
         };
         /**
          * TierResponse
@@ -3585,150 +3300,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AccountRead"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    create_account_api_v1_accounts_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                "x-telegram-init-data"?: string | null;
-                authorization?: string | null;
-                "x-test-user"?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AccountCreate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AccountRead"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    delete_account_api_v1_accounts__account_id__delete: {
-        parameters: {
-            query?: never;
-            header?: {
-                "x-telegram-init-data"?: string | null;
-                authorization?: string | null;
-                "x-test-user"?: string | null;
-            };
-            path: {
-                account_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    update_account_api_v1_accounts__account_id__patch: {
-        parameters: {
-            query?: never;
-            header?: {
-                "x-telegram-init-data"?: string | null;
-                authorization?: string | null;
-                "x-test-user"?: string | null;
-            };
-            path: {
-                account_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AccountUpdate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AccountRead"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    set_primary_account_api_v1_accounts__account_id__set_primary_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                "x-telegram-init-data"?: string | null;
-                authorization?: string | null;
-                "x-test-user"?: string | null;
-            };
-            path: {
-                account_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AccountRead"];
                 };
             };
             /** @description Validation Error */
@@ -4488,6 +4059,43 @@ export interface operations {
             };
         };
     };
+    reconcile_api_v1_balance_reconcile_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-telegram-init-data"?: string | null;
+                authorization?: string | null;
+                "x-test-user"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReconcileBalanceRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReconcileBalanceResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     create_payment_api_v1_billing_create_payment_post: {
         parameters: {
             query?: never;
@@ -4691,148 +4299,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CategoryRead"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    list_goals_api_v1_goals_get: {
-        parameters: {
-            query?: never;
-            header?: {
-                "x-telegram-init-data"?: string | null;
-                authorization?: string | null;
-                "x-test-user"?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["GoalRead"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    create_goal_api_v1_goals_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                "x-telegram-init-data"?: string | null;
-                authorization?: string | null;
-                "x-test-user"?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["GoalCreate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["GoalRead"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    delete_goal_api_v1_goals__goal_id__delete: {
-        parameters: {
-            query?: never;
-            header?: {
-                "x-telegram-init-data"?: string | null;
-                authorization?: string | null;
-                "x-test-user"?: string | null;
-            };
-            path: {
-                goal_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    update_goal_api_v1_goals__goal_id__patch: {
-        parameters: {
-            query?: never;
-            header?: {
-                "x-telegram-init-data"?: string | null;
-                authorization?: string | null;
-                "x-test-user"?: string | null;
-            };
-            path: {
-                goal_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["GoalUpdate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["GoalRead"];
                 };
             };
             /** @description Validation Error */
@@ -5681,6 +5147,80 @@ export interface operations {
             };
         };
     };
+    get_period_plan_api_v1_periods__period_id__plan_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-telegram-init-data"?: string | null;
+                authorization?: string | null;
+                "x-test-user"?: string | null;
+            };
+            path: {
+                period_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PeriodPlanResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_period_plan_api_v1_periods__period_id__plan_patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-telegram-init-data"?: string | null;
+                authorization?: string | null;
+                "x-test-user"?: string | null;
+            };
+            path: {
+                period_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PeriodPlanUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PeriodPlanResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_planned_api_v1_periods__period_id__planned_get: {
         parameters: {
             query?: {
@@ -5746,6 +5286,119 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["PlannedRead"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_planned_batch_api_v1_periods__period_id__planned_post_batch_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-telegram-init-data"?: string | null;
+                authorization?: string | null;
+                "x-test-user"?: string | null;
+            };
+            path: {
+                period_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PostPlannedBatchRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PostPlannedBatchResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_planned_api_v1_periods__period_id__planned__planned_id__post_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-telegram-init-data"?: string | null;
+                authorization?: string | null;
+                "x-test-user"?: string | null;
+            };
+            path: {
+                period_id: number;
+                planned_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PostPlannedRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PostPlannedResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    unpost_planned_api_v1_periods__period_id__planned__planned_id__unpost_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-telegram-init-data"?: string | null;
+                authorization?: string | null;
+                "x-test-user"?: string | null;
+            };
+            path: {
+                period_id: number;
+                planned_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
@@ -5856,113 +5509,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PlannedRead"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_savings_snapshot_api_v1_savings_get: {
-        parameters: {
-            query?: never;
-            header?: {
-                "x-telegram-init-data"?: string | null;
-                authorization?: string | null;
-                "x-test-user"?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SavingsSnapshotResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    patch_savings_config_api_v1_savings_config_patch: {
-        parameters: {
-            query?: never;
-            header?: {
-                "x-telegram-init-data"?: string | null;
-                authorization?: string | null;
-                "x-test-user"?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["SavingsConfigPatch"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SavingsConfigRead"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    post_deposit_api_v1_savings_deposit_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                "x-telegram-init-data"?: string | null;
-                authorization?: string | null;
-                "x-test-user"?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["DepositCreate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["DepositResponse"];
                 };
             };
             /** @description Validation Error */
@@ -6343,9 +5889,50 @@ export interface operations {
             };
         };
     };
-    create_template_item_deprecated_api_v1_template_items_post: {
+    upsert_template_item_api_v1_template_items__category_id__put: {
         parameters: {
             query?: never;
+            header?: {
+                "x-telegram-init-data"?: string | null;
+                authorization?: string | null;
+                "x-test-user"?: string | null;
+            };
+            path: {
+                category_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TemplateItemUpsert"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TemplateItemRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_template_lines_api_v1_template_lines_get: {
+        parameters: {
+            query?: {
+                category_id?: number | null;
+            };
             header?: {
                 "x-telegram-init-data"?: string | null;
                 authorization?: string | null;
@@ -6357,12 +5944,12 @@ export interface operations {
         requestBody?: never;
         responses: {
             /** @description Successful Response */
-            410: {
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["TemplateLineRead"][];
                 };
             };
             /** @description Validation Error */
@@ -6376,7 +5963,7 @@ export interface operations {
             };
         };
     };
-    delete_template_item_deprecated_api_v1_template_items__item_id__delete: {
+    create_template_line_api_v1_template_lines_post: {
         parameters: {
             query?: never;
             header?: {
@@ -6384,20 +5971,22 @@ export interface operations {
                 authorization?: string | null;
                 "x-test-user"?: string | null;
             };
-            path: {
-                item_id: number;
-            };
+            path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TemplateLineCreate"];
+            };
+        };
         responses: {
             /** @description Successful Response */
-            410: {
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["TemplateLineRead"];
                 };
             };
             /** @description Validation Error */
@@ -6411,7 +6000,7 @@ export interface operations {
             };
         };
     };
-    update_template_item_deprecated_api_v1_template_items__item_id__patch: {
+    delete_template_line_api_v1_template_lines__line_id__delete: {
         parameters: {
             query?: never;
             header?: {
@@ -6420,20 +6009,18 @@ export interface operations {
                 "x-test-user"?: string | null;
             };
             path: {
-                item_id: number;
+                line_id: number;
             };
             cookie?: never;
         };
         requestBody?: never;
         responses: {
             /** @description Successful Response */
-            410: {
+            204: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": unknown;
-                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
@@ -6446,7 +6033,7 @@ export interface operations {
             };
         };
     };
-    snapshot_from_period_deprecated_api_v1_template_snapshot_from_period__period_id__post: {
+    update_template_line_api_v1_template_lines__line_id__patch: {
         parameters: {
             query?: never;
             header?: {
@@ -6455,19 +6042,23 @@ export interface operations {
                 "x-test-user"?: string | null;
             };
             path: {
-                period_id: number;
+                line_id: number;
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TemplateLineUpdate"];
+            };
+        };
         responses: {
             /** @description Successful Response */
-            410: {
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["TemplateLineRead"];
                 };
             };
             /** @description Validation Error */
