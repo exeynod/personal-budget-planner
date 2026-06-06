@@ -213,7 +213,7 @@ enum AnalyticsData {
         let factById = Dictionary(uniqueKeysWithValues: buckets.map { ($0.categoryId, $0.sumCents) })
         var saved = 0
         for c in categories {
-            if c.code == "savings" || c.paused { continue }
+            if c.code == "savings" { continue }
             let fact = factById[c.id] ?? 0
             saved += max(0, c.planCents - fact)
         }

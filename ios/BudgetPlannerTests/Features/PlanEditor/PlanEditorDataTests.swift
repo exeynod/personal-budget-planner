@@ -117,15 +117,16 @@ final class PlanEditorDataTests: XCTestCase {
         )
     }
 
-    func test_computeSurplus_excludesPausedAndIncome() {
+    func test_computeSurplus_excludesIncome() {
+        // v1.1: only expense plans are subtracted; income categories never are.
         let cats = [
-            makeCategory(id: 1, kind: "expense", planCents: 30_000, paused: false),
-            makeCategory(id: 2, kind: "expense", planCents: 10_000, paused: true),
+            makeCategory(id: 1, kind: "expense", planCents: 30_000),
+            makeCategory(id: 2, kind: "expense", planCents: 10_000),
             makeCategory(id: 3, kind: "income", planCents: 200_000),
         ]
         XCTAssertEqual(
             PlanEditorData.computeSurplus(incomeCents: 100_000, categories: cats),
-            70_000
+            60_000
         )
     }
 
@@ -172,16 +173,6 @@ final class PlanEditorDataTests: XCTestCase {
         XCTAssertEqual(r.expense.map(\.id), [1, 2, 3])
     }
 
-    func test_sortCategories_pausedToEnd() {
-        let cats = [
-            makeCategory(id: 1, kind: "expense", ord: "01", paused: true),
-            makeCategory(id: 2, kind: "expense", ord: "02", paused: false),
-        ]
-        let r = PlanEditorData.sortCategoriesForDisplay(cats)
-        // active (id=2) first; paused (id=1) at end.
-        XCTAssertEqual(r.expense.map(\.id), [2, 1])
-    }
-
     func test_sortCategories_tieBreakByName() {
         let cats = [
             makeCategory(id: 2, name: "B", kind: "expense", ord: "01"),
@@ -225,44 +216,6 @@ final class PlanEditorDataTests: XCTestCase {
             PlanEditorData.factCentsByCategory(acts, categoryId: 5),
             3_000
         )
-    }
-
-    // MARK: - computeRolloverAggregates
-
-    func test_rolloverAggregates_partitions() {
-        let cats = [
-            makeCategory(id: 1, kind: "expense", planCents: 10_000, rollover: "misc"),
-            makeCategory(id: 2, kind: "expense", planCents: 20_000, rollover: "savings"),
-        ]
-        let acts = [
-            makeActual(id: 10, categoryId: 1, amountCents: 4_000),  // expense kind default
-            makeActual(id: 20, categoryId: 2, amountCents: 7_000),
-        ]
-        let r = PlanEditorData.computeRolloverAggregates(categories: cats, actuals: acts)
-        XCTAssertEqual(r.miscCents, 6_000)
-        XCTAssertEqual(r.savingsCents, 13_000)
-    }
-
-    func test_rolloverAggregates_excludesPausedSavingsArchived() {
-        let cats = [
-            makeCategory(id: 1, kind: "expense", planCents: 10_000, rollover: "misc", paused: true),
-            makeCategory(id: 2, kind: "expense", planCents: 5_000, rollover: "misc", code: "savings"),
-            makeCategory(id: 3, kind: "expense", planCents: 7_000, rollover: "misc", isArchived: true),
-            makeCategory(id: 4, kind: "expense", planCents: 8_000, rollover: "misc"),
-        ]
-        let r = PlanEditorData.computeRolloverAggregates(categories: cats, actuals: [])
-        // только id=4 учитывается; fact=0 → remainder=8000
-        XCTAssertEqual(r.miscCents, 8_000)
-        XCTAssertEqual(r.savingsCents, 0)
-    }
-
-    func test_rolloverAggregates_overBudgetClampedZero() {
-        let cats = [
-            makeCategory(id: 1, kind: "expense", planCents: 10_000, rollover: "misc")
-        ]
-        let acts = [makeActual(id: 10, categoryId: 1, amountCents: 15_000)]
-        let r = PlanEditorData.computeRolloverAggregates(categories: cats, actuals: acts)
-        XCTAssertEqual(r.miscCents, 0)
     }
 
     // MARK: - applyOptimisticUpdate

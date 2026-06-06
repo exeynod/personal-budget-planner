@@ -214,7 +214,6 @@ enum AddSheetData {
     ) -> [CategoryV10DTO] {
         categories.filter {
             $0.code != "savings"
-                && !$0.paused
                 && $0.kind == kind.categoryKind
         }
     }

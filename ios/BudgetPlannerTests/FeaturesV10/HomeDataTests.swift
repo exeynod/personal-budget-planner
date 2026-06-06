@@ -391,16 +391,6 @@ final class HomeDataTests: XCTestCase {
         XCTAssertEqual(rows.first?.id, 1)
     }
 
-    func test_computeCategoryAggregates_filters_paused_categories() {
-        let cats = [
-            makeCategory(id: 1, name: "Кафе", code: "cafe", planCents: 1_000_000, paused: false),
-            makeCategory(id: 2, name: "Поездки", code: "trips", planCents: 2_000_000, paused: true),
-        ]
-        let rows = HomeData.computeCategoryAggregates(categories: cats, actuals: [])
-        XCTAssertEqual(rows.count, 1)
-        XCTAssertEqual(rows.first?.name, "Кафе")
-    }
-
     func test_computeCategoryAggregates_aggregates_only_expense_kind() {
         let cats = [makeCategory(id: 1, name: "Кафе", planCents: 1_000_000)]
         let acts = [

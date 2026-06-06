@@ -129,7 +129,7 @@ final class HomeV10ViewModel {
             let aggregates = HomeData.sortForHome(
                 HomeData.computeCategoryAggregates(categories: cats, actuals: acts)
             )
-            let filtered = cats.filter { $0.code != "savings" && !$0.paused }
+            let filtered = cats.filter { $0.code != "savings" }
             let plan = HomeData.planTotal(filtered)
             let fact = aggregates.reduce(0) { $0 + $1.factCents }
 

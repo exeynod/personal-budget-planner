@@ -131,33 +131,21 @@ final class PlanEditorIntegrationTests: XCTestCase {
         )
     }
 
-    // MARK: - Test 4: rollover aggregates recompute
+    // MARK: - Test 4: optimistic update propagates plan change
 
-    /// 2 expense categories no actuals: misc plan=10k, savings plan=20k.
-    /// Aggregates: misc=10k, savings=20k. После change rollover для misc-cat
-    /// к .savings → aggregates collapse к misc=0, savings=30k.
-    func test_rolloverAggregates_recomputeAfterOptimisticUpdate() {
+    /// 2 expense categories: plan=10k / plan=20k. После optimistic update id=1
+    /// к plan=15k → parent.categories отражает новый planCents.
+    func test_optimisticUpdate_propagatesPlanChange() {
         let parent = PlanEditorViewModel()
-        let c1 = makeCategory(id: 1, kind: "expense", planCents: 10000, rollover: "misc")
-        let c2 = makeCategory(id: 2, kind: "expense", planCents: 20000, rollover: "savings")
+        let c1 = makeCategory(id: 1, kind: "expense", planCents: 10000)
+        let c2 = makeCategory(id: 2, kind: "expense", planCents: 20000)
         parent._setStateForTesting(categories: [c1, c2])
 
-        let before = PlanEditorData.computeRolloverAggregates(
-            categories: parent.categories,
-            actuals: []
-        )
-        XCTAssertEqual(before.miscCents, 10000)
-        XCTAssertEqual(before.savingsCents, 20000)
-
-        let updated = makeCategory(id: 1, kind: "expense", planCents: 10000, rollover: "savings")
+        let updated = makeCategory(id: 1, kind: "expense", planCents: 15000)
         parent.applyOptimisticUpdate(updated)
 
-        let after = PlanEditorData.computeRolloverAggregates(
-            categories: parent.categories,
-            actuals: []
-        )
-        XCTAssertEqual(after.miscCents, 0)
-        XCTAssertEqual(after.savingsCents, 30000)
+        XCTAssertEqual(parent.categories.first(where: { $0.id == 1 })?.planCents, 15000)
+        XCTAssertEqual(parent.categories.first(where: { $0.id == 2 })?.planCents, 20000)
     }
 
     // MARK: - Test 5: concurrent save guard smoke (T-61-02)
@@ -203,12 +191,10 @@ final class PlanEditorIntegrationTests: XCTestCase {
     /// (baseline). Это inverse контракт isDirty (см. unit tests Plan 61-03).
     func test_dirtyCheck_baselineFalseAfterMatchingSeed() {
         let child = PlanRowEditorViewModel(categoryId: 1)
-        let c = makeCategory(id: 1, planCents: 5000, rollover: "savings", paused: true)
+        let c = makeCategory(id: 1, planCents: 5000)
         child._setStateForTesting(
             category: c,
-            planCents: 5000,
-            rollover: .savings,
-            paused: true
+            planCents: 5000
         )
         XCTAssertFalse(child.isDirty)
     }

@@ -116,6 +116,61 @@ enum PlannedAPI {
     static func delete(id: Int) async throws {
         try await APIClient.shared.requestVoid("DELETE", "/planned/\(id)")
     }
+
+    // MARK: - v1.1 post / unpost (AGREED §F — «Провести»)
+
+    /// POST /periods/{pid}/planned/{id}/post — post a planned row into a real
+    /// actual on `txDate`. Returns the new `txn_id` + `planned_id` (the
+    /// `posted_txn_id` bridge). Reversible via `unpost`.
+    @discardableResult
+    static func post(periodId: Int, plannedId: Int, txDate: BusinessDate)
+        async throws -> PostPlannedResponseDTO
+    {
+        try await APIClient.shared.request(
+            "POST", "/periods/\(periodId)/planned/\(plannedId)/post",
+            body: PostPlannedRequestDTO(txDate: txDate)
+        )
+    }
+
+    /// POST /periods/{pid}/planned/{id}/unpost — reverse a posted planned row
+    /// (204 No Content). Clears `posted_txn_id` and deletes the bridged actual.
+    static func unpost(periodId: Int, plannedId: Int) async throws {
+        try await APIClient.shared.requestVoid(
+            "POST", "/periods/\(periodId)/planned/\(plannedId)/unpost"
+        )
+    }
+
+    /// POST /periods/{pid}/planned/post-batch — bulk-post; one actual per line.
+    @discardableResult
+    static func postBatch(periodId: Int, plannedIds: [Int], txDate: BusinessDate? = nil)
+        async throws -> PostPlannedBatchResponseDTO
+    {
+        try await APIClient.shared.request(
+            "POST", "/periods/\(periodId)/planned/post-batch",
+            body: PostPlannedBatchRequestDTO(plannedIds: plannedIds, txDate: txDate)
+        )
+    }
+}
+
+// MARK: - v1.1 planned post/unpost wire types
+
+struct PostPlannedRequestDTO: Encodable {
+    let txDate: BusinessDate
+}
+
+struct PostPlannedResponseDTO: Decodable {
+    let plannedId: Int
+    let txnId: Int
+}
+
+struct PostPlannedBatchRequestDTO: Encodable {
+    let plannedIds: [Int]
+    let txDate: BusinessDate?
+}
+
+struct PostPlannedBatchResponseDTO: Decodable {
+    let posted: [Int]
+    let skipped: [Int]
 }
 
 @available(

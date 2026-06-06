@@ -102,9 +102,6 @@ struct PlanView: View {
     private var readyState: some View {
         let surplus = PlanData.computeSurplus(incomeCents: model.income, plans: model.plans)
         let isOverflow = PlanData.computeIsOverflow(surplus)
-        let aggregates = PlanData.computeRolloverAggregates(
-            categories: model.categories, plans: model.plans, actuals: model.actuals
-        )
         let regulars = PlanData.computeRegularsList(subs: model.subs, categories: model.categories)
         let planByCat: [Int: Int] = Dictionary(
             uniqueKeysWithValues: model.plans.map { ($0.categoryId, $0.planCents) }
@@ -117,10 +114,6 @@ struct PlanView: View {
                     Mass("PLAN МЕСЯЦА.", size: 70)
                     surplusPlate(surplus: surplus, isOverflow: isOverflow)
                         .padding(.top, 4)
-                    HStack(spacing: 10) {
-                        aggPlate(label: "→ ПРОЧЕЕ", cents: aggregates.miscCents)
-                        aggPlate(label: "→ НАКОПЛЕНИЯ", cents: aggregates.savingsCents)
-                    }
                     Eyebrow("РЕГУЛЯРНЫЕ · ПРОВЕСТИ В ФАКТ", opacity: 0.7)
                         .padding(.top, 12)
                     regularsSection(regulars)
@@ -202,18 +195,6 @@ struct PlanView: View {
             (isOverflow ? PosterTokens.Color.red : PosterTokens.Color.yellow)
                 .opacity(0.18)
         )
-    }
-
-    private func aggPlate(label: String, cents: Int) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Eyebrow(label, opacity: 0.7)
-            Text("\(RubleFormatter.format(cents: cents)) ₽")
-                .font(.posterMono(size: 14, weight: .semibold))
-                .foregroundColor(PosterTokens.Color.paper)
-        }
-        .padding(10)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(PosterTokens.Color.paper.opacity(0.08))
     }
 
     @ViewBuilder
@@ -302,14 +283,6 @@ struct PlanView: View {
                 // (PLAN-1) without touching the bound cents value sent to PATCH.
                 valueIsCents: true
             )
-            HStack(spacing: 8) {
-                Chip("ПРОЧЕЕ", active: c.rollover == .misc) {
-                    Task { await model.toggleRollover(categoryId: c.id, to: .misc) }
-                }
-                Chip("НАКОПЛЕНИЯ", active: c.rollover == .savings) {
-                    Task { await model.toggleRollover(categoryId: c.id, to: .savings) }
-                }
-            }
             Rectangle()
                 .fill(PosterTokens.Color.paper.opacity(0.18))
                 .frame(height: 1)

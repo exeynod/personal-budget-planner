@@ -6,7 +6,9 @@ final class HomeViewModel {
     enum LoadState: Equatable {
         case idle
         case loading
-        case loaded(period: PeriodDTO, balance: BalanceResponse, categories: [CategoryDTO], walletCents: Int)
+        case loaded(
+            period: PeriodDTO, balance: BalanceResponse, categories: [CategoryDTO],
+            walletCents: Int, plannedUnpostedExpenseCents: Int)
         case noActivePeriod
         case error(String)
     }
@@ -22,6 +24,12 @@ final class HomeViewModel {
             async let accountsTask = AccountsAPI.list()
             let (period, cats, accounts) = try await (periodTask, categoriesTask, accountsTask)
             let balance = try await PeriodsAPI.balance(periodId: period.id)
+            // v1.1 plan↔fact ladder: «Расписано» = Σ unposted planned amounts
+            // (expense-scoped), excluding subscription_auto (anti-double-count)
+            // and already-posted rows. Mirrors web `plannedUnpostedTotal`.
+            let planned = (try? await PlannedAPI.list(periodId: period.id)) ?? []
+            let plannedUnpostedExpense = HomeData.plannedUnpostedTotal(
+                planned, kind: .expense)
             // Phase 71 BAL-1: headline "Остаток на счёте" is the wallet total
             // (Σ account balance_cents), matching the MP shell's "в кошельке"
             // (HomeData.computeWalletTotal) and the Счета screen. The period
@@ -29,7 +37,10 @@ final class HomeViewModel {
             // wallet — v1.0 onboarding creates no starting balance, so it
             // collapses to pure period net and mislabels the headline.
             let walletCents = HomeData.computeWalletTotal(accounts)
-            state = .loaded(period: period, balance: balance, categories: cats, walletCents: walletCents)
+            state = .loaded(
+                period: period, balance: balance, categories: cats,
+                walletCents: walletCents,
+                plannedUnpostedExpenseCents: plannedUnpostedExpense)
         } catch APIError.notFound {
             state = .noActivePeriod
         } catch {
@@ -41,7 +52,7 @@ final class HomeViewModel {
     }
 
     var loadedCategories: [CategoryDTO] {
-        if case .loaded(_, _, let cats, _) = state { return cats }
+        if case .loaded(_, _, let cats, _, _) = state { return cats }
         return []
     }
 }
@@ -95,12 +106,13 @@ struct HomeView: View {
             ProgressView().controlSize(.large)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-        case .loaded(let period, let balance, let categories, let walletCents):
+        case .loaded(let period, let balance, let categories, let walletCents, let plannedUnposted):
             HomeList(
                 balance: balance,
                 period: period,
                 categories: categories,
                 walletCents: walletCents,
+                plannedUnpostedExpenseCents: plannedUnposted,
                 kind: $viewModel.activeKind,
                 onRefresh: { await viewModel.load() }
             )
@@ -145,13 +157,17 @@ private struct HomeList: View {
     let period: PeriodDTO
     let categories: [CategoryDTO]
     let walletCents: Int
+    /// v1.1 ladder «Расписано» — Σ unposted planned expense amounts.
+    let plannedUnpostedExpenseCents: Int
     @Binding var kind: CategoryKind
     var onRefresh: (() async -> Void)? = nil
 
     var body: some View {
         List {
             Section {
-                BalanceHeroRow(balance: balance, period: period, walletCents: walletCents, kind: kind)
+                BalanceHeroRow(
+                    balance: balance, period: period, walletCents: walletCents,
+                    plannedUnpostedExpenseCents: plannedUnpostedExpenseCents, kind: kind)
                     .listRowInsets(EdgeInsets(top: 12, leading: 16, bottom: 12, trailing: 16))
                     .listRowBackground(Color.clear)
                     .listRowSeparator(.hidden)
@@ -204,6 +220,8 @@ private struct BalanceHeroRow: View {
     /// behind the "Остаток на счёте" label — matches the MP shell's "в кошельке"
     /// and the Счета screen total.
     let walletCents: Int
+    /// v1.1 ladder «Расписано» — Σ unposted planned expense amounts.
+    let plannedUnpostedExpenseCents: Int
     let kind: CategoryKind
 
     private var amountCents: Int {
@@ -242,6 +260,23 @@ private struct BalanceHeroRow: View {
         return .secondary
     }
 
+    /// v1.1 plan↔fact ladder cells. Expense: Лимит / Расписано / Факт / В запасе.
+    /// Income: План / Факт / Сверх (no «Расписано» — the ladder is expense-scoped,
+    /// mirroring the web NativeHomeView).
+    private var ladderCells: [LadderCell] {
+        var cells: [LadderCell] = []
+        if kind == .expense {
+            cells.append(LadderCell(label: "Лимит", value: planned, color: .primary))
+            cells.append(
+                LadderCell(label: "Расписано", value: plannedUnpostedExpenseCents, color: .primary))
+        } else {
+            cells.append(LadderCell(label: "План", value: planned, color: .primary))
+        }
+        cells.append(LadderCell(label: "Факт", value: actual, color: .primary))
+        cells.append(LadderCell(label: deltaLabel, value: delta, color: deltaColor, signed: true))
+        return cells
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
@@ -261,15 +296,26 @@ private struct BalanceHeroRow: View {
             }
 
             HStack(spacing: 12) {
-                MetricCell(label: "План", value: planned, color: .primary)
-                MetricCell(label: "Факт", value: actual, color: .primary)
-                MetricCell(label: deltaLabel, value: delta, color: deltaColor, signed: true)
+                ForEach(ladderCells) { cell in
+                    MetricCell(
+                        label: cell.label, value: cell.value, color: cell.color,
+                        signed: cell.signed)
+                }
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(20)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: Tokens.Radius.large, style: .continuous))
     }
+}
+
+/// One cell of the Home plan↔fact ladder.
+private struct LadderCell: Identifiable {
+    let id = UUID()
+    let label: String
+    let value: Int
+    let color: Color
+    var signed: Bool = false
 }
 
 private struct MetricCell: View {

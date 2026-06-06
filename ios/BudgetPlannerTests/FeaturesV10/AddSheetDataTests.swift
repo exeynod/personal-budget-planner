@@ -218,9 +218,8 @@ final class AddSheetDataTests: XCTestCase {
             makeCategory(id: 2, name: "Кафе", kind: "expense", code: "cafe"),
             makeCategory(id: 3, name: "Зарплата", kind: "income", code: "salary"),
             makeCategory(id: 4, name: "Подработка", kind: "income", code: "side"),
-            // System savings sink + a paused expense — both must be dropped.
+            // System savings sink — must be dropped.
             makeCategory(id: 5, name: "Накопления", kind: "expense", code: "savings"),
-            makeCategory(id: 6, name: "Спорт", kind: "expense", paused: true, code: "sport"),
         ]
     }
 
@@ -240,7 +239,7 @@ final class AddSheetDataTests: XCTestCase {
 
     func test_visibleCategories_expense_shows_only_expense_buckets() {
         let result = AddSheetData.visibleCategories(mixedCategories, for: .expense)
-        // Drops savings (id 5) and paused (id 6); keeps expense food/cafe only.
+        // Drops savings (id 5); keeps expense food/cafe only.
         XCTAssertEqual(result.map { $0.id }, [1, 2])
     }
 
@@ -249,10 +248,9 @@ final class AddSheetDataTests: XCTestCase {
         XCTAssertEqual(result.map { $0.id }, [3, 4])
     }
 
-    func test_visibleCategories_drops_savings_and_paused_for_both_kinds() {
+    func test_visibleCategories_drops_savings_for_both_kinds() {
         let exp = AddSheetData.visibleCategories(mixedCategories, for: .expense)
         XCTAssertFalse(exp.contains { $0.code == "savings" })
-        XCTAssertFalse(exp.contains { $0.paused })
     }
 
     // ─────────────── clearedCategoryIfInvalid (Phase 71) ───────────────

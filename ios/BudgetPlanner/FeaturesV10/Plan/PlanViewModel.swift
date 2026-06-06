@@ -93,9 +93,9 @@ final class PlanViewModel {
             let s = try await subsTask
             let m = try await meTask
 
-            // Filter savings + paused for the slider/aggregate views; sort by ord.
+            // Filter the system savings sink for the slider views; sort by ord.
             let visibleCats = allCats
-                .filter { $0.code != "savings" && !$0.paused }
+                .filter { $0.code != "savings" }
                 .sorted { ($0.ord ?? "99") < ($1.ord ?? "99") }
             self.categories = visibleCats
             self.subs = s
@@ -122,24 +122,6 @@ final class PlanViewModel {
     /// PATCH only fires from `submit()` (T-P-06 atomic batch).
     func updateSlider(categoryId: Int, cents: Int) {
         plans = PlanData.applyPlanEdit(plans, categoryId: categoryId, newCents: cents)
-    }
-
-    // MARK: - Rollover chip toggle (per-category PATCH)
-
-    /// Flip rollover policy for one category via PATCH /categories/:id.
-    /// Optimistic refresh — server response replaces the local DTO.
-    func toggleRollover(categoryId: Int, to next: CategoryRollover) async {
-        do {
-            let updated = try await CategoriesV10API.update(
-                id: categoryId,
-                payload: CategoryV10UpdateRequest(rollover: next)
-            )
-            if let idx = categories.firstIndex(where: { $0.id == categoryId }) {
-                categories[idx] = updated
-            }
-        } catch {
-            // Phase 28 polish wires a toast; silent for v1.0.
-        }
     }
 
     // MARK: - Regulars post / unpost (T-P-04)

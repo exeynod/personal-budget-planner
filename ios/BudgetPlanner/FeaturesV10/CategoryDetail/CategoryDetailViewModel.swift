@@ -103,38 +103,6 @@ final class CategoryDetailViewModel {
         }
     }
 
-    // MARK: - Mutations (CAT-V10-04 / CAT-V10-05)
-
-    /// Flip rollover between .misc ↔ .savings via PATCH /categories/:id.
-    /// Optimistic refresh — server response replaces local `category`.
-    func toggleRollover() async {
-        guard let cat = category else { return }
-        let next: CategoryRollover = cat.rollover == .misc ? .savings : .misc
-        do {
-            let updated = try await CategoriesV10API.update(
-                id: cat.id,
-                payload: CategoryV10UpdateRequest(rollover: next)
-            )
-            self.category = updated
-        } catch {
-            // T-26-03-03: silent for now. Phase 28 polish: toast/banner.
-        }
-    }
-
-    /// Flip the `paused` flag via PATCH /categories/:id.
-    func togglePause() async {
-        guard let cat = category else { return }
-        do {
-            let updated = try await CategoriesV10API.update(
-                id: cat.id,
-                payload: CategoryV10UpdateRequest(paused: !cat.paused)
-            )
-            self.category = updated
-        } catch {
-            // T-26-03-03: silent for now.
-        }
-    }
-
     // MARK: - Derived (consumed by the View)
 
     /// Σ |amount_cents| where category matches AND kind == .expense.

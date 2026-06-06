@@ -86,7 +86,7 @@ enum HomeData {
         categories: [CategoryV10DTO],
         actuals: [ActualV10DTO]
     ) -> [CategoryAggregateRow] {
-        let filtered = categories.filter { $0.code != "savings" && !$0.paused }
+        let filtered = categories.filter { $0.code != "savings" }
 
         // Pre-bucket actuals by categoryId for O(N+M) instead of O(N*M).
         var factByCat: [Int: Int] = [:]
@@ -138,5 +138,29 @@ enum HomeData {
     /// CategoryAggregateRow array.
     static func planTotal(_ filtered: [CategoryV10DTO]) -> Int {
         filtered.reduce(0) { $0 + $1.planCents }
+    }
+
+    // MARK: - v1.1 plan↔fact ladder («Расписано»)
+
+    /// Σ of UNPOSTED planned-row amounts — the «Расписано» ladder level.
+    ///
+    /// A row counts when BOTH hold:
+    ///   - `postedTxnId == nil` (not yet realised into a fact), AND
+    ///   - `source != .subscriptionAuto` (anti-double-count — subscription
+    ///     charges are projected separately).
+    /// Pass `kind` to keep the sum in lock-step with an expense-scoped ladder.
+    /// Mirrors web `plannedUnpostedTotal` (computeHomeData.ts).
+    static func plannedUnpostedTotal(
+        _ planned: [PlannedDTO],
+        kind: CategoryKind? = nil
+    ) -> Int {
+        var sum = 0
+        for p in planned {
+            if p.postedTxnId != nil { continue }
+            if p.source == .subscriptionAuto { continue }
+            if let kind, p.kind != kind { continue }
+            sum += Swift.abs(p.amountCents)
+        }
+        return sum
     }
 }

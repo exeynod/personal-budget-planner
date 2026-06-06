@@ -2,13 +2,10 @@ import SwiftUI
 
 /// Phase 61: PlanRowEditorView — detail editor для одной категории.
 ///
-/// 61-03 реализация:
-///   Form с 3 секциями:
+/// 61-03 реализация (v1.1: rollover/paused removed — limit-only):
+///   Form с одной секцией:
 ///     • «Лимит» — Stepper (+/- 500₽ step) + TextField (.decimalPad через
 ///       MoneyParser). Real-time sync rubles ↔ cents.
-///     • «Перенос остатка» — Picker (segmented) с 2 опциями: «В прочее»
-///       (.misc) / «В накопления» (.savings).
-///     • «Статус» — Toggle paused.
 ///   Toolbar Save в .confirmationAction — disabled пока !isDirty || submitting.
 ///   Inline banner Section с saveError filtered Russian copy на failure.
 ///   Cancel toolbar item → .alert «Отменить изменения?» когда isDirty.
@@ -61,8 +58,7 @@ struct PlanRowEditorView: View {
                         saveErrorBanner(err)
                     }
                     limitSection(cat)
-                    rolloverSection
-                    statusSection
+                    plannedSection
                 } else {
                     Section {
                         Label(
@@ -195,31 +191,60 @@ struct PlanRowEditorView: View {
         }
     }
 
-    // MARK: - Rollover section
+    // MARK: - Planned rows section (v1.1 «Провести»)
 
-    private var rolloverSection: some View {
-        Section {
-            Picker("Куда переносить", selection: $viewModel.rollover) {
-                Text("В прочее").tag(CategoryRollover.misc)
-                Text("В накопления").tag(CategoryRollover.savings)
+    @ViewBuilder
+    private var plannedSection: some View {
+        let rows = viewModel.postableRows
+        if !rows.isEmpty {
+            Section {
+                ForEach(rows) { row in
+                    plannedRow(row)
+                }
+                if let err = viewModel.postError {
+                    Label(err, systemImage: "exclamationmark.triangle")
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                }
+            } header: {
+                Text("Запланированные строки")
+            } footer: {
+                Text("«Провести» записывает строку как факт-трату на сегодня. Действие обратимо.")
             }
-            .pickerStyle(.segmented)
-        } header: {
-            Text("Перенос остатка")
-        } footer: {
-            Text(
-                "Остаток (план − факт) переходит в выбранный буфер при закрытии периода."
-            )
         }
     }
 
-    // MARK: - Status section
-
-    private var statusSection: some View {
-        Section {
-            Toggle("Приостановлено", isOn: $viewModel.paused)
-        } footer: {
-            Text("Приостановленные категории не учитываются в распределении бюджета.")
+    private func plannedRow(_ row: PlannedDTO) -> some View {
+        let posted = row.postedTxnId != nil
+        let busy = viewModel.postingId == row.id
+        return HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(row.description?.isEmpty == false ? row.description! : "Без описания")
+                    .font(.body)
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                Text(MoneyFormatter.formatWithSymbol(cents: row.amountCents))
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(.secondary)
+            }
+            Spacer(minLength: 8)
+            Button {
+                Task {
+                    if posted { await viewModel.unpostPlanned(row) }
+                    else { await viewModel.postPlanned(row) }
+                }
+            } label: {
+                if busy {
+                    ProgressView().controlSize(.small)
+                } else {
+                    Text(posted ? "Отменить" : "Провести")
+                        .font(.callout.weight(.semibold))
+                }
+            }
+            .buttonStyle(.borderless)
+            .disabled(viewModel.postingId != nil)
+            .tint(posted ? .secondary : Tokens.Accent.primary)
         }
     }
+
 }

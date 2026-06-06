@@ -160,78 +160,6 @@ final class PlanDataTests: XCTestCase {
         XCTAssertFalse(PlanData.computeIsOverflow(0))
     }
 
-    // MARK: - computeRolloverAggregates
-
-    func test_computeRolloverAggregates_misc_bucket_sums_misc_remainders() {
-        let cats = [
-            makeCategory(id: 1, planCents: 10_000, rollover: "misc"),
-            makeCategory(id: 2, planCents: 5_000, rollover: "misc"),
-        ]
-        let plans = PlanData.plansFromCategories(cats)
-        let actuals = [
-            makeActual(id: 1, categoryId: 1, amountCents: 4_000),  // remainder = 6_000
-            makeActual(id: 2, categoryId: 2, amountCents: 1_000),  // remainder = 4_000
-        ]
-        let agg = PlanData.computeRolloverAggregates(
-            categories: cats, plans: plans, actuals: actuals
-        )
-        XCTAssertEqual(agg.miscCents, 10_000)
-        XCTAssertEqual(agg.savingsCents, 0)
-    }
-
-    func test_computeRolloverAggregates_savings_bucket_sums_savings_remainders() {
-        let cats = [
-            makeCategory(id: 1, planCents: 10_000, rollover: "savings")
-        ]
-        let plans = PlanData.plansFromCategories(cats)
-        let actuals = [
-            makeActual(id: 1, categoryId: 1, amountCents: 3_000)  // remainder = 7_000
-        ]
-        let agg = PlanData.computeRolloverAggregates(
-            categories: cats, plans: plans, actuals: actuals
-        )
-        XCTAssertEqual(agg.miscCents, 0)
-        XCTAssertEqual(agg.savingsCents, 7_000)
-    }
-
-    func test_computeRolloverAggregates_excludes_paused_categories() {
-        let cats = [
-            makeCategory(id: 1, planCents: 10_000, rollover: "misc", paused: true)
-        ]
-        let plans = [PlanMonthItem(categoryId: 1, planCents: 10_000)]
-        let agg = PlanData.computeRolloverAggregates(
-            categories: cats, plans: plans, actuals: []
-        )
-        XCTAssertEqual(agg.miscCents, 0)
-    }
-
-    func test_computeRolloverAggregates_excludes_savings_code_category() {
-        let cats = [
-            makeCategory(id: 1, code: "savings", planCents: 99_000, rollover: "savings")
-        ]
-        let plans = [PlanMonthItem(categoryId: 1, planCents: 99_000)]
-        let agg = PlanData.computeRolloverAggregates(
-            categories: cats, plans: plans, actuals: []
-        )
-        XCTAssertEqual(agg.savingsCents, 0)
-    }
-
-    func test_computeRolloverAggregates_over_budget_contributes_zero_to_aggregate() {
-        // Fact > plan: remainder clamped to 0 (no negative contribution).
-        let cats = [
-            makeCategory(id: 1, planCents: 5_000, rollover: "misc")
-        ]
-        let plans = [PlanMonthItem(categoryId: 1, planCents: 5_000)]
-        let actuals = [
-            makeActual(id: 1, categoryId: 1, amountCents: 8_000)  // over by 3_000
-        ]
-        let agg = PlanData.computeRolloverAggregates(
-            categories: cats, plans: plans, actuals: actuals
-        )
-        XCTAssertEqual(agg.miscCents, 0)
-        XCTAssertEqual(agg.savingsCents, 0)
-    }
-
     // MARK: - computeRegularsList
 
     func test_computeRegularsList_includes_monthly_with_day_of_month() {
@@ -308,15 +236,6 @@ final class PlanDataTests: XCTestCase {
         ]
         let plans = PlanData.plansFromCategories(cats)
         XCTAssertEqual(plans.map(\.categoryId).sorted(), [1, 3])
-    }
-
-    func test_plansFromCategories_filters_paused_categories() {
-        let cats = [
-            makeCategory(id: 1, planCents: 1000, paused: false),
-            makeCategory(id: 2, planCents: 2000, paused: true),
-        ]
-        let plans = PlanData.plansFromCategories(cats)
-        XCTAssertEqual(plans.map(\.categoryId), [1])
     }
 
     // MARK: - DTO round-trip (regression guard)

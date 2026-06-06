@@ -36,25 +36,46 @@ struct SubscriptionUpdateRequest: Encodable {
     let isActive: Bool?
 }
 
+// MARK: - v1.1 plan template (AGREED §B/§C)
+// Template = reusable, non-per-period plan: per-category `items` (limits) +
+// recurring `lines` (detail rows). Mirrors `app/api/schemas/template.py`.
+
+/// `GET /template/items` row — a per-category limit. `category_id` is the
+/// identity (one item per category).
 struct TemplateItemDTO: Decodable, Identifiable, Equatable {
+    let categoryId: Int
+    let limitCents: Int
+    var id: Int { categoryId }
+}
+
+/// `PUT /template/items/{category_id}` body.
+struct TemplateItemUpsertRequest: Encodable {
+    let limitCents: Int
+}
+
+/// `GET /template/lines` row — a recurring detail line.
+struct TemplateLineDTO: Decodable, Identifiable, Equatable {
     let id: Int
-    let name: String
+    let categoryId: Int
+    let title: String
     let amountCents: Int
+    let dayOfPeriod: Int?
     let kind: CategoryKind
-    let categoryId: Int
-    let sortOrder: Int
 }
 
-struct TemplateItemCreateRequest: Encodable {
-    let name: String
+/// `POST /template/lines` body.
+struct TemplateLineCreateRequest: Encodable {
+    let categoryId: Int
+    let title: String
     let amountCents: Int
+    let dayOfPeriod: Int?
     let kind: String
-    let categoryId: Int
 }
 
+/// `POST /periods/{period_id}/apply-template` response.
 struct ApplyTemplateResponse: Decodable {
-    let createdCount: Int
-    let skippedCount: Int
+    let created: Int
+    let periodId: Int
 }
 
 // Phase 71: legacy v0.6 analytics DTOs realigned to the LIVE backend

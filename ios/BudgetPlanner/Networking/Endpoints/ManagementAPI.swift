@@ -30,17 +30,36 @@ enum SubscriptionsAPI {
 
 @MainActor
 enum TemplateAPI {
-    static func list() async throws -> [TemplateItemDTO] {
+    // MARK: - Items (per-category limits)
+
+    static func listItems() async throws -> [TemplateItemDTO] {
         try await APIClient.shared.request("GET", "/template/items")
     }
 
-    static func create(_ request: TemplateItemCreateRequest) async throws -> TemplateItemDTO {
-        try await APIClient.shared.request("POST", "/template/items", body: request)
+    /// PUT /template/items/{category_id} — upsert a per-category limit.
+    @discardableResult
+    static func upsertItem(categoryId: Int, limitCents: Int) async throws -> TemplateItemDTO {
+        try await APIClient.shared.request(
+            "PUT", "/template/items/\(categoryId)",
+            body: TemplateItemUpsertRequest(limitCents: limitCents)
+        )
     }
 
-    static func delete(id: Int) async throws {
-        try await APIClient.shared.requestVoid("DELETE", "/template/items/\(id)")
+    // MARK: - Lines (recurring detail rows)
+
+    static func listLines() async throws -> [TemplateLineDTO] {
+        try await APIClient.shared.request("GET", "/template/lines")
     }
+
+    static func createLine(_ request: TemplateLineCreateRequest) async throws -> TemplateLineDTO {
+        try await APIClient.shared.request("POST", "/template/lines", body: request)
+    }
+
+    static func deleteLine(id: Int) async throws {
+        try await APIClient.shared.requestVoid("DELETE", "/template/lines/\(id)")
+    }
+
+    // MARK: - Apply
 
     static func apply(periodId: Int) async throws -> ApplyTemplateResponse {
         try await APIClient.shared.request("POST", "/periods/\(periodId)/apply-template")

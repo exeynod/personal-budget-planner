@@ -51,6 +51,31 @@ enum PeriodsAPI {
     }
 }
 
+// MARK: - v1.1 balance reconcile (AGREED §H — «Привести остаток»)
+
+struct ReconcileBalanceRequestDTO: Encodable {
+    let targetBalanceCents: Int
+}
+
+struct ReconcileBalanceResponseDTO: Decodable {
+    let adjustmentTxnId: Int?
+    let balanceNowCents: Int
+}
+
+@MainActor
+enum BalanceAPI {
+    /// POST /balance/reconcile — set the displayed balance to `targetBalanceCents`
+    /// by writing a balancing adjustment. Returns the new balance + the
+    /// adjustment txn id (nil when no adjustment was needed).
+    @discardableResult
+    static func reconcile(targetBalanceCents: Int) async throws -> ReconcileBalanceResponseDTO {
+        try await APIClient.shared.request(
+            "POST", "/balance/reconcile",
+            body: ReconcileBalanceRequestDTO(targetBalanceCents: targetBalanceCents)
+        )
+    }
+}
+
 @MainActor
 enum OnboardingAPI {
     static func complete(

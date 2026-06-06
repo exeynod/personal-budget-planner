@@ -42,8 +42,13 @@ final class PlanRowEditorViewModel {
 
     /// Local editing state — seeded из category на load; mutated UI bindings.
     var planCents: Int = 0
-    var rollover: CategoryRollover = .misc
-    var paused: Bool = false
+
+    // v1.1 (AGREED §F) — planned rows for this category + post/unpost («Провести»).
+    private(set) var periodId: Int?
+    private(set) var planned: [PlannedDTO] = []
+    /// planned_id currently being posted/unposted (disables its button).
+    private(set) var postingId: Int?
+    var postError: String? = nil
 
     /// True пока CategoriesV10API.update в flight (disables CTA — T-61-02).
     private(set) var submitting: Bool = false
@@ -87,8 +92,13 @@ final class PlanRowEditorViewModel {
             self.category = c
             // Seed local editing state из загруженной DTO.
             self.planCents = c.planCents
-            self.rollover = c.rollover
-            self.paused = c.paused
+            // v1.1: load this category's planned rows for the «Провести» list.
+            // Best-effort — a missing/closed period leaves an empty list.
+            if let period = try? await PeriodsAPI.current() {
+                self.periodId = period.id
+                self.planned = (try? await PlannedAPI.list(
+                    periodId: period.id, categoryId: categoryId)) ?? []
+            }
             status = .ready
         } catch {
             // T-61-03: filtered Russian copy; raw error → print only.
@@ -119,9 +129,7 @@ final class PlanRowEditorViewModel {
         let safePlanCents = Swift.max(0, planCents)
 
         let payload = CategoryV10UpdateRequest(
-            planCents: safePlanCents,
-            rollover: rollover,
-            paused: paused
+            planCents: safePlanCents
         )
 
         do {
@@ -131,8 +139,6 @@ final class PlanRowEditorViewModel {
             )
             self.category = updated
             self.planCents = updated.planCents
-            self.rollover = updated.rollover
-            self.paused = updated.paused
             onSaved?(updated)
             return true
         } catch {
@@ -143,17 +149,59 @@ final class PlanRowEditorViewModel {
         }
     }
 
+    // MARK: - Post / unpost planned rows (v1.1 «Провести»)
+
+    /// Post one planned row into a real actual on `today` (the bridge writes
+    /// `posted_txn_id`). Reloads the planned list on success.
+    func postPlanned(_ row: PlannedDTO) async {
+        guard let pid = periodId, postingId == nil else { return }
+        postingId = row.id
+        postError = nil
+        defer { postingId = nil }
+        do {
+            try await PlannedAPI.post(
+                periodId: pid, plannedId: row.id, txDate: BusinessDate(Date()))
+            await reloadPlanned(periodId: pid)
+        } catch {
+            print("[PlanRowEditorViewModel] post failed: \(error)")
+            postError = "Не удалось провести строку"
+        }
+    }
+
+    /// Reverse a posted planned row (deletes the bridged actual). Reloads.
+    func unpostPlanned(_ row: PlannedDTO) async {
+        guard let pid = periodId, postingId == nil else { return }
+        postingId = row.id
+        postError = nil
+        defer { postingId = nil }
+        do {
+            try await PlannedAPI.unpost(periodId: pid, plannedId: row.id)
+            await reloadPlanned(periodId: pid)
+        } catch {
+            print("[PlanRowEditorViewModel] unpost failed: \(error)")
+            postError = "Не удалось отменить проведение"
+        }
+    }
+
+    private func reloadPlanned(periodId pid: Int) async {
+        self.planned = (try? await PlannedAPI.list(
+            periodId: pid, categoryId: categoryId)) ?? planned
+    }
+
+    /// Planned rows shown in the «Провести» list — excludes subscription-auto
+    /// rows (they post automatically via the worker; not user-postable here).
+    var postableRows: [PlannedDTO] {
+        planned.filter { $0.source != .subscriptionAuto }
+    }
+
     // MARK: - Dirty check
 
-    /// True когда планируемое сохранение изменит хотя бы одно поле
-    /// (planCents / rollover / paused). Disabled CTA когда !isDirty (D-3).
-    /// Returns false если category == nil (no anchor для diff — защита от
-    /// false-positive «грязного» state до загрузки).
+    /// True когда планируемое сохранение изменит `planCents`. Disabled CTA когда
+    /// !isDirty (D-3). Returns false если category == nil (no anchor для diff —
+    /// защита от false-positive «грязного» state до загрузки).
     var isDirty: Bool {
         guard let c = category else { return false }
         return planCents != c.planCents
-            || rollover != c.rollover
-            || paused != c.paused
     }
 
     // MARK: - DEBUG test backdoor
@@ -161,14 +209,10 @@ final class PlanRowEditorViewModel {
     #if DEBUG
     func _setStateForTesting(
         category: CategoryV10DTO? = nil,
-        planCents: Int = 0,
-        rollover: CategoryRollover = .misc,
-        paused: Bool = false
+        planCents: Int = 0
     ) {
         self.category = category
         self.planCents = planCents
-        self.rollover = rollover
-        self.paused = paused
     }
     #endif
 }

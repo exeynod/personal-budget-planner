@@ -26,53 +26,6 @@ enum PlanData {
     /// «СОХРАНИТЬ» CTA (must-have T-P-06).
     static func computeIsOverflow(_ surplus: Int) -> Bool { surplus < 0 }
 
-    // MARK: - T-P-03: rollover aggregates
-
-    /// Two buckets of leftover money (plan − fact, expense-only) split by
-    /// each category's `rollover` policy.
-    struct RolloverAggregates: Equatable {
-        let miscCents: Int
-        let savingsCents: Int
-    }
-
-    /// Aggregate `(plan − fact)` per category, partitioned by `rollover`:
-    ///   - rollover == .savings → savingsCents bucket
-    ///   - rollover == .misc    → miscCents bucket
-    /// Excludes:
-    ///   - paused categories (don't contribute to current period)
-    ///   - the system 'savings' category itself (it's a roundup sink)
-    ///   - over-budget rows (remainder = max(0, plan − fact); over → 0)
-    /// Plans parameter overrides current `category.planCents` so the user
-    /// sees aggregates for the slider position they're previewing, not the
-    /// last-saved value.
-    static func computeRolloverAggregates(
-        categories: [CategoryV10DTO],
-        plans: [PlanMonthItem],
-        actuals: [ActualV10DTO]
-    ) -> RolloverAggregates {
-        let planByCat: [Int: Int] = Dictionary(
-            uniqueKeysWithValues: plans.map { ($0.categoryId, $0.planCents) }
-        )
-        var factByCat: [Int: Int] = [:]
-        for a in actuals where a.kind == .expense {
-            factByCat[a.categoryId, default: 0] += abs(a.amountCents)
-        }
-
-        var misc = 0
-        var sav = 0
-        for c in categories where c.code != "savings" && !c.paused {
-            let plan = planByCat[c.id] ?? c.planCents
-            let fact = factByCat[c.id] ?? 0
-            let remainder = Swift.max(0, plan - fact)
-            if remainder == 0 { continue }
-            switch c.rollover {
-            case .savings: sav += remainder
-            case .misc:    misc += remainder
-            }
-        }
-        return RolloverAggregates(miscCents: misc, savingsCents: sav)
-    }
-
     // MARK: - T-P-04: regulars list
 
     /// One row in the «РЕГУЛЯРНЫЕ · ПРОВЕСТИ В ФАКТ» list.
@@ -129,12 +82,12 @@ enum PlanData {
         return plans + [PlanMonthItem(categoryId: categoryId, planCents: newCents)]
     }
 
-    /// Seed the plan list from the loaded categories — same filter rule as
-    /// `computeRolloverAggregates` (drop savings + paused). Used on initial
-    /// load so the slider positions match the saved state from the server.
+    /// Seed the plan list from the loaded categories (drop the system savings
+    /// sink). Used on initial load so the slider positions match the saved
+    /// state from the server.
     static func plansFromCategories(_ cats: [CategoryV10DTO]) -> [PlanMonthItem] {
         cats
-            .filter { $0.code != "savings" && !$0.paused }
+            .filter { $0.code != "savings" }
             .map { PlanMonthItem(categoryId: $0.id, planCents: $0.planCents) }
     }
 }

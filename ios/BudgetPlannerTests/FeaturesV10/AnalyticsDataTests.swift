@@ -238,11 +238,10 @@ final class AnalyticsDataTests: XCTestCase {
 
     // MARK: - computeKPISaved
 
-    func test_computeKPISaved_excludes_savings_code_and_paused_categories() {
+    func test_computeKPISaved_excludes_savings_code_category() {
         let cats = [
             makeCategory(id: 1, name: "Food", planCents: 10_000),
             makeCategory(id: 2, name: "Sav", code: "savings", planCents: 99_000),
-            makeCategory(id: 3, name: "Old", planCents: 5_000, paused: true),
         ]
         let actuals = [
             makeActual(id: 1, categoryId: 1, amountCents: 4_000)  // remainder 6_000

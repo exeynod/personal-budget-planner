@@ -134,10 +134,8 @@ struct CategoryDetailView: View {
                 Text("из \(RubleFormatter.format(cents: cat.planCents)) ₽")
                     .font(.posterMono(size: PosterTokens.FontSize.monoSm))
                     .foregroundColor(PosterTokens.Color.paper.opacity(0.6))
-                rolloverPlate(cat: cat)
-                    .padding(.top, 8)
                 ctaRow(cat: cat)
-                    .padding(.top, 4)
+                    .padding(.top, 12)
                 Eyebrow("ОПЕРАЦИИ ПО КАТЕГОРИИ", opacity: 0.65)
                     .padding(.top, 16)
                 operationsSection(groups: groups)
@@ -188,29 +186,6 @@ struct CategoryDetailView: View {
         .frame(height: 6)
     }
 
-    private func rolloverPlate(cat: CategoryV10DTO) -> some View {
-        Button(action: {
-            Task { await model.toggleRollover() }
-        }) {
-            HStack {
-                Text(cat.rollover == .savings ? "ОСТАТОК → НАКОПЛЕНИЯ" : "ОСТАТОК → ПРОЧЕЕ")
-                    .font(.custom(PosterTokens.Font.archivoBlack, size: 11))
-                    .tracking(11 * 0.16)
-                    .foregroundColor(PosterTokens.Color.ink)
-                Spacer()
-                Text("›")
-                    .font(.custom(PosterTokens.Font.archivoBlack, size: 16))
-                    .foregroundColor(PosterTokens.Color.ink)
-            }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 12)
-            .frame(maxWidth: .infinity)
-            .background(PosterTokens.Color.paper)
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel("Toggle rollover policy")
-    }
-
     private func ctaRow(cat: CategoryV10DTO) -> some View {
         HStack(spacing: 10) {
             PosterButton("+ ПОДНЯТЬ ЛИМИТ", variant: .ghost) {
@@ -219,9 +194,6 @@ struct CategoryDetailView: View {
                 // matching `.id(c.id)` row on appear so the user lands at
                 // the slider they came to adjust.
                 router?.push(PlanView(focusCategoryId: cat.id))
-            }
-            PosterButton(cat.paused ? "ВКЛЮЧИТЬ" : "ПАУЗА", variant: .ghost) {
-                Task { await model.togglePause() }
             }
         }
     }

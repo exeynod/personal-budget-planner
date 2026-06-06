@@ -35,9 +35,7 @@ final class PlanRowEditorViewModelTests: XCTestCase {
         id: Int,
         name: String = "Еда",
         kind: String = "expense",
-        planCents: Int = 0,
-        rollover: String = "misc",
-        paused: Bool = false
+        planCents: Int = 0
     ) -> CategoryV10DTO {
         // code/ord/created_at required on CategoryRead (Phase 69 B4).
         let json = """
@@ -50,9 +48,7 @@ final class PlanRowEditorViewModelTests: XCTestCase {
               "created_at": "2026-05-09",
               "code": "food",
               "ord": "01",
-              "plan_cents": \(planCents),
-              "rollover": "\(rollover)",
-              "paused": \(paused ? "true" : "false")
+              "plan_cents": \(planCents)
             }
             """.data(using: .utf8)!
         let dec = JSONDecoder()
@@ -71,8 +67,6 @@ final class PlanRowEditorViewModelTests: XCTestCase {
         XCTAssertEqual(vm.status, .idle)
         XCTAssertNil(vm.category)
         XCTAssertEqual(vm.planCents, 0)
-        XCTAssertEqual(vm.rollover, .misc)
-        XCTAssertFalse(vm.paused)
         XCTAssertFalse(vm.submitting)
         XCTAssertNil(vm.saveError)
         XCTAssertFalse(vm.isDirty)
@@ -84,17 +78,13 @@ final class PlanRowEditorViewModelTests: XCTestCase {
 
     func test_setStateForTesting_seedsEditingState() {
         let vm = PlanRowEditorViewModel(categoryId: 1)
-        let c = makeCategory(id: 1, planCents: 10_000, rollover: "savings", paused: true)
+        let c = makeCategory(id: 1, planCents: 10_000)
         vm._setStateForTesting(
             category: c,
-            planCents: 50_000,
-            rollover: .savings,
-            paused: true
+            planCents: 50_000
         )
         XCTAssertEqual(vm.category?.id, 1)
         XCTAssertEqual(vm.planCents, 50_000)
-        XCTAssertEqual(vm.rollover, .savings)
-        XCTAssertTrue(vm.paused)
     }
 
     func test_setStateForTesting_doesNotFlipStatus() {
@@ -108,48 +98,20 @@ final class PlanRowEditorViewModelTests: XCTestCase {
 
     func test_isDirty_falseWhenAllMatch() {
         let vm = PlanRowEditorViewModel(categoryId: 1)
-        let c = makeCategory(id: 1, planCents: 10_000, rollover: "misc", paused: false)
+        let c = makeCategory(id: 1, planCents: 10_000)
         vm._setStateForTesting(
             category: c,
-            planCents: 10_000,
-            rollover: .misc,
-            paused: false
+            planCents: 10_000
         )
         XCTAssertFalse(vm.isDirty)
     }
 
     func test_isDirty_trueWhenPlanCentsChanged() {
         let vm = PlanRowEditorViewModel(categoryId: 1)
-        let c = makeCategory(id: 1, planCents: 10_000, rollover: "misc", paused: false)
+        let c = makeCategory(id: 1, planCents: 10_000)
         vm._setStateForTesting(
             category: c,
-            planCents: 15_000,
-            rollover: .misc,
-            paused: false
-        )
-        XCTAssertTrue(vm.isDirty)
-    }
-
-    func test_isDirty_trueWhenRolloverChanged() {
-        let vm = PlanRowEditorViewModel(categoryId: 1)
-        let c = makeCategory(id: 1, planCents: 10_000, rollover: "misc", paused: false)
-        vm._setStateForTesting(
-            category: c,
-            planCents: 10_000,
-            rollover: .savings,
-            paused: false
-        )
-        XCTAssertTrue(vm.isDirty)
-    }
-
-    func test_isDirty_trueWhenPausedChanged() {
-        let vm = PlanRowEditorViewModel(categoryId: 1)
-        let c = makeCategory(id: 1, planCents: 10_000, rollover: "misc", paused: false)
-        vm._setStateForTesting(
-            category: c,
-            planCents: 10_000,
-            rollover: .misc,
-            paused: true
+            planCents: 15_000
         )
         XCTAssertTrue(vm.isDirty)
     }
@@ -159,21 +121,7 @@ final class PlanRowEditorViewModelTests: XCTestCase {
         // anchor для diff. Защита от false-positive «грязного» state.
         let vm = PlanRowEditorViewModel(categoryId: 1)
         vm.planCents = 50_000
-        vm.rollover = .savings
-        vm.paused = true
         XCTAssertFalse(vm.isDirty)
-    }
-
-    func test_isDirty_trueWhenMultipleFieldsChanged() {
-        let vm = PlanRowEditorViewModel(categoryId: 1)
-        let c = makeCategory(id: 1, planCents: 10_000, rollover: "misc", paused: false)
-        vm._setStateForTesting(
-            category: c,
-            planCents: 25_000,
-            rollover: .savings,
-            paused: true
-        )
-        XCTAssertTrue(vm.isDirty)
     }
 
     // MARK: - onSaved closure contract (61-01 D-3)

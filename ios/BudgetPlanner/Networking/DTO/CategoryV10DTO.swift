@@ -1,15 +1,5 @@
 import Foundation
 
-/// Wire-level enum for the legacy `category.rollover` field. v1.1 dropped this
-/// column from the backend `CategoryRead` (AGREED §G4), so it no longer appears
-/// on `CategoryV10DTO`. The enum is retained until the iOS Plan/CategoryDetail
-/// UI rework (later phase) removes its remaining call-sites — keeping it avoids
-/// breaking the iOS target during the backend-only phase.
-enum CategoryRollover: String, Codable {
-    case misc
-    case savings
-}
-
 /// Wire-level enum for `category.tag` (Phase 36). VARCHAR with a CHECK
 /// constraint on DB; the server defaults it to `personal`.
 enum CategoryTag: String, Codable {

@@ -86,6 +86,11 @@ struct PlannedDTO: Decodable, Identifiable, Equatable {
     let plannedDate: BusinessDate?
     let source: PlannedSource
     let subscriptionId: Int?
+    /// v1.1 (AGREED §F): non-nil when this planned row has been posted into a
+    /// real `actual_transaction` (the «Провести» bridge). nil = unposted. A
+    /// synthesised `Decodable` uses `decodeIfPresent` for optionals, so legacy
+    /// rows without the key decode to nil.
+    let postedTxnId: Int?
 }
 
 /// Phase 25-03 — extended `POST /api/v1/actual` request body.

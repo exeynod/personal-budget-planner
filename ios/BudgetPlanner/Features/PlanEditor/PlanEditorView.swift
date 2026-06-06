@@ -9,8 +9,6 @@ import SwiftUI
 ///     • Hero Section (без header): «Остаток к распределению» —
 ///       surplus = income − Σ(expense.plan_cents); positive green «+»,
 ///       negative red «−».
-///     • Aggregates Section («Rollover»): 2 rows «→ Прочее» / «→ Накопления»
-///       с MoneyFormatter trailing.
 ///     • Section «Расходы»: ForEach expense cats → PlanCategoryRow с
 ///       NavigationLink(value: PlanEditorRoute.row(categoryId: c.id)).
 ///     • Section «Доходы»: same pattern (если income категории есть).
@@ -37,7 +35,6 @@ struct PlanEditorView: View {
                     emptySection
                 } else {
                     heroSection
-                    aggregatesSection
                     let split = PlanEditorData.sortCategoriesForDisplay(viewModel.categories)
                     if !split.expense.isEmpty {
                         categoriesSection(title: "Расходы", cats: split.expense)
@@ -124,48 +121,9 @@ struct PlanEditorView: View {
     private var surplusSubtitle: String {
         let income = MoneyFormatter.format(cents: viewModel.incomeCents)
         let sumPlan = viewModel.categories
-            .filter { !$0.isArchived && !$0.paused && $0.kind == .expense }
+            .filter { !$0.isArchived && $0.kind == .expense }
             .reduce(0) { $0 + $1.planCents }
         return "\(income) ₽ − \(MoneyFormatter.format(cents: sumPlan)) ₽"
-    }
-
-    // MARK: - Aggregates
-
-    private var aggregatesSection: some View {
-        let agg = PlanEditorData.computeRolloverAggregates(
-            categories: viewModel.categories,
-            actuals: viewModel.actuals
-        )
-        return Section("Rollover") {
-            aggregateRow(
-                title: "→ Прочее",
-                iconName: "tray.fill",
-                cents: agg.miscCents
-            )
-            aggregateRow(
-                title: "→ Накопления",
-                iconName: "tray.full.fill",
-                cents: agg.savingsCents
-            )
-        }
-    }
-
-    private func aggregateRow(title: String, iconName: String, cents: Int) -> some View {
-        HStack(spacing: 12) {
-            Image(systemName: iconName)
-                .foregroundStyle(Tokens.Accent.primary)
-                .frame(width: 28)
-            Text(title)
-                .font(.body)
-                .foregroundStyle(.primary)
-            Spacer()
-            HStack(spacing: 4) {
-                Text(MoneyFormatter.format(cents: cents))
-                    .font(.body.monospacedDigit())
-                    .foregroundStyle(.primary)
-                Text("₽").foregroundStyle(.secondary)
-            }
-        }
     }
 
     // MARK: - Categories sections
@@ -198,22 +156,16 @@ private struct PlanCategoryRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            Image(systemName: rolloverIcon)
-                .foregroundStyle(rolloverColor)
+            Image(systemName: "circle.dotted")
+                .foregroundStyle(.secondary)
                 .frame(width: 28)
             VStack(alignment: .leading, spacing: 2) {
                 Text(category.name)
                     .font(.body)
                     .foregroundStyle(.primary)
-                if category.paused {
-                    Text("приостановлено")
-                        .font(.caption.italic())
-                        .foregroundStyle(.secondary)
-                } else {
-                    Text("факт: \(MoneyFormatter.format(cents: factCents)) ₽")
-                        .font(.caption.monospacedDigit())
-                        .foregroundStyle(.secondary)
-                }
+                Text("факт: \(MoneyFormatter.format(cents: factCents)) ₽")
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(.secondary)
             }
             Spacer(minLength: 8)
             VStack(alignment: .trailing, spacing: 2) {
@@ -224,20 +176,6 @@ private struct PlanCategoryRow: View {
                     Text("₽").foregroundStyle(.secondary)
                 }
             }
-        }
-    }
-
-    private var rolloverIcon: String {
-        switch category.rollover {
-        case .savings: return "arrow.up.circle.fill"
-        case .misc: return "circle.dotted"
-        }
-    }
-
-    private var rolloverColor: Color {
-        switch category.rollover {
-        case .savings: return .orange
-        case .misc: return .secondary
         }
     }
 }

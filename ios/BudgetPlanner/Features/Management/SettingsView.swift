@@ -13,6 +13,14 @@ final class SettingsViewModel {
     var errorMessage: String?
     var savedFlash: Bool = false
 
+    // v1.1 (AGREED §H) — «Привести остаток».
+    /// Rubles entered by the user (string for free-form editing); converted to
+    /// cents on submit.
+    var reconcileRublesText: String = ""
+    var isReconciling: Bool = false
+    var reconcileError: String?
+    var reconcileResultCents: Int?
+
     var dirty: Bool {
         guard let s = settings else { return false }
         return s.cycleStartDay != draftCycleDay
@@ -64,6 +72,36 @@ final class SettingsViewModel {
             errorMessage = error.userFacingRu
         }
     }
+
+    /// POST /balance/reconcile — set the displayed balance to the entered
+    /// rubles by writing a balancing adjustment. Parses rubles → cents
+    /// (BIGINT копейки; no float). Surfaces the new balance on success.
+    func reconcile() async {
+        guard !isReconciling else { return }
+        let trimmed = reconcileRublesText
+            .trimmingCharacters(in: .whitespaces)
+            .replacingOccurrences(of: " ", with: "")
+            .replacingOccurrences(of: ",", with: ".")
+        guard let rubles = Double(trimmed) else {
+            reconcileError = "Введите сумму в рублях"
+            return
+        }
+        let cents = Int((rubles * 100).rounded())
+        isReconciling = true
+        reconcileError = nil
+        reconcileResultCents = nil
+        defer { isReconciling = false }
+        do {
+            let resp = try await BalanceAPI.reconcile(targetBalanceCents: cents)
+            reconcileResultCents = resp.balanceNowCents
+            reconcileRublesText = ""
+        } catch {
+            #if DEBUG
+            print("SettingsViewModel.reconcile error: \(error)")
+            #endif
+            reconcileError = error.userFacingRu
+        }
+    }
 }
 
 /// Settings — native iOS Form.
@@ -89,6 +127,7 @@ struct SettingsView: View {
         Form {
             if viewModel.settings != nil {
                 cycleSection
+                reconcileSection
                 notifySection
                 aiSection
                 aiSpendSection
@@ -139,6 +178,51 @@ struct SettingsView: View {
             }
         } footer: {
             Text("Изменение применится со следующего периода. Текущий период продолжается с тем же днём начала.")
+        }
+    }
+
+    private var reconcileSection: some View {
+        Section {
+            HStack {
+                Text("Реальный остаток")
+                Spacer()
+                TextField("0", text: $viewModel.reconcileRublesText)
+                    .keyboardType(.decimalPad)
+                    .multilineTextAlignment(.trailing)
+                    .monospacedDigit()
+                    .frame(maxWidth: 120)
+                Text("₽").foregroundStyle(.secondary)
+            }
+            Button {
+                Task { await viewModel.reconcile() }
+            } label: {
+                HStack {
+                    if viewModel.isReconciling {
+                        ProgressView().controlSize(.small)
+                    }
+                    Text("Привести остаток")
+                }
+            }
+            .disabled(
+                viewModel.isReconciling
+                || viewModel.reconcileRublesText.trimmingCharacters(in: .whitespaces).isEmpty
+            )
+            if let result = viewModel.reconcileResultCents {
+                LabeledContent("Текущий остаток") {
+                    Text(MoneyFormatter.format(cents: result) + " ₽")
+                        .monospacedDigit()
+                        .foregroundStyle(.green)
+                }
+            }
+            if let err = viewModel.reconcileError {
+                Label(err, systemImage: "exclamationmark.triangle")
+                    .font(.caption)
+                    .foregroundStyle(.red)
+            }
+        } header: {
+            Text("Остаток на счёте")
+        } footer: {
+            Text("Введите реальный остаток на счёте — приложение запишет балансирующую корректировку, чтобы отображаемый остаток совпал с введённым.")
         }
     }
 
