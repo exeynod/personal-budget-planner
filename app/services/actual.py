@@ -760,13 +760,13 @@ async def create_actual_v10(
 
     # For v1.0 we relax kind == cat.kind: the system 'savings' Category is
     # marked kind='expense' but accepts roundup/deposit txns by design.
-    # For non-savings categories, still enforce kind compatibility for
-    # plain expense/income kinds (T-22-05-02 — keep semantic alignment).
+    # v1.1: the system 'adjustment' Category (kind=expense) also accepts both
+    # income/expense reconcile records — its sign is (real − computed) balance.
+    # For other categories, still enforce kind compatibility for plain
+    # expense/income kinds (T-22-05-02 — keep semantic alignment).
     if kind in ("expense", "income"):
         if cat.kind.value != kind:
-            # Allow income txns into the savings system category
-            # (e.g., interest accrued) for completeness; otherwise reject.
-            if cat.code != "savings":
+            if cat.code not in ("savings", "adjustment"):
                 raise KindMismatchError(kind, cat.kind.value)
 
     _check_future_date(tx_date)
