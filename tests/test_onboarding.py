@@ -92,11 +92,12 @@ async def test_complete_creates_period_and_seeds_categories(db_client, auth_head
     me = await db_client.get("/api/v1/me", headers=auth_headers)
     assert me.json()["onboarded_at"] is not None
 
-    # v1.0 (68-05): onboarding does NOT eagerly create a budget_period — it is
-    # created lazily on the first transaction (_resolve_period_for_date). So
-    # /periods/current is legitimately 404 immediately after onboarding.
+    # v1.1: onboarding eagerly creates the first active budget_period (PER-02)
+    # so /home and /periods/current work immediately after onboarding. The
+    # starting_balance equals the sum of seeded account balances (0 here).
     period = await db_client.get("/api/v1/periods/current", headers=auth_headers)
-    assert period.status_code == 404
+    assert period.status_code == 200, period.text
+    assert period.json()["starting_balance_cents"] == 0
 
     cats = await db_client.get("/api/v1/categories", headers=auth_headers)
     # 8 default expense categories + 1 system savings category.

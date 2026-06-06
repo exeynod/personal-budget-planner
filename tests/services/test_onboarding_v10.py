@@ -210,6 +210,45 @@ async def test_complete_v10_creates_full_state(db_session, fresh_user):
 
 
 @pytest.mark.asyncio
+async def test_complete_v10_creates_first_active_period(db_session, fresh_user):
+    """complete_v10 creates the first active BudgetPeriod (PER-02 regression).
+
+    Without it /home returns period=null and GET /periods/current → 404. Period
+    bounds come from period_for(today_msk, cycle_start_day); starting_balance is
+    the sum of the seeded account balances (compute_balance baseline).
+    """
+    from app.core.period import period_for
+    from app.db.models import AppUser
+    from app.db.session import set_tenant_scope
+    from app.services.onboarding_v10 import complete_v10
+    from app.services.periods import get_current_active_period
+    from sqlalchemy import select
+
+    body = _valid_body()
+    body["accounts"] = [
+        {"bank": "Т-Банк", "kind": "card", "balance_cents": 50_000_00},
+        {"bank": "Альфа", "kind": "card", "balance_cents": 25_000_00},
+    ]
+
+    await set_tenant_scope(db_session, fresh_user["id"])
+    await complete_v10(db_session, user_id=fresh_user["id"], **body)
+    await db_session.commit()
+
+    await set_tenant_scope(db_session, fresh_user["id"])
+    period = await get_current_active_period(db_session, user_id=fresh_user["id"])
+    assert period is not None, "onboarding must create an active period"
+
+    user = await db_session.scalar(
+        select(AppUser).where(AppUser.id == fresh_user["id"])
+    )
+    p_start, p_end = period_for(_today_msk(), user.cycle_start_day)
+    assert period.period_start == p_start
+    assert period.period_end == p_end
+    # starting_balance = Σ account balances (50 000 + 25 000 = 75 000 ₽).
+    assert period.starting_balance_cents == 75_000_00
+
+
+@pytest.mark.asyncio
 async def test_complete_v10_creates_8_default_categories(db_session, fresh_user):
     """All 8 default codes seeded with correct UPPERCASE russian names + ord."""
     from sqlalchemy import select

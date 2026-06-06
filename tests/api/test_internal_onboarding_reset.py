@@ -264,6 +264,41 @@ async def test_reset_clears_accounts_goals_savings_and_zeros_plans(
 
 
 # ---------------------------------------------------------------------------
+# Seed endpoint — must not 500 (NameError regression)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_seed_endpoint_returns_200(db_setup, internal_headers):
+    """POST /api/v1/internal/onboarding/seed returns 200, not 500.
+
+    Regression for the missing ``_upsert_adjustment_category`` import that made
+    the seed handler raise NameError → 500. Asserts the full response shape:
+    user + categories + adjustment cat + active period + account.
+    """
+    client, _SessionLocal = db_setup
+
+    resp = await client.post(
+        "/api/v1/internal/onboarding/seed?tg_user_id=9001011009",
+        headers=internal_headers,
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["tg_user_id"] == 9001011009
+    assert len(body["category_ids"]) == 8
+    assert body["adjustment_category_id"] is not None
+    assert body["period_id"] is not None
+    assert len(body["account_ids"]) == 1
+
+    # Idempotent re-seed still 200.
+    resp2 = await client.post(
+        "/api/v1/internal/onboarding/seed?tg_user_id=9001011009",
+        headers=internal_headers,
+    )
+    assert resp2.status_code == 200, resp2.text
+
+
+# ---------------------------------------------------------------------------
 # Cross-tenant isolation
 # ---------------------------------------------------------------------------
 

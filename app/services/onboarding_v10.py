@@ -452,13 +452,16 @@ async def complete_v10(
 
     # ---- 4. Accounts. ----
     account_ids: list[int] = []
+    starting_balance_cents = 0
     for idx, a in enumerate(accounts):
         kind = _validate_account_kind(a["kind"])
+        balance_cents = int(a.get("balance_cents", 0))
+        starting_balance_cents += balance_cents
         row = Account(
             user_id=user_id,
             bank=a["bank"],
             kind=kind,
-            balance_cents=int(a.get("balance_cents", 0)),
+            balance_cents=balance_cents,
             mask=a.get("mask"),
             is_primary=(idx == primary_idx),
         )
@@ -478,6 +481,30 @@ async def complete_v10(
 
     # ---- 6. System 'adjustment' Category (AGREED §H). ----
     adjustment_category_id = await _upsert_adjustment_category(db, user_id=user_id)
+
+    # ---- 7. First active BudgetPeriod (PER-02). ----
+    # Без этого get_current_active_period возвращает None и /home отдаёт
+    # period=null, а GET /periods/current — 404 («complete onboarding
+    # first»). starting_balance = сумма заведённых счетов (модель «Остаток»:
+    # balance_now = starting + actual_income − actual_expense, см.
+    # actual.compute_balance). period_for использует cycle_start_day юзера.
+    # Idempotency safety net: не создаём второй активный период, если он уже
+    # есть (нормально не должен — conflict-gate выше отсекает повторный
+    # онбординг; reset_v10 удаляет budget_period, так что re-onboarding
+    # снова создаёт свежий период).
+    from app.services.periods import (  # local import: avoid import cycle
+        create_first_period,
+        get_current_active_period,
+    )
+
+    existing_active = await get_current_active_period(db, user_id=user_id)
+    if existing_active is None:
+        await create_first_period(
+            db,
+            user_id=user_id,
+            starting_balance_cents=starting_balance_cents,
+            cycle_start_day=user.cycle_start_day,
+        )
 
     await db.flush()
 
@@ -504,11 +531,12 @@ async def reset_v10(db: AsyncSession, *, user_id: int) -> dict[str, Any]:
            but unlinked from accounts about to be deleted).
         2. Hard delete ``actual_transaction`` rows that reference any account
            owned by ``user_id`` (CASCADE child roundup txns via FK).
-        3. Hard delete ``savings_config`` row (PK = user_id).
-        4. Hard delete ``goal`` rows.
-        5. Hard delete ``account`` rows.
-        6. ``UPDATE app_user SET income_cents = NULL, onboarded_at = NULL``.
-        7. ``UPDATE category SET plan_cents = 0`` (categories preserved).
+        3. Hard delete ``planned_transaction`` + ``budget_period`` rows
+           (period_category_plan cascades) so re-onboarding rebuilds a fresh
+           active period.
+        4. Hard delete ``account`` rows.
+        5. ``UPDATE app_user SET income_cents = NULL, onboarded_at = NULL``.
+        6. ``UPDATE category SET plan_cents = 0`` (categories preserved).
 
     Categories are NOT deleted — historical PlannedTransaction / spent
     actual_transaction rows still reference them, and the next
@@ -549,8 +577,24 @@ async def reset_v10(db: AsyncSession, *, user_id: int) -> dict[str, Any]:
         {"uid": user_id},
     )
     # 3. v1.1: savings_config / goal tables removed (AGREED §G1) — nothing to wipe.
-    #    Per-period plan + plan-template rows reference categories (CASCADE) and
-    #    are kept; reset only zeroes plan_cents below.
+    #    Per-period plan (period_category_plan) cascades on budget_period delete.
+    #    plan-template rows reference categories and are kept; reset zeroes
+    #    plan_cents below.
+    # 3b. Delete budget periods so re-onboarding (complete_v10) creates a fresh
+    #     active period with correct bounds + starting_balance. Without this the
+    #     stale period would survive and complete_v10's idempotency guard would
+    #     skip period creation, leaving wrong starting_balance/bounds. Child
+    #     planned_transaction rows must go first (FK is ON DELETE RESTRICT);
+    #     actual_transaction children were already removed in step 2.
+    #     period_category_plan cascades via its ON DELETE CASCADE FK.
+    await db.execute(
+        text("DELETE FROM planned_transaction WHERE user_id = :uid"),
+        {"uid": user_id},
+    )
+    await db.execute(
+        text("DELETE FROM budget_period WHERE user_id = :uid"),
+        {"uid": user_id},
+    )
     # 4. Delete accounts and capture ids for audit return value.
     deleted = await db.execute(
         text("DELETE FROM account WHERE user_id = :uid RETURNING id"),

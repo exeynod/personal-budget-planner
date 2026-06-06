@@ -4,6 +4,7 @@ Wave 0 RED state: routes /api/v1/periods/current and
 /api/v1/onboarding/complete will be created in Plans 02-03..02-04.
 DB fixture self-skips when DATABASE_URL is unset.
 """
+
 import os
 
 import pytest
@@ -35,6 +36,7 @@ async def db_client(async_client, bot_token, owner_tg_id):
     SessionLocal = async_sessionmaker(engine, expire_on_commit=False)
 
     from tests.helpers.seed import truncate_db
+
     await truncate_db()
 
     async def real_get_db():
@@ -54,6 +56,7 @@ async def db_client(async_client, bot_token, owner_tg_id):
 
     # 68-05 (class B/C): grant ПДн consent so v1.0 onboarding passes the gate.
     from tests.helpers.onboarding import grant_pdn_consent
+
     await grant_pdn_consent(SessionLocal, tg_user_id=owner_tg_id)
 
     yield async_client
@@ -79,12 +82,11 @@ async def test_periods_current_before_onboarding_is_409(db_client, auth_headers)
 async def test_periods_current_returns_active_period_after_first_actual(
     db_client, auth_headers
 ):
-    """v1.0 (68-05): a period is created lazily on the first actual transaction.
+    """v1.1: onboarding eagerly creates the first active period (PER-02).
 
-    The legacy contract created a period at onboarding; v1.0 onboarding creates
-    no period (no starting_balance/seed flag). Intent preserved: once a period
-    exists (here via the first POST /actual, D-52 auto-create),
-    /periods/current returns the active period with a valid window.
+    Intent preserved: /periods/current returns the active period with a valid
+    window. The period now exists immediately after onboarding (not lazily on
+    first transaction) and stays the same active period after a POST /actual.
     """
     from datetime import date
 
@@ -94,9 +96,10 @@ async def test_periods_current_returns_active_period_after_first_actual(
     assert onboard.status_code == 200, onboard.text
     cat_id = onboard.json()["category_ids_by_code"]["food"]
 
-    # No period yet — created lazily on the first transaction.
+    # v1.1: the first active period is created at onboarding time.
     pre = await db_client.get("/api/v1/periods/current", headers=auth_headers)
-    assert pre.status_code == 404
+    assert pre.status_code == 200, pre.text
+    assert pre.json()["status"] == "active"
 
     actual = await db_client.post(
         "/api/v1/actual",
