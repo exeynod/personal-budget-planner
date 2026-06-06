@@ -33,13 +33,18 @@
 	# SPA fallback: every other path serves the React app from the
 	# frontend_dist volume mounted at /srv/dist (read-only).
 	handle {
-		# Defense-in-depth security headers. CSP intentionally omitted —
-		# Mini App SDK + Vite-built React bundle uses inline styles/scripts;
-		# enabling CSP requires testing inside live Telegram WebView and
-		# allow-listing static.cloudflareinsights.com (CF auto-injected beacon).
+		# Defense-in-depth security headers. Full content-CSP intentionally
+		# omitted — Mini App SDK + Vite bundle uses inline styles/scripts;
+		# enabling it requires live Telegram-WebView testing + allow-listing
+		# static.cloudflareinsights.com (CF beacon). We set ONLY `frame-ancestors`:
+		# it restricts who may iframe us, never inline scripts/styles. The old
+		# X-Frame-Options:SAMEORIGIN is gone because Telegram Web embeds the Mini
+		# App from web.telegram.org (cross-origin) and SAMEORIGIN blanked it;
+		# native mobile/Desktop WebViews have no parent frame so this is a no-op
+		# there and only unblocks the Telegram Web client.
 		header {
 			X-Content-Type-Options "nosniff"
-			X-Frame-Options "SAMEORIGIN"
+			Content-Security-Policy "frame-ancestors 'self' https://web.telegram.org https://*.telegram.org tg:"
 			Referrer-Policy "strict-origin-when-cross-origin"
 			Permissions-Policy "geolocation=(), microphone=(), camera=(), usb=(), magnetometer=(), gyroscope=(), payment=()"
 			Strict-Transport-Security "max-age=31536000; includeSubDomains"

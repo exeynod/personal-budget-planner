@@ -28,7 +28,10 @@ def validate_init_data(init_data_raw: str, bot_token: str) -> dict:
     """
     params = dict(parse_qsl(init_data_raw, keep_blank_values=True))
 
-    # Step 1: extract and remove hash
+    # Step 1: extract and remove hash. NB: only `hash` is removed — Telegram
+    # computes the HMAC over ALL other fields, INCLUDING the Ed25519 `signature`
+    # field it now sends. (Verified empirically: excluding `signature` from the
+    # data-check-string makes the hash mismatch for every real launch.)
     received_hash = params.pop("hash", None)
     if not received_hash:
         raise ValueError("Missing hash")
