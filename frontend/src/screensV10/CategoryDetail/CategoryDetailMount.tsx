@@ -25,6 +25,7 @@ import {
 import { unpostedByCategory } from '../Home/computeHomeData';
 import { getCurrentPeriod } from '../../api/periods';
 import { Toast } from '../../componentsV10';
+import { NativeToast } from '../native/NativeToast';
 import { StatePlate, usePosterRouter, useResource } from '../common';
 // Phase 26-04: real Plan editor with focusCategoryId deep-link replaces the
 // prior WIP PlanViewPlaceholder push.
@@ -141,7 +142,7 @@ export function CategoryDetailMount({ categoryId }: CategoryDetailMountProps) {
           onPushPlan={handlePushPlan}
           onBack={handleBack}
         />
-        <Toast
+        <NativeToast
           message={toastMsg ?? ''}
           visible={toastMsg !== null}
           onDismiss={() => setToastMsg(null)}

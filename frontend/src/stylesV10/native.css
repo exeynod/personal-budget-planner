@@ -21,7 +21,24 @@
      var(--lgn-glass-blur)` so they frost the colourful mesh behind them, and
      `box-shadow: var(--lgn-card-edge)` for the specular top-light rim that is
      the #1 read of «real» Liquid Glass (edge lensing). */
-  --lgn-bg: #e7ecf4; /* light base under the colour mesh */
+  /* Neutral field (P0-1 / DESIGN-REVIEW §3.1, S3). The old 6-radial colour mesh
+     read as a pied «oil-slick» that fought the numbers and looked like an
+     unloaded screen on empty views. Replaced with a calm vertical wash toward
+     iOS systemGroupedBackground (#F2F2F7) plus a faint warm top, keeping a
+     light top-vignette so the cards' specular kerbs still have a believable
+     light source. No coloured poles, no background-attachment: fixed. */
+  --lgn-bg: #eef1f6; /* neutral base, close to systemGroupedBackground */
+  --lgn-bg-top: #f5f7fb; /* faintly warmer/brighter top */
+  --lgn-bg-bottom: #eaeef4; /* calm cool-neutral bottom */
+  --lgn-bg-image:
+    /* very soft top-light so card specular kerbs read */
+    radial-gradient(
+      120% 50% at 50% -10%,
+      rgba(255, 255, 255, 0.5) 0%,
+      rgba(255, 255, 255, 0) 55%
+    ),
+    /* barely-there vertical wash — no coloured poles */
+    linear-gradient(180deg, var(--lgn-bg-top) 0%, var(--lgn-bg-bottom) 100%);
   /* Glossy curved surface: brighter at the top (catches light) → dimmer below.
      The bottom band stays opaque enough to keep financial numbers ≥4.5:1. */
   --lgn-card: linear-gradient(

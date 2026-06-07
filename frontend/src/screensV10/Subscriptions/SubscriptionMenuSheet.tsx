@@ -1,29 +1,46 @@
-// Phase 26-06 Task 2: SubscriptionMenuSheet — bottom-sheet menu with secondary
-// editor sheets stacked above (SUBS-V10-03..04).
+// SubscriptionMenuSheet — bottom-sheet menu with secondary editor sheets
+// stacked above (SUBS-V10-03..04).
 //
-// Behaviour:
+// Native (Liquid Glass v2) rebuild — P0-3 of DESIGN-REVIEW-2026-06-07 §2.9:
+// the former Maximal Poster styling (cream --poster-paper background, Archivo
+// Black uppercase title, EMPTY body, coral «ОТМЕНИТЬ ПОДПИСКУ» button) is
+// replaced with a light native sheet:
+//   - header = subscription name in sentence case (no uppercase / Archivo Black);
+//   - a grouped-inset BODY showing the subscription's info (price, cadence,
+//     charge day, linked account) — previously empty;
+//   - actions as native list rows (Пауза/Включить, Сменить день, Изменить
+//     цену, Сменить счёт);
+//   - destructive «Отменить подписку» = red-tinted native button (not coral
+//     PosterButton).
+//
+// Behaviour (unchanged):
 //   - sub === null → returns null (no portal, no DOM nodes).
-//   - Primary menu: 3 ghost buttons («ПАУЗА» when active / «ВКЛЮЧИТЬ» when
-//     inactive, «СМЕНИТЬ ДЕНЬ», «ИЗМЕНИТЬ ЦЕНУ») + destructive «ОТМЕНИТЬ
-//     ПОДПИСКУ» (red bg, paper text).
 //   - Secondary editors stack via PosterSheet portal (primary closed when
 //     editor open — single-sheet visible at a time keeps DOM simple).
 //   - Day editor: <input type="number" min=1 max=28>, value clamped on input.
 //   - Price editor: text input with digit-strip regex, rubles → cents on save;
 //     aborts when computed cents <= 0 (T-26-06-03 mitigation).
 //   - Confirm-delete editor: shows «Отменить подписку «{name}»?» + destructive
-//     «УДАЛИТЬ» button + ghost «ОТМЕНА» (T-26-06-01 two-step gate).
+//     «Удалить» button + ghost «Отмена» (T-26-06-01 two-step gate).
 //
 // All async callbacks await before close; closeAll resets internal editor mode
 // + invokes onClose so parent can clear menuSub state.
 
 import { useState } from 'react';
 import { PosterSheet } from '../common';
-import { PosterButton } from '../../componentsV10';
 import { AccountPickerSheet } from '../AddSheet';
 import type { SubscriptionV10Read, AccountResponse } from '../../api/v10';
-import { parseRublesToKopecksOr0, sanitizeMoneyInput } from '../../utils/parseMoney';
+import {
+  parseRublesToKopecksOr0,
+  sanitizeMoneyInput,
+} from '../../utils/parseMoney';
+import { formatMoneyRubNative } from '../native/money';
+import { formatCadenceRu, formatAccountLabel } from './computeSubscriptions';
 import styles from './SubscriptionMenuSheet.module.css';
+
+// Light native sheet background — close to iOS systemGroupedBackground, so the
+// grouped-inset cards read as white tiles on a soft grey field.
+const SHEET_BG = 'var(--lgn-bg, #eef1f6)';
 
 export interface SubscriptionMenuSheetProps {
   /** Subscription whose menu to show; null = closed. */
@@ -47,7 +64,7 @@ export interface SubscriptionMenuSheetProps {
     sub: SubscriptionV10Read,
     newAccountId: number,
   ) => Promise<void>;
-  /** P3-W1: accounts for the «СМЕНИТЬ СЧЁТ» picker. */
+  /** P3-W1: accounts for the «Сменить счёт» picker. */
   accounts: AccountResponse[];
   /** Hard-delete subscription. */
   onDelete: (sub: SubscriptionV10Read) => Promise<void>;
@@ -114,42 +131,107 @@ export function SubscriptionMenuSheet(props: SubscriptionMenuSheetProps) {
     closeAll();
   };
 
+  // ───── body info: only show fields we actually have ─────
+  const accountLabel = formatAccountLabel(sub, props.accounts ?? []);
+  const dayLabel =
+    sub.day_of_month != null ? `${sub.day_of_month} число` : null;
+
   return (
     <>
       {/* ─────────── primary menu ─────────── */}
       <PosterSheet
         isOpen={editor === 'none'}
         onClose={closeAll}
-        backgroundColor="var(--poster-paper)"
+        backgroundColor={SHEET_BG}
         testId="sub-menu-sheet"
       >
         <div className={styles.menuRoot}>
-          <div className={styles.subTitle}>{sub.name.toUpperCase()}</div>
-          <div className={styles.menuActions}>
-            <PosterButton variant="ghost" onClick={handlePauseClick}>
-              {sub.is_active ? 'ПАУЗА' : 'ВКЛЮЧИТЬ'}
-            </PosterButton>
-            <PosterButton variant="ghost" onClick={openDay}>
-              СМЕНИТЬ ДЕНЬ
-            </PosterButton>
-            <PosterButton variant="ghost" onClick={openPrice}>
-              ИЗМЕНИТЬ ЦЕНУ
-            </PosterButton>
-            <PosterButton
-              variant="ghost"
-              onClick={() => setEditor('account')}
-            >
-              СМЕНИТЬ СЧЁТ
-            </PosterButton>
+          {/* Name — sentence case (no uppercase / Archivo Black). */}
+          <div className={styles.subTitle}>{sub.name}</div>
+
+          {/* BODY — subscription info (was empty in the poster version). */}
+          <div className={styles.group} data-testid="sub-menu-info">
+            <div className={styles.infoRow}>
+              <span className={styles.infoLabel}>Цена</span>
+              <span className={styles.infoValue} data-testid="sub-info-price">
+                {formatMoneyRubNative(sub.amount_cents)}
+                {sub.cycle === 'monthly' ? ' / мес' : ' / год'}
+              </span>
+            </div>
+            <div className={styles.infoRow}>
+              <span className={styles.infoLabel}>Периодичность</span>
+              <span className={styles.infoValue} data-testid="sub-info-cadence">
+                {formatCadenceRu(sub)}
+              </span>
+            </div>
+            {dayLabel != null && (
+              <div className={styles.infoRow}>
+                <span className={styles.infoLabel}>День списания</span>
+                <span className={styles.infoValue} data-testid="sub-info-day">
+                  {dayLabel}
+                </span>
+              </div>
+            )}
+            {accountLabel != null && (
+              <div className={styles.infoRow}>
+                <span className={styles.infoLabel}>Счёт</span>
+                <span
+                  className={styles.infoValue}
+                  data-testid="sub-info-account"
+                >
+                  {accountLabel}
+                </span>
+              </div>
+            )}
+            {!sub.is_active && (
+              <div className={styles.infoRow}>
+                <span className={styles.infoLabel}>Статус</span>
+                <span className={styles.infoValue}>на паузе</span>
+              </div>
+            )}
+          </div>
+
+          {/* ACTIONS — native list rows. */}
+          <div className={styles.group}>
             <button
               type="button"
-              className={styles.destructive}
-              onClick={() => setEditor('confirmDelete')}
-              data-testid="sub-delete-trigger"
+              className={styles.actionRow}
+              onClick={handlePauseClick}
             >
-              ОТМЕНИТЬ ПОДПИСКУ
+              {sub.is_active ? 'Пауза' : 'Включить'}
+            </button>
+            <button
+              type="button"
+              className={styles.actionRow}
+              onClick={openDay}
+            >
+              Сменить день
+            </button>
+            <button
+              type="button"
+              className={styles.actionRow}
+              onClick={openPrice}
+            >
+              Изменить цену
+            </button>
+            <button
+              type="button"
+              className={styles.actionRow}
+              onClick={() => setEditor('account')}
+            >
+              Сменить счёт
             </button>
           </div>
+
+          {/* DESTRUCTIVE — red-tinted native button (not coral poster). */}
+          <button
+            type="button"
+            className={styles.destructive}
+            onClick={() => setEditor('confirmDelete')}
+            data-testid="sub-delete-trigger"
+          >
+            Отменить подписку
+          </button>
         </div>
       </PosterSheet>
 
@@ -157,11 +239,11 @@ export function SubscriptionMenuSheet(props: SubscriptionMenuSheetProps) {
       <PosterSheet
         isOpen={editor === 'day'}
         onClose={() => setEditor('none')}
-        backgroundColor="var(--poster-paper)"
+        backgroundColor={SHEET_BG}
         testId="sub-day-editor"
       >
         <div className={styles.editorRoot}>
-          <div className={styles.editorTitle}>СМЕНИТЬ ДЕНЬ</div>
+          <div className={styles.editorTitle}>Сменить день</div>
           <input
             type="number"
             min={1}
@@ -176,12 +258,20 @@ export function SubscriptionMenuSheet(props: SubscriptionMenuSheetProps) {
           />
           <div className={styles.editorHint}>число месяца (1..28)</div>
           <div className={styles.editorActions}>
-            <PosterButton variant="ghost" onClick={() => setEditor('none')}>
-              ОТМЕНА
-            </PosterButton>
-            <PosterButton variant="primary" onClick={handleSaveDay}>
-              СОХРАНИТЬ
-            </PosterButton>
+            <button
+              type="button"
+              className={styles.btnGhost}
+              onClick={() => setEditor('none')}
+            >
+              Отмена
+            </button>
+            <button
+              type="button"
+              className={styles.btnPrimary}
+              onClick={handleSaveDay}
+            >
+              Сохранить
+            </button>
           </div>
         </div>
       </PosterSheet>
@@ -190,11 +280,11 @@ export function SubscriptionMenuSheet(props: SubscriptionMenuSheetProps) {
       <PosterSheet
         isOpen={editor === 'price'}
         onClose={() => setEditor('none')}
-        backgroundColor="var(--poster-paper)"
+        backgroundColor={SHEET_BG}
         testId="sub-price-editor"
       >
         <div className={styles.editorRoot}>
-          <div className={styles.editorTitle}>ИЗМЕНИТЬ ЦЕНУ</div>
+          <div className={styles.editorTitle}>Изменить цену</div>
           <input
             type="text"
             inputMode="decimal"
@@ -205,12 +295,20 @@ export function SubscriptionMenuSheet(props: SubscriptionMenuSheetProps) {
           />
           <div className={styles.editorHint}>в рублях</div>
           <div className={styles.editorActions}>
-            <PosterButton variant="ghost" onClick={() => setEditor('none')}>
-              ОТМЕНА
-            </PosterButton>
-            <PosterButton variant="primary" onClick={handleSavePrice}>
-              СОХРАНИТЬ
-            </PosterButton>
+            <button
+              type="button"
+              className={styles.btnGhost}
+              onClick={() => setEditor('none')}
+            >
+              Отмена
+            </button>
+            <button
+              type="button"
+              className={styles.btnPrimary}
+              onClick={handleSavePrice}
+            >
+              Сохранить
+            </button>
           </div>
         </div>
       </PosterSheet>
@@ -228,7 +326,7 @@ export function SubscriptionMenuSheet(props: SubscriptionMenuSheetProps) {
       <PosterSheet
         isOpen={editor === 'confirmDelete'}
         onClose={() => setEditor('none')}
-        backgroundColor="var(--poster-paper)"
+        backgroundColor={SHEET_BG}
         testId="sub-delete-confirm"
       >
         <div className={styles.editorRoot}>
@@ -239,16 +337,20 @@ export function SubscriptionMenuSheet(props: SubscriptionMenuSheetProps) {
             Это действие удалит подписку безвозвратно.
           </div>
           <div className={styles.editorActions}>
-            <PosterButton variant="ghost" onClick={() => setEditor('none')}>
-              ОТМЕНА
-            </PosterButton>
             <button
               type="button"
-              className={styles.destructive}
+              className={styles.btnGhost}
+              onClick={() => setEditor('none')}
+            >
+              Отмена
+            </button>
+            <button
+              type="button"
+              className={styles.btnDestructive}
               onClick={handleConfirmDelete}
               data-testid="sub-delete-confirm-btn"
             >
-              УДАЛИТЬ
+              Удалить
             </button>
           </div>
         </div>

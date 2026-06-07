@@ -15,7 +15,7 @@
 // undo via inline button without leaving the screen.
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Toast } from '../../componentsV10';
+import { NativeToast } from '../native/NativeToast';
 import {
   StatePlate,
   usePosterRouter,
@@ -31,7 +31,6 @@ import {
   createPlanned,
   postPlanned,
   unpostPlanned,
-  postPlannedBatch,
   type CategoryV10,
   type SubscriptionV10Read,
   type PlannedV11Read,
@@ -53,10 +52,11 @@ import {
 import {
   groupPlannedByCategory,
   computeLadder,
-  bulkPostManualIds,
-  bulkPostSubscriptionIds,
   type PlanDetailRow,
 } from './computePlanDetail';
+
+/** Toast payload: message + tone (drives the NativeToast glyph/color). */
+type ToastState = { text: string; tone: 'success' | 'error' } | null;
 
 /** Today as ISO `YYYY-MM-DD` in local wall-clock (post fallback date). */
 function todayIso(): string {
@@ -93,7 +93,7 @@ export function PlanMount({ focusCategoryId = null }: PlanMountProps = {}) {
   const [submitting, setSubmitting] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
-  const [toastMsg, setToastMsg] = useState<string | null>(null);
+  const [toast, setToast] = useState<ToastState>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -155,21 +155,24 @@ export function PlanMount({ focusCategoryId = null }: PlanMountProps = {}) {
   const handlePostRegular = useCallback(async (subId: number) => {
     try {
       await postSubscription(subId);
-      setToastMsg('✓ ПРОВЕДЕНО · → реестр');
+      setToast({ text: 'Проведено в реестр', tone: 'success' });
       // Reload to refresh subscription posted_txn_id state.
       setReloadToken((n) => n + 1);
     } catch {
-      setToastMsg('Не удалось провести регулярный платёж');
+      setToast({
+        text: 'Не удалось провести регулярный платёж',
+        tone: 'error',
+      });
     }
   }, []);
 
   const handleUnpostRegular = useCallback(async (subId: number) => {
     try {
       await unpostSubscription(subId);
-      setToastMsg('Отменено');
+      setToast({ text: 'Проводка отменена', tone: 'success' });
       setReloadToken((n) => n + 1);
     } catch {
-      setToastMsg('Не удалось отменить проводку');
+      setToast({ text: 'Не удалось отменить проводку', tone: 'error' });
     }
   }, []);
 
@@ -179,7 +182,7 @@ export function PlanMount({ focusCategoryId = null }: PlanMountProps = {}) {
     setSaveError(null);
     try {
       await patchPlanMonth(plans);
-      setToastMsg('✓ ПЛАН СОХРАНЁН');
+      setToast({ text: 'План сохранён', tone: 'success' });
       // Brief delay so toast is visible before pop.
       window.setTimeout(() => router.pop(), 600);
     } catch (e) {
@@ -196,19 +199,38 @@ export function PlanMount({ focusCategoryId = null }: PlanMountProps = {}) {
   // ─────────── detail surface handlers (v1.1) ───────────
   // Post a single detail row: subscription-derived rows post via their own
   // /subscriptions/{id}/post endpoint (planned post-route 400s on them); manual
-  // rows post via /planned/{id}/post on their planned_date (fallback today).
+  // rows post via /planned/{id}/post.
+  //
+  // tx_date fix (DESIGN-REVIEW §2.2 «починить ошибку проведения»): «Провести»
+  // means «record this as a real fact NOW». The backend rejects tx_date more
+  // than 7 days ahead of today (actual.py _check_future_date → FutureDateError
+  // 400, D-58). A planned row scheduled later in the month therefore failed when
+  // we posted on its FUTURE planned_date. Post on TODAY whenever the planned_date
+  // is in the future (clamp) — exactly what post_subscription does (it always
+  // posts on _today_in_app_tz()). Past/near planned_date is preserved.
   const handlePostDetail = useCallback(
     async (row: PlanDetailRow) => {
       try {
         if (row.subscriptionId != null) {
           await postSubscription(row.subscriptionId);
         } else if (periodId != null) {
-          await postPlanned(periodId, row.id, row.plannedDate ?? todayIso());
+          const today = todayIso();
+          const txDate =
+            row.plannedDate != null && row.plannedDate <= today
+              ? row.plannedDate
+              : today;
+          await postPlanned(periodId, row.id, txDate);
         }
-        setToastMsg('✓ ПРОВЕДЕНО · → реестр');
+        setToast({ text: 'Проведено в реестр', tone: 'success' });
         setReloadToken((n) => n + 1);
-      } catch {
-        setToastMsg('Не удалось провести');
+      } catch (e) {
+        setToast({
+          text:
+            e instanceof ApiError && e.status === 409
+              ? 'Уже проведено'
+              : 'Не удалось провести трату',
+          tone: 'error',
+        });
       }
     },
     [periodId],
@@ -222,10 +244,10 @@ export function PlanMount({ focusCategoryId = null }: PlanMountProps = {}) {
         } else if (periodId != null) {
           await unpostPlanned(periodId, row.id);
         }
-        setToastMsg('Отменено');
+        setToast({ text: 'Проводка отменена', tone: 'success' });
         setReloadToken((n) => n + 1);
       } catch {
-        setToastMsg('Не удалось отменить проводку');
+        setToast({ text: 'Не удалось отменить проводку', tone: 'error' });
       }
     },
     [periodId],
@@ -242,35 +264,14 @@ export function PlanMount({ focusCategoryId = null }: PlanMountProps = {}) {
           description: draft.title,
           planned_date: draft.plannedDate,
         });
-        setToastMsg('✓ Запланировано');
+        setToast({ text: 'Трата запланирована', tone: 'success' });
         setReloadToken((n) => n + 1);
       } catch {
-        setToastMsg('Не удалось добавить трату');
+        setToast({ text: 'Не удалось добавить трату', tone: 'error' });
       }
     },
     [periodId],
   );
-
-  // Bulk-post: manual rows via post-batch (each on its planned_date), then any
-  // unposted subscription rows one-by-one via /subscriptions/{id}/post.
-  const handlePostAllPlanned = useCallback(async () => {
-    if (periodId == null) return;
-    const manualIds = bulkPostManualIds(planned);
-    const subIds = bulkPostSubscriptionIds(planned);
-    if (manualIds.length === 0 && subIds.length === 0) return;
-    try {
-      if (manualIds.length > 0) {
-        await postPlannedBatch(periodId, manualIds);
-      }
-      for (const sid of subIds) {
-        await postSubscription(sid);
-      }
-      setToastMsg(`✓ Проведено ${manualIds.length + subIds.length} · → реестр`);
-      setReloadToken((n) => n + 1);
-    } catch {
-      setToastMsg('Не удалось провести все');
-    }
-  }, [periodId, planned]);
 
   // ─────────── derived view-model ───────────
   // Memoised so slider drags (which only bump `plans`) don't recompute the
@@ -295,12 +296,6 @@ export function PlanMount({ focusCategoryId = null }: PlanMountProps = {}) {
     }
     return out;
   }, [categories, plans, detailByCat]);
-  const bulkDueCount = useMemo(
-    () =>
-      bulkPostManualIds(planned).length +
-      bulkPostSubscriptionIds(planned).length,
-    [planned],
-  );
 
   if (status === 'loading') {
     return <StatePlate variant="loading" testId="plan-loading" />;
@@ -341,19 +336,18 @@ export function PlanMount({ focusCategoryId = null }: PlanMountProps = {}) {
           {...viewProps}
           detailByCat={detailByCat}
           ladderByCat={ladderByCat}
-          bulkDueCount={bulkDueCount}
           onPostDetail={handlePostDetail}
           onUnpostDetail={handleUnpostDetail}
           onAddPlanned={handleAddPlanned}
-          onPostAllPlanned={handlePostAllPlanned}
         />
       ) : (
         <PlanView {...viewProps} />
       )}
-      <Toast
-        message={toastMsg ?? ''}
-        visible={toastMsg !== null}
-        onDismiss={() => setToastMsg(null)}
+      <NativeToast
+        message={toast?.text ?? ''}
+        tone={toast?.tone ?? 'success'}
+        visible={toast !== null}
+        onDismiss={() => setToast(null)}
       />
     </>
   );

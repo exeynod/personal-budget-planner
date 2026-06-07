@@ -24,6 +24,20 @@
   color: var(--lgn-red);
 }
 
+/* P0-7: row titles must NOT ellipsize. NativePrimitives `.rowTitle` sets
+ * `white-space: nowrap; overflow: hidden; text-overflow: ellipsis`; wrapping
+ * the title text in this span resets those so long labels («Текущий расчётный
+ * остаток», «Реальный остаток», «Напоминать за дней до подписки») wrap to a
+ * second line instead of being clipped. The flexible `.rowMain` (min-width:0)
+ * already lets the trailing control keep its intrinsic size. */
+.rowTitleWrap {
+  display: block;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  word-break: break-word;
+}
+
 /* Read-only trailing value (AI cap) */
 .readonly {
   font-family: var(--lgn-font);
@@ -134,17 +148,19 @@
 .reconcileInputWrap {
   display: inline-flex;
   align-items: center;
-  gap: var(--lgn-s-8);
+  gap: 6px;
 }
 .reconcileInput {
-  width: 96px;
+  /* P0-7: narrower so the «Реальный остаток» title keeps its room. */
+  width: 84px;
+  min-width: 0;
   border: none;
   outline: none;
   background: var(--lgn-seg-track);
   border-radius: var(--lgn-r-button);
-  padding: 6px 10px;
+  padding: 6px 8px;
   font-family: var(--lgn-font);
-  font-size: 17px;
+  font-size: 16px;
   font-weight: 600;
   color: var(--lgn-ink);
   text-align: right;
@@ -157,7 +173,7 @@
   font-family: var(--lgn-font);
   font-size: 13px;
   font-weight: 600;
-  padding: 8px 14px;
+  padding: 8px 12px;
   border-radius: var(--lgn-r-pill);
   cursor: pointer;
   white-space: nowrap;

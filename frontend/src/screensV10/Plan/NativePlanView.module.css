@@ -215,28 +215,6 @@
   line-height: 1.4;
 }
 
-/* ─────────── Bulk «Провести запланированное» ─────────── */
-.bulkBtn {
-  margin: 12px var(--lgn-s-16) 0;
-  padding: 13px var(--lgn-s-16);
-  border: none;
-  border-radius: var(--lgn-r-card);
-  background: var(--lgn-accent);
-  color: #fff;
-  font-family: var(--lgn-font);
-  font-size: 16px;
-  font-weight: 600;
-  cursor: pointer;
-}
-.bulkBtn:disabled {
-  background: var(--lgn-seg-track);
-  color: var(--lgn-ink-3);
-  cursor: default;
-}
-.bulkBtn:not(:disabled):active {
-  background: var(--lgn-accent-press);
-}
-
 /* ─────────── Detail disclosure ─────────── */
 .detailWrap {
   padding-left: calc(30px + 12px);
@@ -312,48 +290,25 @@
   font-size: 12px;
   color: var(--lgn-ink-2);
 }
-.addPlanned {
-  display: flex;
-  flex-direction: column;
+/* «+ запланировать трату» — opens the bottom-sheet (replaces inline form). */
+.addPlannedBtn {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
   gap: 6px;
-  padding-top: 4px;
-}
-.addInput,
-.addInputSm {
-  border: 1px solid var(--lgn-hairline-soft);
-  background: var(--lgn-seg-track);
-  border-radius: var(--lgn-r-button);
-  padding: 8px 10px;
+  border: none;
+  background: rgba(255, 122, 76, 0.12);
+  color: var(--lgn-accent);
   font-family: var(--lgn-font);
   font-size: 14px;
-  color: var(--lgn-ink);
-  outline: none;
-}
-.addRow {
-  display: flex;
-  gap: 6px;
-  align-items: center;
-}
-.addInputSm {
-  flex: 1 1 0;
-  min-width: 0;
-}
-.addBtn {
-  flex: 0 0 auto;
-  border: none;
-  background: rgba(0, 122, 255, 0.12);
-  color: var(--lgn-blue);
-  font-family: var(--lgn-font);
-  font-size: 13px;
   font-weight: 600;
   padding: 8px 14px;
   border-radius: var(--lgn-r-pill);
   cursor: pointer;
+  margin-top: 2px;
 }
-.addBtn:disabled {
-  color: var(--lgn-ink-3);
-  background: var(--lgn-seg-track);
-  cursor: default;
+.addPlannedBtn:active {
+  background: rgba(255, 122, 76, 0.22);
 }
 
 /* ─────────── Empty (regulars) ─────────── */

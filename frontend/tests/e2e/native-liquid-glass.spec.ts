@@ -527,8 +527,60 @@ test.describe('Liquid Glass native shell (web)', () => {
     await expect(page.getByTestId('native-plan-detail-1')).toBeVisible({
       timeout: 5000,
     });
+    // P0 design-fixes: bulk «Провести запланированное» button removed; the
+    // inline add-form is replaced by a «+» that opens the AddSheet bottom-sheet;
+    // the duplicate «Σ план / Доход» InsetGroup is gone.
+    await expect(page.getByTestId('native-plan-post-all')).toHaveCount(0);
+    await expect(page.getByTestId('native-plan-total')).toHaveCount(0);
+    await expect(page.getByTestId('native-plan-add-open-1')).toBeVisible();
     await freezeMotion(page);
     await page.screenshot({ path: `${OUT}/plan.png` });
+  });
+
+  // P0 design-fixes — «+» add-flow opens a native AddSheet bottom-sheet (keypad
+  // + ActionSheet date), replacing the inline «Название/₽/дата/Добавить» form.
+  test('plan «+» opens native add-sheet (keypad + date picker)', async ({
+    page,
+  }) => {
+    await installNative(page);
+    await page.goto('/');
+    await expect(page.getByTestId('native-shell')).toBeVisible({
+      timeout: 8000,
+    });
+    await page.getByTestId('native-home-plan').click();
+    await expect(page.getByTestId('native-plan-surplus')).toBeVisible({
+      timeout: 5000,
+    });
+    await page.getByTestId('native-plan-detail-toggle-1').click();
+    await page.getByTestId('native-plan-add-open-1').click();
+    await expect(page.getByTestId('native-plan-add-sheet')).toBeVisible({
+      timeout: 5000,
+    });
+    // Native date control (NativeDatePicker) — not a raw <input type=date>.
+    await expect(
+      page.getByTestId('native-plan-add-date-trigger'),
+    ).toBeVisible();
+    // Fill name + amount via the native keypad → CTA enables → submit.
+    await page.getByTestId('native-plan-add-title').fill('Подарок');
+    await page
+      .getByTestId('native-plan-add-sheet')
+      .getByRole('button', { name: '5', exact: true })
+      .click();
+    await page
+      .getByTestId('native-plan-add-sheet')
+      .getByRole('button', { name: '0', exact: true })
+      .click();
+    await page
+      .getByTestId('native-plan-add-sheet')
+      .getByRole('button', { name: '0', exact: true })
+      .click();
+    const submit = page.getByTestId('native-plan-add-submit');
+    await expect(submit).toBeEnabled();
+    await submit.click();
+    // Sheet closes after a successful create (createPlanned → 200 fixture).
+    await expect(page.getByTestId('native-plan-add-sheet')).toHaveCount(0, {
+      timeout: 5000,
+    });
   });
 
   // v1.1 — Шаблон бюджета with one category's «Строки» disclosure expanded so
@@ -550,11 +602,21 @@ test.describe('Liquid Glass native shell (web)', () => {
     await expect(page.getByTestId('native-template-view')).toBeVisible({
       timeout: 5000,
     });
-    // Expand «Строки» for Продукты (id 1) → recurring lines + add row visible.
+    // Expand «Строки» for Продукты (id 1) → recurring lines + «+» add button.
     await page.getByTestId('native-template-toggle-1').click();
     await expect(page.getByTestId('native-template-lines-1')).toBeVisible({
       timeout: 5000,
     });
+    // P0 design-fixes: inline add-form replaced by a «+» bottom-sheet opener.
+    await expect(page.getByTestId('native-template-add-open-1')).toBeVisible();
+    await page.getByTestId('native-template-add-open-1').click();
+    await expect(page.getByTestId('native-plan-add-sheet')).toBeVisible({
+      timeout: 5000,
+    });
+    // Template mode uses a day-of-period stepper (not a date picker).
+    await expect(page.getByTestId('native-plan-add-day')).toBeVisible();
+    await page.getByTestId('native-plan-add-cancel').click();
+    await expect(page.getByTestId('native-plan-add-sheet')).toHaveCount(0);
     await freezeMotion(page);
     await page.screenshot({ path: `${OUT}/template-expanded.png` });
   });

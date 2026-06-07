@@ -145,19 +145,34 @@ describe('SubscriptionMenuSheet', () => {
     expect(container.textContent).toBe('');
   });
 
-  it('active: ПАУЗА/ДЕНЬ/ЦЕНА/ОТМЕНИТЬ; inactive shows ВКЛЮЧИТЬ', () => {
+  it('active: Пауза/День/Цена/Отменить; inactive shows Включить', () => {
     const { rerender } = render(
       <SubscriptionMenuSheet sub={mkSub({ is_active: true })} {...noop} />,
     );
-    expect(screen.getByText('ПАУЗА')).toBeTruthy();
-    expect(screen.getByText('СМЕНИТЬ ДЕНЬ')).toBeTruthy();
-    expect(screen.getByText('ИЗМЕНИТЬ ЦЕНУ')).toBeTruthy();
-    expect(screen.getByText('ОТМЕНИТЬ ПОДПИСКУ')).toBeTruthy();
+    expect(screen.getByText('Пауза')).toBeTruthy();
+    expect(screen.getByText('Сменить день')).toBeTruthy();
+    expect(screen.getByText('Изменить цену')).toBeTruthy();
+    expect(screen.getByText('Отменить подписку')).toBeTruthy();
     rerender(
       <SubscriptionMenuSheet sub={mkSub({ is_active: false })} {...noop} />,
     );
-    expect(screen.getByText('ВКЛЮЧИТЬ')).toBeTruthy();
-    expect(screen.queryByText('ПАУЗА')).toBeNull();
+    expect(screen.getByText('Включить')).toBeTruthy();
+    expect(screen.queryByText('Пауза')).toBeNull();
+  });
+
+  it('body shows subscription info (price + cadence)', () => {
+    render(
+      <SubscriptionMenuSheet
+        sub={mkSub({ amount_cents: 79900, day_of_month: 15 })}
+        {...noop}
+      />,
+    );
+    // Price «799 ₽ / мес», cadence «каждое 15 число», day «15 число».
+    expect(screen.getByTestId('sub-info-price').textContent).toContain('799');
+    expect(screen.getByTestId('sub-info-cadence').textContent).toBe(
+      'каждое 15 число',
+    );
+    expect(screen.getByTestId('sub-info-day').textContent).toBe('15 число');
   });
 
   it('day editor: clamps 1..28, save calls onChangeDay(sub, N)', async () => {
@@ -166,14 +181,14 @@ describe('SubscriptionMenuSheet', () => {
     render(
       <SubscriptionMenuSheet sub={sub} {...noop} onChangeDay={onChangeDay} />,
     );
-    fireEvent.click(screen.getByText('СМЕНИТЬ ДЕНЬ'));
+    fireEvent.click(screen.getByText('Сменить день'));
     const input = screen.getByTestId('sub-day-input') as HTMLInputElement;
     fireEvent.change(input, { target: { value: '99' } });
     expect(input.value).toBe('28'); // clamp max
     fireEvent.change(input, { target: { value: '0' } });
     expect(input.value).toBe('1'); // clamp min
     fireEvent.change(input, { target: { value: '7' } });
-    fireEvent.click(screen.getByText('СОХРАНИТЬ'));
+    fireEvent.click(screen.getByText('Сохранить'));
     await Promise.resolve();
     expect(onChangeDay).toHaveBeenCalledWith(sub, 7);
   });
@@ -188,13 +203,13 @@ describe('SubscriptionMenuSheet', () => {
         onChangePrice={onChangePrice}
       />,
     );
-    fireEvent.click(screen.getByText('ИЗМЕНИТЬ ЦЕНУ'));
+    fireEvent.click(screen.getByText('Изменить цену'));
     const input = screen.getByTestId('sub-price-input') as HTMLInputElement;
     expect(input.value).toBe('799');
     fireEvent.change(input, { target: { value: '12abc3' } });
     expect(input.value).toBe('123'); // digits only
     fireEvent.change(input, { target: { value: '500' } });
-    fireEvent.click(screen.getByText('СОХРАНИТЬ'));
+    fireEvent.click(screen.getByText('Сохранить'));
     await Promise.resolve();
     expect(onChangePrice).toHaveBeenCalledWith(sub, 50000);
     // zero aborts
@@ -206,11 +221,11 @@ describe('SubscriptionMenuSheet', () => {
         onChangePrice={onChangePrice}
       />,
     );
-    fireEvent.click(screen.getByText('ИЗМЕНИТЬ ЦЕНУ'));
+    fireEvent.click(screen.getByText('Изменить цену'));
     fireEvent.change(screen.getByTestId('sub-price-input'), {
       target: { value: '0' },
     });
-    fireEvent.click(screen.getByText('СОХРАНИТЬ'));
+    fireEvent.click(screen.getByText('Сохранить'));
     await Promise.resolve();
     expect(onChangePrice).not.toHaveBeenCalled();
   });
@@ -221,14 +236,14 @@ describe('SubscriptionMenuSheet', () => {
     const { rerender } = render(
       <SubscriptionMenuSheet sub={sub} {...noop} onDelete={onDelete} />,
     );
-    fireEvent.click(screen.getByText('ОТМЕНИТЬ ПОДПИСКУ'));
+    fireEvent.click(screen.getByTestId('sub-delete-trigger'));
     fireEvent.click(screen.getByTestId('sub-delete-confirm-btn'));
     await Promise.resolve();
     expect(onDelete).toHaveBeenCalledWith(sub);
     onDelete.mockClear();
     rerender(<SubscriptionMenuSheet sub={sub} {...noop} onDelete={onDelete} />);
-    fireEvent.click(screen.getByText('ОТМЕНИТЬ ПОДПИСКУ'));
-    fireEvent.click(screen.getByText('ОТМЕНА'));
+    fireEvent.click(screen.getByTestId('sub-delete-trigger'));
+    fireEvent.click(screen.getByText('Отмена'));
     expect(onDelete).not.toHaveBeenCalled();
   });
 
@@ -246,7 +261,7 @@ describe('SubscriptionMenuSheet', () => {
         onChangeAccount={onChangeAccount}
       />,
     );
-    fireEvent.click(screen.getByText('СМЕНИТЬ СЧЁТ'));
+    fireEvent.click(screen.getByText('Сменить счёт'));
     fireEvent.click(screen.getByTestId('account-picker-row-2'));
     await Promise.resolve();
     expect(onChangeAccount).toHaveBeenCalledWith(sub, 2);

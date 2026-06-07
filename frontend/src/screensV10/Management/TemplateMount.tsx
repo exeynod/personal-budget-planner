@@ -15,7 +15,7 @@
 // screen, so we render NativeTemplateView regardless of variant.
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Toast } from '../../componentsV10';
+import { NativeToast } from '../native/NativeToast';
 import { StatePlate, usePosterRouter } from '../common';
 import {
   listCategoriesV10,
@@ -44,7 +44,10 @@ export function TemplateMount() {
   );
   const [loadError, setLoadError] = useState<string | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
-  const [toastMsg, setToastMsg] = useState<string | null>(null);
+  const [toast, setToast] = useState<{
+    text: string;
+    tone: 'success' | 'error';
+  } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -101,10 +104,10 @@ export function TemplateMount() {
       if ((limitByCat.get(catId) ?? 0) === cents) return; // no-op
       try {
         await upsertTemplateItem(catId, { limit_cents: cents });
-        setToastMsg('✓ Лимит сохранён');
+        setToast({ text: 'Лимит сохранён', tone: 'success' });
         setReloadToken((n) => n + 1);
       } catch {
-        setToastMsg('Не удалось сохранить лимит');
+        setToast({ text: 'Не удалось сохранить лимит', tone: 'error' });
       }
     },
     [limitByCat],
@@ -119,20 +122,20 @@ export function TemplateMount() {
         amount_cents: draft.amountCents,
         day_of_period: draft.dayOfPeriod,
       });
-      setToastMsg('✓ Строка добавлена');
+      setToast({ text: 'Строка добавлена', tone: 'success' });
       setReloadToken((n) => n + 1);
     } catch {
-      setToastMsg('Не удалось добавить строку');
+      setToast({ text: 'Не удалось добавить строку', tone: 'error' });
     }
   }, []);
 
   const handleDeleteLine = useCallback(async (lineId: number) => {
     try {
       await deleteTemplateLine(lineId);
-      setToastMsg('Строка удалена');
+      setToast({ text: 'Строка удалена', tone: 'success' });
       setReloadToken((n) => n + 1);
     } catch {
-      setToastMsg('Не удалось удалить строку');
+      setToast({ text: 'Не удалось удалить строку', tone: 'error' });
     }
   }, []);
 
@@ -162,10 +165,11 @@ export function TemplateMount() {
         onDeleteLine={handleDeleteLine}
         onBack={() => router.pop()}
       />
-      <Toast
-        message={toastMsg ?? ''}
-        visible={toastMsg !== null}
-        onDismiss={() => setToastMsg(null)}
+      <NativeToast
+        message={toast?.text ?? ''}
+        tone={toast?.tone ?? 'success'}
+        visible={toast !== null}
+        onDismiss={() => setToast(null)}
       />
     </>
   );

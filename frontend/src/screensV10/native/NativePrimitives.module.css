@@ -250,6 +250,14 @@
     var(--lgn-shadow-float),
     inset 0 1.5px 0 0 rgba(255, 255, 255, 0.95),
     inset 0 -1px 0 0 var(--lgn-edge-bottom);
+  /* P0-6 / §S4: promote the pill to its own composited layer so its
+     backdrop-filter is rasterised once and stays stable while content scrolls /
+     pushed views animate underneath — kills the blur «banding / step» seen on
+     the AI tab. translateZ(0) + will-change pin the layer; isolation keeps the
+     ::before lens and ::after sheen blending inside the capsule. */
+  transform: translateZ(0);
+  will-change: transform;
+  isolation: isolate;
 }
 /* Glossy sheen on the pill's upper half. */
 .tabBar::after {

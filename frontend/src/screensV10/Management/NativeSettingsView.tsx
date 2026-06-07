@@ -156,7 +156,11 @@ function ReconcileSection({
       <SectionHeader>Остаток</SectionHeader>
       <InsetGroup>
         <InsetRow
-          title="Текущий расчётный остаток"
+          title={
+            <span className={styles.rowTitleWrap}>
+              Текущий расчётный остаток
+            </span>
+          }
           trailing={
             <span className={styles.readonly} data-testid="reconcile-current">
               {balanceNowCents == null
@@ -167,7 +171,7 @@ function ReconcileSection({
           trailingMuted
         />
         <InsetRow
-          title="Реальный остаток"
+          title={<span className={styles.rowTitleWrap}>Реальный остаток</span>}
           trailing={
             <span className={styles.reconcileInputWrap}>
               <input
@@ -225,7 +229,7 @@ function NativeSettingsViewInner(props: SettingsViewProps) {
       <SectionHeader>Период</SectionHeader>
       <InsetGroup>
         <InsetRow
-          title="День начала цикла"
+          title={<span className={styles.rowTitleWrap}>День начала цикла</span>}
           trailing={
             <Stepper
               value={props.cycle_start_day}
@@ -249,7 +253,11 @@ function NativeSettingsViewInner(props: SettingsViewProps) {
           }
         />
         <InsetRow
-          title="Напоминать за дней до подписки"
+          title={
+            <span className={styles.rowTitleWrap}>
+              Напоминать за дней до подписки
+            </span>
+          }
           trailing={
             <Stepper
               value={props.notify_days_before}
@@ -278,7 +286,9 @@ function NativeSettingsViewInner(props: SettingsViewProps) {
       <SectionHeader>AI</SectionHeader>
       <InsetGroup>
         <InsetRow
-          title="AI авто-категоризация"
+          title={
+            <span className={styles.rowTitleWrap}>AI авто-категоризация</span>
+          }
           trailing={
             <Toggle
               checked={props.ai_categorization_enabled}
@@ -290,7 +300,7 @@ function NativeSettingsViewInner(props: SettingsViewProps) {
           }
         />
         <InsetRow
-          title="AI лимит расходов"
+          title={<span className={styles.rowTitleWrap}>AI лимит расходов</span>}
           trailing={
             <span className={styles.readonly} data-testid="ai-cap-value">
               {capRubles.toLocaleString('ru-RU')} ₽

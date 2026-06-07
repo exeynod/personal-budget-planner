@@ -1,0 +1,221 @@
+/* Liquid Glass v2 — native «+» add-sheet for Plan + Template.
+   Mirrors NativeAddSheet chrome (amount + keypad + inset fields). */
+
+.sheet {
+  display: flex;
+  flex-direction: column;
+  font-family: var(--lgn-font);
+  color: var(--lgn-ink);
+  background: var(--lgn-bg);
+  padding: 0 0 calc(12px + env(safe-area-inset-bottom, 0px));
+}
+
+/* ── Header ── */
+.header {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  padding: 6px var(--lgn-s-16) 8px;
+}
+.headerTitle {
+  grid-column: 2;
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--lgn-ink);
+  text-align: center;
+  white-space: nowrap;
+}
+.cancelBtn {
+  grid-column: 1;
+  justify-self: start;
+  appearance: none;
+  border: none;
+  background: none;
+  padding: 4px 0;
+  font-family: var(--lgn-font);
+  font-size: 17px;
+  color: var(--lgn-blue);
+  cursor: pointer;
+}
+.headerSpacer {
+  grid-column: 3;
+}
+
+/* ── Amount ── */
+.amountBlock {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px var(--lgn-s-16) 14px;
+}
+.amountValue {
+  font-size: 48px;
+  font-weight: 700;
+  letter-spacing: -1px;
+  line-height: 1;
+  color: var(--lgn-ink);
+  font-variant-numeric: tabular-nums;
+}
+.amountMuted {
+  color: var(--lgn-ink-3);
+}
+.amountCurrency {
+  font-size: 26px;
+  font-weight: 600;
+  color: var(--lgn-ink-2);
+}
+
+/* ── Field groups ── */
+.fieldGroup {
+  padding: 0 var(--lgn-s-16) 8px;
+}
+.descInput {
+  width: 100%;
+  box-sizing: border-box;
+  appearance: none;
+  border: none;
+  border-radius: var(--lgn-r-card);
+  background: var(--lgn-card);
+  -webkit-backdrop-filter: var(--lgn-glass-blur);
+  backdrop-filter: var(--lgn-glass-blur);
+  box-shadow: var(--lgn-shadow-card), var(--lgn-card-edge);
+  padding: 12px var(--lgn-s-16);
+  font-family: var(--lgn-font);
+  font-size: 17px;
+  color: var(--lgn-ink);
+}
+.descInput::placeholder {
+  color: var(--lgn-ink-3);
+}
+
+/* ── Fixed category row ── */
+.catRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-radius: var(--lgn-r-card);
+  background: var(--lgn-card);
+  -webkit-backdrop-filter: var(--lgn-glass-blur);
+  backdrop-filter: var(--lgn-glass-blur);
+  box-shadow: var(--lgn-shadow-card), var(--lgn-card-edge);
+  padding: 12px var(--lgn-s-16);
+}
+.catName {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 17px;
+  color: var(--lgn-ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.catTag {
+  display: inline-flex;
+  color: var(--lgn-ink-3);
+  flex: 0 0 auto;
+}
+
+/* ── Day-of-period stepper (Template) ── */
+.stepperRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-radius: var(--lgn-r-card);
+  background: var(--lgn-card);
+  -webkit-backdrop-filter: var(--lgn-glass-blur);
+  backdrop-filter: var(--lgn-glass-blur);
+  box-shadow: var(--lgn-shadow-card), var(--lgn-card-edge);
+  padding: 10px var(--lgn-s-16);
+}
+.stepperLabel {
+  flex: 1 1 auto;
+  font-size: 17px;
+  color: var(--lgn-ink);
+}
+.stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--lgn-seg-track);
+  border-radius: var(--lgn-r-pill);
+  padding: 3px;
+}
+.stepBtn {
+  appearance: none;
+  border: none;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--lgn-r-pill);
+  background: var(--lgn-card-solid);
+  color: var(--lgn-ink);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: var(--lgn-shadow-card);
+}
+.stepBtn:active {
+  background: var(--lgn-card-press);
+}
+.stepValue {
+  min-width: 28px;
+  text-align: center;
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--lgn-ink);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Keypad ── */
+.keypad {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  padding: 12px var(--lgn-s-16) 8px;
+}
+.key {
+  appearance: none;
+  border: none;
+  border-radius: var(--lgn-r-button);
+  background: var(--lgn-card);
+  -webkit-backdrop-filter: var(--lgn-glass-blur);
+  backdrop-filter: var(--lgn-glass-blur);
+  box-shadow: var(--lgn-shadow-card), var(--lgn-card-edge);
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--lgn-font);
+  font-size: 26px;
+  font-weight: 500;
+  color: var(--lgn-ink);
+  cursor: pointer;
+  user-select: none;
+}
+.key:active {
+  background: var(--lgn-card-press);
+}
+
+/* ── CTA ── */
+.cta {
+  appearance: none;
+  border: none;
+  margin: 10px var(--lgn-s-16) 0;
+  padding: 15px var(--lgn-s-16);
+  border-radius: var(--lgn-r-button);
+  background: var(--lgn-accent);
+  color: #fff;
+  font-family: var(--lgn-font);
+  font-size: 17px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.cta:active {
+  background: var(--lgn-accent-press);
+}
+.ctaDisabled {
+  background: var(--lgn-seg-track);
+  color: var(--lgn-ink-3);
+  cursor: default;
+}

@@ -1,0 +1,155 @@
+/* Liquid Glass v2 — native date picker (trigger row + action sheet). */
+
+/* ── Trigger row (inset-row look) ── */
+.triggerRow {
+  appearance: none;
+  width: 100%;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: none;
+  background: var(--lgn-card);
+  -webkit-backdrop-filter: var(--lgn-glass-blur);
+  backdrop-filter: var(--lgn-glass-blur);
+  box-shadow: var(--lgn-shadow-card), var(--lgn-card-edge);
+  border-radius: var(--lgn-r-card);
+  padding: 12px var(--lgn-s-16);
+  font-family: var(--lgn-font);
+  cursor: pointer;
+  text-align: left;
+}
+.triggerRow:active {
+  background: var(--lgn-card-press);
+}
+.tile {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--lgn-r-tile);
+  background: var(--lgn-accent);
+  flex: 0 0 auto;
+}
+.triggerLabel {
+  flex: 1 1 auto;
+  font-size: 17px;
+  color: var(--lgn-ink);
+}
+.triggerValue {
+  font-size: 17px;
+  color: var(--lgn-ink-2);
+  white-space: nowrap;
+}
+.muted {
+  color: var(--lgn-ink-3);
+}
+.chevron {
+  flex: 0 0 auto;
+  font-size: 19px;
+  color: var(--lgn-ink-3);
+  line-height: 1;
+}
+
+/* Hidden native date input. */
+.hiddenInput {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* ── Action sheet (mirrors NativeAddSheet date sheet) ── */
+.actionBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: 8px;
+  padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+}
+.actionSheet {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.actionTitle {
+  text-align: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--lgn-ink-2);
+  padding: 10px 0 2px;
+  background: var(--lgn-card);
+  -webkit-backdrop-filter: var(--lgn-glass-blur);
+  backdrop-filter: var(--lgn-glass-blur);
+  border-radius: var(--lgn-r-sheet) var(--lgn-r-sheet) 0 0;
+}
+.actionGroup {
+  display: flex;
+  flex-direction: column;
+  max-height: 50vh;
+  overflow-y: auto;
+  background: var(--lgn-card);
+  -webkit-backdrop-filter: var(--lgn-glass-blur);
+  backdrop-filter: var(--lgn-glass-blur);
+  border-radius: 0 0 var(--lgn-r-sheet) var(--lgn-r-sheet);
+}
+.actionItem {
+  appearance: none;
+  border: none;
+  background: var(--lgn-card);
+  -webkit-backdrop-filter: var(--lgn-glass-blur);
+  backdrop-filter: var(--lgn-glass-blur);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  padding: 13px var(--lgn-s-16);
+  font-family: var(--lgn-font);
+  cursor: pointer;
+  border-bottom: 0.5px solid var(--lgn-hairline-soft);
+}
+.actionItem:last-child {
+  border-bottom: none;
+}
+.actionItem:active {
+  background: var(--lgn-card-press);
+}
+.actionItemMain {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.actionItemLabel {
+  font-size: 17px;
+  color: var(--lgn-ink);
+}
+.actionItemSub {
+  font-size: 13px;
+  color: var(--lgn-ink-2);
+}
+.actionCheck {
+  color: var(--lgn-accent);
+  flex: 0 0 auto;
+}
+.actionCancel {
+  appearance: none;
+  border: none;
+  background: var(--lgn-card);
+  -webkit-backdrop-filter: var(--lgn-glass-blur);
+  backdrop-filter: var(--lgn-glass-blur);
+  border-radius: var(--lgn-r-sheet);
+  padding: 15px;
+  font-family: var(--lgn-font);
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--lgn-blue);
+  cursor: pointer;
+}

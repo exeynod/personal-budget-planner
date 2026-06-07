@@ -7,55 +7,15 @@
      100dvh in browser/tests — mirrors V10MainShell so the no-TG layout is
      identical. */
   height: var(--tg-viewport-stable, 100dvh);
-  /* Optical colour-mesh field (ref1 Payrix vibe) — a deeper, layered teal →
-     orange glass field with a lavender / mint counter-pole, NOT 4 flat
-     radials. A top light-vignette gives the specular card kerbs a believable
-     light source; the alpha is kept moderate so the frosted cards stay
-     readable (financial numbers ≥4.5:1). The frosted glass cards refract this,
-     which is what makes the design read as «Liquid Glass». */
+  /* Neutral field (P0-1 / DESIGN-REVIEW §3.1, S3). Calm vertical wash toward
+     iOS systemGroupedBackground with a faint top-light so the frosted cards'
+     specular kerbs still read — no coloured (orange/coral/lavender/teal/indigo)
+     poles, no `background-attachment: fixed` (fixed + blur banding on iOS
+     WebView). Tokens live in stylesV10/native.css (--lgn-bg*). */
   background-color: var(--lgn-bg);
-  background-image:
-    /* top light-vignette: light source above → feeds the bright top kerbs */
-    radial-gradient(
-      120% 60% at 50% -8%,
-      rgba(255, 255, 255, 0.65) 0%,
-      rgba(255, 255, 255, 0) 60%
-    ),
-    /* warm orange caustic, upper-left (ref1 sweep) */
-    radial-gradient(
-        62% 50% at 14% 6%,
-        rgba(255, 167, 102, 0.6) 0%,
-        rgba(255, 167, 102, 0) 64%
-      ),
-    /* coral/rose accent, upper-right */
-    radial-gradient(
-        54% 44% at 98% 4%,
-        rgba(255, 122, 138, 0.46) 0%,
-        rgba(255, 122, 138, 0) 70%
-      ),
-    /* lavender body, mid-right */
-    radial-gradient(
-        66% 52% at 92% 58%,
-        rgba(160, 138, 246, 0.46) 0%,
-        rgba(160, 138, 246, 0) 70%
-      ),
-    /* deep teal pole, lower-left — the cool side of the optical glass */
-    radial-gradient(
-        72% 56% at 0% 86%,
-        rgba(58, 196, 200, 0.5) 0%,
-        rgba(58, 196, 200, 0) 72%
-      ),
-    /* broad teal→indigo wash across the bottom for depth */
-    linear-gradient(
-        200deg,
-        rgba(120, 196, 230, 0) 38%,
-        rgba(96, 156, 224, 0.26) 78%,
-        rgba(86, 132, 214, 0.32) 100%
-      );
-  background-attachment: fixed;
+  background-image: var(--lgn-bg-image);
   font-family: var(--lgn-font);
   color: var(--lgn-ink);
-  overflow: hidden;
 
   /* Neutralise the poster tokens INSIDE the native shell so any poster-styled
      loading / error plate that briefly mounts (Mount fetch states, back-nav
@@ -72,13 +32,23 @@
 }
 
 /* Scrollable content area: fills above the tab bar (reserve ~56px + the
-   device home-indicator inset). */
+   device home-indicator inset). This is the SINGLE clip context for the shell
+   (P0-6 / §S4): the root no longer sets `overflow: hidden`, so the floating
+   tab-bar's blur + specular rim are never sliced by a hard root rectangle.
+   `overflow: clip` (not `hidden`) clips the horizontal slide of pushed views
+   without spawning a competing horizontal scroll container, and `contain` +
+   `isolation` give the animating view its own compositing layer so the
+   uncovered edge during `translateX` paints clean instead of leaving the
+   «обрезающийся прямоугольник» seen on the Plan push (complaint #1). */
 .content {
   position: absolute;
   /* Clear the floating tab pill: bar height (~58) + its 8px bottom margin. */
   inset: 0 0 calc(70px + env(safe-area-inset-bottom, 0px)) 0;
   overflow-y: auto;
+  overflow-x: clip;
   -webkit-overflow-scrolling: touch;
+  isolation: isolate;
+  contain: paint;
 }
 
 .navWrap {
@@ -104,10 +74,18 @@
   animation: lgnSlideInBack 0.3s cubic-bezier(0.32, 0.72, 0, 1);
 }
 
+/* P0-6 / §S4: the router mounts a single top-of-stack layer, so the transition
+   must read as a cross-fade-led slide rather than a bare panel skating over an
+   exposed root rectangle. A shorter travel + opacity that ramps in early keeps
+   the incoming view opaque before it reaches the clip edge, so no hard
+   rectangle is ever revealed at the seam. */
 @keyframes lgnSlideInFwd {
   from {
-    transform: translateX(28px);
+    transform: translateX(16px);
     opacity: 0;
+  }
+  40% {
+    opacity: 1;
   }
   to {
     transform: translateX(0);
@@ -116,8 +94,11 @@
 }
 @keyframes lgnSlideInBack {
   from {
-    transform: translateX(-22px);
+    transform: translateX(-14px);
     opacity: 0;
+  }
+  40% {
+    opacity: 1;
   }
   to {
     transform: translateX(0);

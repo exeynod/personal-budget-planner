@@ -14,7 +14,7 @@
 // exactly like a native form field.
 
 import { memo, useState } from 'react';
-import { Trash } from '@phosphor-icons/react';
+import { Plus, Trash } from '@phosphor-icons/react';
 import {
   NativeNavBar,
   SectionHeader,
@@ -23,6 +23,11 @@ import {
   type SegOption,
 } from '../native/NativePrimitives';
 import { CategoryIcon } from '../native/CategoryIcon';
+import { PosterSheet } from '../common';
+import {
+  NativePlanAddSheet,
+  type PlanAddResult,
+} from '../native/NativePlanAddSheet';
 import { formatMoneyNative } from '../native/money';
 import type { CategoryV10 } from '../../api/v10';
 import type { TemplateLineV11Read } from '../../api/v10';
@@ -80,13 +85,6 @@ const SEG_OPTIONS: ReadonlyArray<SegOption<'expense' | 'income'>> = [
   { value: 'income', label: 'Доход' },
 ];
 
-/** Clamp a free-typed day into 1..31, or null when empty/invalid. */
-function parseDay(raw: string): number | null {
-  const n = Number.parseInt(raw.replace(/[^0-9]/g, ''), 10);
-  if (!Number.isFinite(n) || n < 1) return null;
-  return Math.min(31, n);
-}
-
 function NativeTemplateViewInner(props: NativeTemplateViewProps) {
   const {
     categories,
@@ -103,23 +101,19 @@ function NativeTemplateViewInner(props: NativeTemplateViewProps) {
   const [openCatId, setOpenCatId] = useState<number | null>(null);
   // Local draft of the limit input per category (uncommitted typing).
   const [limitDraft, setLimitDraft] = useState<Record<number, string>>({});
-  // Add-line draft, scoped to the open category.
-  const [addTitle, setAddTitle] = useState('');
-  const [addAmount, setAddAmount] = useState('');
-  const [addDay, setAddDay] = useState('');
+  // «+ новая строка» bottom-sheet target (null = closed).
+  const [addSheetCatId, setAddSheetCatId] = useState<number | null>(null);
 
   const visible = categories.filter((c) => c.kind === seg);
+  const addSheetCat =
+    addSheetCatId != null
+      ? (categories.find((c) => c.id === addSheetCatId) ?? null)
+      : null;
 
   function commitLimit(catId: number) {
     const raw = limitDraft[catId];
     if (raw == null) return;
     onLimitCommit(catId, rublesInputToCents(raw));
-  }
-
-  function resetAddDraft() {
-    setAddTitle('');
-    setAddAmount('');
-    setAddDay('');
   }
 
   return (
@@ -191,10 +185,7 @@ function NativeTemplateViewInner(props: NativeTemplateViewProps) {
                   <button
                     type="button"
                     className={styles.detailToggle}
-                    onClick={() => {
-                      setOpenCatId(open ? null : c.id);
-                      resetAddDraft();
-                    }}
+                    onClick={() => setOpenCatId(open ? null : c.id)}
                     data-testid={`native-template-toggle-${c.id}`}
                   >
                     {open ? '▾' : '▸'} Строки
@@ -233,58 +224,16 @@ function NativeTemplateViewInner(props: NativeTemplateViewProps) {
                         </div>
                       ))}
 
-                      {/* + добавить строку */}
-                      <div className={styles.addLine}>
-                        <input
-                          type="text"
-                          className={styles.addInput}
-                          placeholder="Название"
-                          value={addTitle}
-                          onChange={(e) => setAddTitle(e.target.value)}
-                          data-testid={`native-template-add-title-${c.id}`}
-                        />
-                        <div className={styles.addRow}>
-                          <input
-                            type="text"
-                            inputMode="decimal"
-                            className={styles.addInputSm}
-                            placeholder="₽"
-                            value={addAmount}
-                            onChange={(e) => setAddAmount(e.target.value)}
-                            data-testid={`native-template-add-amount-${c.id}`}
-                          />
-                          <input
-                            type="text"
-                            inputMode="numeric"
-                            className={styles.addInputSm}
-                            placeholder="День (опц.)"
-                            value={addDay}
-                            onChange={(e) => setAddDay(e.target.value)}
-                            data-testid={`native-template-add-day-${c.id}`}
-                          />
-                          <button
-                            type="button"
-                            className={styles.addBtn}
-                            disabled={
-                              addTitle.trim() === '' ||
-                              rublesInputToCents(addAmount) <= 0
-                            }
-                            onClick={() => {
-                              onAddLine({
-                                categoryId: c.id,
-                                kind: c.kind,
-                                title: addTitle.trim(),
-                                amountCents: rublesInputToCents(addAmount),
-                                dayOfPeriod: parseDay(addDay),
-                              });
-                              resetAddDraft();
-                            }}
-                            data-testid={`native-template-add-submit-${c.id}`}
-                          >
-                            Добавить
-                          </button>
-                        </div>
-                      </div>
+                      {/* «+» → новая строка (bottom-sheet, AddSheet-pattern) */}
+                      <button
+                        type="button"
+                        className={styles.addLineBtn}
+                        onClick={() => setAddSheetCatId(c.id)}
+                        data-testid={`native-template-add-open-${c.id}`}
+                      >
+                        <Plus size={16} weight="bold" />
+                        Новая строка
+                      </button>
                     </div>
                   )}
                 </div>
@@ -297,6 +246,34 @@ function NativeTemplateViewInner(props: NativeTemplateViewProps) {
       <div className={styles.footnote}>
         Лимиты и строки шаблона автоматически применяются к новому периоду.
       </div>
+
+      {/* ───── «+ новая строка» bottom-sheet ───── */}
+      <PosterSheet
+        isOpen={addSheetCat != null}
+        onClose={() => setAddSheetCatId(null)}
+        backgroundColor="#F2F2F7"
+        testId="native-template-add-poster-sheet"
+      >
+        {addSheetCat && (
+          <NativePlanAddSheet
+            dateMode="day"
+            categoryId={addSheetCat.id}
+            categoryName={addSheetCat.name}
+            title="Новая строка"
+            onClose={() => setAddSheetCatId(null)}
+            onSubmit={(r: PlanAddResult) => {
+              onAddLine({
+                categoryId: addSheetCat.id,
+                kind: addSheetCat.kind,
+                title: r.title,
+                amountCents: r.amountCents,
+                dayOfPeriod: r.dayOfPeriod ?? null,
+              });
+              setAddSheetCatId(null);
+            }}
+          />
+        )}
+      </PosterSheet>
     </div>
   );
 }
