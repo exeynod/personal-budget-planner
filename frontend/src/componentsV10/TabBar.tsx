@@ -10,10 +10,13 @@ interface TabEntry {
   idx: number;
 }
 
+// Layout: 4 grid columns → [home] [FAB-center] [ai] [mgmt].
+// `idx` is the grid-column slot used to position the active indicator
+// (idx 1 is the FAB center slot, so tabs use 0, 2, 3).
 const TABS: TabEntry[] = [
   { id: 'home', label: 'ГЛАВНАЯ', glyph: '■', idx: 0 },
-  { id: 'ai', label: 'AI', glyph: '✦', idx: 3 },
-  { id: 'mgmt', label: 'УПР.', glyph: '⌘', idx: 4 },
+  { id: 'ai', label: 'AI', glyph: '✦', idx: 2 },
+  { id: 'mgmt', label: 'УПР.', glyph: '⌘', idx: 3 },
 ];
 
 export interface TabBarProps {
@@ -33,7 +36,7 @@ export function TabBar({ active, dark = false, onTab, onFab }: TabBarProps) {
     >
       <div
         className={styles.indicator}
-        style={{ left: `calc(${activeIdx} * (100% / 5))` }}
+        style={{ left: `calc(${activeIdx} * (100% / 4))` }}
       />
       {[TABS[0]].map((t) => (
         <TabBtn key={t.id} t={t} active={active === t.id} onTab={onTab} />
