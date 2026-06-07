@@ -24,7 +24,13 @@ import { useAddSheetController } from './useAddSheetController';
 import styles from './NativeAddSheet.module.css';
 
 export interface NativeAddSheetProps {
-  /** Called with the newly-created tx id after a successful POST. */
+  /**
+   * Target surface (default `'fact'`). `'plan'` writes a planned row into the
+   * selected period via createPlanned — same UI (category picked inside, keypad,
+   * date), different submit + chrome («В план» / «Добавить в план»).
+   */
+  mode?: import('../native/AddSheetHost').AddSheetMode;
+  /** Called with the newly-created tx/planned id after a successful POST. */
   onSubmitted: (txId: number) => void;
   /** Called when the user dismisses the sheet (clean form or confirmed cancel). */
   onClose: () => void;
@@ -83,8 +89,13 @@ function yesterdayIsoLocal(): string {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 }
 
-export function NativeAddSheet({ onSubmitted, onClose }: NativeAddSheetProps) {
-  const c = useAddSheetController({ onSubmitted, onClose });
+export function NativeAddSheet({
+  mode = 'fact',
+  onSubmitted,
+  onClose,
+}: NativeAddSheetProps) {
+  const c = useAddSheetController({ mode, onSubmitted, onClose });
+  const isPlan = mode === 'plan';
 
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [catPickerOpen, setCatPickerOpen] = useState(false);
@@ -116,7 +127,9 @@ export function NativeAddSheet({ onSubmitted, onClose }: NativeAddSheetProps) {
         ? 'Выберите категорию'
         : c.cta === 'no-account'
           ? 'Нет счёта'
-          : 'Добавить';
+          : isPlan
+            ? 'Добавить в план'
+            : 'Добавить';
 
   const periodHint =
     c.isScopedPeriod && c.viewedPeriod
@@ -135,7 +148,9 @@ export function NativeAddSheet({ onSubmitted, onClose }: NativeAddSheetProps) {
         >
           Отмена
         </button>
-        <span className={styles.title}>Новая транзакция</span>
+        <span className={styles.title}>
+          {isPlan ? 'В план' : 'Новая транзакция'}
+        </span>
         {/* Right slot kept balanced; primary submit lives in the «Добавить»
             CTA below (matches the poster's single CTA — no duplicate action). */}
         <span className={styles.headerSpacer} aria-hidden="true" />

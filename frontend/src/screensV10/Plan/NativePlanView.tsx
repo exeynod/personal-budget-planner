@@ -30,11 +30,7 @@ import {
   InsetRow,
 } from '../native/NativePrimitives';
 import { CategoryIcon } from '../native/CategoryIcon';
-import { PosterSheet } from '../common';
-import {
-  NativePlanAddSheet,
-  type PlanAddResult,
-} from '../native/NativePlanAddSheet';
+import { useAddSheetHost } from '../native/AddSheetHost';
 import { formatMoneyNative, formatSignedMoneyNative } from '../native/money';
 import type { CategoryV10 } from '../../api/v10';
 import type { PlanMonthItem } from '../../api/types';
@@ -43,15 +39,6 @@ import type { PlanDetailRow, PlanLadder } from './computePlanDetail';
 import styles from './NativePlanView.module.css';
 
 // ─────────── Props (mirror poster PlanView + v1.1 detail surface) ───────────
-
-/** Payload emitted by «+ добавить запланированную трату». */
-export interface AddPlannedDraft {
-  categoryId: number;
-  kind: 'expense' | 'income';
-  title: string;
-  amountCents: number;
-  plannedDate: string | null;
-}
 
 export interface NativePlanViewProps {
   incomeCents: number;
@@ -80,8 +67,6 @@ export interface NativePlanViewProps {
   onPostDetail?: (row: PlanDetailRow) => void;
   /** Unpost a single detail row. */
   onUnpostDetail?: (row: PlanDetailRow) => void;
-  /** Create a new manual planned row. */
-  onAddPlanned?: (draft: AddPlannedDraft) => void;
 }
 
 // ─────────── Inline rubles → cents parsing (IDENTICAL semantics to slider) ───────────
@@ -135,13 +120,14 @@ function NativePlanViewInner(props: NativePlanViewProps) {
     ladderByCat,
     onPostDetail,
     onUnpostDetail,
-    onAddPlanned,
   } = props;
 
   // Which category's «Детализация» disclosure is open (single-open accordion).
   const [openCatId, setOpenCatId] = useState<number | null>(null);
-  // «+ запланировать трату» bottom-sheet target (null = closed).
-  const [addSheetCatId, setAddSheetCatId] = useState<number | null>(null);
+
+  // Single global «+»: opens the SAME AddSheet as Home, in plan mode (category
+  // chosen inside the sheet). Replaces the old per-category inline add.
+  const { openAddSheet } = useAddSheetHost();
 
   const detailEnabled = detailByCat != null && onPostDetail != null;
 
@@ -158,11 +144,6 @@ function NativePlanViewInner(props: NativePlanViewProps) {
   const planByCat = new Map(plans.map((p) => [p.category_id, p.plan_cents]));
 
   const surplusPositive = surplusCents >= 0;
-  // Resolve the «+ запланировать трату» sheet's target category (id → object).
-  const addSheetCat =
-    addSheetCatId != null
-      ? (categories.find((c) => c.id === addSheetCatId) ?? null)
-      : null;
 
   // Trailing nav action mirrors the poster СОХРАНИТЬ CTA: same onSubmit, same
   // disabled rule (overflow / submitting).
@@ -263,19 +244,6 @@ function NativePlanViewInner(props: NativePlanViewProps) {
                 </button>
               </div>
             ))}
-
-            {/* «+» → запланировать трату (bottom-sheet, AddSheet-pattern) */}
-            {onAddPlanned && (
-              <button
-                type="button"
-                className={styles.addPlannedBtn}
-                onClick={() => setAddSheetCatId(catId)}
-                data-testid={`native-plan-add-open-${catId}`}
-              >
-                <Plus size={16} weight="bold" />
-                Запланировать трату
-              </button>
-            )}
           </div>
         )}
       </div>
@@ -305,6 +273,19 @@ function NativePlanViewInner(props: NativePlanViewProps) {
           {isOverflow ? 'Превышено' : 'OK'}
         </span>
       </div>
+
+      {/* ───── single global «+ Добавить в план» ─────
+          Opens the SAME AddSheet as Home in plan mode; the category is chosen
+          inside the sheet. Replaces the old per-category inline add. */}
+      <button
+        type="button"
+        className={styles.addPlannedBtn}
+        onClick={() => openAddSheet('plan')}
+        data-testid="native-plan-add-open"
+      >
+        <Plus size={17} weight="bold" />
+        Добавить в план
+      </button>
 
       {/* ───── regulars block ───── */}
       <SectionHeader>Регулярные · провести в факт</SectionHeader>
@@ -398,34 +379,6 @@ function NativePlanViewInner(props: NativePlanViewProps) {
           ? 'Свободный остаток можно распределить по категориям.'
           : 'Сумма планов превышает доход — уменьшите лимиты.'}
       </div>
-
-      {/* ───── «+ запланировать трату» bottom-sheet ───── */}
-      <PosterSheet
-        isOpen={addSheetCat != null}
-        onClose={() => setAddSheetCatId(null)}
-        backgroundColor="#F2F2F7"
-        testId="native-plan-add-poster-sheet"
-      >
-        {addSheetCat && (
-          <NativePlanAddSheet
-            dateMode="date"
-            categoryId={addSheetCat.id}
-            categoryName={addSheetCat.name}
-            title="Запланировать трату"
-            onClose={() => setAddSheetCatId(null)}
-            onSubmit={(r: PlanAddResult) => {
-              onAddPlanned?.({
-                categoryId: addSheetCat.id,
-                kind: addSheetCat.kind,
-                title: r.title,
-                amountCents: r.amountCents,
-                plannedDate: r.plannedDate ?? null,
-              });
-              setAddSheetCatId(null);
-            }}
-          />
-        )}
-      </PosterSheet>
     </div>
   );
 }

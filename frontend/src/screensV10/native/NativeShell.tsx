@@ -26,7 +26,7 @@ import { AiMount } from '../Ai';
 import { TransactionsMount } from '../Transactions';
 import { NativeTabBar, type NativeTabId } from './NativePrimitives';
 import { ShellVariantProvider } from './ShellVariant';
-import { AddSheetHostProvider } from './AddSheetHost';
+import { AddSheetHostProvider, type AddSheetMode } from './AddSheetHost';
 import { NavLevelProvider } from './NavLevel';
 import styles from './NativeShell.module.css';
 
@@ -104,15 +104,21 @@ function NativeChrome({
 export function NativeShell() {
   const [active, setActive] = useState<NativeTabId>('home');
   const [isAddOpen, setAddOpen] = useState(false);
+  const [addMode, setAddMode] = useState<AddSheetMode>('fact');
   const [refetchToken, setRefetchToken] = useState(0);
 
   const closeSheet = () => setAddOpen(false);
+
+  const openAddSheet = (mode: AddSheetMode = 'fact') => {
+    setAddMode(mode);
+    setAddOpen(true);
+  };
 
   return (
     <SelectedPeriodProvider>
       <RefetchTokenProvider value={refetchToken}>
         <ShellVariantProvider value="native">
-          <AddSheetHostProvider openAddSheet={() => setAddOpen(true)}>
+          <AddSheetHostProvider openAddSheet={openAddSheet}>
             <PosterRouterProvider root={<OnboardingMount />}>
               <NativeChrome active={active} onTab={setActive} />
             </PosterRouterProvider>
@@ -129,6 +135,7 @@ export function NativeShell() {
               backgroundColor="#F2F2F7"
             >
               <NativeAddSheet
+                mode={addMode}
                 onSubmitted={() => {
                   setAddOpen(false);
                   setRefetchToken((t) => t + 1);

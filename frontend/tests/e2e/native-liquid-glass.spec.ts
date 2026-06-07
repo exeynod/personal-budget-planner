@@ -527,21 +527,21 @@ test.describe('Liquid Glass native shell (web)', () => {
     await expect(page.getByTestId('native-plan-detail-1')).toBeVisible({
       timeout: 5000,
     });
-    // P0 design-fixes: bulk «Провести запланированное» button removed; the
-    // inline add-form is replaced by a «+» that opens the AddSheet bottom-sheet;
-    // the duplicate «Σ план / Доход» InsetGroup is gone.
+    // v1.1 «один глобальный +»: per-category inline add is gone; the detail
+    // disclosure is view-only (planned rows + «Провести»/«Отмена»). A single
+    // global «+ Добавить в план» lives under the surplus card.
     await expect(page.getByTestId('native-plan-post-all')).toHaveCount(0);
     await expect(page.getByTestId('native-plan-total')).toHaveCount(0);
-    await expect(page.getByTestId('native-plan-add-open-1')).toBeVisible();
+    await expect(page.getByTestId('native-plan-add-open-1')).toHaveCount(0);
+    await expect(page.getByTestId('native-plan-add-open')).toBeVisible();
     await freezeMotion(page);
     await page.screenshot({ path: `${OUT}/plan.png` });
   });
 
-  // P0 design-fixes — «+» add-flow opens a native AddSheet bottom-sheet (keypad
-  // + ActionSheet date), replacing the inline «Название/₽/дата/Добавить» form.
-  test('plan «+» opens native add-sheet (keypad + date picker)', async ({
-    page,
-  }) => {
+  // v1.1 «один глобальный +» — the single «+ Добавить в план» under the surplus
+  // card opens the SAME AddSheet as Home, in plan mode. The category is chosen
+  // INSIDE the sheet; submit creates a planned row (createPlanned → 200 fixture).
+  test('plan «+» opens the shared AddSheet in plan mode', async ({ page }) => {
     await installNative(page);
     await page.goto('/');
     await expect(page.getByTestId('native-shell')).toBeVisible({
@@ -551,34 +551,35 @@ test.describe('Liquid Glass native shell (web)', () => {
     await expect(page.getByTestId('native-plan-surplus')).toBeVisible({
       timeout: 5000,
     });
-    await page.getByTestId('native-plan-detail-toggle-1').click();
-    await page.getByTestId('native-plan-add-open-1').click();
-    await expect(page.getByTestId('native-plan-add-sheet')).toBeVisible({
+    // Single global «+» (no disclosure needed).
+    await page.getByTestId('native-plan-add-open').click();
+    await expect(page.getByTestId('native-add-sheet')).toBeVisible({
       timeout: 5000,
     });
-    // Native date control (NativeDatePicker) — not a raw <input type=date>.
+    // Plan-mode chrome (sheet title «В план»).
     await expect(
-      page.getByTestId('native-plan-add-date-trigger'),
+      page.getByTestId('native-add-sheet').getByText('В план'),
     ).toBeVisible();
-    // Fill name + amount via the native keypad → CTA enables → submit.
-    await page.getByTestId('native-plan-add-title').fill('Подарок');
-    await page
-      .getByTestId('native-plan-add-sheet')
-      .getByRole('button', { name: '5', exact: true })
-      .click();
-    await page
-      .getByTestId('native-plan-add-sheet')
-      .getByRole('button', { name: '0', exact: true })
-      .click();
-    await page
-      .getByTestId('native-plan-add-sheet')
-      .getByRole('button', { name: '0', exact: true })
-      .click();
-    const submit = page.getByTestId('native-plan-add-submit');
-    await expect(submit).toBeEnabled();
-    await submit.click();
-    // Sheet closes after a successful create (createPlanned → 200 fixture).
-    await expect(page.getByTestId('native-plan-add-sheet')).toHaveCount(0, {
+    await freezeMotion(page);
+    await page.screenshot({ path: `${OUT}/plan-add-sheet.png` });
+
+    // Pick the category INSIDE the sheet.
+    await page.getByTestId('native-add-category-row').click();
+    await page.getByTestId('native-add-cat-1').click();
+
+    // Amount «500» via the native keypad.
+    const keypad = page.getByTestId('native-add-keypad');
+    await keypad.getByRole('button', { name: '5', exact: true }).click();
+    await keypad.getByRole('button', { name: '0', exact: true }).click();
+    await keypad.getByRole('button', { name: '0', exact: true }).click();
+
+    const cta = page.getByTestId('native-add-cta');
+    await expect(cta).toHaveText('Добавить в план');
+    await expect(cta).toBeEnabled();
+    await cta.click();
+
+    // Sheet closes after a successful create.
+    await expect(page.getByTestId('native-add-sheet')).toHaveCount(0, {
       timeout: 5000,
     });
   });

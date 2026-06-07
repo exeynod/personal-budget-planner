@@ -290,22 +290,24 @@
   font-size: 12px;
   color: var(--lgn-ink-2);
 }
-/* «+ запланировать трату» — opens the bottom-sheet (replaces inline form). */
+/* «+ Добавить в план» — single global accent row under the surplus card.
+   Opens the shared AddSheet (plan mode); category is chosen inside the sheet. */
 .addPlannedBtn {
-  align-self: flex-start;
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 6px;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
   border: none;
   background: rgba(255, 122, 76, 0.12);
   color: var(--lgn-accent);
   font-family: var(--lgn-font);
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 600;
-  padding: 8px 14px;
-  border-radius: var(--lgn-r-pill);
+  padding: 14px;
+  border-radius: var(--lgn-r-card, 14px);
   cursor: pointer;
-  margin-top: 2px;
+  margin: 10px var(--lgn-s-16) 0;
 }
 .addPlannedBtn:active {
   background: rgba(255, 122, 76, 0.22);

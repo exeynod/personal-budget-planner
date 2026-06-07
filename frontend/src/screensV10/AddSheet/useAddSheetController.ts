@@ -23,9 +23,11 @@ import {
   listAccounts,
   listCategoriesV10,
   createActualV10,
+  createPlanned,
   type AccountResponse,
   type CategoryV10,
 } from '../../api/v10';
+import type { AddSheetMode } from '../native/AddSheetHost';
 import { useSelectedPeriodOptional } from '../common';
 import type { PeriodRead } from '../../api/types';
 import {
@@ -43,13 +45,22 @@ import {
 } from './computeAddSheet';
 
 export interface UseAddSheetControllerArgs {
-  /** Called with the newly-created tx id after a successful POST. */
+  /**
+   * Target surface:
+   *  - `'fact'` (default): createActualV10 (real fact, account-gated).
+   *  - `'plan'`: createPlanned into the selected period (no account; planned_date
+   *    = chosen date, kind from the selected category).
+   */
+  mode?: AddSheetMode;
+  /** Called with the newly-created tx/planned id after a successful POST. */
   onSubmitted: (txId: number) => void;
   /** Called when the user dismisses the sheet (clean form or confirmed cancel). */
   onClose: () => void;
 }
 
 export interface AddSheetController {
+  /** Active surface mode (drives view chrome: title / CTA label). */
+  mode: AddSheetMode;
   // amount
   amountString: string;
   amountCents: number;
@@ -91,9 +102,11 @@ export interface AddSheetController {
 }
 
 export function useAddSheetController({
+  mode = 'fact',
   onSubmitted,
   onClose,
 }: UseAddSheetControllerArgs): AddSheetController {
+  const isPlan = mode === 'plan';
   // ── State (mirrors poster AddSheet) ───────────────────────────────
   const [amountString, setAmountString] = useState('');
   const [description, setDescription] = useState('');
@@ -169,7 +182,10 @@ export function useAddSheetController({
 
   // WR-25-01: pass accountId so the CTA falls into 'no-account' when bootstrap
   // failed or the user has zero accounts (prevents wallet-desync POST).
-  const cta = ctaState(amountCents, categoryId, accountId);
+  // Plan mode writes a planned row (no account leg) → skip the account gate.
+  const cta = isPlan
+    ? ctaState(amountCents, categoryId)
+    : ctaState(amountCents, categoryId, accountId);
 
   // ADD-V10-04: hide the system savings category.
   const visibleCategories = useMemo(
@@ -221,6 +237,38 @@ export function useAddSheetController({
       dateChip === 'custom'
         ? customDate || defaultDateForChip('today', today) || ''
         : (defaultDateForChip(dateChip, today) ?? '');
+
+    // ── Plan mode: write a planned row into the selected period ──
+    // (no account leg, no period auto-switch — the Plan screen is already
+    // scoped to one period). planned_date = chosen date; kind from category.
+    if (isPlan) {
+      const targetPeriodId =
+        viewedPeriod?.id ?? selectedPeriodId ?? sel?.periods[0]?.id ?? null;
+      if (targetPeriodId == null) {
+        setSubmitError('Нет открытого периода');
+        setSubmitting(false);
+        return;
+      }
+      const cat = categories.find((c) => c.id === categoryId);
+      try {
+        const res = await createPlanned(targetPeriodId, {
+          category_id: categoryId,
+          kind: cat?.kind ?? 'expense',
+          amount_cents: amountCents,
+          description: description.trim() === '' ? null : description.trim(),
+          planned_date: tx_date || null,
+        });
+        onSubmitted(res.id);
+      } catch (err) {
+        setSubmitError(
+          err instanceof Error ? err.message : 'Не удалось сохранить',
+        );
+      } finally {
+        setSubmitting(false);
+      }
+      return;
+    }
+
     try {
       const res = await createActualV10({
         kind: 'expense',
@@ -259,6 +307,7 @@ export function useAddSheetController({
   };
 
   return {
+    mode,
     amountString,
     amountCents,
     onAppendDigit,

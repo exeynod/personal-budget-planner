@@ -10,8 +10,16 @@
 
 import { createContext, useContext, type ReactNode } from 'react';
 
+/** Which surface the sheet writes to: a real fact (default) or a planned row. */
+export type AddSheetMode = 'fact' | 'plan';
+
 interface AddSheetHostAPI {
-  openAddSheet: () => void;
+  /**
+   * Open the shared add-transaction sheet.
+   *  - `'fact'` (default): creates an actual_transaction (Home «+»).
+   *  - `'plan'`: creates a planned row in the selected period (Plan «+»).
+   */
+  openAddSheet: (mode?: AddSheetMode) => void;
 }
 
 const AddSheetHostCtx = createContext<AddSheetHostAPI>({
@@ -22,7 +30,7 @@ export function AddSheetHostProvider({
   openAddSheet,
   children,
 }: {
-  openAddSheet: () => void;
+  openAddSheet: (mode?: AddSheetMode) => void;
   children: ReactNode;
 }) {
   return (

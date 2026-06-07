@@ -19,6 +19,7 @@ import { NativeToast } from '../native/NativeToast';
 import {
   StatePlate,
   usePosterRouter,
+  useRefetchToken,
   useSelectedPeriodOptional,
 } from '../common';
 import {
@@ -28,7 +29,6 @@ import {
   unpostSubscription,
   patchPlanMonth,
   listPlanned,
-  createPlanned,
   postPlanned,
   unpostPlanned,
   type CategoryV10,
@@ -40,7 +40,7 @@ import { getMeV10 } from '../../api/me';
 import { ApiError } from '../../api/client';
 import type { PlanMonthItem } from '../../api/types';
 import { PlanView } from './PlanView';
-import { NativePlanView, type AddPlannedDraft } from './NativePlanView';
+import { NativePlanView } from './NativePlanView';
 import { useShellVariant } from '../native/ShellVariant';
 import {
   applyPlanEdit,
@@ -79,6 +79,9 @@ export function PlanMount({ focusCategoryId = null }: PlanMountProps = {}) {
   const router = usePosterRouter();
   const variant = useShellVariant();
   const sel = useSelectedPeriodOptional();
+  // Shared AddSheet (plan mode «+») bumps this token on a successful create →
+  // reload the plan so the new planned row + ladder appear immediately.
+  const refetchToken = useRefetchToken();
 
   const [income, setIncome] = useState<number>(0);
   const [categories, setCategories] = useState<CategoryV10[]>([]);
@@ -144,7 +147,7 @@ export function PlanMount({ focusCategoryId = null }: PlanMountProps = {}) {
     return () => {
       cancelled = true;
     };
-  }, [reloadToken, sel?.selectedPeriodId, sel]);
+  }, [reloadToken, refetchToken, sel?.selectedPeriodId, sel]);
 
   // ─────────── slider drag handler ───────────
   const handleSliderChange = useCallback((catId: number, cents: number) => {
@@ -253,26 +256,6 @@ export function PlanMount({ focusCategoryId = null }: PlanMountProps = {}) {
     [periodId],
   );
 
-  const handleAddPlanned = useCallback(
-    async (draft: AddPlannedDraft) => {
-      if (periodId == null) return;
-      try {
-        await createPlanned(periodId, {
-          category_id: draft.categoryId,
-          kind: draft.kind,
-          amount_cents: draft.amountCents,
-          description: draft.title,
-          planned_date: draft.plannedDate,
-        });
-        setToast({ text: 'Трата запланирована', tone: 'success' });
-        setReloadToken((n) => n + 1);
-      } catch {
-        setToast({ text: 'Не удалось добавить трату', tone: 'error' });
-      }
-    },
-    [periodId],
-  );
-
   // ─────────── derived view-model ───────────
   // Memoised so slider drags (which only bump `plans`) don't recompute the
   // regulars list (subs×categories) every render, and a parent re-render with
@@ -338,7 +321,6 @@ export function PlanMount({ focusCategoryId = null }: PlanMountProps = {}) {
           ladderByCat={ladderByCat}
           onPostDetail={handlePostDetail}
           onUnpostDetail={handleUnpostDetail}
-          onAddPlanned={handleAddPlanned}
         />
       ) : (
         <PlanView {...viewProps} />
