@@ -6,25 +6,6 @@
   padding-bottom: 32px;
 }
 
-/* ─────────── Nav-bar trailing «Сохранить» ─────────── */
-.saveBtn {
-  border: none;
-  background: none;
-  font-family: var(--lgn-font);
-  font-size: 17px;
-  font-weight: 600;
-  color: var(--lgn-accent);
-  padding: 4px 2px;
-  cursor: pointer;
-}
-.saveBtn:disabled {
-  color: var(--lgn-ink-3);
-  cursor: default;
-}
-.saveBtn:not(:disabled):active {
-  color: var(--lgn-accent-press);
-}
-
 /* ─────────── Surplus card ─────────── */
 .surplusCard {
   position: relative;

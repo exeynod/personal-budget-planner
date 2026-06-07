@@ -52,13 +52,13 @@
   line-height: 1;
 }
 
-/* Hidden native date input. */
-.hiddenInput {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  opacity: 0;
-  pointer-events: none;
+/* In-app calendar panel — sits inside the action group under «Своя дата». */
+.calendarPanel {
+  padding: 8px;
+  background: var(--lgn-card);
+  -webkit-backdrop-filter: var(--lgn-glass-blur);
+  backdrop-filter: var(--lgn-glass-blur);
+  border-bottom: 0.5px solid var(--lgn-hairline-soft);
 }
 
 /* ── Action sheet (mirrors NativeAddSheet date sheet) ── */

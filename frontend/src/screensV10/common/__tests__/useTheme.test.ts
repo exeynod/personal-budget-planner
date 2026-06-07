@@ -34,9 +34,9 @@ describe('useTheme', () => {
     document.documentElement.removeAttribute('data-theme');
   });
 
-  it('returns default maximal_poster when localStorage empty', () => {
+  it('returns default liquid_glass when localStorage empty', () => {
     const { result } = renderHook(() => useTheme());
-    expect(result.current[0]).toBe('maximal_poster');
+    expect(result.current[0]).toBe('liquid_glass');
   });
 
   it('persists choice to localStorage on setTheme', () => {
@@ -53,10 +53,10 @@ describe('useTheme', () => {
     );
   });
 
-  it('maps stale ios_default value to default maximal_poster', () => {
+  it('maps stale ios_default value to default liquid_glass', () => {
     localStorage.setItem('ui.theme', 'ios_default');
     const { result } = renderHook(() => useTheme());
-    expect(result.current[0]).toBe('maximal_poster');
+    expect(result.current[0]).toBe('liquid_glass');
   });
 
   it('reads existing localStorage value on mount', () => {
@@ -68,7 +68,7 @@ describe('useTheme', () => {
   it('ignores invalid localStorage values', () => {
     localStorage.setItem('ui.theme', 'invalid_garbage');
     const { result } = renderHook(() => useTheme());
-    expect(result.current[0]).toBe('maximal_poster');
+    expect(result.current[0]).toBe('liquid_glass');
   });
 
   it('THEMES const has the 2 supported values', () => {

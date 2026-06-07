@@ -18,7 +18,7 @@
 // re-implement the API or the money math — it only reuses computeAddSheet.ts
 // and api/v10.
 
-import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   listAccounts,
   listCategoriesV10,
@@ -75,9 +75,10 @@ export interface AddSheetController {
   setDateChipToday: () => void;
   setDateChipYesterday: () => void;
   customDate: string;
-  dateInputRef: React.MutableRefObject<HTMLInputElement | null>;
-  onPickCustomDate: () => void;
-  onChangeCustomDate: (e: ChangeEvent<HTMLInputElement>) => void;
+  /** Select «Своя дата» mode (does NOT open any OS popup). */
+  setDateChipCustom: () => void;
+  /** Set the chosen custom ISO date (from the in-app NativeCalendar). */
+  setCustomDate: (iso: string) => void;
   dateBounds: { min: string; max: string } | null;
   isScopedPeriod: boolean;
   viewedPeriod: PeriodRead | null;
@@ -120,7 +121,6 @@ export function useAddSheetController({
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   const today = useMemo(() => new Date(), []);
-  const dateInputRef = useRef<HTMLInputElement | null>(null);
 
   // Phase P2 (period switching) — same logic as poster AddSheet.
   const sel = useSelectedPeriodOptional();
@@ -207,25 +207,11 @@ export function useAddSheetController({
   // ── Date handlers ─────────────────────────────────────────────────
   const setDateChipToday = () => setDateChip('today');
   const setDateChipYesterday = () => setDateChip('yesterday');
-
-  const onPickCustomDate = () => {
+  // «Своя дата»: select custom mode, default to today if no date chosen yet.
+  // No OS popup — the view renders an in-app NativeCalendar grid.
+  const setDateChipCustom = () => {
     setDateChip('custom');
-    const el = dateInputRef.current;
-    if (!el) return;
-    const anyEl = el as HTMLInputElement & { showPicker?: () => void };
-    if (typeof anyEl.showPicker === 'function') {
-      try {
-        anyEl.showPicker();
-      } catch {
-        anyEl.click();
-      }
-    } else {
-      anyEl.click();
-    }
-  };
-
-  const onChangeCustomDate = (e: ChangeEvent<HTMLInputElement>) => {
-    setCustomDate(e.target.value);
+    setCustomDate((cur) => cur || defaultDateForChip('today', today) || '');
   };
 
   // ── Submit (identical payload + period side-effects as poster) ────
@@ -319,9 +305,8 @@ export function useAddSheetController({
     setDateChipToday,
     setDateChipYesterday,
     customDate,
-    dateInputRef,
-    onPickCustomDate,
-    onChangeCustomDate,
+    setDateChipCustom,
+    setCustomDate: (iso: string) => setCustomDate(iso),
     dateBounds,
     isScopedPeriod,
     viewedPeriod,

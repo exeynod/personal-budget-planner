@@ -1,19 +1,19 @@
-// Liquid Glass v2 — native iOS date picker (ActionSheet + hidden input).
+// Liquid Glass v2 — native iOS date picker (ActionSheet + in-app calendar).
 //
-// Design-review §P0-4 / §3.7: the AddSheet already has the right pattern — a
-// «Дата» inset row that opens an ActionSheet (Сегодня / Вчера / Своя дата),
-// with the system calendar driven by a HIDDEN <input type="date"> opened
-// programmatically (never the bare OS control). This extracts that pattern into
-// a standalone, reusable control so Plan / Template add-flows stop rendering a
-// raw `<input type="date">`.
+// Design-review §B (owner's 2nd complaint): «Своя дата» must NOT open the OS
+// `<input type="date">` popup (foreign chrome, un-rounded, off-design). This
+// control opens an ActionSheet (Сегодня / Вчера / Своя дата [/ Без даты]); the
+// «Своя дата» row reveals an in-app NativeCalendar month-grid styled with
+// `--lgn-*` tokens. No `<input type="date">`, no OS popup anywhere.
 //
 // Controlled value is an ISO `YYYY-MM-DD` string (or '' / null for «без даты»).
-// The component owns only the ActionSheet open-state; the date value is owned by
-// the parent.
+// The component owns only the ActionSheet open-state + which inline panel is
+// expanded; the date value is owned by the parent.
 
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { CalendarBlank, Check } from '@phosphor-icons/react';
 import { MONTHS_RU_GENITIVE } from '../common';
+import { NativeCalendar } from './NativeCalendar';
 import styles from './NativeDatePicker.module.css';
 
 export interface NativeDatePickerProps {
@@ -59,7 +59,8 @@ export function NativeDatePicker({
   testId = 'native-date-picker',
 }: NativeDatePickerProps) {
   const [sheetOpen, setSheetOpen] = useState(false);
-  const inputRef = useRef<HTMLInputElement | null>(null);
+  // Whether the inline month-grid calendar («Своя дата») is expanded.
+  const [calendarOpen, setCalendarOpen] = useState(false);
 
   const today = todayIsoLocal();
   const yesterday = yesterdayIsoLocal();
@@ -72,27 +73,22 @@ export function NativeDatePicker({
 
   const isMuted = !value;
 
-  function openSystemPicker() {
-    const el = inputRef.current;
-    if (!el) return;
-    const anyEl = el as HTMLInputElement & { showPicker?: () => void };
-    if (typeof anyEl.showPicker === 'function') {
-      try {
-        anyEl.showPicker();
-      } catch {
-        anyEl.click();
-      }
-    } else {
-      anyEl.click();
-    }
+  function closeSheet() {
+    setSheetOpen(false);
+    setCalendarOpen(false);
   }
+
+  const hasCustomDate = !!value && value !== today && value !== yesterday;
 
   return (
     <>
       <button
         type="button"
         className={styles.triggerRow}
-        onClick={() => setSheetOpen(true)}
+        onClick={() => {
+          setCalendarOpen(hasCustomDate);
+          setSheetOpen(true);
+        }}
         data-testid={`${testId}-trigger`}
       >
         <span className={styles.tile} aria-hidden="true">
@@ -109,25 +105,11 @@ export function NativeDatePicker({
         </span>
       </button>
 
-      {/* Hidden native date input driven by «Своя дата». */}
-      <input
-        ref={inputRef}
-        type="date"
-        className={styles.hiddenInput}
-        value={value ?? ''}
-        onChange={(e) => onChange(e.target.value || null)}
-        min={min}
-        max={max}
-        aria-hidden="true"
-        tabIndex={-1}
-        data-testid={`${testId}-input`}
-      />
-
       {sheetOpen && (
         <div
           className={styles.actionBackdrop}
           role="presentation"
-          onClick={() => setSheetOpen(false)}
+          onClick={closeSheet}
           data-testid={`${testId}-sheet`}
         >
           <div
@@ -144,7 +126,7 @@ export function NativeDatePicker({
                 active={value === today}
                 onClick={() => {
                   onChange(today);
-                  setSheetOpen(false);
+                  closeSheet();
                 }}
               />
               <ActionItem
@@ -153,29 +135,37 @@ export function NativeDatePicker({
                 active={value === yesterday}
                 onClick={() => {
                   onChange(yesterday);
-                  setSheetOpen(false);
+                  closeSheet();
                 }}
               />
               <ActionItem
                 label="Своя дата"
-                sub={
-                  value && value !== today && value !== yesterday
-                    ? formatShortDate(value)
-                    : undefined
-                }
-                active={!!value && value !== today && value !== yesterday}
-                onClick={() => {
-                  setSheetOpen(false);
-                  openSystemPicker();
-                }}
+                sub={hasCustomDate ? formatShortDate(value!) : undefined}
+                active={hasCustomDate || calendarOpen}
+                onClick={() => setCalendarOpen((o) => !o)}
               />
+              {/* In-app month-grid calendar — replaces the OS date popup. */}
+              {calendarOpen && (
+                <div className={styles.calendarPanel}>
+                  <NativeCalendar
+                    value={value}
+                    min={min}
+                    max={max}
+                    onSelect={(iso) => {
+                      onChange(iso);
+                      closeSheet();
+                    }}
+                    testId={`${testId}-calendar`}
+                  />
+                </div>
+              )}
               {allowEmpty && (
                 <ActionItem
                   label="Без даты"
                   active={!value}
                   onClick={() => {
                     onChange(null);
-                    setSheetOpen(false);
+                    closeSheet();
                   }}
                 />
               )}
@@ -183,7 +173,7 @@ export function NativeDatePicker({
             <button
               type="button"
               className={styles.actionCancel}
-              onClick={() => setSheetOpen(false)}
+              onClick={closeSheet}
             >
               Отмена
             </button>

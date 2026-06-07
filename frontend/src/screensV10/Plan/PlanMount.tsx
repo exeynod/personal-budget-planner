@@ -149,10 +149,47 @@ export function PlanMount({ focusCategoryId = null }: PlanMountProps = {}) {
     };
   }, [reloadToken, refetchToken, sel?.selectedPeriodId, sel]);
 
-  // ─────────── slider drag handler ───────────
+  // ─────────── inline limit edit (live draft) ───────────
   const handleSliderChange = useCallback((catId: number, cents: number) => {
     setPlans((prev) => applyPlanEdit(prev, catId, cents));
   }, []);
+
+  // ─────────── inline limit auto-save (blur / Enter) ───────────
+  // §A (design-fix): no «Сохранить» button — each category limit persists on
+  // commit. We send the FULL draft batch (the same payload the old «Сохранить»
+  // sent) so the server-side Σplan ≤ income validation still covers every
+  // category, not just the edited one. No-op when the committed value already
+  // matches the persisted limit. On 400 overflow we surface the inline error and
+  // reload to revert the rejected limit to its persisted value.
+  const handleLimitCommit = useCallback(
+    async (catId: number, cents: number) => {
+      const persisted = categories.find((c) => c.id === catId);
+      if ((persisted?.plan_cents ?? 0) === cents) {
+        setSaveError(null);
+        return; // no-op — unchanged
+      }
+      setSaveError(null);
+      // Full batch with the committed value applied to the edited category.
+      const payload = plans.map((p) =>
+        p.category_id === catId ? { ...p, plan_cents: cents } : p,
+      );
+      try {
+        const res = await patchPlanMonth(payload);
+        // Sync persisted snapshot so the next no-op check is accurate.
+        setCategories(res.categories);
+        setToast({ text: 'Лимит сохранён', tone: 'success' });
+      } catch (e) {
+        if (e instanceof ApiError && e.status === 400) {
+          setSaveError('Σplan превышает доход — уменьшите лимиты');
+        } else {
+          setSaveError(e instanceof Error ? e.message : 'Ошибка сохранения');
+        }
+        // Revert the rejected draft to the persisted limit.
+        setReloadToken((n) => n + 1);
+      }
+    },
+    [categories, plans],
+  );
 
   // ─────────── regulars post / unpost ───────────
   const handlePostRegular = useCallback(async (subId: number) => {
@@ -295,20 +332,21 @@ export function PlanMount({ focusCategoryId = null }: PlanMountProps = {}) {
     );
   }
 
-  const viewProps = {
+  // Shared view-model. The poster PlanView still uses the «СОХРАНИТЬ» CTA
+  // (submitting / onSubmit); the native view auto-saves each limit on commit
+  // (onLimitCommit) and has no save button (§A design-fix).
+  const sharedProps = {
     incomeCents: income,
     categories,
     plans,
     regulars,
     surplusCents: surplus,
     isOverflow,
-    submitting,
     saveError,
     focusCategoryId,
     onSliderChange: handleSliderChange,
     onPostRegular: handlePostRegular,
     onUnpostRegular: handleUnpostRegular,
-    onSubmit: handleSubmit,
     onBack: () => router.pop(),
   };
 
@@ -316,14 +354,19 @@ export function PlanMount({ focusCategoryId = null }: PlanMountProps = {}) {
     <>
       {variant === 'native' ? (
         <NativePlanView
-          {...viewProps}
+          {...sharedProps}
+          onLimitCommit={handleLimitCommit}
           detailByCat={detailByCat}
           ladderByCat={ladderByCat}
           onPostDetail={handlePostDetail}
           onUnpostDetail={handleUnpostDetail}
         />
       ) : (
-        <PlanView {...viewProps} />
+        <PlanView
+          {...sharedProps}
+          submitting={submitting}
+          onSubmit={handleSubmit}
+        />
       )}
       <NativeToast
         message={toast?.text ?? ''}

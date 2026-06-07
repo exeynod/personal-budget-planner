@@ -18,6 +18,7 @@ import { useState } from 'react';
 import { Backspace, Check, CalendarBlank, Tag } from '@phosphor-icons/react';
 import { InsetGroup, InsetRow } from '../native/NativePrimitives';
 import { CategoryIcon } from '../native/CategoryIcon';
+import { NativeCalendar } from '../native/NativeCalendar';
 import { formatMoneyNative } from '../native/money';
 import { MONTHS_RU_GENITIVE } from '../common';
 import { useAddSheetController } from './useAddSheetController';
@@ -100,6 +101,13 @@ export function NativeAddSheet({
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [catPickerOpen, setCatPickerOpen] = useState(false);
   const [dateSheetOpen, setDateSheetOpen] = useState(false);
+  // In-app month-grid calendar («Своя дата») expanded inside the date sheet.
+  const [dateCalendarOpen, setDateCalendarOpen] = useState(false);
+
+  const closeDateSheet = () => {
+    setDateSheetOpen(false);
+    setDateCalendarOpen(false);
+  };
 
   const onClickClose = () => {
     if (c.requestClose()) setShowCancelConfirm(true);
@@ -293,24 +301,11 @@ export function NativeAddSheet({
         {ctaLabel}
       </button>
 
-      {/* Hidden native date input driven by «Своя дата». */}
-      <input
-        ref={c.dateInputRef}
-        type="date"
-        className={styles.hiddenDateInput}
-        value={c.customDate}
-        onChange={c.onChangeCustomDate}
-        min={c.dateBounds?.min}
-        max={c.dateBounds?.max}
-        aria-hidden="true"
-        tabIndex={-1}
-      />
-
       {/* ── Date action-sheet ── */}
       {dateSheetOpen && (
         <ActionSheet
           title="Дата"
-          onClose={() => setDateSheetOpen(false)}
+          onClose={closeDateSheet}
           testId="native-add-date-sheet"
         >
           <ActionItem
@@ -319,7 +314,7 @@ export function NativeAddSheet({
             active={c.dateChip === 'today'}
             onClick={() => {
               c.setDateChipToday();
-              setDateSheetOpen(false);
+              closeDateSheet();
             }}
           />
           <ActionItem
@@ -328,7 +323,7 @@ export function NativeAddSheet({
             active={c.dateChip === 'yesterday'}
             onClick={() => {
               c.setDateChipYesterday();
-              setDateSheetOpen(false);
+              closeDateSheet();
             }}
           />
           <ActionItem
@@ -338,12 +333,27 @@ export function NativeAddSheet({
                 ? formatShortDate(c.customDate)
                 : undefined
             }
-            active={c.dateChip === 'custom'}
+            active={c.dateChip === 'custom' || dateCalendarOpen}
             onClick={() => {
-              setDateSheetOpen(false);
-              c.onPickCustomDate();
+              c.setDateChipCustom();
+              setDateCalendarOpen((o) => !o);
             }}
           />
+          {/* In-app month-grid calendar — replaces the OS date popup (§B). */}
+          {dateCalendarOpen && (
+            <div className={styles.dateCalendarPanel}>
+              <NativeCalendar
+                value={c.customDate || null}
+                min={c.dateBounds?.min}
+                max={c.dateBounds?.max}
+                onSelect={(iso) => {
+                  c.setCustomDate(iso);
+                  closeDateSheet();
+                }}
+                testId="native-add-date-calendar"
+              />
+            </div>
+          )}
         </ActionSheet>
       )}
 

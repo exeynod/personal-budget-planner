@@ -534,6 +534,15 @@ test.describe('Liquid Glass native shell (web)', () => {
     await expect(page.getByTestId('native-plan-total')).toHaveCount(0);
     await expect(page.getByTestId('native-plan-add-open-1')).toHaveCount(0);
     await expect(page.getByTestId('native-plan-add-open')).toBeVisible();
+    // §A design-fix: the «Сохранить» nav button is gone — limits auto-save on
+    // blur/Enter. No save CTA and no OS date input anywhere on the screen.
+    await expect(page.getByTestId('native-plan-save')).toHaveCount(0);
+    await expect(page.locator('input[type="date"]')).toHaveCount(0);
+    // §C design-fix: the surplus card holds EXACTLY label + value + one status
+    // badge — no phantom empty box beside «ОК». Guards against a stray slot.
+    await expect(
+      page.getByTestId('native-plan-surplus').locator(':scope > *'),
+    ).toHaveCount(3);
     await freezeMotion(page);
     await page.screenshot({ path: `${OUT}/plan.png` });
   });
@@ -562,6 +571,27 @@ test.describe('Liquid Glass native shell (web)', () => {
     ).toBeVisible();
     await freezeMotion(page);
     await page.screenshot({ path: `${OUT}/plan-add-sheet.png` });
+
+    // §B design-fix: «Дата → Своя дата» opens an in-app month-grid calendar,
+    // NOT the OS `<input type="date">` popup. Assert no OS date input exists,
+    // open the date sheet, reveal the calendar, and capture it.
+    await expect(page.locator('input[type="date"]')).toHaveCount(0);
+    await page.getByTestId('native-add-date-row').click();
+    await expect(page.getByTestId('native-add-date-sheet')).toBeVisible({
+      timeout: 5000,
+    });
+    // «Своя дата» reveals the in-app calendar grid.
+    await page.getByText('Своя дата', { exact: true }).click();
+    await expect(page.getByTestId('native-add-date-calendar')).toBeVisible({
+      timeout: 5000,
+    });
+    await freezeMotion(page);
+    await page.screenshot({ path: `${OUT}/plan-add-calendar.png` });
+    // Pick day 15 → sheet closes, the date row reflects the choice.
+    await page.getByTestId('native-add-date-calendar-day-15').click();
+    await expect(page.getByTestId('native-add-date-sheet')).toHaveCount(0, {
+      timeout: 5000,
+    });
 
     // Pick the category INSIDE the sheet.
     await page.getByTestId('native-add-category-row').click();

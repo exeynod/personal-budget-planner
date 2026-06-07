@@ -32,7 +32,7 @@ export const THEMES: readonly Theme[] = [
 
 const STORAGE_KEY = 'ui.theme';
 const EVENT = 'theme-changed';
-const DEFAULT: Theme = 'maximal_poster';
+const DEFAULT: Theme = 'liquid_glass';
 
 function isTheme(v: unknown): v is Theme {
   return v === 'maximal_poster' || v === 'liquid_glass';

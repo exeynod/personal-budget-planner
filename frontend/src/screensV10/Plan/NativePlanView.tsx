@@ -20,6 +20,11 @@
 //   - «Регулярные» inset rows with «Провести»/«Отмена» (→ onPostRegular/unpost)
 //   - «Категории · N» inset rows: CategoryIcon + name + inline ₽ input
 //   - inline save error + total «Σ план» row
+//
+// §A (design-fix): the per-category limit auto-saves on blur / Enter (mirrors
+// the Шаблон screen's upsertTemplateItem commit). There is no «Сохранить» nav
+// button — every edit (limit, planned rows, «+») persists immediately, so a
+// dead trailing CTA was removed.
 
 import { memo, useEffect, useRef, useState } from 'react';
 import { Plus } from '@phosphor-icons/react';
@@ -47,15 +52,15 @@ export interface NativePlanViewProps {
   regulars: RegularRow[];
   surplusCents: number;
   isOverflow: boolean;
-  submitting: boolean;
   saveError: string | null;
   focusCategoryId?: number | null;
 
+  /** Live draft edit (controlled input) — updates local surplus/ladder only. */
   onSliderChange: (catId: number, cents: number) => void;
-  onSliderCommit?: (catId: number, cents: number) => void;
+  /** Commit one category's limit (blur / Enter) → PATCH /plan-month, autosave. */
+  onLimitCommit: (catId: number, cents: number) => void;
   onPostRegular: (subId: number) => void;
   onUnpostRegular: (subId: number) => void;
-  onSubmit: () => void;
   onBack: () => void;
 
   // ── v1.1 month-plan detail surface (native only) ──
@@ -108,13 +113,12 @@ function NativePlanViewInner(props: NativePlanViewProps) {
     regulars,
     surplusCents,
     isOverflow,
-    submitting,
     saveError,
     focusCategoryId,
     onSliderChange,
+    onLimitCommit,
     onPostRegular,
     onUnpostRegular,
-    onSubmit,
     onBack,
     detailByCat,
     ladderByCat,
@@ -144,20 +148,6 @@ function NativePlanViewInner(props: NativePlanViewProps) {
   const planByCat = new Map(plans.map((p) => [p.category_id, p.plan_cents]));
 
   const surplusPositive = surplusCents >= 0;
-
-  // Trailing nav action mirrors the poster СОХРАНИТЬ CTA: same onSubmit, same
-  // disabled rule (overflow / submitting).
-  const saveButton = (
-    <button
-      type="button"
-      className={styles.saveBtn}
-      onClick={onSubmit}
-      disabled={isOverflow || submitting}
-      data-testid="native-plan-save"
-    >
-      {submitting ? 'Сохраняем…' : 'Сохранить'}
-    </button>
-  );
 
   // ── Detail disclosure renderer (per category) ──
   function renderDetail(catId: number, limitCents: number) {
@@ -252,7 +242,7 @@ function NativePlanViewInner(props: NativePlanViewProps) {
 
   return (
     <div className={styles.root}>
-      <NativeNavBar title="План месяца" onBack={onBack} trailing={saveButton} />
+      <NativeNavBar title="План месяца" onBack={onBack} />
 
       {/* ───── surplus card «Осталось распределить» ───── */}
       <div
@@ -353,6 +343,18 @@ function NativePlanViewInner(props: NativePlanViewProps) {
                     onChange={(e) =>
                       onSliderChange(c.id, rublesInputToCents(e.target.value))
                     }
+                    onBlur={(e) =>
+                      onLimitCommit(c.id, rublesInputToCents(e.target.value))
+                    }
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        onLimitCommit(
+                          c.id,
+                          rublesInputToCents(e.currentTarget.value),
+                        );
+                        e.currentTarget.blur();
+                      }
+                    }}
                     aria-label={`План для «${c.name}» в рублях`}
                     data-testid={`native-plan-input-${c.id}`}
                   />

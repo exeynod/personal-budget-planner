@@ -186,13 +186,13 @@
   cursor: default;
 }
 
-/* Hidden native date input (driven by «Своя дата»). */
-.hiddenDateInput {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  opacity: 0;
-  pointer-events: none;
+/* In-app calendar panel — sits in the date action-group under «Своя дата». */
+.dateCalendarPanel {
+  padding: 8px;
+  background: var(--lgn-card);
+  -webkit-backdrop-filter: var(--lgn-glass-blur);
+  backdrop-filter: var(--lgn-glass-blur);
+  border-bottom: 0.5px solid var(--lgn-hairline-soft);
 }
 
 /* ── Action-sheet (date / category pickers) ── */
