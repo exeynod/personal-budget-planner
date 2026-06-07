@@ -60,8 +60,10 @@
 
   /* Specular edges — bright top hairline, faint dark bottom: the light source
      sits above, so the top kerb glows and the bottom recedes. Applied as inset
-     box-shadows so they layer over the gradient fill without extra DOM. */
-  --lgn-edge-top: rgba(255, 255, 255, 0.9);
+     box-shadows so they layer over the gradient fill without extra DOM.
+     On the calm neutral field the kerb is softened (.9→.8, §3.4 / P2-4) so the
+     glass reads believable rather than «plastic glossy». */
+  --lgn-edge-top: rgba(255, 255, 255, 0.8);
   --lgn-edge-bottom: rgba(31, 38, 80, 0.06);
   --lgn-edge-hair: rgba(255, 255, 255, 0.6);
   /* Reusable specular rim (top bright kerb + faint bottom shade). */
@@ -98,15 +100,25 @@
   --lgn-seg-track: rgba(118, 118, 128, 0.12);
   --lgn-seg-thumb: #ffffff;
 
-  /* Radii (continuous-ish) — larger than iOS-grouped 14px to match the soft,
-     pillowy glass cards in the references (ref1/ref2 ≈ 20–24px). */
-  --lgn-r-card: 20px;
-  --lgn-r-sheet: 22px;
-  --lgn-r-button: 14px;
-  --lgn-r-tile: 10px;
+  /* Radii — ONE semantic scale (P1-3 / DESIGN-REVIEW §3.2). Previously the
+     shell had scattered magic radii (7/9/10/14/20/22px) so the eye read
+     «random» rounding. The scale below is the single source of truth; every
+     primitive and screen rounds to one of these steps. */
+  --lgn-r-xs: 8px; /* inputs, small chips (date/amount) */
+  --lgn-r-sm: 12px; /* buttons, segment thumb */
+  --lgn-r-md: 16px; /* cards / inset-groups (was 14/20 vraznoboj) */
+  --lgn-r-lg: 20px; /* sheets / large modals */
+  --lgn-r-tile: 8px; /* icon tiles */
   --lgn-r-pill: 999px;
+  /* Legacy aliases → mapped onto the new scale so the (out-of-scope) per-screen
+     modules that still reference these names inherit the unified geometry
+     without edits. Prefer the semantic --lgn-r-{xs,sm,md,lg} names in new code. */
+  --lgn-r-card: var(--lgn-r-md); /* 20px → 16px */
+  --lgn-r-button: var(--lgn-r-sm); /* 14px → 12px */
+  --lgn-r-sheet: var(--lgn-r-lg); /* 22px → 20px */
 
   /* Spacing (4pt grid) */
+  --lgn-gutter: 16px; /* single horizontal inset for ALL top-level containers */
   --lgn-s-2: 2px;
   --lgn-s-4: 4px;
   --lgn-s-8: 8px;
@@ -121,13 +133,27 @@
     -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display',
     'SF Pro', 'Helvetica Neue', system-ui, Arial, sans-serif;
 
+  /* Typographic scale (iOS Text Styles, §3.5). Shorthand `font:` tokens carry
+     weight + size/line-height so callers can `font: var(--lgn-t-body)` and stay
+     on-grid. letter-spacing for large titles is applied separately. */
+  --lgn-t-largeTitle: 700 34px/41px var(--lgn-font);
+  --lgn-t-title2: 700 22px/28px var(--lgn-font);
+  --lgn-t-title3: 600 20px/25px var(--lgn-font);
+  --lgn-t-headline: 600 17px/22px var(--lgn-font);
+  --lgn-t-body: 400 17px/22px var(--lgn-font);
+  --lgn-t-subhead: 400 15px/20px var(--lgn-font);
+  --lgn-t-footnote: 400 13px/18px var(--lgn-font);
+  --lgn-t-caption: 400 12px/16px var(--lgn-font);
+
   /* Elevation — layered: a tight contact shadow (grounds the card) + a wide
      soft ambient shadow (lets it float). Single-blur shadows read «drawn»; the
      pair reads «hovering glass». */
+     pair reads «hovering glass». Softened on the calm neutral field (§3.4) so
+     cards float without the heavy «drawn» drop the old colour mesh masked. */
   --lgn-shadow-card:
-    0 1px 1px rgba(31, 38, 80, 0.05), 0 7px 22px rgba(31, 38, 80, 0.11);
+    0 1px 2px rgba(20, 24, 40, 0.05), 0 6px 16px rgba(20, 24, 40, 0.08);
   --lgn-shadow-float:
-    0 2px 6px rgba(31, 38, 80, 0.12), 0 20px 50px rgba(31, 38, 80, 0.24);
+    0 2px 6px rgba(20, 24, 40, 0.1), 0 16px 40px rgba(20, 24, 40, 0.16);
 }
 
 /* Browsers without backdrop-filter: fall back to opaque cards so text stays

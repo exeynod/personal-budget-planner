@@ -56,9 +56,8 @@
   white-space: nowrap;
 }
 
-/* Row title (uppercase category name) + signed amount */
+/* Row title (category name, sentence case) + signed amount */
 .catName {
-  text-transform: uppercase;
   letter-spacing: 0.2px;
 }
 .amount {

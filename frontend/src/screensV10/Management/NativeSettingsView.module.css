@@ -168,8 +168,8 @@
 .reconcileBtn {
   flex: 0 0 auto;
   border: none;
-  background: rgba(0, 122, 255, 0.12);
-  color: var(--lgn-blue);
+  background: rgba(255, 122, 76, 0.12);
+  color: var(--lgn-accent);
   font-family: var(--lgn-font);
   font-size: 13px;
   font-weight: 600;
@@ -184,5 +184,5 @@
   cursor: default;
 }
 .reconcileBtn:not(:disabled):active {
-  background: rgba(0, 122, 255, 0.22);
+  background: rgba(255, 122, 76, 0.22);
 }

@@ -1,0 +1,70 @@
+/* Liquid Glass v2 — native iOS button primitive (DESIGN-REVIEW §3.7 / P1-2).
+ *
+ * The single native button used across the shell, replacing the leaked
+ * PosterButton in Management. Four variants, all SF-font, sentence case (no
+ * uppercase), rounded to the unified --lgn-r-sm step. Variant styling matches
+ * the conventions already proven in SubscriptionMenuSheet (primary=accent,
+ * secondary=seg-track, destructive=red-tinted, ghost=accent text). */
+
+.btn {
+  appearance: none;
+  -webkit-appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  border: none;
+  border-radius: var(--lgn-r-sm);
+  font: var(--lgn-t-headline);
+  /* headline already carries 600 weight; keep explicit for safety. */
+  font-weight: 600;
+  padding: 14px var(--lgn-s-16);
+  cursor: pointer;
+  text-transform: none; /* never uppercase in native */
+  transition: background 0.15s ease;
+}
+.btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.fullWidth {
+  width: 100%;
+}
+
+/* primary — accent fill / white text */
+.primary {
+  background: var(--lgn-accent);
+  color: #fff;
+}
+.primary:active:not(:disabled) {
+  background: var(--lgn-accent-press);
+}
+
+/* secondary — neutral segment-track fill / ink text */
+.secondary {
+  background: var(--lgn-seg-track);
+  color: var(--lgn-ink);
+}
+.secondary:active:not(:disabled) {
+  background: var(--lgn-card-press);
+}
+
+/* destructive — red-tinted fill / red text (consistent with
+   SubscriptionMenuSheet.destructive — NOT coral poster, NOT solid red). */
+.destructive {
+  background: rgba(255, 59, 48, 0.12);
+  color: var(--lgn-red);
+}
+.destructive:active:not(:disabled) {
+  background: rgba(255, 59, 48, 0.22);
+}
+
+/* ghost — transparent / accent text */
+.ghost {
+  background: transparent;
+  color: var(--lgn-accent);
+}
+.ghost:active:not(:disabled) {
+  background: var(--lgn-seg-track);
+}

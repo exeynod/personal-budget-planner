@@ -33,9 +33,8 @@
   text-align: right;
 }
 
-/* Row: uppercase name; muted when paused */
+/* Row: name (sentence case); muted when paused */
 .subName {
-  text-transform: uppercase;
   letter-spacing: 0.2px;
 }
 .subNameInactive {

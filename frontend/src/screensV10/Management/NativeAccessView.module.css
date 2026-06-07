@@ -67,8 +67,8 @@
   flex: 0 0 auto;
   padding: 3px 9px;
   border-radius: var(--lgn-r-pill);
-  background: rgba(255, 122, 76, 0.16);
-  color: var(--lgn-accent);
+  background: var(--lgn-seg-track);
+  color: var(--lgn-ink-2);
   font-family: var(--lgn-font);
   font-size: 11px;
   font-weight: 700;

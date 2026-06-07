@@ -194,7 +194,7 @@ function NativeTransactionsViewInner(props: NativeTransactionsViewProps) {
                 if (tx.description) {
                   subtitle = tx.description;
                 } else if (acc) {
-                  const bank = (acc.bank ?? '').toUpperCase();
+                  const bank = acc.bank ?? '';
                   const mask = acc.mask ? ` ${acc.mask}` : '';
                   subtitle = `${bank}${mask}`.trim() || catName;
                 } else {
@@ -225,11 +225,7 @@ function NativeTransactionsViewInner(props: NativeTransactionsViewProps) {
                     key={tx.id}
                     testId={`native-tx-row-${tx.id}`}
                     leading={<CategoryIcon name={catName} id={cat?.id} />}
-                    title={
-                      <span className={styles.catName}>
-                        {catName.toUpperCase()}
-                      </span>
-                    }
+                    title={<span className={styles.catName}>{catName}</span>}
                     subtitle={subtitle}
                     trailing={
                       <span className={`${styles.amount} ${amountClass}`}>

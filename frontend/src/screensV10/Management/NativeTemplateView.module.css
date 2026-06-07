@@ -81,7 +81,7 @@
   font-family: var(--lgn-font);
   font-size: 14px;
   font-weight: 600;
-  color: var(--lgn-blue);
+  color: var(--lgn-accent);
   cursor: pointer;
 }
 .detailBody {

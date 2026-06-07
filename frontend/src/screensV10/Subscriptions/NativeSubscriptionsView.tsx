@@ -106,7 +106,7 @@ function NativeSubscriptionsViewInner(props: NativeSubscriptionsViewProps) {
                       !s.is_active ? styles.subNameInactive : ''
                     }`}
                   >
-                    {s.name.toUpperCase()}
+                    {s.name}
                   </span>
                 }
                 subtitle={subtitle}

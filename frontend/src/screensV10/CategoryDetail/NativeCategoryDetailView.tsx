@@ -202,9 +202,7 @@ function NativeCategoryDetailViewInner(props: NativeCategoryDetailViewProps) {
                       <CategoryIcon name={category.name} id={category.id} />
                     }
                     title={
-                      <span className={styles.catName}>
-                        {category.name.toUpperCase()}
-                      </span>
+                      <span className={styles.catName}>{category.name}</span>
                     }
                     subtitle={
                       tx.description ?? formatTimeHM(new Date(tx.created_at))
