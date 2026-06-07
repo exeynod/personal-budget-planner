@@ -78,7 +78,7 @@ dev-Bearer на iOS). Изоляция данных — PostgreSQL RLS по `use
 
 ```bash
 # Полный стек с dev-override (DEV_MODE=true, console-логи, api на :8000)
-docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build db api
+docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.dev.yml up -d --build db api
 # api сам прогоняет alembic upgrade head на старте, затем dev_seed
 curl http://localhost:8000/healthz          # {"status":"ok"}
 open http://localhost:8000/api/docs         # Swagger (только DEV_MODE)

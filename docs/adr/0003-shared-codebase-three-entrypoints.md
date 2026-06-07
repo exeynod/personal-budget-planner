@@ -2,8 +2,8 @@
 
 - **Статус**: Accepted
 - **Дата**: 2026-06-07
-- **Контекст**: `Dockerfile` (build-arg `SERVICE`), `main_api.py` / `main_bot.py`
-  / `main_worker.py`, `docker-compose.yml`, `app/core/settings.py::SERVICE`
+- **Контекст**: `deploy/Dockerfile` (build-arg `SERVICE`), `main_api.py` / `main_bot.py`
+  / `main_worker.py`, `deploy/docker-compose.yml`, `app/core/settings.py::SERVICE`
 
 ## Контекст и проблема
 
@@ -31,8 +31,8 @@
 
 Весь домен — в `app/` (модели, сервисы, core, ai, db). Три тонких файла
 `main_api.py` / `main_bot.py` / `main_worker.py` — только wiring точки входа.
-Один `Dockerfile` (build-arg + env `SERVICE`); `CMD` ветвится по `SERVICE`
-(`api`→`entrypoint.sh`, `bot`→`main_bot.py`, `worker`→`main_worker.py`).
+Один `deploy/Dockerfile` (build-arg + env `SERVICE`); `CMD` ветвится по `SERVICE`
+(`api`→`deploy/entrypoint.sh`, `bot`→`main_bot.py`, `worker`→`main_worker.py`).
 Слои deps + `app/` кэшируются и переиспользуются всеми тремя сервисами.
 `validate_production_settings` смотрит на `SERVICE`, чтобы требовать AI-секрет
 только у api.
@@ -56,5 +56,5 @@
 
 ## Связи
 
-- Реализовано в `Dockerfile`, `docker-compose.yml`, `main_*.py`.
+- Реализовано в `deploy/Dockerfile`, `deploy/docker-compose.yml`, `main_*.py`.
 - Документация: docs/services/{api,bot,worker}.md, CLAUDE.md (Architecture).

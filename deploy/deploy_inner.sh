@@ -16,7 +16,7 @@
 set -euo pipefail
 
 REPO=/home/exy/personal-budget-planner
-COMPOSE=(docker compose -f "$REPO/docker-compose.yml" -f "$REPO/docker-compose.cloudflare.yml")
+COMPOSE=(docker compose -f "$REPO/deploy/docker-compose.yml" -f "$REPO/deploy/docker-compose.cloudflare.yml")
 LOG_PREFIX="[deploy $(date -u +%FT%TZ)]"
 
 log() { echo "$LOG_PREFIX $*"; }

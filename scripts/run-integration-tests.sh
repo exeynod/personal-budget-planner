@@ -27,9 +27,9 @@ REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$REPO_ROOT"
 
 COMPOSE=(docker compose
-  -f docker-compose.yml
-  -f docker-compose.dev.yml
-  -f docker-compose.test.yml
+  -f deploy/docker-compose.yml
+  -f deploy/docker-compose.dev.yml
+  -f deploy/docker-compose.test.yml
 )
 
 cleanup() {

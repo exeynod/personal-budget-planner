@@ -1,9 +1,9 @@
 # Single Dockerfile for api/bot/worker containers (D-03).
 #
-# Build:
-#   docker build --build-arg SERVICE=api    -t budget-api    .
-#   docker build --build-arg SERVICE=bot    -t budget-bot    .
-#   docker build --build-arg SERVICE=worker -t budget-worker .
+# Build (context = repo root, this Dockerfile lives under deploy/):
+#   docker build -f deploy/Dockerfile --build-arg SERVICE=api    -t budget-api    .
+#   docker build -f deploy/Dockerfile --build-arg SERVICE=bot    -t budget-bot    .
+#   docker build -f deploy/Dockerfile --build-arg SERVICE=worker -t budget-worker .
 #
 # Source: 01-RESEARCH.md Pattern 8 + 01-CONTEXT.md D-01 (uv) and D-03 (build-arg SERVICE).
 # All three Python services share the same image layers (deps + app/) and only
@@ -42,7 +42,8 @@ COPY docs/legal/ ./docs/legal/
 
 # Copy entrypoints and migration script.
 COPY main_api.py main_bot.py main_worker.py ./
-COPY entrypoint.sh ./
+# entrypoint.sh lives under deploy/ in the repo; build context is the repo root.
+COPY deploy/entrypoint.sh ./
 RUN chmod +x entrypoint.sh
 
 # Default CMD selects service based on SERVICE build-arg (shell form so the

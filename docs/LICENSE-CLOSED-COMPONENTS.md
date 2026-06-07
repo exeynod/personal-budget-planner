@@ -26,6 +26,7 @@ under the open-core package and remain under "all rights reserved":
 ## Open-Core Components (PolyForm Shield)
 
 Everything else, including:
+
 - `app/db/models.py` (без AI-specific models)
 - `app/db/session.py` + RLS infra
 - `app/services/onboarding_v10.py` (без AI)
@@ -35,7 +36,7 @@ Everything else, including:
 - `app/api/routes/categories.py`, `accounts.py`, `actual.py`, `subscriptions.py`, `legal.py`
 - `app/worker/` (cron jobs)
 - `bot/` — Telegram bot commands
-- `docker-compose.yml` + Dockerfiles
+- `deploy/docker-compose.yml` + Dockerfiles
 - `alembic/` migrations
 - `docs/`
 

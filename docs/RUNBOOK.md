@@ -16,9 +16,9 @@
             └──────────────────────────────────────────────────────────┘
 ```
 
-Все make-таргеты — `make help`. Дев-стек поднимается через `docker-compose.yml`
+Все make-таргеты — `make help`. Дев-стек поднимается через `deploy/docker-compose.yml`
 
-- `docker-compose.dev.yml` (override авто-мержится; `DEV_MODE=true` обходит HMAC,
+- `deploy/docker-compose.dev.yml` (передаётся явным `-f`; `DEV_MODE=true` обходит HMAC,
   api публикуется на `:8000`).
 
 ---
@@ -26,7 +26,7 @@
 ## Сценарий 1 — поднять dev-стек (compose: db + api + bot + worker + caddy)
 
 ```bash
-make up            # docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+make up            # docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.dev.yml up -d
 make ps            # статус сервисов
 make logs          # docker compose logs -f --tail=100
 ```
@@ -129,7 +129,7 @@ make logs                               # смотреть, что делает 
 docker compose logs -f worker
 
 # Триггернуть джобу вручную (вне расписания) — внутри контейнера worker:
-docker compose -f docker-compose.yml -f docker-compose.dev.yml \
+docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.dev.yml \
   exec -T worker /app/.venv/bin/python -c \
   "import asyncio; from app.worker.jobs.notify_subscriptions import run; asyncio.run(run())"
 ```

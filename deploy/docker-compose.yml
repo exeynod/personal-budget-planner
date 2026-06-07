@@ -18,7 +18,8 @@
 #     directly via http://api:8000 inside budget_net.
 #
 # Dev overrides (DEV_MODE=true, port 8000 published, console logs) live in
-# docker-compose.override.yml and are merged automatically by `docker compose up`.
+# docker-compose.dev.yml — pass it explicitly with -f (the Makefile `up`
+# target does: docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.dev.yml up).
 
 version: "3.9"
 
@@ -30,13 +31,12 @@ networks:
 
 volumes:
   # Persistent volumes — survive `docker compose down` (only `down -v` wipes).
-  postgres_data: {}      # PG data dir
-  caddy_data: {}         # Let's Encrypt certs + Caddy auto-HTTPS state (Pitfall 4)
-  caddy_config: {}       # Caddy runtime config snapshot
-  frontend_dist: {}      # SPA dist (populated by `frontend` init-container)
+  postgres_data: {} # PG data dir
+  caddy_data: {} # Let's Encrypt certs + Caddy auto-HTTPS state (Pitfall 4)
+  caddy_config: {} # Caddy runtime config snapshot
+  frontend_dist: {} # SPA dist (populated by `frontend` init-container)
 
 services:
-
   # ----------------------------------------------------------------------
   # PostgreSQL 16
   # ----------------------------------------------------------------------
@@ -71,8 +71,8 @@ services:
   # exits. Caddy mounts the same volume read-only at /srv/dist.
   frontend:
     build:
-      context: .
-      dockerfile: Dockerfile.frontend
+      context: ..
+      dockerfile: deploy/Dockerfile.frontend
       target: exporter
     volumes:
       - frontend_dist:/export
@@ -91,9 +91,9 @@ services:
       - "443:443"
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy_data:/data            # cert store — must persist (Pitfall 4)
-      - caddy_config:/config        # Caddy runtime config
-      - frontend_dist:/srv/dist:ro  # SPA dist served as static files
+      - caddy_data:/data # cert store — must persist (Pitfall 4)
+      - caddy_config:/config # Caddy runtime config
+      - frontend_dist:/srv/dist:ro # SPA dist served as static files
     networks:
       - budget_net
     environment:
@@ -110,8 +110,8 @@ services:
   # ----------------------------------------------------------------------
   api:
     build:
-      context: .
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: deploy/Dockerfile
       args:
         SERVICE: api
     restart: unless-stopped
@@ -130,7 +130,7 @@ services:
       INTERNAL_TOKEN: ${INTERNAL_TOKEN}
       PUBLIC_DOMAIN: ${PUBLIC_DOMAIN}
       API_BASE_URL: http://api:8000
-      DEV_MODE: "false"           # T-devmode mitigation: prod default is OFF
+      DEV_MODE: "false" # T-devmode mitigation: prod default is OFF
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       LOG_FORMAT: "json"
       APP_TZ: "Europe/Moscow"
@@ -150,7 +150,7 @@ services:
       # один раз в response, дальше БД хранит только sha256-hash.
       DEV_AUTH_SECRET: ${DEV_AUTH_SECRET:-}
     labels:
-      monitoring.alerts: "true"   # picked up by /home/exy/dockerlog2tg sidecar
+      monitoring.alerts: "true" # picked up by /home/exy/dockerlog2tg sidecar
     networks:
       - budget_net
     # IMPORTANT: no `ports:` in production — api is reachable only via Caddy
@@ -161,7 +161,11 @@ services:
     healthcheck:
       # /healthz is implemented by main_api.py (INF-05). Use wget (BusyBox)
       # so we don't need to add curl to the python:3.12-slim image.
-      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/healthz', timeout=2).status==200 else 1)\""]
+      test:
+        [
+          "CMD-SHELL",
+          'python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen(''http://localhost:8000/healthz'', timeout=2).status==200 else 1)"',
+        ]
       interval: 15s
       timeout: 5s
       retries: 5
@@ -172,8 +176,8 @@ services:
   # ----------------------------------------------------------------------
   bot:
     build:
-      context: .
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: deploy/Dockerfile
       args:
         SERVICE: bot
     restart: unless-stopped
@@ -211,8 +215,8 @@ services:
   # ----------------------------------------------------------------------
   worker:
     build:
-      context: .
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: deploy/Dockerfile
       args:
         SERVICE: worker
     restart: unless-stopped

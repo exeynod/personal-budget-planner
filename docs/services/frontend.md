@@ -37,7 +37,7 @@ npm run dev        # vite на :5173, proxy /api → http://localhost:8000
 Нужен поднятый api на :8000 (`docker compose ... up -d db api`). В `DEV_MODE`
 бэкенд авто-логинит owner — отдельный auth на фронте не нужен.
 
-**Production:** SPA собирается через `Dockerfile.frontend` (stage `exporter`)
+**Production:** SPA собирается через `deploy/Dockerfile.frontend` (stage `exporter`)
 init-контейнером `frontend` — кладёт `dist/` в named volume `frontend_dist`,
 который Caddy монтирует read-only в `/srv/dist`. Деплой — push в `master` → CI.
 

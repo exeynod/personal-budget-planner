@@ -56,7 +56,7 @@ hard delete. Деньги — `BIGINT` копейки (`*_cents`). Бизнес-
 только из `budget_net` (api/bot/worker).
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d db
+docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.dev.yml up -d db
 # Миграции применяет api-контейнер на старте (entrypoint.sh: alembic upgrade head)
 ```
 

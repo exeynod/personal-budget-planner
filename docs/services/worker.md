@@ -51,7 +51,7 @@ unlock); `notify_subscriptions` — transaction-scoped
 ## Как раскатать
 
 **Локально:** поднимается со стеком
-(`docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build worker`).
+(`docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.dev.yml up -d --build worker`).
 Прогнать джобу вручную из контейнера, не дожидаясь cron:
 
 ```bash

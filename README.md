@@ -41,6 +41,7 @@ docker compose up -d
 ## Hosted version
 
 Try Pro tier:
+
 - [tg-budget-planner.ru](https://tg-budget-planner.ru) (placeholder URL)
 - Pro: 299 ₽/мес или 1990 ₽/год.
 - 14-day free trial — no credit card required.
@@ -48,7 +49,7 @@ Try Pro tier:
 ## License
 
 PolyForm Shield 1.0.0 — open for self-hosting, **noncompete clause** prevents competing SaaS.
-See `LICENSE` + `LICENSE-CLOSED-COMPONENTS.md` for details.
+See `LICENSE` + `docs/LICENSE-CLOSED-COMPONENTS.md` for details.
 
 ## Contributing
 

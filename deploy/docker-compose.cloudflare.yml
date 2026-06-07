@@ -2,7 +2,7 @@
 #
 # Use instead of Let's Encrypt when the server is behind Cloudflare:
 #
-#     docker compose -f docker-compose.yml -f docker-compose.cloudflare.yml up -d --build
+#     docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.cloudflare.yml up -d --build
 #
 # What this override does:
 #   1. Caddy switches to HTTP-only mode (Caddyfile.dev) — Cloudflare terminates TLS.
@@ -20,16 +20,15 @@
 version: "3.9"
 
 services:
-
   # Override Caddy: HTTP-only on 127.0.0.1:8087, no Let's Encrypt.
   caddy:
     # !override replaces the base file's ports list entirely (default merge is
     # union, which would leave 0.0.0.0:80/443 open and break the trust boundary
     # — Cloudflare Tunnel mode must NOT expose Caddy directly to the Internet).
     ports: !override
-      - "127.0.0.1:8087:80"   # Cloudflare Tunnel calls this; closed to the Internet
+      - "127.0.0.1:8087:80" # Cloudflare Tunnel calls this; closed to the Internet
     volumes:
-      - ./Caddyfile.cloudflare:/etc/caddy/Caddyfile:ro   # HTTP-only, handle{} blocks
+      - ./Caddyfile.cloudflare:/etc/caddy/Caddyfile:ro # HTTP-only, handle{} blocks
       - caddy_data:/data
       - caddy_config:/config
       - frontend_dist:/srv/dist:ro

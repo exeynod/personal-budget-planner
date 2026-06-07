@@ -4,7 +4,7 @@ Thanks for considering contributing to TG Budget Planner open-core.
 
 ## What's open для contributions
 
-- **Open-core components** только. См. `OPEN-CORE-MANIFEST.md`.
+- **Open-core components** только. См. `docs/OPEN-CORE-MANIFEST.md`.
 - AI/iOS/Maximal Poster components — proprietary, не accept PRs.
 
 ## How to contribute

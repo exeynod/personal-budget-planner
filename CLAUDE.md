@@ -55,7 +55,7 @@ docs/                HLD · RUNBOOK · DEPLOY · adr · services/
 
 | Сервис   | Точка входа      | Назначение                                              | Доки                                               |
 | -------- | ---------------- | ------------------------------------------------------- | -------------------------------------------------- |
-| `caddy`  | —                | TLS + reverse proxy + отдача SPA-статики                | `Caddyfile*`, `docs/DEPLOY.md`                     |
+| `caddy`  | —                | TLS + reverse proxy + отдача SPA-статики                | `deploy/Caddyfile*`, `docs/DEPLOY.md`              |
 | `api`    | `main_api.py`    | FastAPI REST + валидация TG initData                    | [docs/services/api.md](docs/services/api.md)       |
 | `bot`    | `main_bot.py`    | aiogram — команды + push-отправка                       | [docs/services/bot.md](docs/services/bot.md)       |
 | `worker` | `main_worker.py` | APScheduler (notify 09:00 / charge 00:05 / close 00:01) | [docs/services/worker.md](docs/services/worker.md) |

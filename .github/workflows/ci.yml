@@ -64,9 +64,9 @@ jobs:
       # Tests rely on the DEV_MODE auto-OWNER bypass for endpoints that
       # don't carry signed initData (test_settings, test_security_probes,
       # auth_headers fixture path). Production override remains "false" via
-      # docker-compose.yml; CI gets `true` to mirror the local docker
-      # `compose -f docker-compose.dev.yml` default the suite was authored
-      # against.
+      # deploy/docker-compose.yml; CI gets `true` to mirror the local docker
+      # `compose -f deploy/docker-compose.dev.yml` default the suite was
+      # authored against.
       DEV_MODE: "true"
 
     steps:

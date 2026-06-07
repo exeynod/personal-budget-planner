@@ -1,7 +1,8 @@
-# Dev overrides — automatically merged with docker-compose.yml on
-# `docker compose up`. To run a strict-prod-like config locally, use:
-#   docker compose -f docker-compose.yml up
-# (the explicit -f bypasses override loading).
+# Dev overrides — pass explicitly alongside the base file (the Makefile `up`
+# target and scripts/run-integration-tests.sh both do this):
+#   docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.dev.yml up
+# To run a strict-prod-like config locally, omit this override file:
+#   docker compose -f deploy/docker-compose.yml up
 #
 # Phase 12: dev stack inherits production env (DATABASE_URL/ADMIN_DATABASE_URL/
 # BUDGET_APP_PASSWORD) from base + .env. DEV_MODE=true bypasses HMAC; runtime
@@ -19,8 +20,8 @@ version: "3.9"
 services:
   api:
     environment:
-      DEV_MODE: "true"        # bypass HMAC-SHA256, inject mock owner
-      LOG_FORMAT: "console"   # human-readable in dev (D-13)
+      DEV_MODE: "true" # bypass HMAC-SHA256, inject mock owner
+      LOG_FORMAT: "console" # human-readable in dev (D-13)
       LOG_LEVEL: "DEBUG"
     ports:
       # Publish api on host :8000 so developers can curl directly without

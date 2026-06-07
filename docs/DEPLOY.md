@@ -35,11 +35,11 @@ git push -u origin main
 
 ### 1.3 Что проверяет CI
 
-| Джоба | Что делает |
-|---|---|
-| `backend` | PostgreSQL 16 + Alembic migrate + pytest |
-| `frontend-build` | `tsc` + `vite build` |
-| `frontend-e2e` | Playwright в Chromium |
+| Джоба            | Что делает                               |
+| ---------------- | ---------------------------------------- |
+| `backend`        | PostgreSQL 16 + Alembic migrate + pytest |
+| `frontend-build` | `tsc` + `vite build`                     |
+| `frontend-e2e`   | Playwright в Chromium                    |
 
 Все три джобы параллельны. Статус — в `Actions` вкладке репозитория.
 
@@ -136,16 +136,16 @@ cloudflared tunnel --url http://localhost:8087
 
 ### 2.3 Caddy — HTTP-режим для Cloudflare
 
-Cloudflare сам терминирует TLS, поэтому Caddy нужен в HTTP-режиме. Переопределения уже прописаны в `docker-compose.cloudflare.yml`:
+Cloudflare сам терминирует TLS, поэтому Caddy нужен в HTTP-режиме. Переопределения уже прописаны в `deploy/docker-compose.cloudflare.yml`:
 
-- монтирует `Caddyfile.cloudflare` (HTTP-only, без Let's Encrypt; использует `handle {}`-блоки чтобы `/api/v1/internal/*` корректно отвечали 403, а `/api/*` проксировались в `api:8000` — без этого Caddy default directive order ломает роутинг и отдаёт SPA на API-путях)
+- монтирует `deploy/Caddyfile.cloudflare` (HTTP-only, без Let's Encrypt; использует `handle {}`-блоки чтобы `/api/v1/internal/*` корректно отвечали 403, а `/api/*` проксировались в `api:8000` — без этого Caddy default directive order ломает роутинг и отдаёт SPA на API-путях)
 - через `ports: !override` ЗАМЕНЯЕТ список портов из базового compose, оставляя только `127.0.0.1:8087:80` — `0.0.0.0:80/443` наружу не публикуются (trust boundary: к Caddy достукается ТОЛЬКО cloudflared изнутри docker-сети)
 
 Ничего редактировать вручную не нужно.
 
 ### 2.4 cloudflared как docker-сервис
 
-`cloudflared` и переопределение Caddy уже описаны в `docker-compose.cloudflare.yml` — ничего не нужно добавлять вручную.
+`cloudflared` и переопределение Caddy уже описаны в `deploy/docker-compose.cloudflare.yml` — ничего не нужно добавлять вручную.
 
 Получить токен и записать в `.env`:
 
@@ -180,10 +180,10 @@ cd /opt/tg-budget-planner
 cp .env.example .env && nano .env
 
 # Cloudflare Tunnel режим (рекомендуется):
-docker compose -f docker-compose.yml -f docker-compose.cloudflare.yml up -d --build
+docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.cloudflare.yml up -d --build
 
 # Let's Encrypt режим (требует открытых портов 80/443 и DNS, направленного на VPS):
-# docker compose -f docker-compose.yml up -d --build
+# docker compose -f deploy/docker-compose.yml up -d --build
 
 # Проверить что всё поднялось
 docker compose ps
@@ -197,7 +197,7 @@ docker compose logs -f cloudflared
 **Если cloudflared логи показывают `Unauthorized: Tunnel not found`** — значит токен в `.env` не соответствует туннелю в дашборде (туннель пересоздавали или токен от другого). Возьми актуальный из дашборда (Tunnels → твой туннель → Connectors → Install connector → Docker, в команде после `--token`), обнови `CLOUDFLARE_TUNNEL_TOKEN` в `.env`, перезапусти cloudflared:
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.cloudflare.yml up -d --force-recreate cloudflared
+docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.cloudflare.yml up -d --force-recreate cloudflared
 ```
 
 **DPI в РФ-сегменте.** Cloudflare-блоки (104.16.0.0/13 и др.) активно режутся российскими провайдерами на длинных TLS-стримах. Без VPN сайт может: открываться частично, обрывать загрузку JS/шрифтов на 50–200 КБ, выдавать `ERR_NETWORK_CHANGED` / `kCFURLErrorNetworkConnectionLost`. Решение: VPN на стороне клиента (например, v2RayTun + VLESS), в proxy-list добавить `domain:exypersonal.ru` или направлять через прокси всё, что не в `geoip:ru`. Telegram-клиент на телефоне обычно не страдает — он сам ходит через свой шлюз.
@@ -214,7 +214,7 @@ URL: https://budget.yourdomain.com
 ```bash
 cd /opt/tg-budget-planner
 git pull
-docker compose -f docker-compose.yml -f docker-compose.cloudflare.yml up -d --build
+docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.cloudflare.yml up -d --build
 ```
 
 `api` накатывает миграции автоматически при перезапуске.
@@ -224,14 +224,15 @@ docker compose -f docker-compose.yml -f docker-compose.cloudflare.yml up -d --bu
 Для разработки на ноутбуке (HMAC-валидация initData отключена, мок-владелец, api опубликован на `localhost:8000`):
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.dev.yml up
 ```
 
-`docker-compose.dev.yml` нужно подключать **явно через `-f`** — он не автоматически мерджится с `docker-compose.yml` (раньше был `docker-compose.override.yml`, который Compose всасывал на каждом `up` и рисковал утечкой `DEV_MODE=true` в прод).
+`deploy/docker-compose.dev.yml` нужно подключать **явно через `-f`** — он не автоматически мерджится с `deploy/docker-compose.yml` (раньше был `docker-compose.override.yml`, который Compose всасывал на каждом `up` и рисковал утечкой `DEV_MODE=true` в прод).
 
 В dev-режиме:
+
 - `api`: `DEV_MODE=true` → принимает запросы без валидного initData, инжектит мок-owner
-- `caddy`: монтирует `Caddyfile.dev` (HTTP-only, без TLS)
+- `caddy`: монтирует `deploy/Caddyfile.dev` (HTTP-only, без TLS)
 - логи: `LOG_FORMAT=console`, `LOG_LEVEL=DEBUG`
 
 Тестировать API напрямую (минуя Caddy): `curl http://localhost:8000/api/v1/me`.
@@ -244,13 +245,13 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml up
 # Первый деплой (Cloudflare Tunnel режим)
 git clone … /opt/tg-budget-planner && cd /opt/tg-budget-planner
 cp .env.example .env && nano .env
-docker compose -f docker-compose.yml -f docker-compose.cloudflare.yml up -d --build
+docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.cloudflare.yml up -d --build
 
 # Обновление
-git pull && docker compose -f docker-compose.yml -f docker-compose.cloudflare.yml up -d --build
+git pull && docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.cloudflare.yml up -d --build
 
 # Локальный dev (DEV_MODE=true, api на :8000)
-docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.dev.yml up
 
 # Логи
 docker compose logs -f api bot worker cloudflared
@@ -262,5 +263,5 @@ docker compose restart api
 docker compose logs cloudflared | tail -20
 
 # Cloudflared "Unauthorized: Tunnel not found" → обновить токен в .env, потом:
-docker compose -f docker-compose.yml -f docker-compose.cloudflare.yml up -d --force-recreate cloudflared
+docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.cloudflare.yml up -d --force-recreate cloudflared
 ```

@@ -22,11 +22,12 @@ open BudgetPlanner.xcodeproj   # открывает в Xcode
 
 ## Backend prerequisites
 
-1. Backend запущен (`docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d`).
+1. Backend запущен (`docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.dev.yml up -d`).
 2. В корневом `.env` выставлен `DEV_AUTH_SECRET=<your-secret>` (это значение ты вводишь в первом экране приложения).
 3. Если правил `.env` — пересобрать api: `docker compose up -d --build api`.
 
 Smoke-проверка backend:
+
 ```bash
 curl -X POST http://localhost:8000/api/v1/auth/dev-exchange \
   -H "Content-Type: application/json" \
@@ -46,6 +47,7 @@ open BudgetPlanner.xcodeproj
 ```
 
 Альтернатива через CLI без открытия Xcode:
+
 ```bash
 xcodebuild -scheme BudgetPlanner \
   -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
@@ -81,6 +83,7 @@ open -a Simulator
 ## Перегенерация при добавлении файлов
 
 При добавлении новых `.swift` файлов в `BudgetPlanner/` (Phase 18-21):
+
 ```bash
 cd ios && xcodegen generate
 # → новые файлы автоматически попадут в target
