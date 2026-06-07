@@ -66,25 +66,20 @@ for (const theme of THEMES) {
     await page.waitForTimeout(300);
     await shot(page, theme, '04-category-detail');
 
-    // Savings (КОПИЛКА tab)
-    await page.goto('/');
-    await expect(page.getByText(/Дневной темп/)).toBeVisible({ timeout: 8000 });
-    await page.getByRole('tab', { name: /КОПИЛКА/ }).click();
-    await page.waitForTimeout(400);
-    await shot(page, theme, '05-savings');
+    // (Savings/КОПИЛКА removed in the v1.1 planning rework — tab no longer exists.)
 
     // AI tab
     await page.goto('/');
     await expect(page.getByText(/Дневной темп/)).toBeVisible({ timeout: 8000 });
     await page.getByRole('tab', { name: /AI/ }).click();
     await page.waitForTimeout(400);
-    await shot(page, theme, '06-ai');
+    await shot(page, theme, '05-ai');
 
     // Management hub + Settings (УПР. tab)
     await page.goto('/');
     await expect(page.getByText(/Дневной темп/)).toBeVisible({ timeout: 8000 });
     await page.getByRole('tab', { name: /УПР/ }).click();
     await page.waitForTimeout(400);
-    await shot(page, theme, '07-management');
+    await shot(page, theme, '06-management');
   });
 }
