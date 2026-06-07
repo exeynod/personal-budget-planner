@@ -2,7 +2,6 @@
 
 # TG Budget Planner
 
-
 <!-- CODEAGENTSWARM PROJECT CONFIG START - DO NOT EDIT -->
 
 ## Project Configuration
@@ -15,52 +14,111 @@ _For complete CodeAgentSwarm instructions, see the global CLAUDE.md file at ~/.c
 
 <!-- CODEAGENTSWARM PROJECT CONFIG END -->
 
-Личный Telegram Mini App для планирования и ведения месячного бюджета — перенос Google-таблицы заказчика (план/факт по категориям, шаблон плана, подписки с напоминаниями) в TG-приложение с быстрым вводом трат через Mini App или бот-команды. Авторизация по `tg_user_id`; единственный owner — через `OWNER_TG_ID`. Технически система **multi-tenant via RLS** (см. ниже R9 / ARCH-A7): per-row `user_id`, PostgreSQL Row-Level Security и роли `owner`/`member` уже активны.
+Личный Telegram Mini App для планирования и ведения месячного бюджета (план/факт по
+категориям, шаблон плана, подписки с напоминаниями). Авторизация по `tg_user_id`,
+единственный owner — `OWNER_TG_ID`. Технически **multi-tenant via RLS** (per-row
+`user_id` + PostgreSQL Row-Level Security + роли `owner`/`member`).
 
-**Core Value:** В один тап записать факт-трату и видеть актуальную дельту план/факт по категориям бюджета — быстрее, чем открывать Google-таблицу.
+**Core value:** в один тап записать факт-трату и видеть актуальную дельту план/факт.
 
-See `.planning/PROJECT.md` for full project context.
+> Этот файл — **карта, не энциклопедия**. Глубина — в `docs/HLD.md`, `docs/RUNBOOK.md`,
+> per-service доках (`docs/services/*.md`), `docs/adr/`, `.planning/`. Читай их по нужде.
 
-## Technology Stack
+## Стек
 
-- **Backend**: Python 3.12, FastAPI, SQLAlchemy 2.x (async), Pydantic v2
-- **Bot**: aiogram 3.x (отдельный контейнер)
-- **Frontend**: React 18 + Vite + TypeScript + `@telegram-apps/sdk-react`
-- **DB**: PostgreSQL 16 + Alembic
-- **Scheduler**: APScheduler (отдельный контейнер `worker`)
-- **Hosting**: VPS + docker-compose (5 сервисов: caddy, api, bot, worker, db) + Caddy с Let's Encrypt
-- **TZ**: расчёты периодов и шедулер `Europe/Moscow`, БД UTC
-- **Money**: BIGINT копейки
+Python 3.12 · FastAPI · SQLAlchemy 2.x async · Pydantic v2 · aiogram 3 · APScheduler ·
+React 18 + Vite + TS (`@telegram-apps/sdk-react`) · PostgreSQL 16 (+pgvector) + Alembic ·
+VPS + docker-compose (5 сервисов) + Caddy/Let's Encrypt.
 
-See `docs/HLD.md` for full architecture and API contract.
+## Layout
 
-## Conventions
+```
+app/                 общий Python-codebase (3 точки входа ниже шарят его)
+  api/               FastAPI REST + валидация TG initData
+  bot/               aiogram — команды + push
+  worker/jobs/       APScheduler-джобы (notify/charge/close_period/purge)
+  services/          доменная логика (план/факт, категории, подписки, онбординг)
+  core/              config, security (HMAC initData), RLS set_tenant_scope
+  db/                models.py · base · session
+  ai/                категоризация трат (OpenAI + pgvector)
+main_api.py · main_bot.py · main_worker.py   точки входа (разные процессы/контейнеры)
+frontend/            React+Vite SPA (тема liquid_glass; e2e в tests/e2e/)
+alembic/versions/    миграции — ЕДИНСТВЕННЫЙ источник истины схемы БД
+contract/            openapi.json (дамп из живого api) → web schema.ts + iOS DTO
+ios/                 нативный iOS-клиент (XcodeGen)
+tests/               pytest (на живом PG; RLS-роль budget_app)
+scripts/             run-integration-tests · check-no-manual-ddl · ci-local · seed_extra_dev
+docs/                HLD · RUNBOOK · DEPLOY · adr · services/
+```
 
-- Деньги хранятся как `BIGINT` (`*_cents`), на UI — рубли. Никаких `float`.
-- Бизнес-даты — `DATE`, аудит-времена — `TIMESTAMPTZ` UTC.
-- Soft delete только для `category` (через `is_archived`). Транзакции и подписки — hard delete.
-- **Multi-tenant via RLS (R9 / ARCH-A7):** не single-tenant. Доменные таблицы несут `user_id`; PostgreSQL Row-Level Security изолирует строки (`user_id = current_setting('app.current_user_id')::bigint`, alembic 0008); роли `owner`/`member` (`UserRole`); каждый запрос вызывает `set_tenant_scope` → `SET LOCAL app.current_user_id` (transaction-scoped, сбрасывается на COMMIT/ROLLBACK). Это security-актив, а не carrying cost. `admin_audit_log` намеренно вне RLS (owner-only под `budget_admin`).
-- Знак дельты: «положительная = хорошо». Расходы `План−Факт`, доходы `Факт−План`.
-- Period расчёт: `period_for(date, cycle_start_day) -> (period_start, period_end)`.
-- Telegram `initData` валидируется HMAC-SHA256 на каждом запросе, `auth_date` ≤ 24ч.
-- Internal API endpoints `/api/v1/internal/*` защищены `X-Internal-Token`, не проксируются Caddy наружу.
-- Шедулер-джобы оборачиваются в `pg_try_advisory_lock` для исключения гонок.
+## Сервисы (docker-compose)
 
-## Architecture
+| Сервис   | Точка входа      | Назначение                                              | Доки                                               |
+| -------- | ---------------- | ------------------------------------------------------- | -------------------------------------------------- |
+| `caddy`  | —                | TLS + reverse proxy + отдача SPA-статики                | `Caddyfile*`, `docs/DEPLOY.md`                     |
+| `api`    | `main_api.py`    | FastAPI REST + валидация TG initData                    | [docs/services/api.md](docs/services/api.md)       |
+| `bot`    | `main_bot.py`    | aiogram — команды + push-отправка                       | [docs/services/bot.md](docs/services/bot.md)       |
+| `worker` | `main_worker.py` | APScheduler (notify 09:00 / charge 00:05 / close 00:01) | [docs/services/worker.md](docs/services/worker.md) |
+| `db`     | —                | PostgreSQL 16 + pgvector, RLS                           | `docs/HLD.md` §2 (ERD)                             |
 
-5 docker-контейнеров:
-- `caddy` — TLS + reverse proxy + отдача SPA-статики
-- `api` — FastAPI REST + валидация TG initData
-- `bot` — aiogram, команды + push-отправка
-- `worker` — APScheduler с PostgreSQL jobstore (3 джобы: notify_subscriptions 09:00, charge_subscriptions 00:05, close_period 00:01)
-- `db` — PostgreSQL 16
+`api`/`bot`/`worker` — один codebase `app/`, разные entrypoints. 7 таблиц: `app_user`,
+`category`, `budget_period`, `plan_template_item`, `planned_transaction`,
+`actual_transaction`, `subscription` (+ AI/audit). ERD/индексы — `docs/HLD.md` §2.
 
-`api` / `bot` / `worker` шарят один Python-codebase, точки входа разные.
+## Жёсткие инварианты
 
-6 БД-таблиц: `app_user`, `category`, `budget_period`, `plan_template_item`, `planned_transaction`, `actual_transaction`, `subscription`. ERD и индексы — в `docs/HLD.md` §2.
+- **Деньги — `BIGINT` копейки** (`*_cents`), на UI рубли. Никаких `float`.
+- **Даты:** бизнес-даты `DATE`, аудит-времена `TIMESTAMPTZ` UTC.
+- **TZ:** расчёты периодов и шедулер — `Europe/Moscow`; БД — UTC.
+- **Multi-tenant via RLS** (не single-tenant): доменные таблицы несут `user_id`;
+  RLS изолирует (`user_id = current_setting('app.current_user_id')::bigint`, alembic 0008);
+  каждый запрос вызывает `set_tenant_scope` → `SET LOCAL app.current_user_id`
+  (transaction-scoped). Это security-актив. `admin_audit_log` намеренно вне RLS.
+- **Схема БД — только через Alembic** (`alembic/versions/`). Сырой `CREATE/ALTER/DROP
+TABLE` в `app/`/`main_*.py` запрещён — ловит `make check-no-manual-ddl` (escape:
+  `DDL-EXEMPT`).
+- **Soft delete только для `category`** (`is_archived`); транзакции/подписки — hard delete.
+- **Знак дельты — «положительная = хорошо»:** расходы `План−Факт`, доходы `Факт−План`.
+- **Period:** `period_for(date, cycle_start_day) -> (period_start, period_end)`.
+- **initData** валидируется HMAC-SHA256 на каждом запросе, `auth_date` ≤ 24ч.
+- **Internal endpoints** `/api/v1/internal/*` защищены `X-Internal-Token`, наружу не проксируются.
+- **Шедулер-джобы** обёрнуты в `pg_try_advisory_lock` (защита от гонок).
+- **Дизайн — единственный:** `liquid_glass` (тумблер `ui.theme`).
+- **Контракт:** `contract/openapi.json` → клиентские типы; правка API без regen роняет
+  `make contract-check`. Перегенерить: `make contract` + `npm run gen:api`.
 
-Sketch winners в `.planning/sketches/MANIFEST.md`: 001-B (dashboard tabs), 002-B (bottom-sheet), 003 (4 edge-states), 004-A (timeline), 005-B (grouped+inline), 006-B (scrollable onboarding).
+## Reference-docs drift
 
-## Project Skills
+Правка поведения сервиса обновляет его доку (`docs/services/<svc>.md`) и/или
+`docs/HLD.md` в ТОМ ЖЕ коммите. Доки описывают **реальное** поведение; желаемое →
+`docs/adr` или `.planning`. pre-commit хук напоминает про доки при правке
+`app/db/models.py` / `alembic/versions/*`.
 
-No project skills found yet.
+## Don'ts
+
+- ❌ Сырой DDL в `app/` вместо Alembic-миграции — падает на `check-no-manual-ddl`.
+- ❌ `float` для денег — только `BIGINT` копейки.
+- ❌ Hand-edit `contract/openapi.json` / `frontend/src/api/generated/schema.ts` —
+  перегенерить (`make contract` / `npm run gen:api`).
+- ❌ Обходить RLS / писать без `set_tenant_scope` — изоляция тенантов сломается.
+- ❌ Push в `master` без зелёного `make ci-local` — master авто-деплоится в прод.
+- ❌ Коммитить `.env` / `.planning/*.png` / `node_modules` (gitignored).
+
+## Dev contour
+
+```bash
+make up            # dev-стек (api :8000, DEV_MODE, dev_seed авто)
+make seed          # богатые UAT-данные поверх
+cd frontend && npm run dev   # Vite :5173 (liquid_glass, HMR)
+make verify-all    # быстрый гейт: ddl + lint + tsc + contract-check (без docker-тестов)
+make ci-local      # полный mirror CI (pre-push)
+make hooks         # установить git-хуки (один раз)
+```
+
+`make help` — каталог всех таргетов. Сценарии — `docs/RUNBOOK.md`.
+
+## Key docs
+
+`docs/HLD.md` (архитектура + API-контракт + ERD) · `docs/RUNBOOK.md` (сценарии) ·
+`docs/DEPLOY.md` · `Makefile` (`make help`) · `contract/README.md` · `docs/adr/` ·
+`.planning/PROJECT.md` (полный контекст).

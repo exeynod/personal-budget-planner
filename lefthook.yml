@@ -1,0 +1,70 @@
+# Local git hooks (lefthook). Install once per clone: `make hooks`
+# (or `lefthook install` / `npx lefthook install`). Run manually:
+# `lefthook run pre-commit`. CI runs the same gates independently — hooks are a
+# fast local pre-flight, not the source of truth.
+#
+# Design: pre-commit MUST be fast (sub-few-seconds) — it only touches STAGED
+# files and never boots docker or runs the full pytest suite. The heavy,
+# docker-backed CI mirror lives in pre-push.
+
+pre-commit:
+  parallel: true
+  commands:
+    # ruff lint on staged Python. Fast; only the files you touched.
+    ruff-check:
+      glob: "*.py"
+      run: ruff check {staged_files}
+
+    # ruff format check on staged Python — WARN-ONLY (exit 0). The existing app/
+    # tree predates ruff-format, so a hard gate here would block almost every
+    # commit and pressure a whole-tree reformat (out of scope, noisy diffs). It
+    # nudges instead: run `make fmt` and re-stage when you're ready. Flip to a
+    # hard gate once the tree is formatted.
+    ruff-format:
+      glob: "*.py"
+      run: ruff format --check {staged_files} || { echo "↳ ruff format would change staged files — run 'make fmt' and re-stage (non-blocking)."; exit 0; }
+
+    # Frontend type-check. tsc must see the whole project graph, so staged-only
+    # paths don't work — the glob is just the RUN CONDITION (only fire when a
+    # frontend ts/tsx file is staged), the command type-checks the project.
+    frontend-tsc:
+      glob: "frontend/**/*.{ts,tsx}"
+      run: cd frontend && npx tsc -b
+
+    # Schema-SoT gate: no raw CREATE/ALTER/DROP TABLE outside alembic/versions/.
+    # Cheap grep; runs on every commit (its own default scope is app/ + main_*).
+    ddl-gate:
+      run: bash scripts/check-no-manual-ddl.sh
+
+    # Docs-drift REMINDER (warning, never blocks). If this commit changes the
+    # ORM models or an Alembic migration, nudge the author to update the docs
+    # that describe DB behaviour in the SAME commit (docs/HLD.md §2 ERD,
+    # docs/services/<svc>.md). Docs must describe REAL behaviour; desired
+    # behaviour goes to docs/adr or .planning. `exit 0` always.
+    docs-drift-reminder:
+      glob:
+        - "app/db/models.py"
+        - "alembic/versions/*.py"
+      run: |
+        echo "────────────────────────────────────────────────────────────"
+        echo "⚠  DB schema/models changed in this commit:"
+        printf '   %s\n' {staged_files}
+        echo "   → update the docs that describe this behaviour in THIS commit:"
+        echo "     • docs/HLD.md §2 (ERD / indexes / table contract)"
+        echo "     • docs/services/<service>.md (if the change affects a service)"
+        echo "   Docs describe REAL behaviour; desired → docs/adr or .planning."
+        echo "────────────────────────────────────────────────────────────"
+        exit 0
+
+pre-push:
+  commands:
+    # Full CI mirror (.github/workflows/ci.yml): backend pytest on a live PG,
+    # contract sync-guard, frontend build + vitest + Playwright e2e. ~minutes.
+    # push to master = auto-deploy, so this is the real pre-prod gate.
+    # Partial/urgent push: SKIP_BACKEND=1 / SKIP_FRONTEND=1 / SKIP_E2E=1.
+    # Bypass entirely (consciously): git push --no-verify.
+    ci-mirror:
+      run: bash scripts/ci-local.sh
+      skip:
+        - merge
+        - rebase

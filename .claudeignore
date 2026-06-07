@@ -1,0 +1,77 @@
+# Repo-wide Claude ignore. Direct token savings on every agent search/glob:
+# keeps Claude out of dependency trees, build outputs, caches, large binary
+# fixtures and heavy screenshot proofs that carry no code value. Mirrors
+# .gitignore where it makes sense, plus things that are safe in git but too
+# noisy / too large to read.
+
+# --- Python ---
+**/__pycache__/
+**/*.py[cod]
+**/.venv/
+**/.venv-*/
+**/venv/
+**/.ruff_cache/
+**/.pytest_cache/
+**/.mypy_cache/
+**/.coverage
+**/htmlcov/
+
+# --- Node / Frontend ---
+**/node_modules/
+frontend/dist/
+frontend/.vite/
+**/*.tsbuildinfo
+
+# --- Lock files (large, not useful for code analysis) ---
+uv.lock
+package-lock.json
+**/package-lock.json
+**/pnpm-lock.yaml
+**/yarn.lock
+
+# --- Playwright / test artefacts ---
+frontend/test-results/
+frontend/playwright-report/
+frontend/tests/ui-audit-screenshots/
+# Visual-regression PNG etalons — large binaries, read the spec/test not the png
+frontend/tests/e2e/**/*-snapshots/
+
+# --- Generated contract artefact (297k+ lines; read contract/README.md instead) ---
+contract/openapi.json
+
+# --- iOS (Xcode metadata + build products, no readable code value) ---
+ios/**/*.xcodeproj/
+ios/**/*.xcworkspace/
+ios/build/
+ios/DerivedData/
+.xcodebuildmcp/
+
+# --- Planning workspace: keep the prose, drop the heavy screenshot proofs ---
+.planning/**/*.png
+.planning/**/*.jpg
+.planning/**/*.jpeg
+.planning/**/*.zip
+.planning_tmp
+
+# --- Env files (local secrets) ---
+.env
+.env.local
+.env.*.local
+
+# --- IDE / OS / logs ---
+**/.idea/
+**/.vscode/
+**/.DS_Store
+**/*.swp
+**/*.swo
+**/*.log
+
+# --- Claude / tooling local state (per-machine, not project-wide) ---
+.claude/worktrees/
+.claude/settings.local.json
+**/.serena/
+**/.playwright-mcp/
+
+# --- Design handoff bundles ---
+*-handoff.zip
+*handoff.zip

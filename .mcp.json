@@ -1,0 +1,18 @@
+{
+  "_comment": "Project-scoped MCP servers (committed). Selection principle: each entry closes an explicit capability gap for THIS stack, not 'nice to have'. context7 = up-to-date library docs (FastAPI/SQLAlchemy/aiogram/React) instead of stale memory. postgres = read-only introspection of the dev DB for schema/data questions without round-tripping through psql; DSN comes from ${PG_DEV_URL} so NO credentials are committed (export it; the dev db port is not published by default, so publish 5432 or point at a tunnel). playwright = drives the frontend e2e contour (native-liquid-glass + responsive specs).",
+  "mcpServers": {
+    "context7": {
+      "command": "npx",
+      "args": ["-y", "@upstash/context7-mcp@latest"]
+    },
+    "postgres": {
+      "_comment": "Read-only. Set PG_DEV_URL, e.g. postgresql://budget_app:<pw>@localhost:5432/budget_db (requires publishing the db port or a tunnel). Server is inherently read-only — safe against the dev DB.",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-postgres", "${PG_DEV_URL}"]
+    },
+    "playwright": {
+      "command": "npx",
+      "args": ["-y", "@playwright/mcp@latest"]
+    }
+  }
+}
