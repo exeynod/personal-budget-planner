@@ -19,8 +19,6 @@ export {
 
 export { PosterSheet, type PosterSheetProps } from './PosterSheet';
 
-export { BottomNavV10, type BottomNavV10Props } from './BottomNavV10';
-
 // Phase 30-02 (DEBT-02): refetch-token context so AddSheet submit triggers
 // HomeMount / TransactionsMount re-fetch without prop-drilling.
 export {
@@ -50,8 +48,6 @@ export {
   type SelectedPeriodProviderProps,
 } from './SelectedPeriodProvider';
 
-export { PeriodSwitcher, type PeriodSwitcherProps } from './PeriodSwitcher';
-
 // Phase 31 (code-quality): async-fetch state machine + parameterised plate
 // extracted from the Mount components (was copy-pasted in each).
 export {
@@ -61,12 +57,3 @@ export {
   type UseResourceResult,
 } from './useResource';
 export { StatePlate, type StatePlateProps } from './StatePlate';
-
-// Phase 50-02 (THEME-01): multi-theme runtime selector.
-export {
-  useTheme,
-  THEMES,
-  themeLabel,
-  themeDescription,
-  type Theme,
-} from './useTheme';

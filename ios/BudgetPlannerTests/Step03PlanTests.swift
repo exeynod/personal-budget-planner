@@ -135,12 +135,6 @@ final class Step03PlanTests: XCTestCase {
         }
     }
 
-    private func tone(income: Int, plans: [String: Int]) -> HintTone {
-        let total = plans.values.reduce(0, +)
-        let left = income - total
-        return left < 0 ? .overflow : .normal
-    }
-
     func testHintNormalLeft() {
         let flow = OnboardingFlow(defaults: defaults)
         flow.setIncome(80_000_00)
@@ -148,7 +142,6 @@ final class Step03PlanTests: XCTestCase {
         let hint = hintText(income: flow.incomeCents, plans: flow.categoryPlans)
         XCTAssertTrue(hint.lowercased().contains("остаётся"),
                       "expected normal-left hint, got: \(hint)")
-        XCTAssertEqual(tone(income: flow.incomeCents, plans: flow.categoryPlans), .normal)
     }
 
     func testHintEqualWhenFullyAllocated() {
@@ -160,7 +153,6 @@ final class Step03PlanTests: XCTestCase {
         flow.setPlan(code: "food", cents: (flow.categoryPlans["food"] ?? 0) + leftover)
         let hint = hintText(income: flow.incomeCents, plans: flow.categoryPlans)
         XCTAssertEqual(hint, "всё распределено")
-        XCTAssertEqual(tone(income: flow.incomeCents, plans: flow.categoryPlans), .normal)
     }
 
     func testHintOverflow() {
@@ -171,7 +163,6 @@ final class Step03PlanTests: XCTestCase {
         let hint = hintText(income: flow.incomeCents, plans: flow.categoryPlans)
         XCTAssertTrue(hint.lowercased().contains("превышение"),
                       "expected overflow hint, got: \(hint)")
-        XCTAssertEqual(tone(income: flow.incomeCents, plans: flow.categoryPlans), .overflow)
     }
 
     // MARK: - Slider max bound (max(6_000_000, income*0.6))
@@ -202,11 +193,4 @@ final class Step03PlanTests: XCTestCase {
         XCTAssertEqual(RubleFormatter.format(cents: 300_000), "3\u{202F}000")
     }
 
-    // MARK: - HintTone enum sanity
-
-    func testHintToneEnumValues() {
-        let normal: HintTone = .normal
-        let overflow: HintTone = .overflow
-        XCTAssertNotEqual(normal, overflow)
-    }
 }

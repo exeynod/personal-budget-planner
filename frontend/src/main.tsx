@@ -28,36 +28,12 @@ expandWebApp();
 // (где env работает) и в TG fullscreen (где env=0, но TG отдаёт инсеты).
 setupSafeArea();
 
-// ─── Single shell: V10 poster shell ───
-// The legacy v0.6 web shell has been retired (the entire src/screens, src/App,
-// v06-only src/components/src/hooks/src/styles trees were deleted). The app now
-// always boots the V10 poster shell. The old `ui.shell` dispatcher key (v06/v10)
-// is gone; the VISUAL theme key `ui.theme` (vocabulary
-// `maximal_poster`/`liquid_glass`, owned by `screensV10/common/useTheme.ts`)
-// stays intact and is hydrated below.
-
-// Phase 50-02 (THEME-02): early-bootstrap hydration of <html data-theme="…">
-// so per-theme CSS variables (Phase 50-01) apply BEFORE first paint, preventing
-// a flash of the default theme. Must run before createRoot(...).render().
-//
-// This reads the THEME key `ui.theme` (vocabulary `maximal_poster`/
-// `liquid_glass`) — distinct from the SHELL key `ui.shell` read
-// by readTheme() above (P1-6). Whitelist mirrors `useTheme` hook in
-// screensV10/common/useTheme.ts. After the P1-6 key split, `ui.theme` only ever
-// holds theme values, so shell choice never leaks in here.
-(() => {
-  try {
-    const raw = localStorage.getItem('ui.theme');
-    // Phase 4: two themes only. Stale `ios_default` / unknown → default.
-    const initial =
-      raw === 'maximal_poster' || raw === 'liquid_glass'
-        ? raw
-        : 'maximal_poster';
-    document.documentElement.setAttribute('data-theme', initial);
-  } catch {
-    document.documentElement.setAttribute('data-theme', 'maximal_poster');
-  }
-})();
+// ─── Single design: Liquid Glass native iOS shell ───
+// The Maximal Poster design has been retired from web. Liquid Glass
+// (NativeShell) is the sole shipping design, so there is no longer any theme
+// dispatch — we hydrate <html data-theme="liquid_glass"> before first paint so
+// the per-theme CSS variables apply without a flash of the default tokens.
+document.documentElement.setAttribute('data-theme', 'liquid_glass');
 
 const root = createRoot(document.getElementById('root')!);
 

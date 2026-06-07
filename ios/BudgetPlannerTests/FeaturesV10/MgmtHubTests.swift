@@ -29,6 +29,34 @@ private func makeMe(role: String) -> MeV10Response {
     )
 }
 
+/// Test fake for the MeV10API. Configurable to return a stub response or
+/// throw. (Previously shared from OnboardingMountTests, inlined here after
+/// the V10 onboarding-mount tests were removed.)
+@MainActor
+final class FakeMeAPIClient: MeV10APIClient {
+    enum Mode {
+        case success(MeV10Response)
+        case failure(Error)
+    }
+
+    var mode: Mode
+    private(set) var fetchCount = 0
+
+    init(mode: Mode) {
+        self.mode = mode
+    }
+
+    func fetchMeV10() async throws -> MeV10Response {
+        fetchCount += 1
+        switch mode {
+        case .success(let me):
+            return me
+        case .failure(let err):
+            throw err
+        }
+    }
+}
+
 @MainActor
 final class MgmtHubTests: XCTestCase {
     private var originalShared: (any MeV10APIClient)!

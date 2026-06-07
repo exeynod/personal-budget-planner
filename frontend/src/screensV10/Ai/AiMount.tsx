@@ -37,14 +37,11 @@ import {
 } from '../../api/ai';
 import type { AiStreamEvent } from '../../api/types';
 import { usePosterRouter } from '../common';
-import { useShellVariant } from '../native/ShellVariant';
-import { AiView, type AiMessage } from './AiView';
-import { NativeAiView } from './NativeAiView';
+import { NativeAiView, type AiMessage } from './NativeAiView';
 import { todayRu, DEFAULT_SUGGESTION_CHIPS } from './computeAi';
 
 export function AiMount() {
   const router = usePosterRouter();
-  const variant = useShellVariant();
 
   const [observation, setObservation] = useState<string | null>(null);
   const [observationGeneratedAt, setObservationGeneratedAt] =
@@ -147,29 +144,8 @@ export function AiMount() {
     [handleSend],
   );
 
-  if (variant === 'native') {
-    return (
-      <NativeAiView
-        observation={observation}
-        observationGeneratedAt={observationGeneratedAt}
-        observationLoading={observationLoading}
-        observationError={observationError}
-        suggestionChips={DEFAULT_SUGGESTION_CHIPS}
-        messages={messages}
-        isStreaming={isStreaming}
-        input={input}
-        onInputChange={setInput}
-        onSend={handleSend}
-        onChipTap={handleChipTap}
-        canPop={router.canPop}
-        onBack={() => router.pop()}
-        todayLabel={todayRu(new Date())}
-      />
-    );
-  }
-
   return (
-    <AiView
+    <NativeAiView
       observation={observation}
       observationGeneratedAt={observationGeneratedAt}
       observationLoading={observationLoading}

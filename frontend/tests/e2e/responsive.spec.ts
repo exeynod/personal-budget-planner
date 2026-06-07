@@ -6,9 +6,8 @@
 // letterbox, with no horizontal scrollbar, and the fixed TabBar must stay
 // within that column. On a phone viewport everything stays full-width.
 //
-// Mock surface: reuses the shared onboarded-user fixture (sets ui.theme=v10).
-// We additionally pin ui.shell=v10 and pre-acknowledge cookie consent so the
-// shell renders deterministically regardless of default-resolution changes.
+// Mock surface: reuses the shared onboarded-user fixture. We pre-acknowledge
+// cookie consent so the shell renders deterministically.
 
 import { expect, test, type Page } from '@playwright/test';
 import {
@@ -21,21 +20,23 @@ const COL_MAX = 430; // var(--col-width)=420 + small slack for sub-pixel roundin
 async function pinShell(page: Page) {
   await page.addInitScript(() => {
     try {
-      window.localStorage.setItem('ui.shell', 'v10');
       window.localStorage.setItem('cookie_consent_v1', 'acknowledged');
     } catch {
-      /* private mode — defaults still resolve to the v10 shell */
+      /* private mode — defaults still resolve to the native shell */
     }
   });
 }
 
 async function gotoHome(page: Page) {
   await page.goto('/');
-  await expect(page.getByText(/Дневной темп/)).toBeVisible({ timeout: 8000 });
+  // Wait for the native Home (Liquid Glass) balance card to render.
+  await expect(page.getByTestId('native-home-balance')).toBeVisible({
+    timeout: 8000,
+  });
   await freezeMotion(page);
 }
 
-test.describe('Phase 3 responsiveness (v10 web shell)', () => {
+test.describe('Phase 3 responsiveness (native web shell)', () => {
   test.beforeEach(async ({ page }) => {
     await installOnboardedFixture(page);
     await pinShell(page);

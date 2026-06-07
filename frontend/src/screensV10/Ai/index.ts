@@ -4,9 +4,5 @@
 // handleTab swap from PlanViewPlaceholder; tests import AiView/computeAi
 // helpers directly).
 export { AiMount } from './AiMount';
-export { AiView, type AiMessage, type AiViewProps } from './AiView';
-export {
-  todayRu,
-  DEFAULT_SUGGESTION_CHIPS,
-  MONTHS_RU_GEN,
-} from './computeAi';
+export { NativeAiView, type AiMessage, type AiViewProps } from './NativeAiView';
+export { todayRu, DEFAULT_SUGGESTION_CHIPS, MONTHS_RU_GEN } from './computeAi';

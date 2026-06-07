@@ -3,8 +3,7 @@
 export { PlanMount } from './PlanMount';
 export type { PlanMountProps } from './PlanMount';
 
-export { PlanView } from './PlanView';
-export type { PlanViewProps } from './PlanView';
+export { NativePlanView } from './NativePlanView';
 
 export {
   computeSurplus,

@@ -1,23 +1,25 @@
-/* animations.css — Maximal Poster keyframes (DS-04) + reduce-motion (DS-05)
- * 11 named animations, durations + easing extracted from DESIGN-SYSTEM.md §7.2
- * and prototype/poster-screens.jsx. Components in componentsV10/ apply
- * via className utility classes (.poster-row-in, .poster-bar-fill, etc.).
+/* animations.css — shared keyframes + reduce-motion.
  *
- * Easing reference (from tokens.css):
- *   --poster-easing-ease-out: cubic-bezier(0.22, 0.61, 0.36, 1)   (90% transitions)
- *   --poster-easing-overshoot: cubic-bezier(0.34, 1.56, 0.64, 1)  (FAB, toast, tab-pop)
- *   --poster-easing-sheet-ease: cubic-bezier(0.32, 0.72, 0, 1)    (sheets — used in transitions, not keyframes)
+ * The only LIVE consumer after the Maximal Poster removal is the shared
+ * PosterRouter, which replays `.poster-slide-in-{fwd|back}` on every push/pop.
+ * The remaining `.poster-*` utility classes are legacy (their components were
+ * removed) but kept here harmlessly; the reduce-motion block flattens all of
+ * them to opacity-only fades.
  *
  * Note: cubic-bezier values inside @keyframes blocks are required to be literal
- * (CSS spec disallows var() in timing-function position inside @keyframes). Inside
- * `animation:` shorthand we still inline literals for line-by-line traceability
- * with DESIGN-SYSTEM.md §7.2.
+ * (CSS spec disallows var() in timing-function position inside @keyframes).
  */
 
 /* ─────────── 1. posterRowIn — list-row stagger ─────────── */
 @keyframes posterRowIn {
-  from { opacity: 0; transform: translate3d(0, 8px, 0); }
-  to   { opacity: 1; transform: none; }
+  from {
+    opacity: 0;
+    transform: translate3d(0, 8px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 .poster-row-in {
   opacity: 0;
@@ -26,8 +28,14 @@
 
 /* ─────────── 2. posterRiseIn — hero block rise ─────────── */
 @keyframes posterRiseIn {
-  from { opacity: 0; transform: translateY(14px); }
-  to   { opacity: 1; transform: none; }
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 .poster-rise-in {
   opacity: 0;
@@ -36,8 +44,12 @@
 
 /* ─────────── 3. posterBarFill — progress bar fill ─────────── */
 @keyframes posterBarFill {
-  from { transform: scaleX(0); }
-  to   { transform: scaleX(1); }
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
 }
 .poster-bar-fill {
   transform-origin: left center;
@@ -47,9 +59,15 @@
 
 /* ─────────── 4. posterTabPop — active tab glyph pop ─────────── */
 @keyframes posterTabPop {
-  0%   { transform: scale(1); }
-  35%  { transform: scale(1.35) translateY(-2px); }
-  100% { transform: scale(1); }
+  0% {
+    transform: scale(1);
+  }
+  35% {
+    transform: scale(1.35) translateY(-2px);
+  }
+  100% {
+    transform: scale(1);
+  }
 }
 .poster-tab-pop {
   animation: posterTabPop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -57,9 +75,18 @@
 
 /* ─────────── 5. posterPopIn — generic pop entry (overshoot) ─────────── */
 @keyframes posterPopIn {
-  0%   { opacity: 0; transform: scale(0.86); }
-  60%  { opacity: 1; transform: scale(1.04); }
-  100% { opacity: 1; transform: scale(1); }
+  0% {
+    opacity: 0;
+    transform: scale(0.86);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.04);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 .poster-pop-in {
   opacity: 0;
@@ -68,8 +95,12 @@
 
 /* ─────────── 6. posterCheck — toast checkmark stroke draw ─────────── */
 @keyframes posterCheck {
-  from { stroke-dashoffset: 24; }
-  to   { stroke-dashoffset: 0; }
+  from {
+    stroke-dashoffset: 24;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
 }
 .poster-check {
   stroke-dasharray: 24;
@@ -79,8 +110,16 @@
 
 /* ─────────── 7. posterDot — AI typing 3-dot loop ─────────── */
 @keyframes posterDot {
-  0%, 80%, 100% { opacity: 0.3; transform: translateY(0); }
-  40%           { opacity: 1;   transform: translateY(-3px); }
+  0%,
+  80%,
+  100% {
+    opacity: 0.3;
+    transform: translateY(0);
+  }
+  40% {
+    opacity: 1;
+    transform: translateY(-3px);
+  }
 }
 .poster-dot {
   animation: posterDot 1.2s ease-in-out infinite;
@@ -88,8 +127,14 @@
 
 /* ─────────── 8. posterSlideInFwd — push transition (forward) ─────────── */
 @keyframes posterSlideInFwd {
-  from { opacity: 0; transform: translate3d(28px, 0, 0); }
-  to   { opacity: 1; transform: none; }
+  from {
+    opacity: 0;
+    transform: translate3d(28px, 0, 0);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 .poster-slide-in-fwd {
   animation: posterSlideInFwd 0.42s cubic-bezier(0.22, 0.61, 0.36, 1) both;
@@ -97,8 +142,14 @@
 
 /* ─────────── 9. posterSlideInBack — pop transition (back) ─────────── */
 @keyframes posterSlideInBack {
-  from { opacity: 0; transform: translate3d(-28px, 0, 0); }
-  to   { opacity: 1; transform: none; }
+  from {
+    opacity: 0;
+    transform: translate3d(-28px, 0, 0);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 .poster-slide-in-back {
   animation: posterSlideInBack 0.42s cubic-bezier(0.22, 0.61, 0.36, 1) both;
@@ -106,8 +157,14 @@
 
 /* ─────────── 10. posterTabSwap — tab content swap (no direction) ─────────── */
 @keyframes posterTabSwap {
-  0%   { opacity: 0; transform: translate3d(0, 8px, 0); }
-  100% { opacity: 1; transform: none; }
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 8px, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+  }
 }
 .poster-tab-swap {
   animation: posterTabSwap 0.35s cubic-bezier(0.22, 0.61, 0.36, 1) both;
@@ -115,9 +172,18 @@
 
 /* ─────────── 11. posterToastIn — toast entry (overshoot) ─────────── */
 @keyframes posterToastIn {
-  0%   { opacity: 0; transform: translateY(-8px) scale(0.9); }
-  60%  { opacity: 1; transform: translateY(2px)  scale(1.04); }
-  100% { opacity: 1; transform: translateY(0)    scale(1); }
+  0% {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.9);
+  }
+  60% {
+    opacity: 1;
+    transform: translateY(2px) scale(1.04);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 .poster-toast-in {
   animation: posterToastIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
@@ -136,17 +202,94 @@
  * to work unchanged — they just resolve to the no-motion variants.
  * ───────────────────────────────────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
-  @keyframes posterRowIn        { from { opacity: 0; } to { opacity: 1; } }
-  @keyframes posterRiseIn       { from { opacity: 0; } to { opacity: 1; } }
-  @keyframes posterBarFill      { from { opacity: 0; } to { opacity: 1; } }
-  @keyframes posterTabPop       { from { opacity: 1; } to { opacity: 1; } }
-  @keyframes posterPopIn        { from { opacity: 0; } to { opacity: 1; } }
-  @keyframes posterCheck        { from { stroke-dashoffset: 0; } to { stroke-dashoffset: 0; } }
-  @keyframes posterDot          { from { opacity: 0.6; } to { opacity: 0.6; } }
-  @keyframes posterSlideInFwd   { from { opacity: 0; } to { opacity: 1; } }
-  @keyframes posterSlideInBack  { from { opacity: 0; } to { opacity: 1; } }
-  @keyframes posterTabSwap      { from { opacity: 0; } to { opacity: 1; } }
-  @keyframes posterToastIn      { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes posterRowIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+  @keyframes posterRiseIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+  @keyframes posterBarFill {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+  @keyframes posterTabPop {
+    from {
+      opacity: 1;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+  @keyframes posterPopIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+  @keyframes posterCheck {
+    from {
+      stroke-dashoffset: 0;
+    }
+    to {
+      stroke-dashoffset: 0;
+    }
+  }
+  @keyframes posterDot {
+    from {
+      opacity: 0.6;
+    }
+    to {
+      opacity: 0.6;
+    }
+  }
+  @keyframes posterSlideInFwd {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+  @keyframes posterSlideInBack {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+  @keyframes posterTabSwap {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+  @keyframes posterToastIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
 
   /* Speed up + remove easing curves for all entry/swap utilities. */
   .poster-row-in,

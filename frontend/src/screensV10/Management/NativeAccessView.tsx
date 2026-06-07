@@ -24,10 +24,25 @@ import {
   InsetRow,
 } from '../native/NativePrimitives';
 import { formatMoneyNative } from '../native/money';
-import type { AccessUser, AccessAiUsage, AccessTab } from './AccessView';
 import styles from './NativeAccessView.module.css';
 
-// Props mirror the poster AccessView 1:1 (AccessMount passes the same object).
+export interface AccessUser {
+  id: number;
+  tg_user_id: number;
+  username: string | null;
+  role: string;
+}
+
+export interface AccessAiUsage {
+  user_id: number;
+  name: string | null;
+  tokens: number;
+  cost_cents: number;
+}
+
+export type AccessTab = 'users' | 'ai-usage';
+
+// Props the view consumes (AccessMount passes the same object).
 export interface NativeAccessViewProps {
   users: AccessUser[];
   aiUsage: AccessAiUsage[];

@@ -1,9 +1,6 @@
 /* Phase 3 (web UX): responsiveness + Telegram WebApp viewport/safe-area tokens.
  *
- * Hand-maintained (NOT generated) — `tokens.css` in this folder is emitted by
- * `scripts/gen-tokens.ts` from `design/tokens.json` and carries a «do not edit»
- * banner, so the responsive layout knobs below live here instead. AppV10
- * imports this file alongside the generated tokens.
+ * Hand-maintained. AppV10 imports this file alongside `native.css`.
  *
  *   --col-width             desktop column clamp (phone-width letterbox).
  *   --tg-viewport-stable    Telegram `viewportStableHeight` in px, synced by
@@ -24,29 +21,17 @@
   --tg-safe-left: 0px;
   --letterbox: #0a0a0c;
 
-  /* ── Semantic ink tokens (theme-overridable) ─────────────────────────────
-   * The screens were hardcoding `--poster-paper` (cream) as the light-ink on
-   * the coral/dark surfaces. Under Liquid Glass those surfaces become system
-   * grey, so paper-on-grey vanished. These semantic tokens DEFAULT to the exact
-   * current poster values, so Maximal Poster renders byte-identically, while
-   * `[data-theme='liquid_glass']` (liquid-glass.css) re-points them to readable
-   * iOS ink. Consumers: HomeView/HomeMount/PeriodSwitcher + category rows.
-   *
-   *   --ink-on-home    primary ink on the Home/Loading/Error surface (hero
-   *                    number, eyebrows-on-dark, subline, bar fill, break tick).
-   *   --eyebrow-ink    eyebrow caption ink (Home «КАТЕГОРИИ», Loading/Error).
-   *   --link-ink       interactive deep-links (ВСЕ ОПЕРАЦИИ, wallet, switcher).
-   *   --hairline-ink   category-row top hairline.
-   *   --bar-track-ink  progress-bar track.
-   *   --bar-fill-ink   progress-bar fill.
-   *   --amount-sub-ink faint План/Факт amount sub-labels. */
-  --ink-on-home: var(--poster-paper);
-  --eyebrow-ink: var(--poster-paper);
-  --link-ink: var(--poster-paper);
-  --hairline-ink: rgba(255, 246, 232, 0.22);
-  --bar-track-ink: rgba(255, 246, 232, 0.15);
-  --bar-fill-ink: var(--poster-paper);
-  --amount-sub-ink: var(--poster-paper);
+  /* ── Semantic ink tokens (Liquid Glass defaults) ─────────────────────────
+   * Defaults for the Home/Loading/Error surface ink. NativeShell re-points
+   * --ink-on-home / --eyebrow-ink / --link-ink to native --lgn-* values at the
+   * shell scope; these root defaults are the safe fallbacks. */
+  --ink-on-home: var(--lgn-ink, #1c1c1e);
+  --eyebrow-ink: var(--lgn-ink-2, rgba(60, 60, 67, 0.6));
+  --link-ink: var(--lgn-accent, #ff7a4c);
+  --hairline-ink: var(--lgn-hairline, rgba(60, 60, 67, 0.29));
+  --bar-track-ink: var(--lgn-seg-track, rgba(118, 118, 128, 0.12));
+  --bar-fill-ink: var(--lgn-accent, #ff7a4c);
+  --amount-sub-ink: var(--lgn-ink-2, rgba(60, 60, 67, 0.6));
 }
 
 /* Zero the default UA body margin so the v10 shell genuinely fills the

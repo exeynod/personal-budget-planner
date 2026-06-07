@@ -32,8 +32,25 @@ import {
   InsetGroup,
   InsetRow,
 } from '../native/NativePrimitives';
-import type { MgmtHubViewProps, MgmtRowId } from './MgmtHubView';
 import styles from './NativeMgmtHubView.module.css';
+
+export type MgmtRowId =
+  | 'template'
+  | 'analytics'
+  | 'subscriptions'
+  | 'settings'
+  | 'access';
+
+export interface MgmtHubViewProps {
+  /** True → render the owner-only «Доступ» row. */
+  isOwner: boolean;
+  /** Row tap callback — pushes the corresponding Mount in MgmtHubMount. */
+  onRowTap: (id: MgmtRowId) => void;
+  /** Whether the back link should be visible. */
+  canPop: boolean;
+  /** Back link tap. */
+  onBack: () => void;
+}
 
 /** Shape of `window.Telegram.WebApp.initDataUnsafe.user` we care about. */
 interface TgUser {

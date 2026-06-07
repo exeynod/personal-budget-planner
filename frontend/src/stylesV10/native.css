@@ -150,7 +150,6 @@
 
   /* Elevation — layered: a tight contact shadow (grounds the card) + a wide
      soft ambient shadow (lets it float). Single-blur shadows read «drawn»; the
-     pair reads «hovering glass». */
      pair reads «hovering glass». Softened on the calm neutral field (§3.4) so
      cards float without the heavy «drawn» drop the old colour mesh masked. */
   --lgn-shadow-card:

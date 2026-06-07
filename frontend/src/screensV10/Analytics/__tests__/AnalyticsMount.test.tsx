@@ -6,12 +6,19 @@
 //   - Period chip change triggers a second fetch (mock counter).
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, cleanup, screen, fireEvent, waitFor } from '@testing-library/react';
+import {
+  render,
+  cleanup,
+  screen,
+  fireEvent,
+  waitFor,
+} from '@testing-library/react';
 
 // ─────────── mocks ───────────
 
 vi.mock('../../../api/v10', async () => {
-  const actual: Record<string, unknown> = await vi.importActual('../../../api/v10');
+  const actual: Record<string, unknown> =
+    await vi.importActual('../../../api/v10');
   return {
     ...actual,
     listCategoriesV10: vi.fn(),
@@ -20,7 +27,9 @@ vi.mock('../../../api/v10', async () => {
 });
 
 vi.mock('../../../api/periods', async () => {
-  const actual: Record<string, unknown> = await vi.importActual('../../../api/periods');
+  const actual: Record<string, unknown> = await vi.importActual(
+    '../../../api/periods',
+  );
   return {
     ...actual,
     listPeriods: vi.fn(),
@@ -63,14 +72,14 @@ afterEach(cleanup);
 describe('AnalyticsMount', () => {
   it('renders loading subview before fetch resolves', () => {
     render(<AnalyticsMount />);
-    expect(screen.getByTestId('analytics-loading')).toBeTruthy();
+    expect(screen.getByTestId('native-analytics-loading')).toBeTruthy();
   });
 
   it('transitions to view after parallel fetch resolves', async () => {
     render(<AnalyticsMount />);
     await waitFor(() => {
-      // After load() finishes, headline becomes visible
-      expect(document.body.textContent).toContain('Месяц.');
+      // After load() finishes, the native nav-bar title becomes visible.
+      expect(document.body.textContent).toContain('Аналитика');
     });
     expect(lc).toHaveBeenCalled();
     expect(lp).toHaveBeenCalled();
@@ -114,11 +123,11 @@ describe('AnalyticsMount', () => {
 
     render(<AnalyticsMount />);
     await waitFor(() => {
-      expect(document.body.textContent).toContain('Месяц.');
+      expect(document.body.textContent).toContain('Аналитика');
     });
-    // Derived top row for «Еда» should render (uppercased in the view).
+    // Derived top row for «Еда» should render (native shows the raw name).
     await waitFor(() => {
-      expect(document.body.textContent).toContain('ЕДА');
+      expect(document.body.textContent).toContain('Еда');
     });
     // Belt-and-suspenders: the removed API must not be referenced.
     expect((v10 as Record<string, unknown>).fetchTopCategories).toBeTypeOf(
@@ -130,22 +139,28 @@ describe('AnalyticsMount', () => {
     lc.mockRejectedValueOnce(new Error('Сеть недоступна'));
     render(<AnalyticsMount />);
     await waitFor(() => {
-      expect(screen.getByTestId('analytics-error')).toBeTruthy();
+      expect(screen.getByTestId('native-analytics-error')).toBeTruthy();
     });
-    expect(screen.getByTestId('analytics-error').textContent).toContain('Сеть недоступна');
+    expect(screen.getByTestId('native-analytics-error').textContent).toContain(
+      'Сеть недоступна',
+    );
   });
 
   it('triggers a second fetch when a different period chip is selected', async () => {
     render(<AnalyticsMount />);
     await waitFor(() => {
-      expect(document.body.textContent).toContain('Месяц.');
+      expect(document.body.textContent).toContain('Аналитика');
     });
     const callsAfterFirstLoad = lc.mock.calls.length;
 
-    // Click a non-selected chip — pick the first chip (oldest month) which is
-    // not the default-selected current month.
-    const buttons = Array.from(document.querySelectorAll('[data-testid^="period-chip-"]'));
-    const inactive = buttons.find((b) => b.getAttribute('aria-selected') !== 'true');
+    // Click a non-selected period tab in the «Период» segmented control —
+    // pick the first chip (oldest month), which is not the default-selected
+    // current month.
+    const periodTablist = screen.getByRole('tablist', { name: 'Период' });
+    const tabs = Array.from(periodTablist.querySelectorAll('[role="tab"]'));
+    const inactive = tabs.find(
+      (b) => b.getAttribute('aria-selected') !== 'true',
+    );
     expect(inactive).toBeTruthy();
     fireEvent.click(inactive as HTMLElement);
 

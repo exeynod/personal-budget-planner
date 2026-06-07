@@ -1,6 +1,7 @@
 /* AccessRequiredScreen — hard auth wall. Rendered when /me returns 401/403.
    Intentionally a dead-end: a single static message + one optional deep-link
-   to the bot. No app chrome (TabBar/FAB/AddSheet) exists in this branch. */
+   to the bot. No app chrome (TabBar/FAB/AddSheet) exists in this branch.
+   Native Liquid Glass surface. */
 
 .root {
   position: relative;
@@ -13,19 +14,19 @@
   padding: 56px 26px;
   padding-top: calc(56px + var(--tg-safe-top, 0px));
   padding-bottom: calc(56px + env(safe-area-inset-bottom, 0px));
-  background: var(--surface-bg, var(--poster-black, #0e0e0e));
-  color: var(--text-on-dark, var(--poster-paper, #f4f1ea));
-  font-family: 'Manrope Variable', 'Manrope', sans-serif;
+  background: var(--lgn-bg, #eef1f6);
+  color: var(--lgn-ink, #1c1c1e);
+  font-family: var(--lgn-font, system-ui, sans-serif);
   text-align: center;
   box-sizing: border-box;
 }
 
 .eyebrow {
-  font-family: 'JetBrains Mono Variable', 'JetBrains Mono', monospace;
-  font-size: 11px;
-  letter-spacing: var(--poster-tracking-eye, 0.18em);
+  font-family: var(--lgn-font, system-ui, sans-serif);
+  font-size: 13px;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
-  opacity: 0.55;
+  color: var(--lgn-ink-2, rgba(60, 60, 67, 0.6));
   margin-bottom: 16px;
 }
 
@@ -37,11 +38,11 @@
 }
 
 .title {
-  font-family: 'PosterSerifItalic', serif;
-  font-style: italic;
-  font-size: 40px;
-  line-height: 0.95;
-  letter-spacing: -0.02em;
+  font-family: var(--lgn-font, system-ui, sans-serif);
+  font-weight: 700;
+  font-size: 28px;
+  line-height: 1.1;
+  letter-spacing: -0.01em;
   margin: 0 0 14px;
 }
 
@@ -49,22 +50,21 @@
   font-size: 15px;
   line-height: 1.5;
   letter-spacing: 0.01em;
-  opacity: 0.78;
+  color: var(--lgn-ink-2, rgba(60, 60, 67, 0.6));
   max-width: 30ch;
   margin: 0 0 28px;
 }
 
 .cta {
   appearance: none;
-  border: 1px solid currentColor;
-  border-radius: var(--radius-button, 0);
-  background: transparent;
-  color: inherit;
+  border: none;
+  border-radius: var(--lgn-r-sm, 12px);
+  background: var(--lgn-accent, #ff7a4c);
+  color: #fff;
   padding: 13px 24px;
-  font-family: 'JetBrains Mono Variable', 'JetBrains Mono', monospace;
-  font-size: 12px;
-  letter-spacing: var(--poster-tracking-eye, 0.18em);
-  text-transform: uppercase;
+  font-family: var(--lgn-font, system-ui, sans-serif);
+  font-size: 15px;
+  font-weight: 600;
   cursor: pointer;
 }
 
@@ -76,14 +76,14 @@
    selectable text so the user can reach out even if the deep-link fails. */
 .botHandle {
   margin: 16px 0 0;
-  font-family: 'JetBrains Mono Variable', 'JetBrains Mono', monospace;
-  font-size: 12px;
+  font-family: var(--lgn-font, system-ui, sans-serif);
+  font-size: 13px;
   letter-spacing: 0.02em;
-  opacity: 0.6;
+  color: var(--lgn-ink-2, rgba(60, 60, 67, 0.6));
 }
 
 .botHandleValue {
   user-select: text;
   -webkit-user-select: text;
-  opacity: 0.95;
+  color: var(--lgn-ink, #1c1c1e);
 }

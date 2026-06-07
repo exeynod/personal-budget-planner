@@ -12,13 +12,9 @@
 //   - Напоминать за дней (notify_days_before 0..30) → stepper
 //   - AI авто-категоризация (enable_ai_categorization) → toggle
 //   - AI лимит расходов (ai_spend_cap_cents)        → read-only
-//   - Цвет Home (homeColor)                          → disclosure → HomeColorPickerSheet
-//   - Тема (theme)                                   → disclosure → ThemePickerSheet
 //
-// The «Тема» row is the CRITICAL control: it drives the same `onSelectTheme`
-// (useTheme setter) as the poster, so picking «Maximal Poster» switches shells
-// back instantly. We reuse the existing poster ThemePickerSheet / HomeColorPickerSheet
-// components — both are self-contained bottom-sheets and theme-agnostic.
+// Liquid Glass is the only web design now, so there is no theme picker and no
+// Home-color picker (both were Maximal-Poster controls and have been removed).
 
 import { memo, useState } from 'react';
 import { Minus, Plus } from '@phosphor-icons/react';
@@ -29,12 +25,28 @@ import {
   InsetRow,
 } from '../native/NativePrimitives';
 import { formatMoneyNative } from '../native/money';
-import { homeColorCssValue, homeColorLabel } from '../Home/useHomeColor';
-import { themeLabel } from '../common';
-import { HomeColorPickerSheet } from './HomeColorPickerSheet';
-import { ThemePickerSheet } from './ThemePickerSheet';
-import type { SettingsViewProps } from './SettingsView';
 import styles from './NativeSettingsView.module.css';
+
+export interface SettingsViewProps {
+  cycle_start_day: number;
+  notify_days_before: number;
+  ai_categorization_enabled: boolean;
+  ai_spend_cap_cents: number;
+  loading: boolean;
+  error: string | null;
+  onChangeCycleDay: (d: number) => void;
+  onChangeNotifyDays: (d: number) => void;
+  onToggleAiCat: (enabled: boolean) => void;
+  canPop: boolean;
+  onBack: () => void;
+  // v1.1 planning rework — «Привести остаток».
+  /** Current computed balance in cents, or null while it loads / fails. */
+  balanceNowCents?: number | null;
+  /** Reconcile the balance to `targetCents` (writes a balancing adjustment). */
+  onReconcileBalance?: (targetCents: number) => void;
+  /** True while a reconcile request is in flight. */
+  reconciling?: boolean;
+}
 
 const CYCLE_MIN = 1;
 const CYCLE_MAX = 28;
@@ -318,55 +330,6 @@ function NativeSettingsViewInner(props: SettingsViewProps) {
           onReconcileBalance={props.onReconcileBalance}
         />
       )}
-
-      {/* Оформление */}
-      <SectionHeader>Оформление</SectionHeader>
-      <InsetGroup>
-        <InsetRow
-          testId="home-color-row"
-          title="Цвет Home"
-          trailing={
-            <span className={styles.previewTrailing}>
-              <span
-                className={styles.colorSwatch}
-                style={{ background: homeColorCssValue(props.homeColor) }}
-                aria-hidden
-              />
-              <span className={styles.previewLabel}>
-                {homeColorLabel(props.homeColor)}
-              </span>
-            </span>
-          }
-          chevron
-          onClick={() => props.onTogglePicker(true)}
-        />
-        <InsetRow
-          testId="theme-row"
-          title="Дизайн"
-          subtitle="Maximal Poster / Liquid Glass"
-          trailing={
-            <span className={styles.previewLabel}>
-              {themeLabel(props.theme)}
-            </span>
-          }
-          chevron
-          onClick={() => props.onToggleThemePicker(true)}
-        />
-      </InsetGroup>
-
-      <HomeColorPickerSheet
-        isOpen={props.pickerOpen}
-        current={props.homeColor}
-        onSelect={props.onSelectHomeColor}
-        onClose={() => props.onTogglePicker(false)}
-      />
-
-      <ThemePickerSheet
-        isOpen={props.themePickerOpen}
-        current={props.theme}
-        onSelect={props.onSelectTheme}
-        onClose={() => props.onToggleThemePicker(false)}
-      />
     </div>
   );
 }

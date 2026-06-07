@@ -1,5 +1,6 @@
 /* AuthGate loading / transient-error states. The authorized branch renders
-   the real shell (children); the denied branch renders AccessRequiredScreen. */
+   the real shell (children); the denied branch renders AccessRequiredScreen.
+   Native Liquid Glass surface (neutral grouped background, iOS ink). */
 
 .gate {
   position: relative;
@@ -11,38 +12,37 @@
   width: 100%;
   padding: 56px 22px;
   padding-top: calc(56px + var(--tg-safe-top, 0px));
-  background: var(--surface-bg, var(--poster-coral, #ff5436));
-  color: var(--text-on-accent, var(--poster-paper, #f4f1ea));
-  font-family: "Manrope Variable", "Manrope", sans-serif;
+  background: var(--lgn-bg, #eef1f6);
+  color: var(--lgn-ink, #1c1c1e);
+  font-family: var(--lgn-font, system-ui, sans-serif);
   text-align: center;
   box-sizing: border-box;
 }
 
 .eyebrow {
-  font-family: "JetBrains Mono Variable", "JetBrains Mono", monospace;
-  font-size: 11px;
-  letter-spacing: var(--poster-tracking-eye, 0.18em);
+  font-family: var(--lgn-font, system-ui, sans-serif);
+  font-size: 13px;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
-  opacity: 0.6;
+  color: var(--lgn-ink-2, rgba(60, 60, 67, 0.6));
 }
 
 .message {
   font-size: 15px;
   margin: 14px 0 18px;
-  opacity: 0.85;
+  color: var(--lgn-ink-2, rgba(60, 60, 67, 0.6));
 }
 
 .retryBtn {
   appearance: none;
-  border: 1px solid currentColor;
-  border-radius: var(--radius-button, 0);
-  background: transparent;
-  color: inherit;
-  padding: 11px 20px;
-  font-family: "JetBrains Mono Variable", "JetBrains Mono", monospace;
-  font-size: 12px;
-  letter-spacing: var(--poster-tracking-eye, 0.18em);
-  text-transform: uppercase;
+  border: none;
+  border-radius: var(--lgn-r-sm, 12px);
+  background: var(--lgn-accent, #ff7a4c);
+  color: #fff;
+  padding: 11px 22px;
+  font-family: var(--lgn-font, system-ui, sans-serif);
+  font-size: 15px;
+  font-weight: 600;
   cursor: pointer;
 }
 

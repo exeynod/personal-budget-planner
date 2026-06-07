@@ -39,9 +39,7 @@ import { getCurrentPeriod } from '../../api/periods';
 import { getMeV10 } from '../../api/me';
 import { ApiError } from '../../api/client';
 import type { PlanMonthItem } from '../../api/types';
-import { PlanView } from './PlanView';
 import { NativePlanView } from './NativePlanView';
-import { useShellVariant } from '../native/ShellVariant';
 import {
   applyPlanEdit,
   computeIsOverflow,
@@ -78,7 +76,6 @@ export interface PlanMountProps {
 
 export function PlanMount({ focusCategoryId = null }: PlanMountProps = {}) {
   const router = usePosterRouter();
-  const variant = useShellVariant();
   const sel = useSelectedPeriodOptional();
   // Shared AddSheet (plan mode «+») bumps this token on a successful create →
   // reload the plan so the new planned row + ladder appear immediately.
@@ -94,7 +91,6 @@ export function PlanMount({ focusCategoryId = null }: PlanMountProps = {}) {
     'loading',
   );
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
   const [toast, setToast] = useState<ToastState>(null);
@@ -216,26 +212,6 @@ export function PlanMount({ focusCategoryId = null }: PlanMountProps = {}) {
       setToast({ text: 'Не удалось отменить проводку', tone: 'error' });
     }
   }, []);
-
-  // ─────────── submit: patchPlanMonth(plans) ───────────
-  const handleSubmit = useCallback(async () => {
-    setSubmitting(true);
-    setSaveError(null);
-    try {
-      await patchPlanMonth(plans);
-      setToast({ text: 'План сохранён', tone: 'success' });
-      // Brief delay so toast is visible before pop.
-      window.setTimeout(() => router.pop(), 600);
-    } catch (e) {
-      if (e instanceof ApiError && e.status === 400) {
-        setSaveError('Σplan превышает доход — уменьшите лимиты');
-      } else {
-        setSaveError(e instanceof Error ? e.message : 'Ошибка сохранения');
-      }
-    } finally {
-      setSubmitting(false);
-    }
-  }, [plans, router]);
 
   // ─────────── detail surface handlers (v1.1) ───────────
   // Post a single detail row: subscription-derived rows post via their own
@@ -380,47 +356,33 @@ export function PlanMount({ focusCategoryId = null }: PlanMountProps = {}) {
     );
   }
 
-  // Shared view-model. The poster PlanView still uses the «СОХРАНИТЬ» CTA
-  // (submitting / onSubmit); the native view auto-saves each limit on commit
-  // (onLimitCommit) and has no save button (§A design-fix).
-  const sharedProps = {
-    incomeCents: income,
-    categories,
-    plans,
-    regulars,
-    surplusCents: surplus,
-    isOverflow,
-    saveError,
-    focusCategoryId,
-    onSliderChange: handleSliderChange,
-    onPostRegular: handlePostRegular,
-    onUnpostRegular: handleUnpostRegular,
-    onBack: () => router.pop(),
-  };
-
+  // The native view auto-saves each limit on commit (onLimitCommit) and has no
+  // save button (§A design-fix).
   return (
     <>
-      {variant === 'native' ? (
-        <NativePlanView
-          {...sharedProps}
-          categories={expenseCategories}
-          incomeCategories={incomeCategories}
-          incomePlannedCents={incomeSummary.plannedCents}
-          incomeReceivedCents={incomeSummary.receivedCents}
-          onLimitCommit={handleLimitCommit}
-          detailByCat={detailByCat}
-          ladderByCat={ladderByCat}
-          incomeLadderByCat={incomeLadderByCat}
-          onPostDetail={handlePostDetail}
-          onUnpostDetail={handleUnpostDetail}
-        />
-      ) : (
-        <PlanView
-          {...sharedProps}
-          submitting={submitting}
-          onSubmit={handleSubmit}
-        />
-      )}
+      <NativePlanView
+        incomeCents={income}
+        categories={expenseCategories}
+        plans={plans}
+        regulars={regulars}
+        surplusCents={surplus}
+        isOverflow={isOverflow}
+        saveError={saveError}
+        focusCategoryId={focusCategoryId}
+        onSliderChange={handleSliderChange}
+        onPostRegular={handlePostRegular}
+        onUnpostRegular={handleUnpostRegular}
+        onBack={() => router.pop()}
+        incomeCategories={incomeCategories}
+        incomePlannedCents={incomeSummary.plannedCents}
+        incomeReceivedCents={incomeSummary.receivedCents}
+        onLimitCommit={handleLimitCommit}
+        detailByCat={detailByCat}
+        ladderByCat={ladderByCat}
+        incomeLadderByCat={incomeLadderByCat}
+        onPostDetail={handlePostDetail}
+        onUnpostDetail={handleUnpostDetail}
+      />
       <NativeToast
         message={toast?.text ?? ''}
         tone={toast?.tone ?? 'success'}

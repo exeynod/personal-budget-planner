@@ -31,9 +31,54 @@ import {
 } from '../native/NativePrimitives';
 import { CategoryIcon } from '../native/CategoryIcon';
 import { formatMoneyNative, formatMoneyRubNative } from '../native/money';
-import { shouldHighlightRed, type GroupMode } from './computeAnalytics';
-import type { AnalyticsViewProps } from './AnalyticsView';
+import {
+  shouldHighlightRed,
+  type GroupMode,
+  type MonthOption,
+  type KPISpent,
+  type KPISaved,
+} from './computeAnalytics';
+import type { TopCategoryItem } from '../../api/v10';
 import styles from './NativeAnalyticsView.module.css';
+
+/** A single bar in the analytics chart. */
+export interface BarDatum {
+  /** X-axis label (e.g. "10", "Н1", "Еда"). */
+  label: string;
+  /** Bar value in cents (always |abs|, expense-only). */
+  sumCents: number;
+  /** Optional plan ceiling for red-highlight comparison. */
+  planCents?: number;
+}
+
+export interface AnalyticsViewProps {
+  /** Segmented period chips (typically lastNMonths(now, 3)). */
+  monthOptions: MonthOption[];
+  /** Currently selected month (one of monthOptions). */
+  selectedMonth: MonthOption;
+  /** Period chip tap. */
+  onSelectMonth: (m: MonthOption) => void;
+  /** Currently selected group mode (day | week | cat). */
+  groupMode: GroupMode;
+  /** Group-mode chip tap. */
+  onSelectGroup: (m: GroupMode) => void;
+  /** «ПОТРАЧЕНО» plate model — sum + delta vs prev period. */
+  kpiSpent: KPISpent;
+  /** «СЭКОНОМЛЕНО» plate model — sum of positive plan-fact remainders. */
+  kpiSaved: KPISaved;
+  /** Bar chart data, ordered left-to-right. */
+  barData: BarDatum[];
+  /** Top-5 categories list. */
+  topCategories: TopCategoryItem[];
+  /** Loading flag — shows loading subview when true. */
+  loading: boolean;
+  /** Error string — shows error subview when non-null. */
+  error: string | null;
+  /** Whether router can pop back (controls back-button visibility). */
+  canPop: boolean;
+  /** Back tap. */
+  onBack: () => void;
+}
 
 // Group-mode labels — identical to the poster GROUP_LABEL map.
 const GROUP_OPTIONS: ReadonlyArray<{ value: GroupMode; label: string }> = [

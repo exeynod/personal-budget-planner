@@ -80,40 +80,6 @@ final class Step01IncomeTests: XCTestCase {
         XCTAssertEqual(flow.incomeCents, 0)
     }
 
-    func testApplyDigitsUpdatesFlow() {
-        let flow = OnboardingFlow(defaults: defaults)
-        let view = Step01IncomeView(flow: flow)
-        view.apply("80000")
-        // 80_000 ₽ → 8_000_000 cents.
-        XCTAssertEqual(flow.incomeCents, 8_000_000)
-    }
-
-    func testApplyEmptyStringClampsToZero() {
-        let flow = OnboardingFlow(defaults: defaults)
-        flow.setIncome(5_000_000)
-        let view = Step01IncomeView(flow: flow)
-        view.apply("")
-        XCTAssertEqual(flow.incomeCents, 0)
-    }
-
-    func testApplyStripsNonDigits() {
-        // T-24-03-01: paste introduces letters / spaces / separators.
-        let flow = OnboardingFlow(defaults: defaults)
-        let view = Step01IncomeView(flow: flow)
-        view.apply("80\u{202F}000 ₽abc")
-        // Only digits "80000" survive → 80_000 ₽ → 8_000_000 cents.
-        XCTAssertEqual(flow.incomeCents, 8_000_000)
-    }
-
-    func testApplySlicesBeyondNineDigits() {
-        // T-24-03-02: a 12-digit paste must cap at 9 digits → 999_999_999 ₽.
-        let flow = OnboardingFlow(defaults: defaults)
-        let view = Step01IncomeView(flow: flow)
-        view.apply("123456789012")
-        // First 9 digits = "123456789" = 123_456_789 ₽ → 12_345_678_900 cents.
-        XCTAssertEqual(flow.incomeCents, 123_456_789 * 100)
-    }
-
     // MARK: - Preset behaviour (mirrors the chip onTap closures)
 
     func testPresetTapUpdatesFlow() {

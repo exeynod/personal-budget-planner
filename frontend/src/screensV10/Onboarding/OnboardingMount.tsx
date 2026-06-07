@@ -29,12 +29,10 @@
 // localStorage before invoking onComplete).
 
 import { useCallback, useEffect, useState } from 'react';
-import { OnboardingFlow } from './OnboardingFlow';
 import { NativeOnboardingFlow } from './NativeOnboardingFlow';
 import { getMeV10, type MeV10Response } from '../../api/me';
 import { invalidate, CACHE_KEYS } from '../../api/cache';
 import { HomeMount } from '../Home';
-import { useShellVariant } from '../native/ShellVariant';
 import styles from './OnboardingMount.module.css';
 
 interface MountState {
@@ -51,11 +49,8 @@ const INITIAL: MountState = {
 
 export function OnboardingMount() {
   const [state, setState] = useState<MountState>(INITIAL);
-  // Liquid Glass v2: the not-onboarded path renders the native single-scroll
-  // onboarding when inside the native shell; the poster multi-step flow is
-  // unchanged. The onboarded path (HomeMount) is already variant-handled by
-  // HomeMount itself, so it is left untouched below.
-  const variant = useShellVariant();
+  // Liquid Glass is the only web design — the not-onboarded path always renders
+  // the native single-scroll onboarding; the onboarded path renders HomeMount.
 
   const refetch = useCallback(async (): Promise<void> => {
     setState((s) => ({ ...s, status: 'loading', errorMsg: null }));
@@ -109,18 +104,8 @@ export function OnboardingMount() {
   if (state.me === null) return null;
 
   if (state.me.onboarded_at == null) {
-    if (variant === 'native') {
-      return (
-        <NativeOnboardingFlow
-          onComplete={async () => {
-            // Both 200 and 409 paths refetch — server is the source of truth.
-            await refetch();
-          }}
-        />
-      );
-    }
     return (
-      <OnboardingFlow
+      <NativeOnboardingFlow
         onComplete={async () => {
           // Both 200 and 409 paths refetch — server is the source of truth.
           await refetch();

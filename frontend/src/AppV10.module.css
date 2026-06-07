@@ -1,9 +1,9 @@
 .shellRoot {
   /* Phase 3: track TG stable viewport; falls back to 100dvh in browser/tests. */
   min-height: var(--tg-viewport-stable, 100dvh);
-  background: var(--poster-coral);
-  color: var(--poster-paper);
-  font-family: 'Manrope Variable', 'Manrope', sans-serif;
+  background: var(--lgn-bg, #eef1f6);
+  color: var(--lgn-ink, #1c1c1e);
+  font-family: var(--lgn-font, system-ui, sans-serif);
   /* Safe-area top/left/right: max(env, TG var) — env covers iOS notch / PWA,
      the var covers TG fullscreen chrome where env resolves to 0. inset=0 in
      browser/tests → no padding → mobile layout unchanged. box-sizing keeps the
@@ -19,9 +19,8 @@
 
 /* Phase 3: desktop column + neutral letterbox. On viewports wider than a phone
    the app renders as a centered var(--col-width) (420px) column over a flat
-   neutral letterbox fill — NOT the v06 sunset gradient / phone frame. Fixed /
-   overlay elements (TabBar, sheets, toast) re-anchor to the same column in
-   their own @media rules. */
+   neutral letterbox fill. Fixed / overlay elements (TabBar, sheets, toast)
+   re-anchor to the same column in their own @media rules. */
 @media (min-width: 540px) {
   .shellRoot {
     width: var(--col-width);
@@ -30,38 +29,4 @@
        (stylesV10/responsive.css). */
     margin-inline: auto;
   }
-}
-
-.placeholder {
-  padding: 56px 22px;
-}
-
-.placeholderEyebrow {
-  font-family: 'JetBrains Mono Variable', monospace;
-  font-size: 11px;
-  letter-spacing: var(--poster-tracking-eye);
-  text-transform: uppercase;
-  opacity: 0.7;
-  margin-bottom: 12px;
-}
-
-.placeholderTitle {
-  font-family: 'PosterSerifItalic', serif;
-  font-style: italic;
-  font-size: 88px;
-  line-height: 0.85;
-  letter-spacing: -0.04em;
-}
-
-.placeholderHint {
-  font-size: 13px;
-  margin-top: 22px;
-  opacity: 0.85;
-}
-
-.placeholderHint code {
-  font-family: 'JetBrains Mono Variable', monospace;
-  font-size: 12px;
-  background: rgba(0, 0, 0, 0.18);
-  padding: 1px 4px;
 }

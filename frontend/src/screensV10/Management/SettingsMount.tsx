@@ -11,17 +11,17 @@
 // last-known server snapshot and surface the message via <Toast> (P2-11).
 
 import { useCallback, useEffect, useState } from 'react';
-import { Toast } from '../../componentsV10';
 import { getSettings, updateSettings } from '../../api/settings';
 import { getMeV10 } from '../../api/me';
 import { getBalance } from '../../api/actual';
 import { reconcileBalance } from '../../api/v10';
 import type { SettingsRead, SettingsUpdatePayload } from '../../api/types';
-import { usePosterRouter, useTheme } from '../common';
-import { useHomeColor } from '../Home/useHomeColor';
-import { useShellVariant } from '../native/ShellVariant';
-import { SettingsView, type SettingsViewProps } from './SettingsView';
-import { NativeSettingsView } from './NativeSettingsView';
+import { usePosterRouter } from '../common';
+import { NativeToast } from '../native/NativeToast';
+import {
+  NativeSettingsView,
+  type SettingsViewProps,
+} from './NativeSettingsView';
 
 const FALLBACK_CYCLE_DAY = 1;
 const FALLBACK_NOTIFY_DAYS = 2;
@@ -35,18 +35,8 @@ export function SettingsMount() {
   // v1.1 — «Привести остаток»: current computed balance + reconcile in-flight.
   const [balanceNowCents, setBalanceNowCents] = useState<number | null>(null);
   const [reconciling, setReconciling] = useState(false);
-  // Phase 30-07 (DEBT-08): Home background color preference + picker sheet
-  // open state. The hook persists to localStorage and broadcasts a CustomEvent
-  // so HomeMount instantly re-renders when user picks a new color.
-  const [homeColor, setHomeColor] = useHomeColor();
-  const [homeColorPickerOpen, setHomeColorPickerOpen] = useState(false);
-  // Phase 54-01 (LG-SW-02, LG-SW-05 web): Theme + picker sheet state.
-  const [theme, setTheme] = useTheme();
-  const [themePickerOpen, setThemePickerOpen] = useState(false);
   // P2-11: PATCH error surface (single toast slot, last error wins).
   const [toastMsg, setToastMsg] = useState<string | null>(null);
-  // Liquid Glass v2: pick the native or poster presentational view.
-  const variant = useShellVariant();
 
   useEffect(() => {
     let cancelled = false;
@@ -144,14 +134,6 @@ export function SettingsMount() {
     onToggleAiCat: handleToggleAiCat,
     canPop: router.canPop,
     onBack: () => router.pop(),
-    homeColor,
-    pickerOpen: homeColorPickerOpen,
-    onSelectHomeColor: setHomeColor,
-    onTogglePicker: setHomeColorPickerOpen,
-    theme,
-    themePickerOpen,
-    onSelectTheme: setTheme,
-    onToggleThemePicker: setThemePickerOpen,
     balanceNowCents,
     onReconcileBalance: handleReconcileBalance,
     reconciling,
@@ -159,12 +141,8 @@ export function SettingsMount() {
 
   return (
     <>
-      {variant === 'native' ? (
-        <NativeSettingsView {...viewProps} />
-      ) : (
-        <SettingsView {...viewProps} />
-      )}
-      <Toast
+      <NativeSettingsView {...viewProps} />
+      <NativeToast
         message={toastMsg ?? ''}
         visible={toastMsg !== null}
         onDismiss={() => setToastMsg(null)}

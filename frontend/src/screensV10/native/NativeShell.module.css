@@ -17,15 +17,9 @@
   font-family: var(--lgn-font);
   color: var(--lgn-ink);
 
-  /* Neutralise the poster tokens INSIDE the native shell so any poster-styled
-     loading / error plate that briefly mounts (Mount fetch states, back-nav
-     reload) renders on the glass field instead of flashing Maximal Poster
-     coral. (HomeMount LoadingPlate etc. read var(--color-home,...)/--ink-*.) */
-  --color-home: transparent;
-  --poster-coral: transparent;
-  --poster-cobalt: transparent;
-  --poster-paper: var(--lgn-card);
-  --poster-ink: var(--lgn-ink);
+  /* Semantic ink tokens for any state plate that mounts inside the shell
+     (Mount fetch loading / error). They resolve to the native LG ink so a
+     plate never flashes a foreign surface. */
   --ink-on-home: var(--lgn-ink);
   --eyebrow-ink: var(--lgn-ink-2);
   --link-ink: var(--lgn-accent);

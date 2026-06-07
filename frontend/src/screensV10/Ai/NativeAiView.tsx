@@ -29,8 +29,39 @@ import {
   InsetRow,
 } from '../native/NativePrimitives';
 import { useNavLevel } from '../native/NavLevel';
-import type { AiViewProps } from './AiView';
 import styles from './NativeAiView.module.css';
+
+/** A single chat bubble in the AI conversation log. */
+export type AiMessage = { role: 'user' | 'ai'; text: string; id: string };
+
+export interface AiViewProps {
+  /** Server-rendered observation sentence. null while loading or on error. */
+  observation: string | null;
+  /** ISO date when the observation was generated server-side. */
+  observationGeneratedAt: Date | null;
+  /** True while GET /ai/observation is in flight on first mount. */
+  observationLoading: boolean;
+  /** Friendly error string when observation fetch failed (chips still render). */
+  observationError: string | null;
+  /** Prompt suggestions (DEFAULT_SUGGESTION_CHIPS). */
+  suggestionChips: readonly string[];
+  /** Conversation log (oldest → newest). Empty array == initial state. */
+  messages: AiMessage[];
+  /** True between user-send and SSE done event. */
+  isStreaming: boolean;
+  /** Composer text — controlled. */
+  input: string;
+  onInputChange: (s: string) => void;
+  /** Send handler — receives the trimmed text. */
+  onSend: (text: string) => void;
+  /** Chip tap — receives the chip text (parent forwards to onSend). */
+  onChipTap: (text: string) => void;
+  /** True when the router has stack depth > 0 (AI pushed onto another screen). */
+  canPop: boolean;
+  onBack: () => void;
+  /** Pre-formatted today label («9 мая»). */
+  todayLabel: string;
+}
 
 function NativeAiViewInner(props: AiViewProps) {
   const {

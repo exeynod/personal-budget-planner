@@ -9,18 +9,15 @@ import { useEffect, useState } from 'react';
 import { listAdminUsers, getAdminAiUsage } from '../../api/admin';
 import { ApiError } from '../../api/client';
 import { usePosterRouter } from '../common';
-import { useShellVariant } from '../native/ShellVariant';
 import {
-  AccessView,
+  NativeAccessView,
   type AccessAiUsage,
   type AccessTab,
   type AccessUser,
-} from './AccessView';
-import { NativeAccessView } from './NativeAccessView';
+} from './NativeAccessView';
 
 export function AccessMount() {
   const router = usePosterRouter();
-  const variant = useShellVariant();
   const [users, setUsers] = useState<AccessUser[]>([]);
   const [aiUsage, setAiUsage] = useState<AccessAiUsage[]>([]);
   const [activeTab, setActiveTab] = useState<AccessTab>('users');
@@ -81,8 +78,6 @@ export function AccessMount() {
     onBack: () => router.pop(),
   };
 
-  // Liquid Glass native shell → native iOS Access view. Same props/handlers.
-  if (variant === 'native') return <NativeAccessView {...viewProps} />;
-
-  return <AccessView {...viewProps} />;
+  // Liquid Glass native shell → native iOS Access view.
+  return <NativeAccessView {...viewProps} />;
 }

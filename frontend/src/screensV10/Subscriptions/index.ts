@@ -8,8 +8,7 @@
 // `export *` so consumers can `import { computeMonthlyTotal } from '../Subscriptions'`.
 
 export { SubscriptionsMount } from './SubscriptionsMount';
-export { SubscriptionsView } from './SubscriptionsView';
-export type { SubscriptionsViewProps } from './SubscriptionsView';
+export { NativeSubscriptionsView } from './NativeSubscriptionsView';
 export { SubscriptionMenuSheet } from './SubscriptionMenuSheet';
 export type { SubscriptionMenuSheetProps } from './SubscriptionMenuSheet';
 export * from './computeSubscriptions';

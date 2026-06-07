@@ -1,24 +1,16 @@
 // Liquid Glass v2 — shell-variant context.
 //
 // The data layer (api/*, useResource, the Mount components, computeHomeData…)
-// is design-agnostic and shared between both shells. Each Mount renders its
-// presentational View based on the active shell variant:
-//
-//   variant === 'native'  → Liquid Glass native iOS view
-//   variant === 'poster'  → Maximal Poster view (default — unchanged)
-//
-// Default is 'poster' so:
-//   - existing Mounts rendered inside V10MainShell keep rendering poster views;
-//   - standalone unit tests (Mount rendered without a provider) stay poster →
-//     Maximal Poster pixel baselines never regress.
-//
-// The native shell provides value='native' once at its root.
+// is design-agnostic. With the Maximal Poster design retired from web, the only
+// remaining variant is 'native' (the Liquid Glass iOS shell). The context is
+// kept as a thin seam (NativeShell still wraps its tree with the provider) and
+// defaults to 'native', so any consumer resolves to the native view.
 
-import { createContext, useContext, type ReactNode } from 'react';
+import { createContext, type ReactNode } from 'react';
 
-export type ShellVariant = 'poster' | 'native';
+export type ShellVariant = 'native';
 
-const ShellVariantCtx = createContext<ShellVariant>('poster');
+const ShellVariantCtx = createContext<ShellVariant>('native');
 
 export function ShellVariantProvider({
   value,
@@ -32,9 +24,4 @@ export function ShellVariantProvider({
       {children}
     </ShellVariantCtx.Provider>
   );
-}
-
-/** Returns the active shell variant. Defaults to 'poster' outside a provider. */
-export function useShellVariant(): ShellVariant {
-  return useContext(ShellVariantCtx);
 }

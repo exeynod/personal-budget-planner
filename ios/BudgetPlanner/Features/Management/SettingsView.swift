@@ -112,12 +112,6 @@ struct SettingsView: View {
     @State private var viewModel = SettingsViewModel()
     @Environment(AuthStore.self) private var authStore
 
-    // Phase 56 (v06 Native Rebuild): тумблер на новый V10 дизайн.
-    // Хранится в общем ключе `ui.theme`. `"v06"` (текущий MainShell) ↔
-    // `Theme.maximalPoster.rawValue` (V10MainShell). Запись инициирует
-    // переход к V10 через AppRouter (re-evaluate body).
-    @AppStorage("ui.theme") private var themeRaw: String = Theme.maximalPoster.rawValue
-
     private var user: UserDTO? {
         if case .authenticated(let user) = authStore.state { return user }
         return nil
@@ -131,7 +125,6 @@ struct SettingsView: View {
                 notifySection
                 aiSection
                 aiSpendSection
-                designSection
             } else if viewModel.isLoading {
                 Section { ProgressView() }
             }
@@ -282,58 +275,4 @@ struct SettingsView: View {
         return "$\(s) / $\(c)"
     }
 
-    private var designSection: some View {
-        let current = ThemeOption.selected(forRaw: themeRaw)
-        return Section {
-            ForEach(ThemeOption.allOptions, id: \.self) { option in
-                Button {
-                    themeRaw = ThemeOption.rawValue(for: option)
-                } label: {
-                    HStack(spacing: 12) {
-                        themeSwatch(option)
-                        Text(option.ruLabel)
-                            .foregroundStyle(.primary)
-                        Spacer()
-                        if option == current {
-                            Image(systemName: "checkmark")
-                                .font(.body.weight(.semibold))
-                                .foregroundStyle(Color.accentColor)
-                        }
-                    }
-                    .contentShape(Rectangle())
-                }
-                .accessibilityIdentifier("theme-\(ThemeOption.rawValue(for: option))")
-            }
-        } header: {
-            Text("Дизайн")
-        } footer: {
-            Text(
-                "Выберите стиль интерфейса. Liquid Glass — нативный iOS-дизайн (этот экран); Maximal Poster — постерный V10-шелл."
-            )
-        }
-    }
-
-    @ViewBuilder
-    private func themeSwatch(_ option: ThemeOption) -> some View {
-        Group {
-            switch option {
-            case .maximalPoster:
-                RoundedRectangle(cornerRadius: 6, style: .continuous)
-                    .fill(Color(red: 1.0, green: 90 / 255, blue: 60 / 255))
-            case .liquidGlass:
-                RoundedRectangle(cornerRadius: 6, style: .continuous)
-                    .fill(Color(red: 242 / 255, green: 242 / 255, blue: 247 / 255))
-                    .overlay(
-                        Image(systemName: "drop.fill")
-                            .font(.system(size: 11, weight: .regular))
-                            .foregroundStyle(Color.accentColor)
-                    )
-            }
-        }
-        .frame(width: 26, height: 26)
-        .overlay(
-            RoundedRectangle(cornerRadius: 6, style: .continuous)
-                .strokeBorder(.black.opacity(0.1), lineWidth: 1)
-        )
-    }
 }

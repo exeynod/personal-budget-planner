@@ -5,8 +5,7 @@
 // integration tests / iOS-parity snapshots.
 
 export { TransactionsMount } from './TransactionsMount';
-export { TransactionsView } from './TransactionsView';
-export type { TransactionsViewProps } from './TransactionsView';
+export { NativeTransactionsView } from './NativeTransactionsView';
 export {
   applyFilterChip,
   groupByDay,

@@ -190,8 +190,8 @@ describe('HomeMount — period switching re-fetch (Phase P2)', () => {
     expect(listActualV10Mock).toHaveBeenCalledWith(5);
     expect(getPeriodBalanceMock).toHaveBeenCalledWith(5);
 
-    // Eyebrow reflects the VIEWED (May) period, not today's month.
-    expect(screen.getByText(/MAY 2026/)).toBeTruthy();
+    // Native period switcher reflects the VIEWED (May) period, not today's.
+    expect(screen.getByText(/Май 2026/)).toBeTruthy();
   });
 });
 

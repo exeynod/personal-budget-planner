@@ -1,33 +1,29 @@
-// Phase 31 (code-quality): StatePlate — the single parameterised loading /
-// error plate the v10 Mounts used to copy-paste. Every Mount declared an
-// identical `fillStyle` (absolute inset-0 surface, eyebrow, mono detail line,
-// retry button) tinted to its screen colour. This component renders that exact
-// markup so the migrated Mounts stay byte-identical under the MP pixel
-// snapshots, while letting each pass its colours / message / testId / retry.
+// StatePlate — the single parameterised loading / error plate shared by the
+// v10 Mounts. Originally a Maximal-Poster surface (Eyebrow + PosterButton); now
+// that Liquid Glass is the only web design it renders a native iOS plate using
+// the --lgn-* tokens and NativeButton.
 //
-// Theme note: the colours are passed in as CSS values, NOT hardcoded. Home
-// routes them through the ink vars (`--color-home` / `--ink-on-home` /
-// `--eyebrow-ink`) so the plate is readable under BOTH Maximal Poster and
-// Liquid Glass — StatePlate must never reintroduce a hardcoded paper-on-light
-// plate. Defaults match the cobalt drill-down screens (Transactions / Plan /
-// CategoryDetail).
+// The colour props (`background`/`color`/`eyebrowColor`) are still accepted for
+// API stability, but they now default to the neutral Liquid Glass surface so a
+// caller that passes nothing gets a correct native plate. Home routes its own
+// ink vars through them so the plate matches the rest of that screen.
 
 import type { CSSProperties, ReactNode } from 'react';
-import { Eyebrow, PosterButton } from '../../componentsV10';
+import { NativeButton } from '../native/NativeButton';
 
 export interface StatePlateProps {
   variant: 'loading' | 'error';
-  /** Surface background (CSS value). Default: cobalt. */
+  /** Surface background (CSS value). Default: native grouped background. */
   background?: string;
-  /** Foreground ink (CSS value). Default: paper. */
+  /** Foreground ink (CSS value). Default: native label ink. */
   color?: string;
-  /** Eyebrow ink (CSS value). Defaults to `color`. */
+  /** Eyebrow ink (CSS value). Defaults to the native secondary-label ink. */
   eyebrowColor?: string;
   /** Error message (variant='error' only). */
   message?: string;
-  /** Retry handler — renders the «ПОВТОРИТЬ» button when provided. */
+  /** Retry handler — renders the «Повторить» button when provided. */
   onRetry?: () => void;
-  /** Optional back handler — renders a ghost «НАЗАД» button beside retry. */
+  /** Optional back handler — renders a ghost «Назад» button beside retry. */
   onBack?: () => void;
   /** data-testid on the root plate (e.g. 'cat-detail-loading'). */
   testId?: string;
@@ -35,10 +31,11 @@ export interface StatePlateProps {
   children?: ReactNode;
 }
 
-const DEFAULT_BG = 'var(--poster-cobalt)';
-const DEFAULT_INK = 'var(--poster-paper)';
+const DEFAULT_BG = 'var(--lgn-bg)';
+const DEFAULT_INK = 'var(--lgn-ink)';
+const DEFAULT_EYEBROW = 'var(--lgn-ink-2)';
 
-const MONO_FONT = 'var(--poster-font-jet-brains-mono), ui-monospace, monospace';
+const FONT = 'var(--lgn-font), system-ui, sans-serif';
 
 export function StatePlate({
   variant,
@@ -56,28 +53,28 @@ export function StatePlate({
     inset: 0,
     background,
     color,
-    padding: '56px 22px 90px',
+    padding: '64px 20px 96px',
     display: 'flex',
     flexDirection: 'column',
-    gap: 14,
-    fontFamily: 'var(--poster-font-manrope), system-ui, sans-serif',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    textAlign: 'center',
+    fontFamily: FONT,
   };
-  const ebColor = eyebrowColor ?? color;
+  const ebColor = eyebrowColor ?? DEFAULT_EYEBROW;
+  const eyebrowStyle: CSSProperties = {
+    color: ebColor,
+    font: 'var(--lgn-t-footnote)',
+    letterSpacing: '0.04em',
+    textTransform: 'uppercase',
+  };
 
   if (variant === 'loading') {
     return (
       <div style={fillStyle} data-testid={testId}>
-        <Eyebrow color={ebColor}>ЗАГРУЗКА</Eyebrow>
-        <div
-          style={{
-            fontFamily: MONO_FONT,
-            fontSize: 13,
-            opacity: 0.7,
-            marginTop: 18,
-          }}
-        >
-          ···
-        </div>
+        <div style={eyebrowStyle}>Загрузка</div>
+        <div style={{ font: 'var(--lgn-t-title3)', opacity: 0.5 }}>···</div>
         {children}
       </div>
     );
@@ -86,35 +83,28 @@ export function StatePlate({
   // variant === 'error'
   return (
     <div style={fillStyle} data-testid={testId}>
-      <Eyebrow color={ebColor}>ОШИБКА</Eyebrow>
+      <div style={eyebrowStyle}>Ошибка</div>
       <div
         style={{
-          fontFamily: MONO_FONT,
-          fontSize: 13,
+          font: 'var(--lgn-t-subhead)',
           opacity: 0.85,
-          marginTop: 18,
+          maxWidth: 320,
           wordBreak: 'break-word',
         }}
       >
         {message}
       </div>
       {(onRetry || onBack) && (
-        <div
-          style={
-            onBack
-              ? { marginTop: 20, display: 'flex', gap: 10 }
-              : { marginTop: 20 }
-          }
-        >
+        <div style={{ marginTop: 12, display: 'flex', gap: 10 }}>
           {onRetry && (
-            <PosterButton variant="primary" onClick={onRetry}>
-              ПОВТОРИТЬ
-            </PosterButton>
+            <NativeButton variant="primary" onClick={onRetry}>
+              Повторить
+            </NativeButton>
           )}
           {onBack && (
-            <PosterButton variant="ghost" onClick={onBack}>
-              НАЗАД
-            </PosterButton>
+            <NativeButton variant="ghost" onClick={onBack}>
+              Назад
+            </NativeButton>
           )}
         </div>
       )}

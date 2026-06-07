@@ -18,12 +18,18 @@
 //   Подписки  → category.code === 'subs'
 //   Копилка   → kind in {roundup, deposit}     (CONTEXT D-Defer: subscription-link join skipped for MVP)
 
-import type {
-  ActualV10Read,
-  CategoryV10,
-} from '../../api/v10';
+import type { ActualV10Read, CategoryV10 } from '../../api/v10';
 import { formatDay } from '../common/format';
-import { formatRubles } from '../Onboarding/format';
+
+// U+202F NARROW NO-BREAK SPACE — thousands separator per DATA-MODEL §5.1.
+const NARROW_NBSP = ' ';
+
+/** Floor cents → rubles string with U+202F digit grouping (`0` for ≤0). */
+function formatRublesGrouped(cents: number): string {
+  if (!Number.isFinite(cents) || cents <= 0) return '0';
+  const rubles = Math.floor(cents / 100);
+  return rubles.toString().replace(/\B(?=(\d{3})+(?!\d))/g, NARROW_NBSP);
+}
 
 // ─────────────────── Types ───────────────────
 
@@ -71,7 +77,9 @@ export function applyFilterChip(
     return actuals as ActualV10Read[];
   }
   if (chip === 'savings') {
-    return actuals.filter((tx) => tx.kind === 'roundup' || tx.kind === 'deposit');
+    return actuals.filter(
+      (tx) => tx.kind === 'roundup' || tx.kind === 'deposit',
+    );
   }
   // chip ∈ { 'cafe' | 'food' | 'transit' | 'subs' } → match by category.code.
   const codeIndex = new Map<number, string | null | undefined>();
@@ -149,9 +157,10 @@ export function groupByDay(
  * - `sumCents` = Σ |amount_cents| (display magnitude, ignores sign so that
  *   roundup deposits and expenses both contribute positively to the total).
  */
-export function computeHeaderSummary(
-  actuals: ReadonlyArray<ActualV10Read>,
-): { count: number; sumCents: number } {
+export function computeHeaderSummary(actuals: ReadonlyArray<ActualV10Read>): {
+  count: number;
+  sumCents: number;
+} {
   let sum = 0;
   for (const tx of actuals) sum += Math.abs(tx.amount_cents);
   return { count: actuals.length, sumCents: sum };
@@ -182,7 +191,7 @@ const MINUS_SIGN = '−';
 export function formatTxAmount(amount_cents: number): string {
   if (!Number.isFinite(amount_cents) || amount_cents === 0) return '0 ₽';
   const abs = Math.abs(amount_cents);
-  const formattedRubles = formatRubles(abs);
+  const formattedRubles = formatRublesGrouped(abs);
   if (amount_cents < 0) {
     return `${MINUS_SIGN}${formattedRubles} ₽`;
   }

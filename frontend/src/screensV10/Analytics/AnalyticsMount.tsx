@@ -37,9 +37,7 @@ import {
 } from '../../api/v10';
 import { listPeriods } from '../../api/periods';
 import type { PeriodRead } from '../../api/types';
-import { AnalyticsView, type BarDatum } from './AnalyticsView';
-import { NativeAnalyticsView } from './NativeAnalyticsView';
-import { useShellVariant } from '../native/ShellVariant';
+import { NativeAnalyticsView, type BarDatum } from './NativeAnalyticsView';
 import {
   computeKPISaved,
   computeKPISpent,
@@ -56,7 +54,6 @@ import {
 
 export function AnalyticsMount() {
   const router = usePosterRouter();
-  const variant = useShellVariant();
 
   // Build the period chips once — re-derive only if Date dependency changes
   // (today's date is stable for the screen's lifetime in mini-app context).
@@ -196,12 +193,8 @@ export function AnalyticsMount() {
     onBack: handleBack,
   };
 
-  // Liquid Glass native shell → native iOS Analytics view. Reuses the same vm.
-  if (variant === 'native') {
-    return <NativeAnalyticsView {...viewProps} />;
-  }
-
-  return <AnalyticsView {...viewProps} />;
+  // Liquid Glass native shell → native iOS Analytics view.
+  return <NativeAnalyticsView {...viewProps} />;
 }
 
 // ─────────── helpers (private) ───────────

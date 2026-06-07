@@ -18,8 +18,16 @@
 
 import { CaretLeft, CaretRight } from '@phosphor-icons/react';
 import type { PeriodRead } from '../../api/types';
-import type { PeriodSwitcherProps } from '../common/PeriodSwitcher';
 import styles from './NativePeriodSwitcher.module.css';
+
+export interface PeriodSwitcherProps {
+  /** Periods sorted period_start DESC (newest first — backend default). */
+  periods: PeriodRead[];
+  /** Currently-viewed period id. */
+  selectedId: number;
+  /** Switch the viewed period. */
+  onSelect: (id: number) => void;
+}
 
 /** Russian nominative month names for the label («Май 2026»). */
 const MONTHS_RU_NOMINATIVE = [

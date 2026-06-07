@@ -13,13 +13,7 @@
 // The mount layer is intentionally thin — all sort/filter/aggregate logic
 // lives in pure functions in computeHomeData.ts (unit-tested separately).
 
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-  type CSSProperties,
-} from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   listAccounts,
   listCategoriesV10,
@@ -34,24 +28,19 @@ import { getCurrentPeriod, getPeriodBalance } from '../../api/periods';
 import { getHome, isHomeBootstrap } from '../../api/home';
 import { seedCache, CACHE_KEYS } from '../../api/cache';
 import type { BalanceResponse, PeriodRead } from '../../api/types';
-import { Eyebrow, PosterButton } from '../../componentsV10';
 import {
   formatPeriodEyebrow,
   formatPeriodEyebrowFromPeriod,
   useRefetchToken,
   usePosterRouter,
   useSelectedPeriodOptional,
+  StatePlate,
 } from '../common';
-// Phase 25-08: real Transactions registry replaces the prior WIP placeholder.
-import { TransactionsMount } from '../Transactions';
 // Phase 26-02: real CategoryDetail replaces the prior WIP placeholder.
 import { CategoryDetailMount } from '../CategoryDetail';
 // Phase 26-04: real Plan editor replaces the prior WIP PlanViewPlaceholder.
 import { PlanMount } from '../Plan';
-import { HomeView } from './HomeView';
 import { NativeHomeView } from './NativeHomeView';
-import { useShellVariant } from '../native/ShellVariant';
-import { useHomeColor } from './useHomeColor';
 import {
   computeCategoryAggregates,
   computeCategoryAggregatesFromBalance,
@@ -106,7 +95,6 @@ type LoadState =
 
 export function HomeMount() {
   const router = usePosterRouter();
-  const variant = useShellVariant();
   const [state, setState] = useState<LoadState>({ status: 'loading' });
   const [reloadToken, setReloadToken] = useState(0);
   // Phase 30-02 (DEBT-02): AddSheet submit bumps this token via V10MainShell
@@ -114,9 +102,6 @@ export function HomeMount() {
   // effect deps so Home actuals refresh immediately after a successful POST.
   // Falls back to `0` outside the provider (unit tests rendering Mount alone).
   const refetchToken = useRefetchToken();
-  // Phase 30-07 (DEBT-08): user's saved Home background color (default coral).
-  // Setter is wired up in SettingsMount; here we only read for rendering.
-  const [homeColor] = useHomeColor();
 
   // Phase P2 (period switching): the period the user is VIEWING. Outside the
   // SelectedPeriodProvider (standalone Mount unit tests) `sel` is null and we
@@ -269,10 +254,6 @@ export function HomeMount() {
     },
     [router],
   );
-  const onAllOperationsTap = useCallback(() => {
-    // Phase 25-08: real TransactionsMount replaces the placeholder.
-    router.push(<TransactionsMount />);
-  }, [router]);
 
   // ─────────── computed view-model (memoised on state.data) ───────────
   const vm = useMemo(() => {
@@ -409,7 +390,7 @@ export function HomeMount() {
     return (
       <>
         {refetchSentinel}
-        <LoadingPlate />
+        <StatePlate variant="loading" testId="home-loading" />
       </>
     );
   }
@@ -417,7 +398,9 @@ export function HomeMount() {
     return (
       <>
         {refetchSentinel}
-        <ErrorPlate
+        <StatePlate
+          variant="error"
+          testId="home-error"
           message={state.message}
           onRetry={() => setReloadToken((t) => t + 1)}
         />
@@ -428,113 +411,20 @@ export function HomeMount() {
   if (!vm) return refetchSentinel;
 
   // Liquid Glass native shell → native iOS Home view. Reuses the same vm.
-  if (variant === 'native') {
-    return (
-      <>
-        {refetchSentinel}
-        <NativeHomeView
-          walletCents={vm.walletCents}
-          plannedUnpostedCents={vm.plannedUnpostedCents}
-          expenseRows={vm.categoryRows}
-          incomeRows={vm.incomeRows}
-          onPlanTap={onPlanTap}
-          onCategoryTap={onCategoryTap}
-          periods={sel?.periods}
-          selectedPeriodId={selectedPeriodId}
-          onSelectPeriod={sel?.setSelectedPeriodId}
-        />
-      </>
-    );
-  }
-
   return (
     <>
       {refetchSentinel}
-      <HomeView
-        eyebrow={vm.eyebrow}
-        dailyPaceCents={vm.dailyPaceCents}
-        daysLeft={vm.daysLeft}
+      <NativeHomeView
         walletCents={vm.walletCents}
-        surplusCents={vm.surplusCents}
-        categoryRows={vm.categoryRows}
+        plannedUnpostedCents={vm.plannedUnpostedCents}
+        expenseRows={vm.categoryRows}
+        incomeRows={vm.incomeRows}
         onPlanTap={onPlanTap}
         onCategoryTap={onCategoryTap}
-        onAllOperationsTap={onAllOperationsTap}
-        homeColor={homeColor}
-        // Phase P2 (period switching): the switcher renders only when the
-        // provider supplied ≥2 periods and a selection (HomeView guards this).
         periods={sel?.periods}
         selectedPeriodId={selectedPeriodId}
         onSelectPeriod={sel?.setSelectedPeriodId}
       />
     </>
-  );
-}
-
-// ─────────────────── Loading / Error sub-views ───────────────────
-
-const fillStyle: CSSProperties = {
-  position: 'absolute',
-  inset: 0,
-  // Use the same home surface + ink tokens as HomeView so the Loading / Error
-  // plates stay readable under BOTH themes. Under Maximal Poster these resolve
-  // to coral + paper (unchanged); under Liquid Glass `--color-home` is forced to
-  // LG grey and `--ink-on-home` to iOS dark ink, so the screen is no longer a
-  // blank light-on-light plate on every cold load / error.
-  background: 'var(--color-home, var(--poster-coral))',
-  color: 'var(--ink-on-home)',
-  padding: '56px 22px 90px',
-  display: 'flex',
-  flexDirection: 'column',
-  gap: 14,
-  fontFamily: 'var(--poster-font-manrope), system-ui, sans-serif',
-};
-
-function LoadingPlate() {
-  return (
-    <div style={fillStyle}>
-      <Eyebrow color="var(--eyebrow-ink)">ЗАГРУЗКА</Eyebrow>
-      <div
-        style={{
-          fontFamily:
-            'var(--poster-font-jet-brains-mono), ui-monospace, monospace',
-          fontSize: 13,
-          opacity: 0.7,
-          marginTop: 18,
-        }}
-      >
-        ···
-      </div>
-    </div>
-  );
-}
-
-interface ErrorPlateProps {
-  message: string;
-  onRetry: () => void;
-}
-
-function ErrorPlate({ message, onRetry }: ErrorPlateProps) {
-  return (
-    <div style={fillStyle}>
-      <Eyebrow color="var(--eyebrow-ink)">ОШИБКА</Eyebrow>
-      <div
-        style={{
-          fontFamily:
-            'var(--poster-font-jet-brains-mono), ui-monospace, monospace',
-          fontSize: 13,
-          opacity: 0.85,
-          marginTop: 18,
-          wordBreak: 'break-word',
-        }}
-      >
-        {message}
-      </div>
-      <div style={{ marginTop: 20 }}>
-        <PosterButton onClick={onRetry} variant="primary">
-          ПОВТОРИТЬ
-        </PosterButton>
-      </div>
-    </div>
   );
 }

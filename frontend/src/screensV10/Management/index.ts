@@ -5,10 +5,10 @@
 
 export { MgmtHubMount } from './MgmtHubMount';
 export {
-  MgmtHubView,
+  NativeMgmtHubView,
   type MgmtHubViewProps,
   type MgmtRowId,
-} from './MgmtHubView';
+} from './NativeMgmtHubView';
 
 export { TemplateMount } from './TemplateMount';
 export {
@@ -18,13 +18,15 @@ export {
 } from './NativeTemplateView';
 
 export { SettingsMount } from './SettingsMount';
-export { SettingsView, type SettingsViewProps } from './SettingsView';
+export {
+  NativeSettingsView,
+  type SettingsViewProps,
+} from './NativeSettingsView';
 
 export { AccessMount } from './AccessMount';
 export {
-  AccessView,
-  type AccessViewProps,
+  NativeAccessView,
   type AccessUser,
   type AccessAiUsage,
   type AccessTab,
-} from './AccessView';
+} from './NativeAccessView';

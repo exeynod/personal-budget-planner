@@ -5,8 +5,7 @@
 // integration tests can mount it directly with mocked props.
 
 export { HomeMount } from './HomeMount';
-export { HomeView } from './HomeView';
-export type { HomeViewProps } from './HomeView';
+export { NativeHomeView } from './NativeHomeView';
 export {
   computeDailyPace,
   computeSurplus,

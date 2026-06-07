@@ -24,14 +24,11 @@ import {
 } from '../../api/v10';
 import { unpostedByCategory } from '../Home/computeHomeData';
 import { getCurrentPeriod } from '../../api/periods';
-import { Toast } from '../../componentsV10';
 import { NativeToast } from '../native/NativeToast';
 import { StatePlate, usePosterRouter, useResource } from '../common';
 // Phase 26-04: real Plan editor with focusCategoryId deep-link replaces the
 // prior WIP PlanViewPlaceholder push.
 import { PlanMount } from '../Plan';
-import { CategoryDetailView } from './CategoryDetailView';
-import { useShellVariant } from '../native/ShellVariant';
 import { NativeCategoryDetailView } from './NativeCategoryDetailView';
 
 // TODO P2 (period switching): this drill-down still pins to getCurrentPeriod().
@@ -67,7 +64,6 @@ const NOT_FOUND_MESSAGE = 'Категория не найдена';
 
 export function CategoryDetailMount({ categoryId }: CategoryDetailMountProps) {
   const router = usePosterRouter();
-  const variant = useShellVariant();
   // P2-11: mutation error surface (single toast slot, last error wins).
   const [toastMsg, setToastMsg] = useState<string | null>(null);
 
@@ -132,35 +128,16 @@ export function CategoryDetailMount({ categoryId }: CategoryDetailMountProps) {
       />
     );
   }
-  if (variant === 'native') {
-    return (
-      <>
-        <NativeCategoryDetailView
-          category={data.category}
-          actuals={data.actuals}
-          plannedUnpostedCents={data.plannedUnpostedCents}
-          onPushPlan={handlePushPlan}
-          onBack={handleBack}
-        />
-        <NativeToast
-          message={toastMsg ?? ''}
-          visible={toastMsg !== null}
-          onDismiss={() => setToastMsg(null)}
-          duration={4000}
-        />
-      </>
-    );
-  }
-
   return (
     <>
-      <CategoryDetailView
+      <NativeCategoryDetailView
         category={data.category}
         actuals={data.actuals}
+        plannedUnpostedCents={data.plannedUnpostedCents}
         onPushPlan={handlePushPlan}
         onBack={handleBack}
       />
-      <Toast
+      <NativeToast
         message={toastMsg ?? ''}
         visible={toastMsg !== null}
         onDismiss={() => setToastMsg(null)}

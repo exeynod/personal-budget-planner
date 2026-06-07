@@ -22,8 +22,8 @@
 // errors for changeDay / changePrice / delete from a single source.
 
 import { useCallback, useEffect, useState } from 'react';
-import { usePosterRouter } from '../common';
-import { Eyebrow, PosterButton, Toast } from '../../componentsV10';
+import { StatePlate, usePosterRouter } from '../common';
+import { NativeToast } from '../native/NativeToast';
 import {
   listSubscriptionsV10,
   patchSubscriptionV10,
@@ -32,11 +32,8 @@ import {
   type SubscriptionV10Read,
   type AccountResponse,
 } from '../../api/v10';
-import { SubscriptionsView } from './SubscriptionsView';
 import { NativeSubscriptionsView } from './NativeSubscriptionsView';
 import { SubscriptionMenuSheet } from './SubscriptionMenuSheet';
-import { useShellVariant } from '../native/ShellVariant';
-import styles from './SubscriptionsView.module.css';
 
 // Toast duration for error surfaces — 4s gives the user enough time to read
 // a backend message (longer than the default 1.7s success toast).
@@ -64,7 +61,6 @@ type LoadState =
 
 export function SubscriptionsMount() {
   const router = usePosterRouter();
-  const variant = useShellVariant();
   const [state, setState] = useState<LoadState>({ status: 'loading' });
   const [reloadToken, setReloadToken] = useState(0);
   const [menuSub, setMenuSub] = useState<SubscriptionV10Read | null>(null);
@@ -147,77 +143,29 @@ export function SubscriptionsMount() {
   // ─────────── render branches ───────────
 
   if (state.status === 'loading') {
-    return (
-      <div className={styles.root} data-testid="subs-loading">
-        <div className={styles.headerRow}>
-          <button
-            type="button"
-            className={styles.backLink}
-            onClick={() => router.pop()}
-          >
-            ← НАЗАД
-          </button>
-        </div>
-        <div className={styles.eyebrowRow}>
-          <Eyebrow color="var(--poster-ink)">SUBSCRIPTIONS</Eyebrow>
-        </div>
-        <div className={styles.emptyState}>Загрузка…</div>
-      </div>
-    );
+    return <StatePlate variant="loading" testId="subs-loading" />;
   }
 
   if (state.status === 'error') {
     return (
-      <div className={styles.root} data-testid="subs-error">
-        <div className={styles.headerRow}>
-          <button
-            type="button"
-            className={styles.backLink}
-            onClick={() => router.pop()}
-          >
-            ← НАЗАД
-          </button>
-        </div>
-        <div className={styles.eyebrowRow}>
-          <Eyebrow color="var(--poster-ink)">SUBSCRIPTIONS</Eyebrow>
-        </div>
-        <div className={styles.emptyState}>{state.message}</div>
-        <div
-          style={{
-            display: 'flex',
-            gap: 10,
-            justifyContent: 'center',
-            marginTop: 16,
-          }}
-        >
-          <PosterButton variant="primary" onClick={refresh}>
-            ПОВТОРИТЬ
-          </PosterButton>
-          <PosterButton variant="ghost" onClick={() => router.pop()}>
-            НАЗАД
-          </PosterButton>
-        </div>
-      </div>
+      <StatePlate
+        variant="error"
+        testId="subs-error"
+        message={state.message}
+        onRetry={refresh}
+        onBack={() => router.pop()}
+      />
     );
   }
 
   return (
     <>
-      {variant === 'native' ? (
-        <NativeSubscriptionsView
-          subs={state.subs}
-          accounts={state.accounts}
-          onMenuOpen={(sub) => setMenuSub(sub)}
-          onBack={() => router.pop()}
-        />
-      ) : (
-        <SubscriptionsView
-          subs={state.subs}
-          accounts={state.accounts}
-          onMenuOpen={(sub) => setMenuSub(sub)}
-          onBack={() => router.pop()}
-        />
-      )}
+      <NativeSubscriptionsView
+        subs={state.subs}
+        accounts={state.accounts}
+        onMenuOpen={(sub) => setMenuSub(sub)}
+        onBack={() => router.pop()}
+      />
       <SubscriptionMenuSheet
         sub={menuSub}
         onClose={() => setMenuSub(null)}
@@ -225,7 +173,7 @@ export function SubscriptionsMount() {
         onChangePrice={handleChangePrice}
         onDelete={handleDelete}
       />
-      <Toast
+      <NativeToast
         message={toastMsg ?? ''}
         visible={toastMsg !== null}
         onDismiss={() => setToastMsg(null)}

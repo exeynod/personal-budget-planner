@@ -7,8 +7,7 @@
 export { CategoryDetailMount } from './CategoryDetailMount';
 export type { CategoryDetailMountProps } from './CategoryDetailMount';
 
-export { CategoryDetailView } from './CategoryDetailView';
-export type { CategoryDetailViewProps } from './CategoryDetailView';
+export { NativeCategoryDetailView } from './NativeCategoryDetailView';
 
 export {
   computeOverPercent,

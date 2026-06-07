@@ -29,7 +29,6 @@ import {
 import { getCurrentPeriod } from '../../api/periods';
 import type { PeriodRead } from '../../api/types';
 import { deleteActual } from '../../api/actual';
-import { Eyebrow, PosterButton, Toast } from '../../componentsV10';
 import {
   PosterSheet,
   StatePlate,
@@ -38,9 +37,9 @@ import {
   useResource,
   useSelectedPeriodOptional,
 } from '../common';
-import { TransactionsView } from './TransactionsView';
+import { NativeToast } from '../native/NativeToast';
+import { NativeButton } from '../native/NativeButton';
 import { NativeTransactionsView } from './NativeTransactionsView';
-import { useShellVariant } from '../native/ShellVariant';
 import {
   applyFilterChip,
   computeHeaderSummary,
@@ -70,7 +69,6 @@ interface DataPayload {
 
 export function TransactionsMount() {
   const router = usePosterRouter();
-  const variant = useShellVariant();
   const [chip, setChip] = useState<TxFilterChip>('all');
   const [editingTx, setEditingTx] = useState<ActualV10Read | null>(null);
   // P2-11: delete error surface (single toast slot, last error wins).
@@ -210,48 +208,11 @@ export function TransactionsMount() {
   }
   if (!vm) return refetchSentinel;
 
-  // Liquid Glass native shell → native iOS Transactions view. Same vm + props.
-  if (variant === 'native') {
-    return (
-      <>
-        {refetchSentinel}
-        <NativeTransactionsView
-          headerCount={vm.summary.count}
-          headerSumCents={vm.summary.sumCents}
-          filterChip={chip}
-          onChipChange={handleChipChange}
-          dayGroups={vm.dayGroups}
-          categories={vm.categories}
-          accounts={vm.accounts}
-          onRowTap={handleRowTap}
-          onRowDelete={handleRowDelete}
-          onBack={handleBack}
-          periods={sel?.periods}
-          selectedPeriodId={selectedPeriodId}
-          onSelectPeriod={sel?.setSelectedPeriodId}
-        />
-        <PosterSheet
-          isOpen={editingTx !== null}
-          onClose={handleEditClose}
-          backgroundColor="var(--poster-paper)"
-          testId="tx-edit-sheet"
-        >
-          <EditPlaceholder tx={editingTx} onClose={handleEditClose} />
-        </PosterSheet>
-        <Toast
-          message={toastMsg ?? ''}
-          visible={toastMsg !== null}
-          onDismiss={() => setToastMsg(null)}
-          duration={4000}
-        />
-      </>
-    );
-  }
-
+  // Liquid Glass native shell → native iOS Transactions view.
   return (
     <>
       {refetchSentinel}
-      <TransactionsView
+      <NativeTransactionsView
         headerCount={vm.summary.count}
         headerSumCents={vm.summary.sumCents}
         filterChip={chip}
@@ -262,7 +223,6 @@ export function TransactionsMount() {
         onRowTap={handleRowTap}
         onRowDelete={handleRowDelete}
         onBack={handleBack}
-        // Phase P2 (period switching): switcher renders only with ≥2 periods.
         periods={sel?.periods}
         selectedPeriodId={selectedPeriodId}
         onSelectPeriod={sel?.setSelectedPeriodId}
@@ -270,12 +230,12 @@ export function TransactionsMount() {
       <PosterSheet
         isOpen={editingTx !== null}
         onClose={handleEditClose}
-        backgroundColor="var(--poster-paper)"
+        backgroundColor="var(--lgn-card-solid)"
         testId="tx-edit-sheet"
       >
         <EditPlaceholder tx={editingTx} onClose={handleEditClose} />
       </PosterSheet>
-      <Toast
+      <NativeToast
         message={toastMsg ?? ''}
         visible={toastMsg !== null}
         onDismiss={() => setToastMsg(null)}
@@ -303,42 +263,32 @@ function EditPlaceholder({ tx, onClose }: EditPlaceholderProps) {
   return (
     <div
       style={{
-        padding: '56px 22px',
-        color: 'var(--poster-cobalt)',
-        fontFamily: 'var(--poster-font-manrope), system-ui, sans-serif',
+        padding: '24px 20px 32px',
+        color: 'var(--lgn-ink)',
+        fontFamily: 'var(--lgn-font), system-ui, sans-serif',
         display: 'flex',
         flexDirection: 'column',
-        gap: 14,
+        gap: 12,
       }}
     >
-      <Eyebrow color="var(--poster-cobalt)">EDIT TRANSACTION</Eyebrow>
       <div
         style={{
-          fontFamily:
-            'var(--poster-font-dm-serif), var(--poster-font-pt-serif), Georgia, serif',
-          fontStyle: 'italic',
-          fontSize: 32,
-          lineHeight: 1.05,
+          font: 'var(--lgn-t-footnote)',
+          color: 'var(--lgn-ink-2)',
+          letterSpacing: '0.04em',
+          textTransform: 'uppercase',
         }}
       >
-        Редактировать —
+        Редактировать операцию
       </div>
-      <div
-        style={{
-          fontFamily:
-            'var(--poster-font-jet-brains-mono), ui-monospace, monospace',
-          fontSize: 11,
-          opacity: 0.7,
-          letterSpacing: '0.06em',
-        }}
-      >
-        WIP — TransactionEditor poster retrofit ships in Phase 26
-        {tx ? ` · TX #${tx.id}` : ''}.
+      <div style={{ font: 'var(--lgn-t-title2)' }}>Скоро —</div>
+      <div style={{ font: 'var(--lgn-t-subhead)', color: 'var(--lgn-ink-2)' }}>
+        Редактор операции в разработке{tx ? ` · #${tx.id}` : ''}.
       </div>
-      <div style={{ marginTop: 12 }}>
-        <PosterButton onClick={onClose} variant="primary">
-          ЗАКРЫТЬ
-        </PosterButton>
+      <div style={{ marginTop: 8 }}>
+        <NativeButton onClick={onClose} variant="primary">
+          Закрыть
+        </NativeButton>
       </div>
     </div>
   );

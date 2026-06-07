@@ -6,8 +6,8 @@
 
 export { AnalyticsMount } from './AnalyticsMount';
 
-export { AnalyticsView } from './AnalyticsView';
-export type { AnalyticsViewProps, BarDatum } from './AnalyticsView';
+export { NativeAnalyticsView } from './NativeAnalyticsView';
+export type { AnalyticsViewProps, BarDatum } from './NativeAnalyticsView';
 
 export {
   lastNMonths,
