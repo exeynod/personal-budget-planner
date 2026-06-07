@@ -305,22 +305,26 @@ struct AIChatView: View {
                 .padding(.vertical, 10)
                 .disabled(viewModel.isStreaming)
 
+            // Floating circular send button — реальный Liquid Glass chrome.
+            // Active → accent-tinted `.glassProminent`; idle → нейтральный
+            // `.glass`. Стиль сам рисует стеклянный круг, поэтому свой
+            // `.background(... in: Circle())` убран (он бы гасил стекло).
             Button {
                 Task { await viewModel.send() }
             } label: {
                 Image(systemName: "arrow.up")
                     .font(.body.weight(.bold))
-                    .foregroundStyle(.white)
-                    .frame(width: 32, height: 32)
-                    .background(canSend ? Tokens.Accent.primary : Color.secondary.opacity(0.4), in: Circle())
+                    .frame(width: 24, height: 24)
             }
-            .buttonStyle(.plain)
+            .appGlassCircle(prominent: canSend)
             .disabled(!canSend)
             .padding(.trailing, 6)
             .padding(.vertical, 4)
         }
-        .background(.regularMaterial, in: Capsule())
-        .overlay(Capsule().strokeBorder(Color.primary.opacity(0.1), lineWidth: 0.5))
+        // Composer pill = floating chrome → native Liquid Glass capsule
+        // (фолбэк `.ultraThinMaterial` до iOS 26). Убрали туториальный
+        // `.regularMaterial` + overlay-stroke.
+        .appGlassCapsule()
     }
 
     private var canSend: Bool {

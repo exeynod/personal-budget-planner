@@ -39,45 +39,48 @@
     ),
     /* barely-there vertical wash — no coloured poles */
     linear-gradient(180deg, var(--lgn-bg-top) 0%, var(--lgn-bg-bottom) 100%);
-  /* Glossy curved surface: brighter at the top (catches light) → dimmer below.
-     The bottom band stays opaque enough to keep financial numbers ≥4.5:1. */
-  --lgn-card: linear-gradient(
-    180deg,
-    rgba(255, 255, 255, 0.74) 0%,
-    rgba(255, 255, 255, 0.54) 40%,
-    rgba(255, 255, 255, 0.5) 100%
-  );
+  /* Neutral «regular tint» glass (P/A — LIQUID-GLASS-RESEARCH §«Путь A»). A flat,
+     barely-there white tint over the neutral field — NOT a glossy top→bottom
+     gradient. The frost (blur+saturate) does the work; the fill only nudges the
+     surface a touch lighter than the #EEF1F6 ground so chrome reads as a calm
+     pane of glass, not a «tutorial» specular slab.
+     Cards float over the static field, so a low tint (~.46) keeps them frosted
+     yet opaque enough for financial numbers ≥4.5:1. */
+  --lgn-card: rgba(255, 255, 255, 0.46);
   --lgn-card-solid: #ffffff; /* opaque fallback / inner tiles */
   --lgn-card-press: rgba(233, 233, 239, 0.88); /* cell highlight on tap */
-  --lgn-chrome: linear-gradient(
-    180deg,
-    rgba(255, 255, 255, 0.7) 0%,
-    rgba(248, 248, 252, 0.58) 100%
-  ); /* floating nav/tab pill material */
-  --lgn-glass-blur: blur(24px) saturate(178%) brightness(1.05); /* card frost */
-  --lgn-glass-blur-chrome: blur(28px) saturate(190%) brightness(1.06); /* chrome */
+  /* Floating tab/nav pill: scrolling content passes UNDER it, so it needs a
+     touch more body than the .12 «regular tint» so tab labels stay legible
+     (research allows «чуть плотнее tint или scrim» for contrast). */
+  --lgn-chrome: rgba(255, 255, 255, 0.4);
+  /* Frost — Path A: blur 16 / saturate 150 / brightness 1.05. Vibrant, not muddy;
+     saturate kept ≤155% so the glass never «catches» colour off the field. */
+  --lgn-glass-blur: blur(16px) saturate(150%) brightness(1.05); /* cards */
+  --lgn-glass-blur-chrome: blur(16px) saturate(155%) brightness(1.05); /* chrome */
   --lgn-glass-border: rgba(255, 255, 255, 0.55); /* legacy top-edge light */
 
-  /* Specular edges — bright top hairline, faint dark bottom: the light source
-     sits above, so the top kerb glows and the bottom recedes. Applied as inset
-     box-shadows so they layer over the gradient fill without extra DOM.
-     On the calm neutral field the kerb is softened (.9→.8, §3.4 / P2-4) so the
-     glass reads believable rather than «plastic glossy». */
-  --lgn-edge-top: rgba(255, 255, 255, 0.8);
-  --lgn-edge-bottom: rgba(31, 38, 80, 0.06);
-  --lgn-edge-hair: rgba(255, 255, 255, 0.6);
-  /* Reusable specular rim (top bright kerb + faint bottom shade). */
+  /* Specular edge — ONE thin bright top kerb (Path A). The light sits above, so
+     the top edge catches a hairline of light; the bottom barely recedes. No
+     bottom «glow», no doubled rims — that read as plastic «tutorial» glass. */
+  --lgn-edge-top: rgba(255, 255, 255, 0.7);
+  --lgn-edge-bottom: rgba(31, 38, 80, 0.05);
+  --lgn-edge-hair: rgba(255, 255, 255, 0.5);
+  /* Reusable rim: light top kerb + a light inner sheen (inset 0 1px 1px) —
+     subtle, NOT a thick inner glow. Plus the faintest bottom shade for body. */
   --lgn-card-edge:
-    inset 0 1px 0 0 var(--lgn-edge-top), inset 0 -1px 0 0 var(--lgn-edge-bottom);
+    inset 0 1px 0 0 var(--lgn-edge-top),
+    inset 0 1px 1px 0 rgba(255, 255, 255, 0.3),
+    inset 0 -1px 0 0 var(--lgn-edge-bottom);
 
-  /* Inner sheen — a soft white top-down wash inside the surface (top third)
-     that reads as a curved glossy face catching the light. Painted by an
-     ::after overlay on glass cards. */
+  /* Inner sheen overlay (consumed by out-of-scope per-screen ::after wash).
+     Toned down to a single faint top-light hairline so it can't smear into a
+     glossy «tutorial» double-sheen — the inset rim above already carries the
+     gloss. Kept as a token so per-screen modules inherit the calmer value. */
   --lgn-sheen: linear-gradient(
     180deg,
-    rgba(255, 255, 255, 0.5) 0%,
-    rgba(255, 255, 255, 0.14) 24%,
-    rgba(255, 255, 255, 0) 52%
+    rgba(255, 255, 255, 0.22) 0%,
+    rgba(255, 255, 255, 0.05) 18%,
+    rgba(255, 255, 255, 0) 40%
   );
 
   /* Ink (label hierarchy) */
@@ -151,9 +154,10 @@
      pair reads «hovering glass». Softened on the calm neutral field (§3.4) so
      cards float without the heavy «drawn» drop the old colour mesh masked. */
   --lgn-shadow-card:
-    0 1px 2px rgba(20, 24, 40, 0.05), 0 6px 16px rgba(20, 24, 40, 0.08);
-  --lgn-shadow-float:
-    0 2px 6px rgba(20, 24, 40, 0.1), 0 16px 40px rgba(20, 24, 40, 0.16);
+    0 1px 2px rgba(17, 24, 39, 0.04), 0 4px 16px rgba(17, 24, 39, 0.07);
+  /* Path A floating shadow — one soft, low-contrast drop (was a heavy
+     16px/40px/.16 pair that read «drawn»). Quiet, just enough to lift glass. */
+  --lgn-shadow-float: 0 6px 24px rgba(17, 24, 39, 0.1);
 }
 
 /* Browsers without backdrop-filter: fall back to opaque cards so text stays
@@ -175,5 +179,33 @@
     );
     --lgn-edge-top: rgba(255, 255, 255, 0.6);
     --lgn-edge-bottom: rgba(31, 38, 80, 0.04);
+  }
+}
+
+/* Accessibility — drop the glass entirely when the user asks for less
+   transparency or more contrast (Path A DO). Chrome/cards become an opaque
+   neutral pane (#F4F6FA, light) with NO backdrop blur, so text contrast no
+   longer depends on what scrolls behind the glass, and the specular sheen /
+   gloss is removed in favour of a flat surface + one hairline rim. */
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+  :root {
+    --lgn-card: #f4f6fa;
+    --lgn-card-solid: #ffffff;
+    --lgn-card-press: #e9ecf2;
+    --lgn-chrome: #f4f6fa;
+    /* No blur: opaque surfaces can't frost anything. */
+    --lgn-glass-blur: none;
+    --lgn-glass-blur-chrome: none;
+    /* Flatten the gloss: keep only a faint definition kerb, no inner sheen. */
+    --lgn-edge-top: rgba(255, 255, 255, 0.65);
+    --lgn-edge-bottom: rgba(31, 38, 80, 0.05);
+    --lgn-card-edge:
+      inset 0 1px 0 0 var(--lgn-edge-top),
+      inset 0 -1px 0 0 var(--lgn-edge-bottom);
+    --lgn-sheen: linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0) 0%,
+      rgba(255, 255, 255, 0) 100%
+    );
   }
 }
