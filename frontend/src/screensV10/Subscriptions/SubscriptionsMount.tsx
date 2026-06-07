@@ -6,7 +6,6 @@
 //      - onMenuOpen(sub) → setMenuSub(sub) → opens <SubscriptionMenuSheet>
 //      - onBack → router.pop()
 //   3. <SubscriptionMenuSheet> wired to PATCH/DELETE handlers:
-//      - handleTogglePause: PATCH {is_active: !current} → refresh + close menu
 //      - handleChangeDay:   PATCH {day_of_month: N} → refresh + close menu
 //      - handleChangePrice: PATCH {amount_cents: cents} → refresh + close menu
 //      - handleDelete:      DELETE → refresh + close menu
@@ -20,7 +19,7 @@
 // Failure mode (Plan 30-04 / DEBT-04): PATCH/DELETE errors surface via PosterToast
 // with the backend error message (replaces silent fail + the legacy alert
 // stub). Toast state is lifted to the Mount so the same component can show
-// errors for togglePause / changeDay / changePrice / delete from a single source.
+// errors for changeDay / changePrice / delete from a single source.
 
 import { useCallback, useEffect, useState } from 'react';
 import { usePosterRouter } from '../common';
@@ -103,21 +102,6 @@ export function SubscriptionsMount() {
   const refresh = useCallback(() => setReloadToken((n) => n + 1), []);
 
   // ─────────── PATCH/DELETE handlers ───────────
-  const handleTogglePause = useCallback(
-    async (sub: SubscriptionV10Read) => {
-      try {
-        await patchSubscriptionV10(sub.id, { is_active: !sub.is_active });
-        refresh();
-      } catch (err) {
-        setToastMsg(
-          'Не удалось обновить · ' +
-            errMessage(err, 'статус подписки не сохранён'),
-        );
-      }
-    },
-    [refresh],
-  );
-
   const handleChangeDay = useCallback(
     async (sub: SubscriptionV10Read, day: number) => {
       try {
@@ -140,20 +124,6 @@ export function SubscriptionsMount() {
       } catch (err) {
         setToastMsg(
           'Не удалось обновить · ' + errMessage(err, 'цена не сохранена'),
-        );
-      }
-    },
-    [refresh],
-  );
-
-  const handleChangeAccount = useCallback(
-    async (sub: SubscriptionV10Read, accountId: number) => {
-      try {
-        await patchSubscriptionV10(sub.id, { account_id: accountId });
-        refresh();
-      } catch (err) {
-        setToastMsg(
-          'Не удалось обновить · ' + errMessage(err, 'счёт не сохранён'),
         );
       }
     },
@@ -250,12 +220,9 @@ export function SubscriptionsMount() {
       )}
       <SubscriptionMenuSheet
         sub={menuSub}
-        accounts={state.accounts}
         onClose={() => setMenuSub(null)}
-        onTogglePause={handleTogglePause}
         onChangeDay={handleChangeDay}
         onChangePrice={handleChangePrice}
-        onChangeAccount={handleChangeAccount}
         onDelete={handleDelete}
       />
       <Toast

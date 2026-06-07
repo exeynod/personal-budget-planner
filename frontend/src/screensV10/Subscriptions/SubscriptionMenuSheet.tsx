@@ -7,9 +7,8 @@
 // replaced with a light native sheet:
 //   - header = subscription name in sentence case (no uppercase / Archivo Black);
 //   - a grouped-inset BODY showing the subscription's info (price, cadence,
-//     charge day, linked account) — previously empty;
-//   - actions as native list rows (Пауза/Включить, Сменить день, Изменить
-//     цену, Сменить счёт);
+//     charge day) — previously empty;
+//   - actions as native list rows (Сменить день, Изменить цену);
 //   - destructive «Отменить подписку» = red-tinted native button (not coral
 //     PosterButton).
 //
@@ -28,14 +27,13 @@
 
 import { useState } from 'react';
 import { PosterSheet } from '../common';
-import { AccountPickerSheet } from '../AddSheet';
-import type { SubscriptionV10Read, AccountResponse } from '../../api/v10';
+import type { SubscriptionV10Read } from '../../api/v10';
 import {
   parseRublesToKopecksOr0,
   sanitizeMoneyInput,
 } from '../../utils/parseMoney';
 import { formatMoneyRubNative } from '../native/money';
-import { formatCadenceRu, formatAccountLabel } from './computeSubscriptions';
+import { formatCadenceRu } from './computeSubscriptions';
 import styles from './SubscriptionMenuSheet.module.css';
 
 // Light native sheet background — close to iOS systemGroupedBackground, so the
@@ -47,8 +45,6 @@ export interface SubscriptionMenuSheetProps {
   sub: SubscriptionV10Read | null;
   /** Called when user dismisses the menu (backdrop tap / Escape / drag-down). */
   onClose: () => void;
-  /** Toggle is_active (callback is async; sheet awaits before closing). */
-  onTogglePause: (sub: SubscriptionV10Read) => Promise<void>;
   /** Update day_of_month (1..28). */
   onChangeDay: (sub: SubscriptionV10Read, newDay: number) => Promise<void>;
   /** Update amount_cents (positive cents). */
@@ -56,21 +52,11 @@ export interface SubscriptionMenuSheetProps {
     sub: SubscriptionV10Read,
     newAmountCents: number,
   ) => Promise<void>;
-  /**
-   * P3-W1: Update charging account_id. Accounts list is supplied so the picker
-   * can render rows + highlight the current selection.
-   */
-  onChangeAccount: (
-    sub: SubscriptionV10Read,
-    newAccountId: number,
-  ) => Promise<void>;
-  /** P3-W1: accounts for the «Сменить счёт» picker. */
-  accounts: AccountResponse[];
   /** Hard-delete subscription. */
   onDelete: (sub: SubscriptionV10Read) => Promise<void>;
 }
 
-type EditorMode = 'none' | 'day' | 'price' | 'account' | 'confirmDelete';
+type EditorMode = 'none' | 'day' | 'price' | 'confirmDelete';
 
 /** Clamp helper for the day input (1..28; mirrors backend Field(ge=1, le=28)). */
 function clampDay(raw: number): number {
@@ -100,17 +86,8 @@ export function SubscriptionMenuSheet(props: SubscriptionMenuSheetProps) {
     setEditor('price');
   };
 
-  const handlePauseClick = async () => {
-    await props.onTogglePause(sub);
-  };
-
   const handleSaveDay = async () => {
     await props.onChangeDay(sub, clampDay(dayValue));
-    closeAll();
-  };
-
-  const handleSelectAccount = async (accountId: number) => {
-    await props.onChangeAccount(sub, accountId);
     closeAll();
   };
 
@@ -132,7 +109,6 @@ export function SubscriptionMenuSheet(props: SubscriptionMenuSheetProps) {
   };
 
   // ───── body info: only show fields we actually have ─────
-  const accountLabel = formatAccountLabel(sub, props.accounts ?? []);
   const dayLabel =
     sub.day_of_month != null ? `${sub.day_of_month} число` : null;
 
@@ -172,17 +148,6 @@ export function SubscriptionMenuSheet(props: SubscriptionMenuSheetProps) {
                 </span>
               </div>
             )}
-            {accountLabel != null && (
-              <div className={styles.infoRow}>
-                <span className={styles.infoLabel}>Счёт</span>
-                <span
-                  className={styles.infoValue}
-                  data-testid="sub-info-account"
-                >
-                  {accountLabel}
-                </span>
-              </div>
-            )}
             {!sub.is_active && (
               <div className={styles.infoRow}>
                 <span className={styles.infoLabel}>Статус</span>
@@ -196,13 +161,6 @@ export function SubscriptionMenuSheet(props: SubscriptionMenuSheetProps) {
             <button
               type="button"
               className={styles.actionRow}
-              onClick={handlePauseClick}
-            >
-              {sub.is_active ? 'Пауза' : 'Включить'}
-            </button>
-            <button
-              type="button"
-              className={styles.actionRow}
               onClick={openDay}
             >
               Сменить день
@@ -213,13 +171,6 @@ export function SubscriptionMenuSheet(props: SubscriptionMenuSheetProps) {
               onClick={openPrice}
             >
               Изменить цену
-            </button>
-            <button
-              type="button"
-              className={styles.actionRow}
-              onClick={() => setEditor('account')}
-            >
-              Сменить счёт
             </button>
           </div>
 
@@ -312,15 +263,6 @@ export function SubscriptionMenuSheet(props: SubscriptionMenuSheetProps) {
           </div>
         </div>
       </PosterSheet>
-
-      {/* ─────────── account picker (P3-W1) ─────────── */}
-      <AccountPickerSheet
-        isOpen={editor === 'account'}
-        accounts={props.accounts}
-        selectedAccountId={sub.account_id ?? null}
-        onSelect={handleSelectAccount}
-        onClose={() => setEditor('none')}
-      />
 
       {/* ─────────── confirm delete ─────────── */}
       <PosterSheet

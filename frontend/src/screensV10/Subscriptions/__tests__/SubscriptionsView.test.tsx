@@ -130,9 +130,6 @@ describe('SubscriptionsView', () => {
 describe('SubscriptionMenuSheet', () => {
   const noop = {
     onClose: vi.fn(),
-    accounts: [] as AccountResponse[],
-    onChangeAccount: vi.fn(),
-    onTogglePause: vi.fn(),
     onChangeDay: vi.fn(),
     onChangePrice: vi.fn(),
     onDelete: vi.fn(),
@@ -145,19 +142,17 @@ describe('SubscriptionMenuSheet', () => {
     expect(container.textContent).toBe('');
   });
 
-  it('active: Пауза/День/Цена/Отменить; inactive shows Включить', () => {
-    const { rerender } = render(
+  it('actions: День/Цена/Отменить; no Пауза/Сменить счёт', () => {
+    render(
       <SubscriptionMenuSheet sub={mkSub({ is_active: true })} {...noop} />,
     );
-    expect(screen.getByText('Пауза')).toBeTruthy();
     expect(screen.getByText('Сменить день')).toBeTruthy();
     expect(screen.getByText('Изменить цену')).toBeTruthy();
     expect(screen.getByText('Отменить подписку')).toBeTruthy();
-    rerender(
-      <SubscriptionMenuSheet sub={mkSub({ is_active: false })} {...noop} />,
-    );
-    expect(screen.getByText('Включить')).toBeTruthy();
+    // Legacy actions removed (§G2 account mgmt + pause).
     expect(screen.queryByText('Пауза')).toBeNull();
+    expect(screen.queryByText('Включить')).toBeNull();
+    expect(screen.queryByText('Сменить счёт')).toBeNull();
   });
 
   it('body shows subscription info (price + cadence)', () => {
@@ -245,25 +240,5 @@ describe('SubscriptionMenuSheet', () => {
     fireEvent.click(screen.getByTestId('sub-delete-trigger'));
     fireEvent.click(screen.getByText('Отмена'));
     expect(onDelete).not.toHaveBeenCalled();
-  });
-
-  it('«СМЕНИТЬ СЧЁТ» picker → onChangeAccount(sub, id)', async () => {
-    const sub = mkSub({ account_id: 1 });
-    const onChangeAccount = vi.fn().mockResolvedValue(undefined);
-    render(
-      <SubscriptionMenuSheet
-        sub={sub}
-        {...noop}
-        accounts={[
-          mkAccount({ id: 1 }),
-          mkAccount({ id: 2, bank: 'Sber', mask: '1111', primary: false }),
-        ]}
-        onChangeAccount={onChangeAccount}
-      />,
-    );
-    fireEvent.click(screen.getByText('Сменить счёт'));
-    fireEvent.click(screen.getByTestId('account-picker-row-2'));
-    await Promise.resolve();
-    expect(onChangeAccount).toHaveBeenCalledWith(sub, 2);
   });
 });
