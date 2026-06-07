@@ -171,8 +171,9 @@
 .keypad {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
-  padding: 12px var(--lgn-s-16) 8px;
+  /* P2-5: gap on the spacing scale (was magic 10px). */
+  gap: var(--lgn-s-10);
+  padding: var(--lgn-s-12) var(--lgn-s-16) var(--lgn-s-8);
 }
 .key {
   appearance: none;

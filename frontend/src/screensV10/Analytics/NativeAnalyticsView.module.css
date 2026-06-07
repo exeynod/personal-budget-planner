@@ -31,24 +31,26 @@
   font-family: var(--lgn-font);
 }
 .kpiLabel {
-  font-size: 13px;
+  /* Footnote (13/18) — section eyebrow above the figure. */
+  font: var(--lgn-t-footnote);
   font-weight: 600;
   color: var(--lgn-ink-2);
 }
 .kpiValue {
-  font-size: 24px;
-  font-weight: 700;
+  /* Title2 (22/28) — iOS figure scale (was off-scale 24px). */
+  font: var(--lgn-t-title2);
   color: var(--lgn-ink);
   white-space: nowrap;
 }
 .kpiCur {
-  font-size: 15px;
+  font: var(--lgn-t-subhead);
   font-weight: 600;
   color: var(--lgn-ink-2);
   margin-left: 3px;
 }
 .kpiDelta {
-  font-size: 12px;
+  /* Caption (12/16) — delta / «от плана» footnote. */
+  font: var(--lgn-t-caption);
   font-weight: 600;
   color: var(--lgn-ink-2);
 }
@@ -70,10 +72,17 @@
   padding: 16px var(--lgn-s-16) 12px;
   font-family: var(--lgn-font);
 }
+/* Plot = bars area + a hairline baseline sitting on the columns' zero line.
+   The baseline is drawn just above the label band so every bar visibly grows
+   off a shared axis rather than floating. */
+.chartPlot {
+  position: relative;
+  width: 100%;
+}
 .chartBars {
   display: flex;
   align-items: flex-end;
-  gap: 6px;
+  gap: 4px;
   height: 140px;
   width: 100%;
 }
@@ -83,7 +92,7 @@
   flex-direction: column;
   align-items: center;
   justify-content: flex-end;
-  gap: 6px;
+  gap: 7px;
   min-width: 0;
   height: 100%;
 }
@@ -95,23 +104,42 @@
   justify-content: center;
 }
 .barFill {
-  width: 70%;
-  max-width: 26px;
-  min-height: 2px;
-  border-radius: 4px 4px 0 0;
+  width: 64%;
+  max-width: 22px;
+  min-height: 3px;
+  border-radius: 3px 3px 0 0;
+  /* Calm neutral spend bar — muted accent so the row reads as one quiet series,
+     not a rainbow. Peak + over-budget get the loud colours. */
+  background: color-mix(in srgb, var(--lgn-accent) 38%, var(--lgn-card-solid));
+}
+.barFillPeak {
+  /* Tallest (peak-spend) column — full accent draws the eye to it. */
   background: var(--lgn-accent);
 }
 .barFillRed {
   background: var(--lgn-red);
 }
+/* Axis baseline: a hairline directly under the bars, spanning the plot width. */
+.chartBaseline {
+  position: absolute;
+  left: 0;
+  right: 0;
+  /* label band ≈ 16px (caption line-height) + 7px column gap → sit above it */
+  bottom: 23px;
+  height: 1px;
+  background: var(--lgn-hairline);
+}
 .barLabel {
-  font-size: 10px;
+  /* Caption2-ish footnote, no truncation — strided in JS so labels never
+     overlap and never get ellipsised mid-glyph («П…/К…»). */
+  font: var(--lgn-t-caption);
+  font-size: 11px;
   font-weight: 600;
   color: var(--lgn-ink-2);
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 100%;
+  font-variant-numeric: tabular-nums;
+  height: 16px;
+  line-height: 16px;
 }
 .chartEmpty {
   text-align: center;

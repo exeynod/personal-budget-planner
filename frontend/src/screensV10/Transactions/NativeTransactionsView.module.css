@@ -6,11 +6,12 @@
   padding-bottom: 24px;
 }
 
-/* Period switcher */
+/* Period switcher — sits directly under the large title. Tight bottom so the
+   title + pill don't read as a doubled header (§2.5 double-«воздух»). */
 .switcherRow {
   display: flex;
   justify-content: center;
-  padding: 0 var(--lgn-s-16) 4px;
+  padding: 0 var(--lgn-gutter) var(--lgn-s-4);
 }
 
 /* Summary line (filter label + count · Σ) */
@@ -19,7 +20,9 @@
   align-items: baseline;
   justify-content: space-between;
   gap: 12px;
-  padding: 2px var(--lgn-s-20) 0;
+  /* S8: align to the single 16px container gutter (was a stray 20px that pushed
+     the left/right edges off the cards + section headers below). */
+  padding: 2px var(--lgn-gutter) 0;
   font-family: var(--lgn-font);
 }
 .summaryFilter {
@@ -42,7 +45,9 @@
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  padding-right: var(--lgn-s-20);
+  /* S8: the day-sum sits on the same 16px gutter as the cards below it (was a
+     stray 20px). The leading SectionHeader already carries the 16px left gutter. */
+  padding-right: var(--lgn-gutter);
 }
 .dayHeaderRow > :first-child {
   flex: 1 1 auto;

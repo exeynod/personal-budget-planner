@@ -6,13 +6,14 @@
   padding-bottom: 24px;
 }
 
-/* Summary line: Σ/мес (left) + «N активных · Y ₽ в год» (right) */
-.summaryRow {
+/* Summary card: Σ/мес (left) + «N активных · Y ₽ в год» (right), inside the
+   first inset card (P1-5 — no bare bold figure). */
+.summaryCard {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
   gap: 12px;
-  padding: 6px var(--lgn-s-20) 2px;
+  padding: 14px var(--lgn-s-16);
   font-family: var(--lgn-font);
 }
 .summaryAmount {

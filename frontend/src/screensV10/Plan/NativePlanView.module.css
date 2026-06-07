@@ -99,8 +99,10 @@
 }
 .regularCta {
   border: none;
-  background: rgba(0, 122, 255, 0.12);
-  color: var(--lgn-blue);
+  /* Accent-tinted (not blue): keep one action accent — orange tint bg + orange
+     text. Semantic green/red stay reserved for delta/status, blue for links. */
+  background: rgba(255, 122, 76, 0.12);
+  color: var(--lgn-accent);
   font-family: var(--lgn-font);
   font-size: 13px;
   font-weight: 600;
@@ -110,7 +112,7 @@
   white-space: nowrap;
 }
 .regularCta:active {
-  background: rgba(0, 122, 255, 0.22);
+  background: rgba(255, 122, 76, 0.22);
 }
 .regularCtaUndo {
   background: var(--lgn-seg-track);
@@ -226,7 +228,8 @@
   font-family: var(--lgn-font);
   font-size: 14px;
   font-weight: 600;
-  color: var(--lgn-blue);
+  /* Accent (not blue) — disclosure is a secondary action, keep one accent. */
+  color: var(--lgn-accent);
   cursor: pointer;
 }
 .detailBody {

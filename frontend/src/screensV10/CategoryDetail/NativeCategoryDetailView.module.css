@@ -108,9 +108,9 @@
    so план/факт vs the limit reads at a glance. */
 .barTrack {
   position: relative;
-  margin-top: 14px;
-  height: 10px;
-  border-radius: 5px;
+  margin-top: 16px;
+  height: 12px;
+  border-radius: 6px;
   background: var(--lgn-hairline-soft);
   box-shadow:
     inset 0 1px 2px rgba(31, 38, 80, 0.1),
@@ -121,21 +121,29 @@
   position: absolute;
   inset: 0 auto 0 0;
   height: 100%;
-  border-radius: 5px;
-  /* glossy accent fill: brighter at the top → reads as a curved liquid level */
+  min-width: 6px; /* keep a sliver visible at tiny ФАКТ/Лимит ratios */
+  border-radius: 6px;
+  /* glossy accent fill: brighter at the top → reads as a curved liquid level.
+     Width = ФАКТ/Лимит ratio (set inline by the view). */
   background: linear-gradient(
     180deg,
     color-mix(in srgb, var(--lgn-accent) 78%, white) 0%,
     var(--lgn-accent) 100%
   );
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45);
+  transition: width 0.28s ease;
 }
 .barFillOver {
+  /* Over Лимит → red-tinted fill (bar caps at 100%, tick marks the threshold). */
   background: linear-gradient(
     180deg,
     color-mix(in srgb, var(--lgn-red) 80%, white) 0%,
     var(--lgn-red) 100%
   );
+}
+.barFillEmpty {
+  /* Факт 0 → no fill at all (suppress the min-width sliver). */
+  min-width: 0;
 }
 .barTick {
   position: absolute;

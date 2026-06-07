@@ -65,17 +65,20 @@ function NativeSubscriptionsViewInner(props: NativeSubscriptionsViewProps) {
     <div className={styles.root}>
       <NativeNavBar title="Подписки" onBack={onBack} />
 
-      {/* Summary line — Σ/мес + «N АКТИВНЫХ · Y ₽ В ГОД» (same data as the
-       * poster BigFig + eyebrow). */}
-      <div className={styles.summaryRow} data-testid="native-subs-summary">
-        <span className={styles.summaryAmount}>
-          {formatMoneyRubNative(monthlyCents)}
-          <span className={styles.summaryPer}>/мес</span>
-        </span>
-        <span className={styles.summaryMeta}>
-          {`${activeCount} активных · ${formatMoneyRubNative(yearlyCents)} в год`}
-        </span>
-      </div>
+      {/* Summary — Σ/мес + «N активных · Y ₽ в год» wrapped in the first inset
+       * card (P1-5) instead of a bare bold figure (same data as the poster
+       * BigFig + eyebrow). */}
+      <InsetGroup>
+        <div className={styles.summaryCard} data-testid="native-subs-summary">
+          <span className={styles.summaryAmount}>
+            {formatMoneyRubNative(monthlyCents)}
+            <span className={styles.summaryPer}>/мес</span>
+          </span>
+          <span className={styles.summaryMeta}>
+            {`${activeCount} активных · ${formatMoneyRubNative(yearlyCents)} в год`}
+          </span>
+        </div>
+      </InsetGroup>
 
       <SectionHeader>Подписки</SectionHeader>
 

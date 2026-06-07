@@ -48,6 +48,14 @@ function formatDeltaPct(pct: number): string {
   return `${sign}${Math.abs(pct)}% к прошлому`;
 }
 
+// Day-mode can emit ~28-31 buckets — labelling every column overlaps. Pick a
+// stride so at most ~8 labels render, evenly spaced (first + every Nth + last),
+// the rest get an empty tick. Week/cat modes are short → stride 1 (label all).
+function labelStride(count: number): number {
+  if (count <= 8) return 1;
+  return Math.ceil(count / 7);
+}
+
 function NativeAnalyticsViewInner(props: AnalyticsViewProps) {
   const {
     monthOptions,
@@ -84,6 +92,30 @@ function NativeAnalyticsViewInner(props: AnalyticsViewProps) {
 
   // Bar heights use the same max-normalisation as the poster SVG.
   const maxSum = Math.max(1, ...barData.map((b) => b.sumCents));
+  // The chart has real spend iff at least one bucket is non-zero; an all-zero
+  // (or empty) dataset renders the «Нет данных» placeholder instead of a row of
+  // flat min-height stubs.
+  const hasChartData = barData.some((b) => b.sumCents > 0);
+  // Index of the tallest (peak-spend) bar — highlighted with a stronger accent.
+  const peakIdx = hasChartData
+    ? barData.reduce(
+        (best, b, i) => (b.sumCents > barData[best].sumCents ? i : best),
+        0,
+      )
+    : -1;
+  const stride = labelStride(barData.length);
+
+  // «−100% к прошлому» on a fresh/empty month reads as an error. Suppress the
+  // delta colour + value when the current period has no spend at all.
+  const spentEmpty = kpiSpent.sumCents === 0;
+  const savedEmpty = kpiSaved.sumCents === 0;
+  const spentDeltaClass = spentEmpty
+    ? ''
+    : kpiSpent.deltaPct > 0
+      ? styles.kpiDeltaUp
+      : kpiSpent.deltaPct < 0
+        ? styles.kpiDeltaDown
+        : '';
 
   // Period chips: map MonthOption[] → Segmented options keyed by label (the
   // poster compares by `label`, so we do too).
@@ -117,16 +149,8 @@ function NativeAnalyticsViewInner(props: AnalyticsViewProps) {
             {formatMoneyNative(kpiSpent.sumCents)}
             <span className={styles.kpiCur}>₽</span>
           </span>
-          <span
-            className={`${styles.kpiDelta} ${
-              kpiSpent.deltaPct > 0
-                ? styles.kpiDeltaUp
-                : kpiSpent.deltaPct < 0
-                  ? styles.kpiDeltaDown
-                  : ''
-            }`}
-          >
-            {formatDeltaPct(kpiSpent.deltaPct)}
+          <span className={`${styles.kpiDelta} ${spentDeltaClass}`}>
+            {spentEmpty ? 'к прошлому —' : formatDeltaPct(kpiSpent.deltaPct)}
           </span>
         </div>
 
@@ -136,7 +160,9 @@ function NativeAnalyticsViewInner(props: AnalyticsViewProps) {
             {formatMoneyNative(kpiSaved.sumCents)}
             <span className={styles.kpiCur}>₽</span>
           </span>
-          <span className={styles.kpiDelta}>от плана</span>
+          <span className={styles.kpiDelta}>
+            {savedEmpty ? '—' : 'от плана'}
+          </span>
         </div>
       </div>
 
@@ -153,29 +179,44 @@ function NativeAnalyticsViewInner(props: AnalyticsViewProps) {
       {/* Bar chart */}
       <SectionHeader>Динамика расходов</SectionHeader>
       <div className={styles.chartCard} data-testid="native-bar-chart">
-        {barData.length === 0 ? (
+        {!hasChartData ? (
           <div className={styles.chartEmpty}>Нет данных</div>
         ) : (
-          <div className={styles.chartBars}>
-            {barData.map((b, i) => {
-              const pct = (b.sumCents / maxSum) * 100;
-              const red = shouldHighlightRed(b.sumCents, b.planCents ?? 0);
-              return (
-                <div
-                  key={`${b.label}-${i}`}
-                  className={styles.barCol}
-                  data-testid={`native-bar-${i}${red ? '-red' : ''}`}
-                >
-                  <div className={styles.barTrack}>
-                    <div
-                      className={`${styles.barFill} ${red ? styles.barFillRed : ''}`}
-                      style={{ height: `${pct}%` }}
-                    />
+          <div className={styles.chartPlot}>
+            <div className={styles.chartBars}>
+              {barData.map((b, i) => {
+                const pct = (b.sumCents / maxSum) * 100;
+                const red = shouldHighlightRed(b.sumCents, b.planCents ?? 0);
+                const peak = i === peakIdx;
+                // Label every Nth column (always first + last) so day-mode
+                // ticks don't overlap; the rest get an empty placeholder that
+                // preserves column alignment.
+                const showLabel = i % stride === 0 || i === barData.length - 1;
+                const fillClass = red
+                  ? styles.barFillRed
+                  : peak
+                    ? styles.barFillPeak
+                    : '';
+                return (
+                  <div
+                    key={`${b.label}-${i}`}
+                    className={styles.barCol}
+                    data-testid={`native-bar-${i}${red ? '-red' : ''}`}
+                  >
+                    <div className={styles.barTrack}>
+                      <div
+                        className={`${styles.barFill} ${fillClass}`}
+                        style={{ height: `${pct}%` }}
+                      />
+                    </div>
+                    <span className={styles.barLabel}>
+                      {showLabel ? b.label : ''}
+                    </span>
                   </div>
-                  <span className={styles.barLabel}>{b.label}</span>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
+            <div className={styles.chartBaseline} aria-hidden="true" />
           </div>
         )}
       </div>

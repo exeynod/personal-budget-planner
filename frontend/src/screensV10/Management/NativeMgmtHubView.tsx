@@ -20,6 +20,7 @@
 import { memo } from 'react';
 import {
   ChartBar,
+  SquaresFour,
   Stack,
   GearSix,
   Users,
@@ -73,49 +74,48 @@ interface NativeRowDef {
   title: string;
   subtitle: string;
   Icon: PhosphorIcon;
-  /** Hex/var background for the icon tile (distinct per row). */
-  tint: string;
   ownerOnly?: boolean;
   ownerBadge?: boolean;
 }
 
 // SAME ids + order + nav targets as the poster MgmtHubView ROWS. Only the
-// presentation (iOS copy + colored phosphor tile) differs.
+// presentation (iOS copy + phosphor tile) differs.
+//
+// Icon discipline (DESIGN-REVIEW §3.6 / P1-4): one consistent tile look across
+// the hub — a neutral tile (--lgn-seg-track) with an accent glyph — instead of
+// the old per-row colour winegret (red/orange/amber squares). Each row keeps a
+// DISTINCT, semantically-fitting icon (template no longer shares ChartBar with
+// analytics).
 const ROWS: NativeRowDef[] = [
   {
     id: 'template',
     title: 'Шаблон бюджета',
     subtitle: 'Лимиты и регулярные строки для нового периода',
-    Icon: ChartBar,
-    tint: 'var(--lgn-accent)',
+    Icon: SquaresFour,
   },
   {
     id: 'analytics',
     title: 'Аналитика',
     subtitle: 'Тренды и прогноз бюджета',
     Icon: ChartBar,
-    tint: '#FF6B6B',
   },
   {
     id: 'subscriptions',
     title: 'Подписки',
     subtitle: 'Регулярные платежи и напоминания',
     Icon: Stack,
-    tint: '#FF8A65',
   },
   {
     id: 'settings',
     title: 'Настройки',
     subtitle: 'День цикла, напоминания',
     Icon: GearSix,
-    tint: '#FFB037',
   },
   {
     id: 'access',
     title: 'Доступ',
     subtitle: 'Whitelist пользователей и AI usage',
     Icon: Users,
-    tint: '#E8693C',
     ownerOnly: true,
     ownerBadge: true,
   },
@@ -167,12 +167,8 @@ function NativeMgmtHubViewInner(props: MgmtHubViewProps) {
               key={row.id}
               testId={`native-mgmt-row-${row.id}`}
               leading={
-                <span
-                  className={styles.iconTile}
-                  style={{ background: row.tint }}
-                  aria-hidden="true"
-                >
-                  <Icon size={18} weight="fill" color="#fff" />
+                <span className={styles.iconTile} aria-hidden="true">
+                  <Icon size={18} weight="fill" />
                 </span>
               }
               title={

@@ -134,11 +134,14 @@ function NativeCategoryDetailViewInner(props: NativeCategoryDetailViewProps) {
           </div>
         </div>
 
-        {/* Progress bar — same computeBarSegments ratio as the poster. */}
+        {/* Limit progress bar — fill width = ФАКТ/Лимит ratio (computeBarSegments,
+            capped 100%); red-tinted when over Лимит. Empty (Факт 0) → no sliver. */}
         <div className={styles.barTrack}>
           <div
             data-testid="native-cat-bar-fill"
-            className={`${styles.barFill} ${isOver ? styles.barFillOver : ''}`}
+            className={`${styles.barFill} ${isOver ? styles.barFillOver : ''} ${
+              fillPct === 0 ? styles.barFillEmpty : ''
+            }`}
             style={{ width: `${fillPct}%` }}
           />
           {segments.tickAt !== undefined && (

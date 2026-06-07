@@ -6,11 +6,12 @@
   padding-bottom: 24px;
 }
 
-/* Period switcher row — centered native pill. */
+/* Period switcher row — centered native pill, sits under the large title.
+   Tight stack so the title + pill don't read as a doubled header (§2.5). */
 .switcherRow {
   display: flex;
   justify-content: center;
-  padding: 0 var(--lgn-s-16) 4px;
+  padding: 0 var(--lgn-gutter) var(--lgn-s-4);
 }
 
 /* План месяца row — glass card row, opens the Plan editor. */
@@ -160,9 +161,9 @@
   color: var(--lgn-red);
 }
 
-/* Segment row */
+/* Segment row — on the 4pt grid (was a magic 22px). */
 .segmentRow {
-  margin-top: 22px;
+  margin-top: var(--lgn-s-20);
 }
 
 /* Empty state */

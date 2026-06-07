@@ -122,7 +122,7 @@
 .stepper {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--lgn-s-10);
 }
 .stepperValue {
   font-size: 19px;
@@ -159,17 +159,17 @@
   display: flex;
   flex-wrap: wrap;
   gap: var(--lgn-s-8);
-  margin-top: 14px;
+  margin-top: var(--lgn-s-12);
 }
 .chip {
   appearance: none;
   border: none;
+  /* P2-5: padding on the spacing scale (was magic 7/10px), subhead type token. */
   min-width: 38px;
-  padding: 7px 10px;
+  padding: var(--lgn-s-8) var(--lgn-s-10);
   border-radius: var(--lgn-r-pill);
   background: var(--lgn-seg-track);
-  font-family: var(--lgn-font);
-  font-size: 15px;
+  font: var(--lgn-t-subhead);
   font-weight: 500;
   color: var(--lgn-ink-2);
   cursor: pointer;

@@ -116,7 +116,8 @@
 
 /* ── Period-scope hint ── */
 .periodHint {
-  padding: 6px var(--lgn-s-20) 0;
+  /* S8: align to the 16px sheet gutter (was a stray 20px). */
+  padding: 6px var(--lgn-gutter) 0;
   font-size: 13px;
   color: var(--lgn-ink-2);
 }
@@ -125,8 +126,9 @@
 .keypad {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
-  padding: 16px var(--lgn-s-16) 8px;
+  /* P2-5: gap on the spacing scale (was magic 10px). */
+  gap: var(--lgn-s-10);
+  padding: var(--lgn-s-16) var(--lgn-s-16) var(--lgn-s-8);
 }
 .key {
   appearance: none;
