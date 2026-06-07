@@ -1,11 +1,11 @@
-/* Phase 24-04: Step 02 (Accounts) layout. Sized against
-   prototype/poster-screens.jsx OnbAccounts reference impl
-   (lines 1395-1441). Coral background inherited from chrome. */
+/* v1.1 (AGREED §G2): Step 02 (Стартовый баланс) layout — single balance
+   field, «счета» concept hidden. Mirrors Step01Income's poster input.
+   Coral background inherited from chrome. */
 
 .step {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 24px;
   width: 100%;
   padding-top: 8px;
 }
@@ -17,115 +17,45 @@
 
 .subEyebrow {
   color: var(--poster-paper);
-  margin-top: 4px;
-  margin-bottom: 6px;
 }
 
-/* ── existing accounts list ───────────────────────────────────────── */
-
-.list {
+.inputRow {
   display: flex;
-  flex-direction: column;
-  margin-top: 6px;
+  align-items: baseline;
+  gap: 12px;
+  border-bottom: 1px solid rgba(255, 246, 232, 0.5);
+  padding-bottom: 12px;
 }
 
-.row {
-  display: grid;
-  grid-template-columns: 1fr auto auto;
-  gap: 10px;
-  align-items: center;
-  padding: 12px 0;
-  border-top: 1px solid rgba(255, 246, 232, 0.25);
-}
-
-.rowMain {
+.input {
+  flex: 1 1 auto;
   min-width: 0;
-}
-
-.bankName {
-  font-family: 'Archivo Black', sans-serif;
-  font-weight: 900;
-  font-size: 13px;
-  letter-spacing: 0.04em;
-  color: var(--poster-paper);
-  text-transform: uppercase;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.bankBalance {
-  font-family: 'JetBrains Mono Variable', 'JetBrains Mono', monospace;
-  font-size: 11px;
-  opacity: 0.6;
-  margin-top: 2px;
-  color: var(--poster-paper);
-}
-
-.starBtn {
-  appearance: none;
-  background: transparent;
-  border: 1px solid rgba(255, 246, 232, 0.4);
-  color: var(--poster-paper);
-  font-family: 'JetBrains Mono Variable', 'JetBrains Mono', monospace;
-  font-size: 11px;
-  letter-spacing: 0.1em;
-  padding: 4px 8px;
-  cursor: pointer;
-  border-radius: 0;
-  transition: background 150ms ease, color 150ms ease;
-}
-
-.starBtnActive {
-  background: var(--poster-paper);
-  color: var(--poster-coral);
-  border-color: transparent;
-}
-
-.removeBtn {
   appearance: none;
   background: transparent;
   border: none;
-  color: var(--poster-paper);
-  font-family: 'JetBrains Mono Variable', 'JetBrains Mono', monospace;
-  font-size: 13px;
-  opacity: 0.5;
-  cursor: pointer;
-  padding: 4px;
-}
-
-/* ── predefined chips row ─────────────────────────────────────────── */
-
-.chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 14px;
-}
-
-.chip {
-  appearance: none;
-  background: transparent;
-  border: 1px solid rgba(255, 246, 232, 0.45);
+  outline: none;
   color: var(--poster-paper);
   font-family: 'Archivo Black', sans-serif;
   font-weight: 900;
-  font-size: 11px;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  padding: 10px 14px;
-  cursor: pointer;
-  border-radius: 0;
-  transition: transform 150ms ease;
+  font-size: 48px;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  padding: 0;
 }
 
-.chip:active {
-  transform: scale(0.97);
+.input::placeholder {
+  color: var(--poster-paper);
+  opacity: 0.35;
 }
 
-.chipDashed {
-  border-style: dashed;
-  letter-spacing: 0.18em;
-  flex: 1 1 auto;
-  text-align: center;
+.suffix {
+  color: var(--poster-paper);
+  font-family: 'Archivo Black', sans-serif;
+  font-weight: 900;
+  font-size: 32px;
+  line-height: 1;
+}
+
+.caption {
+  color: var(--poster-paper);
 }

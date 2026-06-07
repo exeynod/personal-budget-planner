@@ -23,7 +23,6 @@ import { Step01Income } from './Step01Income';
 import { Step02Accounts } from './Step02Accounts';
 import { Step03Plan, computePlanFooter } from './Step03Plan';
 import { Final } from './Final';
-import { pluraliseHint } from './format';
 import type { OnboardingDraft } from './types';
 import type { OnboardingV10Response } from '../../api/onboardingV10';
 import styles from './OnboardingFlow.module.css';
@@ -105,11 +104,11 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
   const step01Back = undefined;
 
   // Hint per step:
-  //  - step 2 → pluralised account count + total balance
+  //  - step 2 → static «можно изменить позже» (§G2: single implicit balance)
   //  - step 3 → live plan-vs-income counter (computePlanFooter)
   const hint =
     state.step === 2
-      ? pluraliseHint(state.accounts)
+      ? 'это можно изменить позже'
       : state.step === 3
         ? step03Footer?.hint
         : undefined;
@@ -123,7 +122,13 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
       );
     }
     if (state.step === 2) {
-      return <Step02Accounts accounts={state.accounts} dispatch={dispatch} />;
+      return (
+        <Step02Accounts
+          balanceCents={state.accounts[0]?.balance_cents ?? 0}
+          hasAccount={state.accounts.length > 0}
+          dispatch={dispatch}
+        />
+      );
     }
     return (
       <Step03Plan

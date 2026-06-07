@@ -74,89 +74,35 @@ describe('onboardingReducer — SET_INCOME', () => {
   });
 });
 
-describe('onboardingReducer — accounts', () => {
-  it('first ADD_ACCOUNT auto-promotes to primary', () => {
+describe('onboardingReducer — SET_STARTING_BALANCE (§G2 single account)', () => {
+  it('materialises exactly one primary card account «Счёт»', () => {
     const next = onboardingReducer(INITIAL_STATE, {
-      type: 'ADD_ACCOUNT',
-      payload: { bank: 'Т-Банк', kind: 'card', balance_cents: 12_345 },
+      type: 'SET_STARTING_BALANCE',
+      payload: { balance_cents: 12_345 },
     });
-    expect(next.accounts).toHaveLength(1);
-    expect(next.accounts[0].primary).toBe(true);
-    expect(next.accounts[0].bank).toBe('Т-Банк');
-    expect(next.accounts[0].balance_cents).toBe(12_345);
+    expect(next.accounts).toEqual([
+      {
+        bank: 'Счёт',
+        mask: null,
+        kind: 'card',
+        balance_cents: 12_345,
+        primary: true,
+      },
+    ]);
   });
 
-  it('subsequent ADD_ACCOUNT defaults primary=false', () => {
+  it('replaces the account on re-entry (never grows the array)', () => {
     const a = onboardingReducer(INITIAL_STATE, {
-      type: 'ADD_ACCOUNT',
-      payload: { bank: 'Т-Банк', kind: 'card', balance_cents: 100 },
+      type: 'SET_STARTING_BALANCE',
+      payload: { balance_cents: 5_000_00 },
     });
     const b = onboardingReducer(a, {
-      type: 'ADD_ACCOUNT',
-      payload: { bank: 'Сбер', kind: 'card', balance_cents: 200 },
+      type: 'SET_STARTING_BALANCE',
+      payload: { balance_cents: -1_200_00 },
     });
-    expect(b.accounts.map((x) => x.primary)).toEqual([true, false]);
-  });
-
-  it('SET_PRIMARY enforces single-primary invariant', () => {
-    let s = INITIAL_STATE;
-    s = onboardingReducer(s, {
-      type: 'ADD_ACCOUNT',
-      payload: { bank: 'A', kind: 'card', balance_cents: 1 },
-    });
-    s = onboardingReducer(s, {
-      type: 'ADD_ACCOUNT',
-      payload: { bank: 'B', kind: 'card', balance_cents: 2 },
-    });
-    s = onboardingReducer(s, { type: 'SET_PRIMARY', payload: { index: 1 } });
-    expect(s.accounts[0].primary).toBe(false);
-    expect(s.accounts[1].primary).toBe(true);
-    expect(s.accounts.filter((a) => a.primary)).toHaveLength(1);
-  });
-
-  it('REMOVE_ACCOUNT promotes the new accounts[0] when primary removed', () => {
-    let s = INITIAL_STATE;
-    s = onboardingReducer(s, {
-      type: 'ADD_ACCOUNT',
-      payload: { bank: 'A', kind: 'card', balance_cents: 1 },
-    });
-    s = onboardingReducer(s, {
-      type: 'ADD_ACCOUNT',
-      payload: { bank: 'B', kind: 'card', balance_cents: 2 },
-    });
-    expect(s.accounts[0].primary).toBe(true); // sanity
-    s = onboardingReducer(s, { type: 'REMOVE_ACCOUNT', payload: { index: 0 } });
-    expect(s.accounts).toHaveLength(1);
-    expect(s.accounts[0].bank).toBe('B');
-    expect(s.accounts[0].primary).toBe(true); // promoted
-  });
-
-  it('REMOVE_ACCOUNT keeps single-primary when non-primary removed', () => {
-    let s = INITIAL_STATE;
-    s = onboardingReducer(s, {
-      type: 'ADD_ACCOUNT',
-      payload: { bank: 'A', kind: 'card', balance_cents: 1 },
-    });
-    s = onboardingReducer(s, {
-      type: 'ADD_ACCOUNT',
-      payload: { bank: 'B', kind: 'card', balance_cents: 2 },
-    });
-    s = onboardingReducer(s, { type: 'REMOVE_ACCOUNT', payload: { index: 1 } });
-    expect(s.accounts).toHaveLength(1);
-    expect(s.accounts[0].bank).toBe('A');
-    expect(s.accounts[0].primary).toBe(true);
-  });
-
-  it('REMOVE_ACCOUNT with bad index is a no-op', () => {
-    const a = onboardingReducer(INITIAL_STATE, {
-      type: 'ADD_ACCOUNT',
-      payload: { bank: 'A', kind: 'card', balance_cents: 1 },
-    });
-    const noop = onboardingReducer(a, {
-      type: 'REMOVE_ACCOUNT',
-      payload: { index: 99 },
-    });
-    expect(noop).toEqual(a);
+    expect(b.accounts).toHaveLength(1);
+    expect(b.accounts[0].balance_cents).toBe(-1_200_00); // negative (долг) ok
+    expect(b.accounts[0].primary).toBe(true);
   });
 });
 
@@ -219,8 +165,8 @@ describe('onboardingReducer — step transitions', () => {
       payload: { income_cents: 5_000_00 },
     });
     s = onboardingReducer(s, {
-      type: 'ADD_ACCOUNT',
-      payload: { bank: 'X', kind: 'cash', balance_cents: 1 },
+      type: 'SET_STARTING_BALANCE',
+      payload: { balance_cents: 1 },
     });
     s = onboardingReducer(s, { type: 'NEXT' });
     s = onboardingReducer(s, { type: 'RESET' });

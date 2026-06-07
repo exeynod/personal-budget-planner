@@ -18,22 +18,23 @@ import type {
 
 export type OnboardingAction =
   | { type: 'SET_INCOME'; payload: { income_cents: number } }
-  | {
-      type: 'ADD_ACCOUNT';
-      payload: {
-        bank: string;
-        kind: OnboardingAccount['kind'];
-        balance_cents: number;
-        mask?: string | null;
-      };
-    }
-  | { type: 'REMOVE_ACCOUNT'; payload: { index: number } }
-  | { type: 'SET_PRIMARY'; payload: { index: number } }
+  // v1.1 (AGREED §G2): «счета» concept hidden — onboarding collects a single
+  // implicit primary balance. The poster Step 02 dispatches this on every
+  // keystroke; the reducer keeps the `accounts` array shape (exactly one
+  // primary card account) so Final/serialiseDraft/sanitiser stay unchanged.
+  | { type: 'SET_STARTING_BALANCE'; payload: { balance_cents: number } }
   | { type: 'SET_PLAN'; payload: { code: string; cents: number } }
   | { type: 'SET_SAVINGS_CONFIG'; payload: OnboardingSavingsConfig }
   | { type: 'NEXT' }
   | { type: 'BACK' }
   | { type: 'RESET' };
+
+/**
+ * Default bank label for the single implicit account (§G2). Mirrors
+ * NativeOnboardingFlow verbatim so the poster + native flows seed an
+ * identical primary account on the wire.
+ */
+const PRIMARY_ACCOUNT_BANK = 'Счёт';
 
 export const INITIAL_STATE: OnboardingDraft = Object.freeze({
   step: 1,
@@ -76,45 +77,22 @@ export function onboardingReducer(
       };
     }
 
-    case 'ADD_ACCOUNT': {
-      const { bank, kind, balance_cents, mask } = action.payload;
-      const isFirst = state.accounts.length === 0;
-      const newAcct: OnboardingAccount = {
-        bank,
-        mask: mask ?? null,
-        kind,
-        balance_cents,
-        primary: isFirst, // first account auto-promoted (D-04 / context.md Step 02)
+    case 'SET_STARTING_BALANCE': {
+      // §G2: single implicit primary account. Always materialise exactly one
+      // primary card account named «Счёт» with the entered balance (0 /
+      // negative «долг» allowed — server caps at ±100M ₽). Replaces any prior
+      // accounts so the array is always length-1.
+      const balanceCents = Number.isFinite(action.payload.balance_cents)
+        ? action.payload.balance_cents
+        : 0;
+      const account: OnboardingAccount = {
+        bank: PRIMARY_ACCOUNT_BANK,
+        mask: null,
+        kind: 'card',
+        balance_cents: balanceCents,
+        primary: true,
       };
-      return { ...state, accounts: [...state.accounts, newAcct] };
-    }
-
-    case 'REMOVE_ACCOUNT': {
-      const { index } = action.payload;
-      if (index < 0 || index >= state.accounts.length) return state;
-      const wasPrimary = state.accounts[index].primary;
-      const remaining = state.accounts.filter((_, i) => i !== index);
-      if (
-        wasPrimary &&
-        remaining.length > 0 &&
-        !remaining.some((a) => a.primary)
-      ) {
-        // Promote new accounts[0] when primary removed.
-        remaining[0] = { ...remaining[0], primary: true };
-      }
-      return { ...state, accounts: remaining };
-    }
-
-    case 'SET_PRIMARY': {
-      const { index } = action.payload;
-      if (index < 0 || index >= state.accounts.length) return state;
-      return {
-        ...state,
-        accounts: state.accounts.map((a, i) => ({
-          ...a,
-          primary: i === index,
-        })),
-      };
+      return { ...state, accounts: [account] };
     }
 
     case 'SET_PLAN': {

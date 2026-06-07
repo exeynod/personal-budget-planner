@@ -126,17 +126,11 @@ test('onboarding: full happy path → 200 → draft cleared → home placeholder
   await page.getByLabel('Доход в месяц, рубли').fill('120000');
   await page.getByRole('button', { name: /^ДАЛЕЕ →$/ }).click();
 
-  // Step 02 — Т-Банк chip → balance form → ДОБАВИТЬ → ДАЛЕЕ →
+  // Step 02 — single «Стартовый баланс» field (§G2: счета concept hidden).
   await expect(
     page.getByText('ШАГ 02 / 03 · СЧЕТА', { exact: false }),
   ).toBeVisible({ timeout: 5000 });
-  await page.getByRole('button', { name: 'Т-Банк' }).click();
-  await page.getByLabel('Баланс счёта, рубли').fill('50000');
-  await page.getByRole('button', { name: /^ДОБАВИТЬ$/ }).click();
-  // Wait until the row appears in the list before advancing — exact match
-  // on uppercase row name to avoid colliding with the «Т-Банк» chip
-  // (Playwright text matchers are case-insensitive by default).
-  await expect(page.getByText('Т-БАНК', { exact: true })).toBeVisible();
+  await page.getByLabel('Стартовый баланс, рубли').fill('50000');
   await page.getByRole('button', { name: /^ДАЛЕЕ →$/ }).click();
 
   // Step 03 — default allocation already valid (Σshares = 0.83 < income).
@@ -197,14 +191,11 @@ test('onboarding: draft persists across reload mid-flight', async ({
   await page.getByLabel('Доход в месяц, рубли').fill('80000');
   await page.getByRole('button', { name: /^ДАЛЕЕ →$/ }).click();
 
-  // Step 02 — add an account.
+  // Step 02 — single «Стартовый баланс» field (§G2: счета concept hidden).
   await expect(
     page.getByText('ШАГ 02 / 03 · СЧЕТА', { exact: false }),
   ).toBeVisible({ timeout: 5000 });
-  await page.getByRole('button', { name: 'Т-Банк' }).click();
-  await page.getByLabel('Баланс счёта, рубли').fill('40000');
-  await page.getByRole('button', { name: /^ДОБАВИТЬ$/ }).click();
-  await expect(page.getByText('Т-БАНК', { exact: true })).toBeVisible();
+  await page.getByLabel('Стартовый баланс, рубли').fill('40000');
   await page.getByRole('button', { name: /^ДАЛЕЕ →$/ }).click();
 
   // Step 03 reached.
