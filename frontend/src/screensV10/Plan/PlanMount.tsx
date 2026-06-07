@@ -52,6 +52,7 @@ import {
 import {
   groupPlannedByCategory,
   computeLadder,
+  computeIncomeLadder,
   type PlanDetailRow,
 } from './computePlanDetail';
 
@@ -294,10 +295,32 @@ export function PlanMount({ focusCategoryId = null }: PlanMountProps = {}) {
   );
 
   // ─────────── derived view-model ───────────
+  // v1.1 design-fix: income and expense are SEPARATE on «План месяца». Income
+  // is not capped — it has no «лимит»/«осталось распределить»/«превышено». We
+  // split categories by `kind` and feed each segment its own surface.
+  const expenseCategories = useMemo(
+    () => categories.filter((c) => c.kind === 'expense'),
+    [categories],
+  );
+  const incomeCategories = useMemo(
+    () => categories.filter((c) => c.kind === 'income'),
+    [categories],
+  );
+
   // Memoised so slider drags (which only bump `plans`) don't recompute the
   // regulars list (subs×categories) every render, and a parent re-render with
   // unchanged inputs is a no-op. Each useMemo is keyed on its exact inputs.
-  const surplus = useMemo(() => computeSurplus(income, plans), [income, plans]);
+  //
+  // «Осталось распределить» is an EXPENSE-only concept: surplus = income −
+  // Σ EXPENSE plans (income plans must not eat into the distributable surplus).
+  const expensePlans = useMemo(() => {
+    const expenseIds = new Set(expenseCategories.map((c) => c.id));
+    return plans.filter((p) => expenseIds.has(p.category_id));
+  }, [plans, expenseCategories]);
+  const surplus = useMemo(
+    () => computeSurplus(income, expensePlans),
+    [income, expensePlans],
+  );
   const isOverflow = useMemo(() => computeIsOverflow(surplus), [surplus]);
   const regulars = useMemo(
     () => computeRegularsList(subs, categories),
@@ -310,12 +333,37 @@ export function PlanMount({ focusCategoryId = null }: PlanMountProps = {}) {
   const ladderByCat = useMemo(() => {
     const limitByCat = new Map(plans.map((p) => [p.category_id, p.plan_cents]));
     const out = new Map<number, ReturnType<typeof computeLadder>>();
-    for (const c of categories) {
+    for (const c of expenseCategories) {
       const limit = limitByCat.get(c.id) ?? c.plan_cents ?? 0;
       out.set(c.id, computeLadder(limit, detailByCat.get(c.id) ?? []));
     }
     return out;
-  }, [categories, plans, detailByCat]);
+  }, [expenseCategories, plans, detailByCat]);
+
+  // Income ladder per category (План / Запланировано / Получено). No overflow.
+  const incomeLadderByCat = useMemo(() => {
+    const planByCat = new Map(plans.map((p) => [p.category_id, p.plan_cents]));
+    const out = new Map<number, ReturnType<typeof computeIncomeLadder>>();
+    for (const c of incomeCategories) {
+      const plan = planByCat.get(c.id) ?? c.plan_cents ?? 0;
+      out.set(c.id, computeIncomeLadder(plan, detailByCat.get(c.id) ?? []));
+    }
+    return out;
+  }, [incomeCategories, plans, detailByCat]);
+
+  // Income summary (calm — no «осталось распределить» semantics):
+  //   Запланировано дохода = Σ income category plans.
+  //   Получено             = Σ posted income planned rows (факт дохода).
+  const incomeSummary = useMemo(() => {
+    const planByCat = new Map(plans.map((p) => [p.category_id, p.plan_cents]));
+    let planned = 0;
+    let received = 0;
+    for (const c of incomeCategories) {
+      planned += planByCat.get(c.id) ?? c.plan_cents ?? 0;
+      received += incomeLadderByCat.get(c.id)?.receivedCents ?? 0;
+    }
+    return { plannedCents: planned, receivedCents: received };
+  }, [incomeCategories, plans, incomeLadderByCat]);
 
   if (status === 'loading') {
     return <StatePlate variant="loading" testId="plan-loading" />;
@@ -355,9 +403,14 @@ export function PlanMount({ focusCategoryId = null }: PlanMountProps = {}) {
       {variant === 'native' ? (
         <NativePlanView
           {...sharedProps}
+          categories={expenseCategories}
+          incomeCategories={incomeCategories}
+          incomePlannedCents={incomeSummary.plannedCents}
+          incomeReceivedCents={incomeSummary.receivedCents}
           onLimitCommit={handleLimitCommit}
           detailByCat={detailByCat}
           ladderByCat={ladderByCat}
+          incomeLadderByCat={incomeLadderByCat}
           onPostDetail={handlePostDetail}
           onUnpostDetail={handleUnpostDetail}
         />

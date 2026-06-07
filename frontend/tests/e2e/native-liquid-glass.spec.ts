@@ -545,6 +545,45 @@ test.describe('Liquid Glass native shell (web)', () => {
     ).toHaveCount(3);
     await freezeMotion(page);
     await page.screenshot({ path: `${OUT}/plan.png` });
+
+    // ── v1.1 design-fix: income / expense are split via a segmented control. ──
+    // Default segment is «Расходы» (income category «Зарплата» must NOT appear
+    // here — it lives in the «Доходы» segment).
+    await expect(page.getByTestId('native-plan-cat-1')).toBeVisible(); // Продукты (expense)
+    await expect(page.getByTestId('native-plan-cat-10')).toHaveCount(0); // Зарплата (income) hidden
+
+    // Switch to «Доходы».
+    await page.getByRole('tab', { name: 'Доходы' }).click();
+
+    // Income summary replaces the expense «Осталось распределить» surplus card:
+    // NO «осталось распределить» / «превышено» chrome in the income segment.
+    await expect(page.getByTestId('native-plan-income-summary')).toBeVisible({
+      timeout: 5000,
+    });
+    await expect(page.getByTestId('native-plan-surplus')).toHaveCount(0);
+    await expect(page.getByText('Превышено')).toHaveCount(0);
+    await expect(
+      page.getByText('Осталось распределить', { exact: false }),
+    ).toHaveCount(0);
+
+    // Income category «Зарплата» (id 10) is now visible; expense «Продукты» hidden.
+    await expect(page.getByTestId('native-plan-cat-10')).toBeVisible();
+    await expect(page.getByTestId('native-plan-cat-1')).toHaveCount(0);
+
+    // Expand «Детализация» for the income category → the ladder uses «План» (NOT
+    // «Лимит») and there is NO «Свободно» level. Delta is «Осталось получить».
+    await page.getByTestId('native-plan-detail-toggle-10').click();
+    const incDetail = page.getByTestId('native-plan-detail-10');
+    await expect(incDetail).toBeVisible({ timeout: 5000 });
+    await expect(incDetail.getByText('Лимит')).toHaveCount(0);
+    await expect(incDetail.getByText('Свободно')).toHaveCount(0);
+    await expect(incDetail.getByText('План', { exact: true })).toBeVisible();
+    await expect(incDetail.getByText('Запланировано')).toBeVisible();
+    await expect(incDetail.getByText('Получено')).toBeVisible();
+    await expect(page.getByTestId('native-plan-income-delta-10')).toBeVisible();
+
+    await freezeMotion(page);
+    await page.screenshot({ path: `${OUT}/plan-income.png` });
   });
 
   // v1.1 «один глобальный +» — the single «+ Добавить в план» under the surplus

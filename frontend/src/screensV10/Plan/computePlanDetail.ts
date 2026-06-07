@@ -77,6 +77,46 @@ export function computeLadder(
 }
 
 /**
+ * Per-category INCOME ladder. Income is planned (not capped): «План» is the
+ * expected amount, never a limit. There is NO «free»/«overflow» — the income
+ * sign convention is «больше = хорошо» (delta = Факт − План).
+ *
+ *   planCents      — expected income for the category (category.plan_cents).
+ *   scheduledCents — Σ of UNPOSTED income planned rows («Запланировано»).
+ *   receivedCents  — Σ of POSTED income planned rows («Получено» / факт дохода).
+ *   remainingCents — План − Получено: «Осталось получить» when ≥ 0; when
+ *                    negative we surface «Сверх плана» (received exceeds plan).
+ *   overReceived   — true when Получено > План (good — beats the plan).
+ */
+export interface IncomeLadder {
+  planCents: number;
+  scheduledCents: number;
+  receivedCents: number;
+  remainingCents: number;
+  overReceived: boolean;
+}
+
+export function computeIncomeLadder(
+  planCents: number,
+  rows: ReadonlyArray<PlanDetailRow>,
+): IncomeLadder {
+  const scheduled = rows
+    .filter((r) => !r.posted)
+    .reduce((s, r) => s + r.amountCents, 0);
+  const received = rows
+    .filter((r) => r.posted)
+    .reduce((s, r) => s + r.amountCents, 0);
+  const remaining = planCents - received;
+  return {
+    planCents,
+    scheduledCents: scheduled,
+    receivedCents: received,
+    remainingCents: remaining,
+    overReceived: received > planCents,
+  };
+}
+
+/**
  * Collect the planned-row ids that are due for bulk-posting: every UNPOSTED,
  * NON-subscription (manual) row across all categories. Subscription rows post
  * via their own endpoint and are returned separately by `subscriptionPostIds`.
