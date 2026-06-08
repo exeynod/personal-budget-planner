@@ -690,10 +690,15 @@ export interface paths {
          * Get Home
          * @description GET /api/v1/home — aggregated HOME bootstrap payload.
          *
-         *     Returns ``{ user, accounts, categories, period, balance, actuals }``. When
-         *     the user has no active budget period (onboarding incomplete), ``period`` /
-         *     ``balance`` are ``None`` and ``actuals`` is ``[]`` — ``user`` / ``accounts``
-         *     / ``categories`` still resolve.
+         *     Returns ``{ user, accounts, categories, period, balance, actuals, periods,
+         *     planned }``. When the user has no active budget period (onboarding
+         *     incomplete), ``period`` / ``balance`` are ``None`` and ``actuals`` /
+         *     ``planned`` are ``[]`` — ``user`` / ``accounts`` / ``categories`` /
+         *     ``periods`` still resolve.
+         *
+         *     ``periods`` mirrors GET /api/v1/periods (newest-first list) and ``planned``
+         *     mirrors GET /api/v1/periods/{period_id}/planned for the active period, so
+         *     the PeriodSwitcher + plan ladder boot from this one request.
          */
         get: operations["get_home_api_v1_home_get"];
         put?: never;
@@ -1534,6 +1539,118 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/subscriptions/recurring/cashflow": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Recurring Cashflow
+         * @description GET /api/v1/subscriptions/recurring/cashflow — cashflow projection (ADR-0007).
+         *
+         *     Projects active recurring payments forward over ``horizon_days`` (default
+         *     90, 1..365) and returns a timeline with a running balance + monthly burden.
+         */
+        get: operations["recurring_cashflow_api_v1_subscriptions_recurring_cashflow_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/subscriptions/recurring/due": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Recurring Due
+         * @description GET /api/v1/subscriptions/recurring/due — due-today/overdue occurrences.
+         *
+         *     ADR-0007 home prompt: unposted ``subscription_auto`` rows of the current
+         *     active period with ``planned_date <= today``. Empty list if no active period.
+         */
+        get: operations["recurring_due_api_v1_subscriptions_recurring_due_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/subscriptions/recurring/{planned_id}/pay": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Recurring Pay
+         * @description POST /api/v1/subscriptions/recurring/{planned_id}/pay — «Оплачено» (ADR-0007).
+         *
+         *     Posts the occurrence into a real actual (optional ``amount_cents`` override).
+         */
+        post: operations["recurring_pay_api_v1_subscriptions_recurring__planned_id__pay_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/subscriptions/recurring/{planned_id}/postpone": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Recurring Postpone
+         * @description POST /api/v1/subscriptions/recurring/{planned_id}/postpone — «Перенести» (ADR-0007).
+         *
+         *     Shifts ``planned_date`` within the occurrence's own period bounds.
+         */
+        post: operations["recurring_postpone_api_v1_subscriptions_recurring__planned_id__postpone_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/subscriptions/recurring/{planned_id}/skip": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Recurring Skip
+         * @description POST /api/v1/subscriptions/recurring/{planned_id}/skip — «Пропустить» (ADR-0007).
+         *
+         *     Deletes the unposted occurrence without posting it to actual.
+         */
+        post: operations["recurring_skip_api_v1_subscriptions_recurring__planned_id__skip_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/subscriptions/{sub_id}": {
         parameters: {
             query?: never;
@@ -2227,6 +2344,43 @@ export interface components {
             /** Spending Cap Cents */
             spending_cap_cents: number;
         };
+        /**
+         * CashflowEvent
+         * @description One projected recurring charge in the cashflow timeline (cents).
+         */
+        CashflowEvent: {
+            /** Amount Cents */
+            amount_cents: number;
+            /** Balance After Cents */
+            balance_after_cents: number;
+            /** Category Id */
+            category_id: number;
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /** Kind */
+            kind: string;
+            /** Name */
+            name: string;
+            /** Subscription Id */
+            subscription_id: number;
+        };
+        /**
+         * CashflowProjectionResponse
+         * @description GET .../recurring/cashflow — projection over the horizon (cents).
+         */
+        CashflowProjectionResponse: {
+            /** Horizon Days */
+            horizon_days: number;
+            /** Monthly Burden Cents */
+            monthly_burden_cents: number;
+            /** Starting Balance Cents */
+            starting_balance_cents: number;
+            /** Timeline */
+            timeline: components["schemas"]["CashflowEvent"][];
+        };
         /** CategoryCandidate */
         CategoryCandidate: {
             /** Id */
@@ -2244,6 +2398,10 @@ export interface components {
          * @description POST /categories request body.
          */
         CategoryCreate: {
+            /** Color */
+            color?: string | null;
+            /** Icon */
+            icon?: string | null;
             /**
              * Kind
              * @enum {string}
@@ -2270,11 +2428,15 @@ export interface components {
         CategoryRead: {
             /** Code */
             code: string;
+            /** Color */
+            color?: string | null;
             /**
              * Created At
              * Format: date-time
              */
             created_at: string;
+            /** Icon */
+            icon?: string | null;
             /** Id */
             id: number;
             /** Is Archived */
@@ -2323,6 +2485,10 @@ export interface components {
          *     в Phase 27.
          */
         CategoryUpdate: {
+            /** Color */
+            color?: string | null;
+            /** Icon */
+            icon?: string | null;
             /** Is Archived */
             is_archived?: boolean | null;
             /** Name */
@@ -2510,6 +2676,10 @@ export interface components {
             /** Categories */
             categories: components["schemas"]["CategoryRead"][];
             period: components["schemas"]["PeriodRead"] | null;
+            /** Periods */
+            periods: components["schemas"]["PeriodRead"][];
+            /** Planned */
+            planned: components["schemas"]["PlannedRead"][];
             user: components["schemas"]["MeV10Response"];
         };
         /**
@@ -2894,6 +3064,58 @@ export interface components {
             balance_now_cents: number;
         };
         /**
+         * RecurringDueRow
+         * @description One due-today / overdue recurring occurrence for the home prompt.
+         *
+         *     Backed by a materialised ``planned_transaction(source=subscription_auto)``
+         *     row of the current active period. ``id`` is the planned-row id (the target
+         *     of pay / skip / postpone). Money stays in cents.
+         */
+        RecurringDueRow: {
+            /** Amount Cents */
+            amount_cents: number;
+            /** Category Id */
+            category_id: number;
+            /** Description */
+            description?: string | null;
+            /** Id */
+            id: number;
+            /** Planned Date */
+            planned_date?: string | null;
+            /** Posted Txn Id */
+            posted_txn_id?: number | null;
+            /** Subscription Id */
+            subscription_id?: number | null;
+        };
+        /**
+         * RecurringPayRequest
+         * @description POST .../recurring/{planned_id}/pay — optional amount override (cents).
+         */
+        RecurringPayRequest: {
+            /** Amount Cents */
+            amount_cents?: number | null;
+            /** Tx Date */
+            tx_date?: string | null;
+        };
+        /** RecurringPayResponse */
+        RecurringPayResponse: {
+            /** Planned Id */
+            planned_id: number;
+            /** Txn Id */
+            txn_id: number;
+        };
+        /**
+         * RecurringPostponeRequest
+         * @description POST .../recurring/{planned_id}/postpone — shift within the period.
+         */
+        RecurringPostponeRequest: {
+            /**
+             * New Date
+             * Format: date
+             */
+            new_date: string;
+        };
+        /**
          * SettingsRead
          * @description GET /settings response.
          */
@@ -2962,9 +3184,11 @@ export interface components {
             amount_cents: number;
             /** Category Id */
             category_id: number;
-            cycle: components["schemas"]["SubCycle"];
+            cycle?: components["schemas"]["SubCycle"] | null;
             /** Day Of Month */
             day_of_month?: number | null;
+            /** Interval Months */
+            interval_months?: number | null;
             /**
              * Is Active
              * @default true
@@ -3040,6 +3264,8 @@ export interface components {
             day_of_month?: number | null;
             /** Id */
             id: number;
+            /** Interval Months */
+            interval_months: number;
             /** Is Active */
             is_active: boolean;
             /** Name */
@@ -3075,6 +3301,8 @@ export interface components {
             cycle?: components["schemas"]["SubCycle"] | null;
             /** Day Of Month */
             day_of_month?: number | null;
+            /** Interval Months */
+            interval_months?: number | null;
             /** Is Active */
             is_active?: boolean | null;
             /** Name */
@@ -5650,6 +5878,234 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["SubscriptionReadV10"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    recurring_cashflow_api_v1_subscriptions_recurring_cashflow_get: {
+        parameters: {
+            query?: {
+                horizon_days?: number;
+            };
+            header?: {
+                "x-telegram-init-data"?: string | null;
+                authorization?: string | null;
+                "x-test-user"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CashflowProjectionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    recurring_due_api_v1_subscriptions_recurring_due_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-telegram-init-data"?: string | null;
+                authorization?: string | null;
+                "x-test-user"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecurringDueRow"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    recurring_pay_api_v1_subscriptions_recurring__planned_id__pay_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-telegram-init-data"?: string | null;
+                authorization?: string | null;
+                "x-test-user"?: string | null;
+            };
+            path: {
+                planned_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RecurringPayRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecurringPayResponse"];
+                };
+            };
+            /** @description Occurrence not found / cross-tenant */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Occurrence already paid */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    recurring_postpone_api_v1_subscriptions_recurring__planned_id__postpone_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-telegram-init-data"?: string | null;
+                authorization?: string | null;
+                "x-test-user"?: string | null;
+            };
+            path: {
+                planned_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RecurringPostponeRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecurringDueRow"];
+                };
+            };
+            /** @description new_date outside the occurrence's period */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Occurrence not found / cross-tenant */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Occurrence already paid */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    recurring_skip_api_v1_subscriptions_recurring__planned_id__skip_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-telegram-init-data"?: string | null;
+                authorization?: string | null;
+                "x-test-user"?: string | null;
+            };
+            path: {
+                planned_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Occurrence not found / cross-tenant */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Occurrence already paid — unpay first */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

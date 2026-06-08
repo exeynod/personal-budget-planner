@@ -22,6 +22,9 @@ struct SubscriptionV10DTO: Decodable, Identifiable, Equatable {
     let id: Int
     let name: String
     let amountCents: Int
+    // ADR-0007: recurring interval in months (1=monthly, 12=yearly). Source of
+    // truth for cadence; `cycle` is deprecated and decoded for back-compat only.
+    let intervalMonths: Int
     let cycle: SubCycle
     let nextChargeDate: BusinessDate
     let categoryId: Int
@@ -39,6 +42,7 @@ struct SubscriptionV10DTO: Decodable, Identifiable, Equatable {
         case id
         case name
         case amountCents
+        case intervalMonths
         case cycle
         case nextChargeDate
         case categoryId
@@ -54,6 +58,8 @@ struct SubscriptionV10DTO: Decodable, Identifiable, Equatable {
         self.id = try c.decode(Int.self, forKey: .id)
         self.name = try c.decode(String.self, forKey: .name)
         self.amountCents = try c.decode(Int.self, forKey: .amountCents)
+        // Default to monthly when an older backend omits the field.
+        self.intervalMonths = try c.decodeIfPresent(Int.self, forKey: .intervalMonths) ?? 1
         self.cycle = try c.decode(SubCycle.self, forKey: .cycle)
         self.nextChargeDate = try c.decode(BusinessDate.self, forKey: .nextChargeDate)
         self.categoryId = try c.decode(Int.self, forKey: .categoryId)

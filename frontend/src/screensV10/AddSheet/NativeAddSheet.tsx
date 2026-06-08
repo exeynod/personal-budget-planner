@@ -21,6 +21,7 @@ import { CategoryIcon } from '../native/CategoryIcon';
 import { NativeCalendar } from '../native/NativeCalendar';
 import { formatMoneyNative } from '../native/money';
 import { MONTHS_RU_GENITIVE } from '../common';
+import { useSheetEscape } from '../common/PosterSheet';
 import { useEnterToDismiss } from '../common/useEnterToDismiss';
 import { useAddSheetController } from './useAddSheetController';
 import type { AddSheetKind } from '../native/AddSheetHost';
@@ -543,6 +544,10 @@ function ActionSheet({
   testId?: string;
   children: React.ReactNode;
 }) {
+  // Escape dismisses just this nested sheet (it sits atop the AddSheet on the
+  // shared sheet stack), not the parent AddSheet underneath it.
+  useSheetEscape(true, onClose);
+
   return (
     <div
       className={styles.actionBackdrop}

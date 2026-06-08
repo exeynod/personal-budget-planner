@@ -10,7 +10,10 @@ Phase 5 adds:
 
 Remaining cron jobs (HLD §6):
 - ``notify_subscriptions`` daily at 09:00 Europe/Moscow — Phase 6
-- ``charge_subscriptions`` daily at 00:05 Europe/Moscow — Phase 6
+
+ADR-0007: the daily ``charge_subscriptions`` job was removed — recurring
+payments are materialised at period rollover (``close_period``) and the
+"due today / overdue" set is computed from those materialised rows.
 
 Phase 1 uses MemoryJobStore (no PostgreSQL jobstore yet) per 01-RESEARCH
 Pattern 7 + Open Question Q1 — persistence is only required when real
@@ -28,7 +31,6 @@ from app.core.logging import configure_logging
 from app.core.settings import settings, validate_production_settings
 from app.db.models import AppHealth
 from app.db.session import AsyncSessionLocal
-from app.worker.jobs.charge_subscriptions import charge_subscriptions_job
 from app.worker.jobs.close_period import close_period_job
 from app.worker.jobs.notify_subscriptions import notify_subscriptions_job
 from app.worker.jobs.purge_deleted_users import purge_deleted_users_job
@@ -102,16 +104,8 @@ async def main() -> None:
         timezone=MOSCOW_TZ,
     )
 
-    # Phase 6: charge_subscriptions — daily at 00:05 Europe/Moscow (SUB-04, D-81).
-    scheduler.add_job(
-        charge_subscriptions_job,
-        "cron",
-        hour=0,
-        minute=5,
-        id="charge_subscriptions",
-        replace_existing=True,
-        timezone=MOSCOW_TZ,
-    )
+    # ADR-0007: charge_subscriptions daily job removed — recurring payments are
+    # materialised at rollover (close_period); due/overdue is read from rows.
 
     # Phase 33 CMP-33-02: purge_deleted_users — daily at 02:00 Europe/Moscow.
     # Finds users with deleted_at < now() - 30d and cascade-deletes their data.

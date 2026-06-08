@@ -24,6 +24,7 @@ import {
   Users,
   SquaresFour,
   ClipboardText,
+  ArrowsClockwise,
   type Icon as PhosphorIcon,
 } from '@phosphor-icons/react';
 import {
@@ -38,6 +39,7 @@ export type MgmtRowId =
   | 'analytics'
   | 'categories'
   | 'template'
+  | 'recurring'
   | 'settings'
   | 'access';
 
@@ -121,6 +123,12 @@ const ROWS: NativeRowDef[] = [
     title: 'Шаблон',
     subtitle: 'Лимиты и регулярные операции для новых месяцев',
     Icon: ClipboardText,
+  },
+  {
+    id: 'recurring',
+    title: 'Регулярные платежи',
+    subtitle: 'Прогноз кэшфлоу и график списаний',
+    Icon: ArrowsClockwise,
   },
   {
     id: 'settings',

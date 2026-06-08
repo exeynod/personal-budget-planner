@@ -16,10 +16,10 @@
 // the per-category plan add both moved into the per-category detail (pushed via
 // handleCategoryTap → PlanCategoryDetailMount).
 //
-// Toast UX (T-26-04-02 mitigation): template-save shows a confirmation toast.
+// ADR-0007: the «сохранить план как шаблон» overwrite action was removed (the
+// backend save-current route is gone); the template is edited only directly.
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { NativeToast } from '../native/NativeToast';
 import {
   StatePlate,
   usePosterRouter,
@@ -33,7 +33,6 @@ import {
   type PlannedV11Read,
 } from '../../api/v10';
 import { getCurrentPeriod } from '../../api/periods';
-import { saveCurrentAsTemplate } from '../../api/template';
 import { TemplateMount } from '../Management/TemplateMount';
 import type { PlanMonthItem } from '../../api/types';
 import { NativePlanView } from './NativePlanView';
@@ -44,9 +43,6 @@ import {
   computeSurplus,
   plansFromCategories,
 } from './computePlan';
-
-/** Toast payload: message + tone (drives the NativeToast glyph/color). */
-type ToastState = { text: string; tone: 'success' | 'error' } | null;
 
 // ─────────── Props ───────────
 
@@ -73,7 +69,6 @@ export function PlanMount({ focusCategoryId = null }: PlanMountProps = {}) {
   );
   const [loadError, setLoadError] = useState<string | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
-  const [toast, setToast] = useState<ToastState>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -135,17 +130,6 @@ export function PlanMount({ focusCategoryId = null }: PlanMountProps = {}) {
     },
     [router],
   );
-
-  // «Сохранить план как шаблон» — snapshot the CURRENT plan into the reusable
-  // template (OVERWRITE). The view owns the confirm; this fires after confirm.
-  const handleSaveAsTemplate = useCallback(async () => {
-    try {
-      await saveCurrentAsTemplate();
-      setToast({ text: 'Шаблон обновлён', tone: 'success' });
-    } catch {
-      setToast({ text: 'Не удалось сохранить шаблон', tone: 'error' });
-    }
-  }, []);
 
   const handleOpenTemplate = useCallback(() => {
     router.push(<TemplateMount />);
@@ -250,30 +234,21 @@ export function PlanMount({ focusCategoryId = null }: PlanMountProps = {}) {
   // The overview rows are read-only summaries — limit edit + plan add moved into
   // the per-category detail (PlanCategoryDetailView). No save errors here.
   return (
-    <>
-      <NativePlanView
-        incomeUnset={incomeUnset}
-        categories={expenseCategories}
-        plans={plans}
-        scheduledByCat={scheduledByCat}
-        surplusCents={surplus}
-        isOverflow={isOverflow}
-        progress={progress}
-        saveError={null}
-        focusCategoryId={focusCategoryId}
-        onCategoryTap={handleCategoryTap}
-        onBack={() => router.pop()}
-        onSaveAsTemplate={handleSaveAsTemplate}
-        onOpenTemplate={handleOpenTemplate}
-        incomeCategories={incomeCategories}
-        incomePlannedCents={incomePlannedCents}
-      />
-      <NativeToast
-        message={toast?.text ?? ''}
-        tone={toast?.tone ?? 'success'}
-        visible={toast !== null}
-        onDismiss={() => setToast(null)}
-      />
-    </>
+    <NativePlanView
+      incomeUnset={incomeUnset}
+      categories={expenseCategories}
+      plans={plans}
+      scheduledByCat={scheduledByCat}
+      surplusCents={surplus}
+      isOverflow={isOverflow}
+      progress={progress}
+      saveError={null}
+      focusCategoryId={focusCategoryId}
+      onCategoryTap={handleCategoryTap}
+      onBack={() => router.pop()}
+      onOpenTemplate={handleOpenTemplate}
+      incomeCategories={incomeCategories}
+      incomePlannedCents={incomePlannedCents}
+    />
   );
 }

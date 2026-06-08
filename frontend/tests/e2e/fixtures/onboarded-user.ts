@@ -143,6 +143,58 @@ export const AI_OBSERVATION_V10 = {
 };
 
 /**
+ * ADR-0007 — `GET /api/v1/subscriptions/recurring/cashflow` projection
+ * (CashflowProjectionResponse-shaped). The cashflow screen destructures
+ * `.timeline`, `.monthly_burden_cents`, `.starting_balance_cents`,
+ * `.horizon_days` — the catch-all `[]` would crash it (`.timeline` undefined),
+ * so the dedicated route below returns this valid object. Two timeline events
+ * (CashflowEvent-shaped) exercise the day-grouped «Ближайшие списания» list +
+ * running-balance projection; `subscription_id` matches a row the screen can
+ * resolve from the recurring (subscriptions) list, so the row is tappable.
+ */
+export const RECURRING_CASHFLOW_V10 = {
+  starting_balance_cents: 50_000_00,
+  horizon_days: 90,
+  monthly_burden_cents: 4_597_00,
+  timeline: [
+    {
+      date: '2026-05-15',
+      name: 'Подписки',
+      amount_cents: 2_597_00,
+      balance_after_cents: 47_403_00,
+      category_id: 5,
+      kind: 'expense',
+      subscription_id: 23,
+    },
+    {
+      date: '2026-06-01',
+      name: 'Аренда',
+      amount_cents: 45_000_00,
+      balance_after_cents: 2_403_00,
+      category_id: 4,
+      kind: 'expense',
+      subscription_id: 21,
+    },
+  ],
+};
+
+/**
+ * ADR-0007 — `GET /api/v1/subscriptions/recurring/due` (RecurringDueRow[]).
+ * Default is EMPTY so the Home «Регулярные платежи» due card stays hidden in
+ * the baseline (the catch-all `[]` would do the same, but an explicit route
+ * documents the shape and lets per-test overrides return rows to exercise it).
+ */
+export const RECURRING_DUE_V10: Array<{
+  id: number;
+  category_id: number;
+  amount_cents: number;
+  description?: string | null;
+  planned_date?: string | null;
+  posted_txn_id?: number | null;
+  subscription_id?: number | null;
+}> = [];
+
+/**
  * Aggregated `GET /api/v1/home` bootstrap (backend F3). HomeMount now adopts
  * this single call on the in-shell active-period path, so the V10 home
  * baseline renders FROM this payload. It mirrors the granular fixtures
@@ -391,6 +443,30 @@ export async function installOnboardedFixture(
       body: JSON.stringify(AI_OBSERVATION_V10),
     }),
   );
+
+  // ADR-0007 — recurring cashflow projection + due list. The cashflow screen
+  // crashes under the catch-all `[]` (it destructures `.timeline`); the due
+  // list is read live by Home (the catch-all `[]` would hide the card, but an
+  // explicit route documents the contract). The cashflow URL carries a
+  // `?horizon_days=90` query string → the pattern needs a trailing `**`.
+  await page.route('**/api/v1/subscriptions/recurring/cashflow**', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(RECURRING_CASHFLOW_V10),
+    }),
+  );
+  await page.route('**/api/v1/subscriptions/recurring/due', (route) => {
+    if (route.request().method() === 'GET') {
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(RECURRING_DUE_V10),
+      });
+    } else {
+      route.continue();
+    }
+  });
 
   if (opts.extraRoutes) {
     for (const { pattern, handler } of opts.extraRoutes) {

@@ -20,8 +20,9 @@
 // Pure presentational: PlanCategoryDetailMount wires the props. All math lives
 // in computePlanDetail.ts (computeLadder / computeIncomeLadder / day grouping).
 
-import { memo } from 'react';
-import { Plus, CheckCircle } from '@phosphor-icons/react';
+import { memo, useState } from 'react';
+import { Plus, CheckCircle, ArrowsClockwise } from '@phosphor-icons/react';
+import { PosterSheet } from '../common';
 import {
   NativeNavBar,
   SectionHeader,
@@ -97,6 +98,10 @@ function PlanCategoryDetailViewInner(props: PlanCategoryDetailViewProps) {
     onLimitCommit,
     onBack,
   } = props;
+
+  // Tapping a recurring (subscription_auto) row opens a non-editable note
+  // instead of an edit sheet — recurring rows are managed in the template.
+  const [recurringNoteOpen, setRecurringNoteOpen] = useState(false);
 
   const isIncome = category.kind === 'income';
   // Expense «лимит» (income has NO limit/plan target — never read plan_cents).
@@ -258,13 +263,27 @@ function PlanCategoryDetailViewInner(props: PlanCategoryDetailViewProps) {
                     leading={
                       <CategoryIcon name={category.name} id={category.id} />
                     }
-                    title={<span className={styles.catName}>{r.title}</span>}
+                    title={
+                      <span className={styles.catName}>
+                        {r.isRecurring && (
+                          <ArrowsClockwise
+                            size={13}
+                            weight="bold"
+                            className={styles.recurringBadge}
+                            data-testid={`native-plan-cat-recurring-${r.id}`}
+                          />
+                        )}
+                        {r.title}
+                      </span>
+                    }
                     subtitle={
                       r.posted ? (
                         <span className={styles.postedTag}>
                           <CheckCircle size={13} weight="fill" />
                           {isIncome ? 'Получено' : 'Проведено'}
                         </span>
+                      ) : r.isRecurring ? (
+                        'Регулярный платёж'
                       ) : (
                         category.name
                       )
@@ -274,6 +293,13 @@ function PlanCategoryDetailViewInner(props: PlanCategoryDetailViewProps) {
                         {amountStr}
                       </span>
                     }
+                    // Recurring rows are read-only here: tapping shows a note,
+                    // not an edit sheet. Manual rows stay static (no onClick).
+                    onClick={
+                      r.isRecurring
+                        ? () => setRecurringNoteOpen(true)
+                        : undefined
+                    }
                   />
                 );
               })}
@@ -281,6 +307,30 @@ function PlanCategoryDetailViewInner(props: PlanCategoryDetailViewProps) {
           </div>
         ))
       )}
+
+      {/* Non-editable note for a recurring (↻) row — managed in the template. */}
+      <PosterSheet
+        isOpen={recurringNoteOpen}
+        onClose={() => setRecurringNoteOpen(false)}
+        testId="native-plan-recurring-note"
+      >
+        <div className={styles.recurringNote}>
+          <span className={styles.recurringNoteIcon} aria-hidden="true">
+            <ArrowsClockwise size={26} weight="bold" />
+          </span>
+          <div className={styles.recurringNoteTitle}>Регулярный платёж</div>
+          <div className={styles.recurringNoteText}>
+            Это регулярный платёж — измените его в шаблоне или настройках.
+          </div>
+          <button
+            type="button"
+            className={styles.recurringNoteBtn}
+            onClick={() => setRecurringNoteOpen(false)}
+          >
+            Понятно
+          </button>
+        </div>
+      </PosterSheet>
     </div>
   );
 }

@@ -22,6 +22,7 @@ function row(over: Partial<PlanDetailRow> = {}): PlanDetailRow {
     kind: 'income',
     posted: false,
     subscriptionId: null,
+    isRecurring: false,
     ...over,
   };
 }

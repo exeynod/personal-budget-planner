@@ -27,7 +27,12 @@ from app.api.dependencies import (
     require_onboarded,
 )
 from app.api.schemas.subscriptions import (
+    CashflowProjectionResponse,
     ChargeNowResponse,
+    RecurringDueRow,
+    RecurringPayRequest,
+    RecurringPayResponse,
+    RecurringPostponeRequest,
     SubscriptionCreate,
     SubscriptionPostResponse,
     SubscriptionReadV10,
@@ -37,6 +42,7 @@ from app.db.models import AppUser, BudgetPeriod, PeriodStatus
 from app.services import accounts as account_service
 from app.services import subscriptions as sub_service
 from app.services.accounts import AccountNotFoundError
+from app.services.periods import _today_in_app_tz
 
 router = APIRouter(
     prefix="/subscriptions",
@@ -89,6 +95,7 @@ async def create_sub(
             user_id=user_id,
             name=payload.name,
             amount_cents=payload.amount_cents,
+            interval_months=payload.interval_months,
             cycle=payload.cycle,
             next_charge_date=payload.next_charge_date,
             category_id=payload.category_id,
@@ -349,3 +356,155 @@ async def unpost_subscription(
                 "subscription_id": exc.sub_id,
             },
         ) from exc
+
+
+# ---------- ADR-0007 — recurring-payment home prompt + cashflow ----------
+#
+# These operate on the materialised recurring occurrences (planned rows) of the
+# current active period, plus a read-only cashflow projection. They are mounted
+# under the existing /subscriptions prefix (the table is unchanged; "recurring
+# payment" is the external rebrand).
+
+
+@router.get("/recurring/cashflow", response_model=CashflowProjectionResponse)
+async def recurring_cashflow(
+    db: Annotated[AsyncSession, Depends(get_db_with_tenant_scope)],
+    user_id: Annotated[int, Depends(get_current_user_id)],
+    horizon_days: int = 90,
+) -> CashflowProjectionResponse:
+    """GET /api/v1/subscriptions/recurring/cashflow — cashflow projection (ADR-0007).
+
+    Projects active recurring payments forward over ``horizon_days`` (default
+    90, 1..365) and returns a timeline with a running balance + monthly burden.
+    """
+    horizon_days = max(1, min(horizon_days, 365))
+    result = await sub_service.cashflow_projection(
+        db, user_id=user_id, horizon_days=horizon_days
+    )
+    return CashflowProjectionResponse(**result)
+
+
+@router.get("/recurring/due", response_model=list[RecurringDueRow])
+async def recurring_due(
+    db: Annotated[AsyncSession, Depends(get_db_with_tenant_scope)],
+    user_id: Annotated[int, Depends(get_current_user_id)],
+) -> list[RecurringDueRow]:
+    """GET /api/v1/subscriptions/recurring/due — due-today/overdue occurrences.
+
+    ADR-0007 home prompt: unposted ``subscription_auto`` rows of the current
+    active period with ``planned_date <= today``. Empty list if no active period.
+    """
+    rows = await sub_service.list_due_recurring(
+        db, user_id=user_id, today=_today_in_app_tz()
+    )
+    return [RecurringDueRow.model_validate(r) for r in rows]
+
+
+@router.post(
+    "/recurring/{planned_id}/pay",
+    response_model=RecurringPayResponse,
+    status_code=status.HTTP_200_OK,
+    responses={
+        404: {"description": "Occurrence not found / cross-tenant"},
+        409: {"description": "Occurrence already paid"},
+    },
+)
+async def recurring_pay(
+    planned_id: int,
+    body: RecurringPayRequest,
+    db: Annotated[AsyncSession, Depends(get_db_with_tenant_scope)],
+    user_id: Annotated[int, Depends(get_current_user_id)],
+) -> RecurringPayResponse:
+    """POST /api/v1/subscriptions/recurring/{planned_id}/pay — «Оплачено» (ADR-0007).
+
+    Posts the occurrence into a real actual (optional ``amount_cents`` override).
+    """
+    tx_date = body.tx_date or _today_in_app_tz()
+    try:
+        txn = await sub_service.pay_recurring_occurrence(
+            db,
+            planned_id,
+            user_id=user_id,
+            tx_date=tx_date,
+            amount_cents=body.amount_cents,
+        )
+        await db.commit()
+    except sub_service.RecurringOccurrenceNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
+        ) from exc
+    except sub_service.RecurringOccurrenceAlreadyPaidError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail=str(exc)
+        ) from exc
+    return RecurringPayResponse(txn_id=txn.id, planned_id=planned_id)
+
+
+@router.post(
+    "/recurring/{planned_id}/skip",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses={
+        404: {"description": "Occurrence not found / cross-tenant"},
+        409: {"description": "Occurrence already paid — unpay first"},
+    },
+)
+async def recurring_skip(
+    planned_id: int,
+    db: Annotated[AsyncSession, Depends(get_db_with_tenant_scope)],
+    user_id: Annotated[int, Depends(get_current_user_id)],
+) -> None:
+    """POST /api/v1/subscriptions/recurring/{planned_id}/skip — «Пропустить» (ADR-0007).
+
+    Deletes the unposted occurrence without posting it to actual.
+    """
+    try:
+        await sub_service.skip_recurring_occurrence(db, planned_id, user_id=user_id)
+        await db.commit()
+    except sub_service.RecurringOccurrenceNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
+        ) from exc
+    except sub_service.RecurringOccurrenceAlreadyPaidError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail=str(exc)
+        ) from exc
+
+
+@router.post(
+    "/recurring/{planned_id}/postpone",
+    response_model=RecurringDueRow,
+    status_code=status.HTTP_200_OK,
+    responses={
+        400: {"description": "new_date outside the occurrence's period"},
+        404: {"description": "Occurrence not found / cross-tenant"},
+        409: {"description": "Occurrence already paid"},
+    },
+)
+async def recurring_postpone(
+    planned_id: int,
+    body: RecurringPostponeRequest,
+    db: Annotated[AsyncSession, Depends(get_db_with_tenant_scope)],
+    user_id: Annotated[int, Depends(get_current_user_id)],
+) -> RecurringDueRow:
+    """POST /api/v1/subscriptions/recurring/{planned_id}/postpone — «Перенести» (ADR-0007).
+
+    Shifts ``planned_date`` within the occurrence's own period bounds.
+    """
+    try:
+        row = await sub_service.postpone_recurring_occurrence(
+            db, planned_id, user_id=user_id, new_date=body.new_date
+        )
+        await db.commit()
+    except sub_service.RecurringOccurrenceNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
+        ) from exc
+    except sub_service.RecurringOccurrenceAlreadyPaidError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail=str(exc)
+        ) from exc
+    except sub_service.RecurringPostponeOutOfPeriodError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
+        ) from exc
+    return RecurringDueRow.model_validate(row)

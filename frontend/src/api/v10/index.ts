@@ -109,3 +109,28 @@ export type { ObservationResponse } from './ai';
 // Phase 27-05 — Analytics top-categories wrapper (ANAL-V10-04).
 export { fetchTopCategories } from './analytics';
 export type { TopCategoryItem, AnalyticsRange } from './analytics';
+
+// ADR-0007 — recurring payments (generalised subscriptions): CRUD + due prompt
+// + cashflow projection.
+export {
+  listRecurring,
+  listRecurringForCategory,
+  createRecurring,
+  updateRecurring,
+  deleteRecurring,
+  listRecurringDue,
+  payRecurring,
+  skipRecurring,
+  postponeRecurring,
+  getRecurringCashflow,
+} from './recurring';
+export type {
+  RecurringCreatePayload,
+  RecurringUpdatePayload,
+  RecurringDueRow,
+  RecurringPayRequest,
+  RecurringPayResponse,
+  RecurringPostponeRequest,
+  CashflowEvent,
+  CashflowProjectionResponse,
+} from './recurring';

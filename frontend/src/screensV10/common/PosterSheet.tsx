@@ -47,6 +47,48 @@ export interface PosterSheetProps {
 const DRAG_CLOSE_TRANSLATION_PX = 100;
 const DRAG_CLOSE_VELOCITY_PX_PER_S = 800;
 
+// Module-level stack of currently-open sheets (innermost = last). Each open
+// PosterSheet registers its own document-level Escape listener; without this
+// guard a single Escape press fires EVERY listener at once, so closing a nested
+// sub-sheet (e.g. the date picker inside AddSheet) would also tear down its
+// parent. We push a unique id per open sheet and let ONLY the top-most one react
+// to Escape — pressing it peels off one layer at a time.
+const openSheetStack: symbol[] = [];
+
+/**
+ * Shared Escape-to-dismiss for stacked overlays. Every open sheet (PosterSheet,
+ * the AddSheet date ActionSheet, …) calls this; only the TOP-MOST open one
+ * reacts to Escape, so a press peels off a single layer instead of collapsing
+ * the whole stack. Pass `isOpen` so sheets that stay mounted-but-closed don't
+ * sit on the stack.
+ */
+export function useSheetEscape(isOpen: boolean, onClose: () => void) {
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const id = Symbol('sheet');
+    openSheetStack.push(id);
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      if (openSheetStack[openSheetStack.length - 1] !== id) return;
+      e.preventDefault();
+      onCloseRef.current();
+    };
+    document.addEventListener('keydown', onKeyDown);
+
+    return () => {
+      document.removeEventListener('keydown', onKeyDown);
+      const idx = openSheetStack.lastIndexOf(id);
+      if (idx !== -1) openSheetStack.splice(idx, 1);
+    };
+  }, [isOpen]);
+}
+
 export function PosterSheet({
   isOpen,
   onClose,
@@ -61,29 +103,23 @@ export function PosterSheet({
   const [isDragging, setIsDragging] = useState(false);
   const dragStartRef = useRef<{ y: number; t: number } | null>(null);
 
-  // Latest onClose ref so the Escape effect doesn't re-bind on every prop change.
+  // Latest onClose ref so the drag-to-close / backdrop handlers below stay
+  // stable without re-binding on every prop change.
   const onCloseRef = useRef(onClose);
   useEffect(() => {
     onCloseRef.current = onClose;
   }, [onClose]);
 
-  // Body scroll lock + Escape handler while open.
+  // Escape-to-dismiss (top-most sheet only — see useSheetEscape).
+  useSheetEscape(isOpen, onClose);
+
+  // Body scroll lock while open (restored on close OR unmount — no leak).
   useEffect(() => {
     if (!isOpen) return;
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
-
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        onCloseRef.current();
-      }
-    };
-    document.addEventListener('keydown', onKeyDown);
-
     return () => {
       document.body.style.overflow = prevOverflow;
-      document.removeEventListener('keydown', onKeyDown);
     };
   }, [isOpen]);
 

@@ -21,10 +21,15 @@ import {
   listPlanned,
   postPlanned,
   postSubscription,
+  listRecurringDue,
+  payRecurring,
+  skipRecurring,
+  postponeRecurring,
   type AccountResponse,
   type CategoryV10,
   type ActualV10Read,
   type PlannedV11Read,
+  type RecurringDueRow,
 } from '../../api/v10';
 import { getCurrentPeriod, getPeriodBalance } from '../../api/periods';
 import { getHome, isHomeBootstrap } from '../../api/home';
@@ -115,6 +120,11 @@ export function HomeMount() {
   const router = usePosterRouter();
   const [state, setState] = useState<LoadState>({ status: 'loading' });
   const [reloadToken, setReloadToken] = useState(0);
+  // ADR-0007 — recurring payments due today / overdue (active period). Fetched
+  // in its own effect (independent of the bootstrap/granular Home load) and
+  // refreshed on the same reload/refetch tokens. Best-effort: a failure leaves
+  // the card empty rather than blocking Home.
+  const [recurringDue, setRecurringDue] = useState<RecurringDueRow[]>([]);
   // keepPreviousData parity (mirrors useResource): once at least one load has
   // settled, a subsequent fetch (period switch / refetchToken bump / retry)
   // keeps the already-rendered Home on screen during the usually-cached,
@@ -304,6 +314,69 @@ export function HomeMount() {
     sel?.loading,
   ]);
 
+  // Fetch the recurring due-list whenever Home (re)loads. The active period is
+  // resolved server-side, so we just call the endpoint; only refresh while
+  // viewing the ACTIVE period (a past period has no actionable due-today list).
+  const viewingActive =
+    selectedPeriod == null || selectedPeriod.status === 'active';
+  useEffect(() => {
+    let cancelled = false;
+    if (!viewingActive) {
+      setRecurringDue([]);
+      return;
+    }
+    listRecurringDue()
+      .then((rows) => {
+        if (!cancelled) setRecurringDue(rows);
+      })
+      .catch(() => {
+        if (!cancelled) setRecurringDue([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [reloadToken, refetchToken, viewingActive]);
+
+  // ADR-0007 recurring actions: pay / skip / postpone an occurrence, then reload
+  // (the clients invalidate the tx-affected caches; a token bump re-fetches the
+  // due list + Home balance/planned).
+  const onPayRecurring = useCallback(
+    async (plannedId: number, amountCents?: number) => {
+      try {
+        await payRecurring(
+          plannedId,
+          amountCents != null ? { amount_cents: amountCents } : {},
+        );
+      } catch {
+        // 409 (already paid) / transient — a reload re-syncs the list.
+      } finally {
+        setReloadToken((t) => t + 1);
+      }
+    },
+    [],
+  );
+  const onSkipRecurring = useCallback(async (plannedId: number) => {
+    try {
+      await skipRecurring(plannedId);
+    } catch {
+      /* reload re-syncs */
+    } finally {
+      setReloadToken((t) => t + 1);
+    }
+  }, []);
+  const onPostponeRecurring = useCallback(
+    async (plannedId: number, newDate: string) => {
+      try {
+        await postponeRecurring(plannedId, newDate);
+      } catch {
+        // 400 (out of period) / transient — reload re-syncs the list.
+      } finally {
+        setReloadToken((t) => t + 1);
+      }
+    },
+    [],
+  );
+
   // ─────────── push handlers (router-bound) ───────────
   const onPlanTap = useCallback(() => {
     router.push(<PlanMount />);
@@ -449,12 +522,15 @@ export function HomeMount() {
     // «Запланировано на сегодня» — unposted EXPENSE planned rows scheduled for
     // the MSK today. Expense-scoped to match the Home ladder framing («что мне
     // надо потратить сегодня»); income planned rows are not actionable here.
+    // ADR-0007: recurring (subscription_auto) rows are now surfaced by the
+    // dedicated «Регулярные платежи» card above, so we drop them here to avoid
+    // showing the same occurrence twice.
     const plannedToday = plannedTodayRows(
       planned,
       categories,
       todayMskIso(today),
       'expense',
-    );
+    ).filter((r) => r.subscriptionId == null);
 
     return {
       eyebrow,
@@ -526,6 +602,13 @@ export function HomeMount() {
         periods={sel?.periods}
         selectedPeriodId={selectedPeriodId}
         onSelectPeriod={sel?.setSelectedPeriodId}
+        recurringDue={recurringDue}
+        categories={state.data.categories}
+        periodStart={vm.period?.period_start ?? null}
+        periodEnd={vm.period?.period_end ?? null}
+        onPayRecurring={onPayRecurring}
+        onSkipRecurring={onSkipRecurring}
+        onPostponeRecurring={onPostponeRecurring}
       />
     </>
   );

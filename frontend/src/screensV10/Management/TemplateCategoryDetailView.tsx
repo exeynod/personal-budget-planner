@@ -19,19 +19,28 @@
 // Money math lives in computeTemplate.ts.
 
 import { memo, useEffect, useState } from 'react';
-import { Plus } from '@phosphor-icons/react';
+import { Plus, ArrowsClockwise } from '@phosphor-icons/react';
 import {
   NativeNavBar,
   SectionHeader,
   InsetGroup,
   InsetRow,
 } from '../native/NativePrimitives';
+import { PosterSheet } from '../common';
 import { CategoryIcon } from '../native/CategoryIcon';
 import { formatMoneyNative, formatSignedMoneyNative } from '../native/money';
 import { parseRublesToKopecks } from '../../utils/format';
 import { sanitizeMoneyInput } from '../../utils/parseMoney';
 import { useEnterToDismiss } from '../common/useEnterToDismiss';
-import type { CategoryV10 } from '../../api/v10';
+import { RecurringEditor } from '../Recurring/RecurringEditor';
+import { scheduleLabel } from '../Recurring/recurringFormat';
+import type {
+  CategoryV10,
+  AccountResponse,
+  SubscriptionV10Read,
+  RecurringCreatePayload,
+  RecurringUpdatePayload,
+} from '../../api/v10';
 import type {
   TemplateLineRead,
   TemplateLineCreate,
@@ -55,6 +64,10 @@ export interface TemplateCategoryDetailViewProps {
   limitCents: number;
   /** ALL template lines (filtered to this category here). */
   lines: TemplateLineRead[];
+  /** Recurring payments scoped to THIS category (ADR-0007). */
+  recurring: SubscriptionV10Read[];
+  /** Accounts for the recurring editor's optional «Счёт» picker. */
+  accounts: AccountResponse[];
   /** True while any mutation is in flight (disables editor submits). */
   busy: boolean;
 
@@ -69,6 +82,12 @@ export interface TemplateCategoryDetailViewProps {
   onEditLine: (lineId: number, payload: TemplateLineUpdate) => void;
   /** Delete a recurring line. */
   onDeleteLine: (lineId: number) => void;
+  /** Create a recurring payment in THIS category (ADR-0007 fork). */
+  onCreateRecurring: (payload: RecurringCreatePayload) => void;
+  /** Update a recurring payment. */
+  onUpdateRecurring: (id: number, payload: RecurringUpdatePayload) => void;
+  /** Delete a recurring payment (hard delete). */
+  onDeleteRecurring: (id: number) => void;
   /** Pop the router stack (back chevron). */
   onBack: () => void;
 }
@@ -326,11 +345,16 @@ function TemplateCategoryDetailViewInner(props: TemplateCategoryDetailViewProps)
     category,
     limitCents,
     lines,
+    recurring,
+    accounts,
     busy,
     onLimitCommit,
     onCreateLine,
     onEditLine,
     onDeleteLine,
+    onCreateRecurring,
+    onUpdateRecurring,
+    onDeleteRecurring,
     onBack,
   } = props;
 
@@ -338,6 +362,13 @@ function TemplateCategoryDetailViewInner(props: TemplateCategoryDetailViewProps)
 
   const [creating, setCreating] = useState(false);
   const [editingLineId, setEditingLineId] = useState<number | null>(null);
+  // ADR-0007 fork: choosing what kind of line to add, plus recurring create /
+  // edit state. `forkOpen` is the «Регулярный / Без даты» action sheet.
+  const [forkOpen, setForkOpen] = useState(false);
+  const [creatingRecurring, setCreatingRecurring] = useState(false);
+  const [editingRecurringId, setEditingRecurringId] = useState<number | null>(
+    null,
+  );
 
   const rows = linesForCategory(lines, category.id);
   const scheduledCents = sumLines(rows);
@@ -346,13 +377,37 @@ function TemplateCategoryDetailViewInner(props: TemplateCategoryDetailViewProps)
   const freeCents = limitCents - scheduledCents;
   const overflow = !isIncome && scheduledCents > limitCents;
 
-  function startCreate() {
+  // «+ Добавить» now opens the fork (Регулярный платёж / Без даты).
+  function openFork() {
     setEditingLineId(null);
+    setEditingRecurringId(null);
+    setCreatingRecurring(false);
+    setCreating(false);
+    setForkOpen(true);
+  }
+  function chooseRecurring() {
+    setForkOpen(false);
+    setCreating(false);
+    setEditingLineId(null);
+    setCreatingRecurring(true);
+  }
+  function chooseLine() {
+    setForkOpen(false);
+    setCreatingRecurring(false);
+    setEditingRecurringId(null);
     setCreating(true);
   }
   function startEdit(id: number) {
     setCreating(false);
+    setCreatingRecurring(false);
+    setEditingRecurringId(null);
     setEditingLineId(id);
+  }
+  function startEditRecurring(id: number) {
+    setCreating(false);
+    setCreatingRecurring(false);
+    setEditingLineId(null);
+    setEditingRecurringId(id);
   }
   function handleCreate(payload: TemplateLineCreate) {
     onCreateLine(payload);
@@ -366,6 +421,23 @@ function TemplateCategoryDetailViewInner(props: TemplateCategoryDetailViewProps)
     onDeleteLine(lineId);
     setEditingLineId(null);
   }
+  function handleCreateRecurring(payload: RecurringCreatePayload) {
+    onCreateRecurring(payload);
+    setCreatingRecurring(false);
+  }
+  function handleUpdateRecurring(id: number, payload: RecurringUpdatePayload) {
+    onUpdateRecurring(id, payload);
+    setEditingRecurringId(null);
+  }
+  function handleDeleteRecurring(id: number) {
+    onDeleteRecurring(id);
+    setEditingRecurringId(null);
+  }
+
+  const editingRecurring =
+    editingRecurringId == null
+      ? null
+      : (recurring.find((r) => r.id === editingRecurringId) ?? null);
 
   return (
     <div className={styles.root} data-testid="template-cat-detail">
@@ -442,15 +514,136 @@ function TemplateCategoryDetailViewInner(props: TemplateCategoryDetailViewProps)
           type="button"
           className={styles.ctaPrimary}
           data-testid="template-cat-add"
-          onClick={startCreate}
+          onClick={openFork}
         >
           <Plus size={17} weight="bold" />
-          Добавить операцию
+          Добавить
         </button>
       </div>
 
+      {/* ─────────── Add-fork action sheet (ADR-0007) ─────────── */}
+      <PosterSheet
+        isOpen={forkOpen}
+        onClose={() => setForkOpen(false)}
+        testId="template-add-fork"
+      >
+        <div className={styles.forkSheet}>
+          <div className={styles.forkTitle}>Что добавить?</div>
+          <button
+            type="button"
+            className={styles.forkItem}
+            data-testid="template-fork-recurring"
+            onClick={chooseRecurring}
+          >
+            <span className={styles.forkItemMain}>
+              <span className={styles.forkItemLabel}>Регулярный платёж</span>
+              <span className={styles.forkItemSub}>
+                Раз в N месяцев на заданное число, по календарю
+              </span>
+            </span>
+          </button>
+          <button
+            type="button"
+            className={styles.forkItem}
+            data-testid="template-fork-line"
+            onClick={chooseLine}
+          >
+            <span className={styles.forkItemMain}>
+              <span className={styles.forkItemLabel}>Без даты</span>
+              <span className={styles.forkItemSub}>
+                Повторяемая оценка без календарной даты
+              </span>
+            </span>
+          </button>
+          <button
+            type="button"
+            className={`${styles.forkItem} ${styles.forkCancel}`}
+            onClick={() => setForkOpen(false)}
+          >
+            Отмена
+          </button>
+        </div>
+      </PosterSheet>
+
+      {/* ─────────── Recurring payments list (ADR-0007) ─────────── */}
+      <SectionHeader>Регулярные платежи</SectionHeader>
+
+      {creatingRecurring && (
+        <RecurringEditor
+          category={category}
+          accounts={accounts}
+          busy={busy}
+          onCreate={handleCreateRecurring}
+          onUpdate={handleUpdateRecurring}
+          onDelete={handleDeleteRecurring}
+          onCancel={() => setCreatingRecurring(false)}
+        />
+      )}
+
+      {editingRecurring && (
+        <RecurringEditor
+          category={category}
+          existing={editingRecurring}
+          accounts={accounts}
+          busy={busy}
+          onCreate={handleCreateRecurring}
+          onUpdate={handleUpdateRecurring}
+          onDelete={handleDeleteRecurring}
+          onCancel={() => setEditingRecurringId(null)}
+        />
+      )}
+
+      {recurring.length === 0 && !creatingRecurring ? (
+        <div className={styles.empty} data-testid="template-cat-recurring-empty">
+          Регулярных платежей пока нет
+        </div>
+      ) : (
+        <InsetGroup>
+          {recurring
+            .filter((r) => r.id !== editingRecurringId)
+            .map((r) => (
+              <InsetRow
+                key={r.id}
+                testId={`template-recurring-row-${r.id}`}
+                leading={
+                  <CategoryIcon
+                    name={category.name}
+                    id={category.id}
+                    icon={category.icon}
+                  />
+                }
+                title={
+                  <span className={styles.lineTitle}>
+                    <ArrowsClockwise
+                      size={13}
+                      weight="bold"
+                      className={styles.recurringBadge}
+                    />
+                    {r.name}
+                  </span>
+                }
+                subtitle={
+                  <span className={styles.lineMeta}>{scheduleLabel(r)}</span>
+                }
+                trailing={
+                  <span
+                    className={`${styles.lineAmount} ${
+                      isIncome ? styles.lineAmountIncome : ''
+                    }`}
+                  >
+                    {isIncome ? '+' : ''}
+                    {formatMoneyNative(r.amount_cents)} ₽
+                  </span>
+                }
+                chevron
+                onClick={() => startEditRecurring(r.id)}
+              />
+            ))}
+        </InsetGroup>
+      )}
+
       {/* ─────────── Recurring lines list ─────────── */}
-      <SectionHeader>Регулярные операции</SectionHeader>
+      <SectionHeader>Регулярные операции (без даты)</SectionHeader>
 
       {creating && (
         <InsetGroup>

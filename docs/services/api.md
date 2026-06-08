@@ -42,11 +42,11 @@ dev-Bearer на iOS). Изоляция данных — PostgreSQL RLS по `use
 | `me`            | `GET/PATCH /me`                                             | профиль владельца: роль, доход, AI-cap/spend                             |
 | `periods`       | `/periods/*`                                                | текущий период, план/факт-листы периода                                  |
 | `plan-month`    | `PATCH /plan-month`                                         | атомарное обновление плана месяца (Σплан ≤ доход)                        |
-| `template`      | `/template/*`                                               | шаблон плана (items + lines), snapshot-from-period                       |
+| `template`      | `/template/*`                                               | шаблон плана (items + lines)                                            |
 | `planned`       | `/periods/{id}/planned`, `/planned/{id}`                    | плановые транзакции                                                      |
 | `actual`        | `/actual`, `/periods/{id}/actual`                           | фактические транзакции (Mini App CRUD)                                   |
 | `balance`       | `/balance/*`                                                | корректировка/сверка остатка периода (v1.1)                              |
-| `subscriptions` | `/subscriptions/*`                                          | подписки CRUD + charge-now                                               |
+| `subscriptions` | `/subscriptions/*`, `/subscriptions/recurring/*`            | регулярные платежи CRUD + home-prompt (due/pay/skip/postpone) + cashflow |
 | `categories`    | `/categories/*`                                             | категории CRUD (soft delete через `is_archived`)                         |
 | `accounts`      | `/accounts/*`                                               | read-only основной счёт/баланс                                           |
 | `ai`            | `/ai/chat` (SSE), `/ai/history`, `/ai/suggest`, observation | AI-чат и категоризация                                                   |
@@ -60,6 +60,25 @@ dev-Bearer на iOS). Изоляция данных — PostgreSQL RLS по `use
 Публичные роуты под `Depends(get_current_user)`; internal — под
 `Depends(verify_internal_token)` (заголовок `X-Internal-Token`). Доменные роуты
 дополнительно несут `Depends(require_onboarded)`.
+
+### Регулярные платежи (ADR-0007)
+
+Таблица `subscription` обобщена под «регулярный платёж»: новое поле
+`interval_months` (≥1; 1=ежемесячно, 12=год) — источник частоты, `cycle`
+deprecated. CRUD как раньше (`POST/PATCH /subscriptions` принимают
+`interval_months`, опционально `cycle`; read-shape отдаёт `interval_months`).
+Home-prompt и прогноз кэшфлоу:
+
+| Метод | Путь | Назначение |
+| --- | --- | --- |
+| GET  | `/subscriptions/recurring/due` | материализованные `subscription_auto`-строки текущего периода `planned_date ≤ сегодня`, не проведённые (id, description, amount_cents, category_id, planned_date, …) |
+| POST | `/subscriptions/recurring/{planned_id}/pay` | «Оплачено»: провести строку в факт; body `{tx_date?, amount_cents?}` → `{txn_id, planned_id}` |
+| POST | `/subscriptions/recurring/{planned_id}/skip` | «Пропустить»: удалить непроведённую строку (204) |
+| POST | `/subscriptions/recurring/{planned_id}/postpone` | «Перенести»: body `{new_date}` в пределах периода → обновлённая строка |
+| GET  | `/subscriptions/recurring/cashflow?horizon_days=90` | прогноз: `{starting_balance_cents, horizon_days, monthly_burden_cents, timeline:[{date,name,amount_cents,kind,category_id,subscription_id,balance_after_cents}]}` |
+
+Роут `POST /template/save-current` удалён (ADR-0007 — перезапись шаблона текущим
+планом признана ненадёжной; шаблон правится напрямую).
 
 ## Зависимости
 

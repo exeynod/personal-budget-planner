@@ -71,12 +71,6 @@ export interface NativePlanViewProps {
   /** Drill into a category's planned-transaction detail (push). */
   onCategoryTap: (categoryId: number) => void;
   onBack: () => void;
-  /**
-   * Snapshot the CURRENT plan into the reusable template (OVERWRITE). The view
-   * owns the confirm dialog; this fires only AFTER the user confirms. Optional
-   * — omitted callers hide the «…» action.
-   */
-  onSaveAsTemplate?: () => void;
   /** Open the «Шаблон» management screen (optional quick link). */
   onOpenTemplate?: () => void;
 }
@@ -100,17 +94,14 @@ function NativePlanViewInner(props: NativePlanViewProps) {
     focusCategoryId,
     onCategoryTap,
     onBack,
-    onSaveAsTemplate,
     onOpenTemplate,
   } = props;
 
   // Расходы / Доходы segment (mirrors the Home segmented control).
   const [seg, setSeg] = useState<Seg>('expenses');
 
-  // «…» overflow → action menu (sheet); «Сохранить как шаблон» opens the
-  // OVERWRITE confirm before firing onSaveAsTemplate.
+  // «…» overflow → action menu (sheet) — quick link to the «Шаблон» screen.
   const [menuOpen, setMenuOpen] = useState(false);
-  const [confirmOpen, setConfirmOpen] = useState(false);
 
   const focusRowRef = useRef<HTMLButtonElement | null>(null);
   useEffect(() => {
@@ -162,7 +153,7 @@ function NativePlanViewInner(props: NativePlanViewProps) {
     );
   }
 
-  const showOverflow = onSaveAsTemplate != null || onOpenTemplate != null;
+  const showOverflow = onOpenTemplate != null;
 
   return (
     <div className={styles.root}>
@@ -189,19 +180,6 @@ function NativePlanViewInner(props: NativePlanViewProps) {
         testId="native-plan-menu-sheet"
       >
         <div className={styles.menuSheet}>
-          {onSaveAsTemplate != null && (
-            <button
-              type="button"
-              className={styles.menuItem}
-              data-testid="native-plan-save-as-template"
-              onClick={() => {
-                setMenuOpen(false);
-                setConfirmOpen(true);
-              }}
-            >
-              Сохранить план как шаблон
-            </button>
-          )}
           {onOpenTemplate != null && (
             <button
               type="button"
@@ -219,40 +197,6 @@ function NativePlanViewInner(props: NativePlanViewProps) {
             type="button"
             className={`${styles.menuItem} ${styles.menuCancel}`}
             onClick={() => setMenuOpen(false)}
-          >
-            Отмена
-          </button>
-        </div>
-      </PosterSheet>
-
-      {/* OVERWRITE confirm */}
-      <PosterSheet
-        isOpen={confirmOpen}
-        onClose={() => setConfirmOpen(false)}
-        testId="native-plan-confirm-sheet"
-      >
-        <div className={styles.menuSheet} data-testid="native-plan-confirm">
-          <div className={styles.confirmTitle}>Перезаписать шаблон?</div>
-          <div className={styles.confirmText}>
-            Текущий план месяца станет новым шаблоном и перезапишет прежний.
-            Лимиты и регулярные операции шаблона будут заменены.
-          </div>
-          <button
-            type="button"
-            className={`${styles.menuItem} ${styles.menuDanger}`}
-            data-testid="native-plan-confirm-yes"
-            onClick={() => {
-              setConfirmOpen(false);
-              onSaveAsTemplate?.();
-            }}
-          >
-            Перезаписать шаблон текущим планом
-          </button>
-          <button
-            type="button"
-            className={`${styles.menuItem} ${styles.menuCancel}`}
-            data-testid="native-plan-confirm-no"
-            onClick={() => setConfirmOpen(false)}
           >
             Отмена
           </button>

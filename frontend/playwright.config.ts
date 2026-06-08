@@ -10,10 +10,17 @@ import { defineConfig, devices } from '@playwright/test';
  */
 export default defineConfig({
   testDir: './tests/e2e',
-  fullyParallel: false, // shared dev server — keep deterministic
+  // Parallel across workers: each gets its own browser context but they share
+  // the one Vite dev server (which just serves modules — safe to hit
+  // concurrently). Tests are independent (installNative per test) and write
+  // distinct screenshot files, so parallelism is deterministic here. This is
+  // the main lever cutting the suite from ~10min serial to a few minutes.
+  fullyParallel: true,
   forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 2 : 0,
-  workers: 1,
+  // One local retry absorbs the occasional headless-chromium crash under
+  // memory pressure; CI keeps two.
+  retries: process.env.CI ? 2 : 1,
+  workers: 2,
   reporter: [['list'], ['html', { open: 'never' }]],
   use: {
     baseURL: 'http://localhost:5173',

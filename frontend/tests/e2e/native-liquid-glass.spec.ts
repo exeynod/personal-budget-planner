@@ -229,6 +229,12 @@ const HOME_BOOTSTRAP = {
   period: PERIOD,
   balance: null,
   actuals: ACTUALS,
+  periods: [PERIOD, PERIOD_PREV],
+  // The /home bootstrap carries the active period's planned rows; HomeMount +
+  // AuthGate seed CACHE_KEYS.planned(5) from it, and PlanMount/CategoryDetail
+  // reuse that cache. Carrying PLANNED here means the Home ladder «План» level
+  // and the «План месяца» income-planned (row 206 → progress bar) both render.
+  planned: PLANNED,
 };
 
 function json(body: unknown) {
@@ -419,29 +425,39 @@ test.describe('Liquid Glass native shell (web)', () => {
     page,
   }) => {
     await installNative(page);
-    // Override the planned list with one EXPENSE row due TODAY (MSK) so the
-    // «Запланировано на сегодня» quick-action section renders. Last route wins.
+    // Home reads the active period's planned rows from the aggregated
+    // `GET /api/v1/home` bootstrap (HomeMount.loadFromBootstrap →
+    // `home.planned`), NOT the granular `/periods/5/planned` GET — so the
+    // today-due row must be injected into the bootstrap payload. We override
+    // `/home` with one EXPENSE row due TODAY (MSK), source=manual (NOT
+    // subscription_auto — recurring rows are filtered OUT of «На сегодня» and
+    // surfaced by the dedicated «Регулярные платежи» card instead). After the
+    // row is posted, the next bootstrap omits it → the section disappears.
     const today = todayMskIso();
     let posted = false;
-    await page.route('**/api/v1/periods/5/planned', (route) => {
-      if (route.request().method() !== 'GET') {
-        return route.fulfill(
-          json(planned(299, 1, 1_00, { description: 'new' })),
-        );
-      }
-      const rows = posted
+    await page.route('**/api/v1/home', (route) => {
+      const planned = posted
         ? PLANNED
         : [
             ...PLANNED,
-            planned(701, 2, 1_750_00, {
+            // manual (subscription_id null) → survives the «На сегодня» filter.
+            {
+              id: 701,
+              category_id: 2,
+              amount_cents: 1_750_00,
               description: 'Обед сегодня',
+              kind: 'expense' as const,
+              period_id: 5,
               planned_date: today,
-            }),
+              posted_txn_id: null,
+              source: 'manual' as const,
+              subscription_id: null,
+            },
           ];
-      return route.fulfill(json(rows));
+      return route.fulfill(json({ ...HOME_BOOTSTRAP, planned }));
     });
     await page.route('**/api/v1/periods/5/planned/*/post', (route) => {
-      posted = true; // next planned GET omits the row → section disappears
+      posted = true; // next /home bootstrap omits the row → section disappears
       return route.fulfill(json({ planned_id: 701, txn_id: 9100 }));
     });
 
@@ -523,9 +539,13 @@ test.describe('Liquid Glass native shell (web)', () => {
   // Management-hub detail screens: tab → row → screenshot.
   // 'Счета' (accounts) and 'Копилка' (savings) rows removed in the v1.1
   // planning rework — their hub rows + screens no longer exist.
+  // ADR-0007: the «Подписки» hub row was replaced by «Регулярные платежи»
+  // (navigates to the cashflow-projection screen). Keep Аналитика/Настройки/
+  // Доступ. The «Регулярные платежи» row title is a substring of nothing else,
+  // so `exact: false` resolves it unambiguously.
   for (const { row, file } of [
     { row: 'Аналитика', file: 'analytics' },
-    { row: 'Подписки', file: 'subscriptions' },
+    { row: 'Регулярные платежи', file: 'recurring' },
     { row: 'Настройки', file: 'settings' },
     { row: 'Доступ', file: 'access' },
   ]) {
@@ -563,10 +583,15 @@ test.describe('Liquid Glass native shell (web)', () => {
     await page.screenshot({ path: `${OUT}/category-detail.png` });
   });
 
-  // v1.1 «План месяца» (owner refs #21-23) — opened from Home (NOT from
-  // Управление). ONE surface: «Осталось распределить» card + progress bar,
-  // «Регулярные платежи» (subscriptions, «✓ Оплачено»/«Отметить»), «Категории»
-  // with inline limits + «+ Добавить». No «Детализация» disclosures.
+  // ADR-0007 «План месяца» — opened from Home (NOT from Управление). The screen
+  // is now a READ-ONLY overview: «Осталось распределить» card + progress bar +
+  // «Категории» rows (icon · name · «Лимит X · Запланировано Y»); the whole row
+  // taps into the per-category planned detail where the limit is edited and
+  // planned rows are added. The inline «Регулярные платежи» section + the
+  // global «+ Добавить в план» moved OFF this screen (recurring → the dedicated
+  // cashflow screen; plan-add → the per-category detail). The «Сохранить план
+  // как шаблон» menu item was removed — the «…» overflow now only links to the
+  // template via «Открыть шаблон».
   test('plan month renders native iOS design (refs #21-23)', async ({
     page,
   }) => {
@@ -584,27 +609,29 @@ test.describe('Liquid Glass native shell (web)', () => {
     // «Осталось распределить» card: progress bar + «X из Y» caption.
     await expect(page.getByTestId('native-plan-progress')).toBeVisible();
 
-    // «Регулярные платежи»: subscription rows with status. Аренда (id 21) is
-    // posted → «Оплачено»; Подписки (id 23) is unposted → «Отметить».
-    await expect(page.getByTestId('native-plan-regular-sub-21')).toBeVisible();
-    await expect(page.getByTestId('native-plan-regular-cta-sub-21')).toHaveText(
-      /Оплачено/,
+    // Read-only category rows (whole-row tap → per-category detail). No inline
+    // limit input / «+ Добавить» / «Регулярные платежи» section on this screen.
+    await expect(page.getByTestId('native-plan-cat-1')).toBeVisible(); // Продукты
+    await expect(page.getByTestId('native-plan-cat-summary-1')).toContainText(
+      'Лимит',
     );
-    await expect(page.getByTestId('native-plan-regular-cta-sub-23')).toHaveText(
-      'Отметить',
-    );
-
-    // «Категории» header carries the «+ Добавить» accent action; the per-
-    // category «Детализация» disclosure is gone (owner disliked the dropdowns).
-    await expect(page.getByTestId('native-plan-cat-add').first()).toBeVisible();
+    await expect(page.getByTestId('native-plan-add-open')).toHaveCount(0);
+    await expect(page.getByTestId('native-plan-cat-add')).toHaveCount(0);
+    // The per-category «Детализация» disclosure is gone (owner disliked the
+    // dropdowns); §A: no «Сохранить» CTA and no OS date input on the overview.
     await expect(page.getByTestId('native-plan-detail-toggle-1')).toHaveCount(
       0,
     );
-    // Global «+ Добавить в план» (shared AddSheet, plan mode) is still present.
-    await expect(page.getByTestId('native-plan-add-open')).toBeVisible();
-    // §A: no «Сохранить» CTA and no OS date input — limits auto-save on blur.
     await expect(page.getByTestId('native-plan-save')).toHaveCount(0);
     await expect(page.locator('input[type="date"]')).toHaveCount(0);
+
+    // «…» overflow → «Открыть шаблон» (the save-as-template item is gone).
+    await page.getByTestId('native-plan-menu-btn').click();
+    await expect(page.getByTestId('native-plan-open-template')).toBeVisible({
+      timeout: 5000,
+    });
+    await expect(page.getByText('Сохранить план как шаблон')).toHaveCount(0);
+    await page.keyboard.press('Escape');
 
     await freezeMotion(page);
     await page.screenshot({ path: `${OUT}/plan.png` });
@@ -636,10 +663,14 @@ test.describe('Liquid Glass native shell (web)', () => {
     await page.screenshot({ path: `${OUT}/plan-income.png` });
   });
 
-  // v1.1 «один глобальный +» — the single «+ Добавить в план» under the surplus
-  // card opens the SAME AddSheet as Home, in plan mode. The category is chosen
-  // INSIDE the sheet; submit creates a planned row (createPlanned → 200 fixture).
-  test('plan «+» opens the shared AddSheet in plan mode', async ({ page }) => {
+  // ADR-0007 — the plan-add flow moved OFF the «План месяца» overview into the
+  // per-category planned detail. Tapping a category row drills into its detail
+  // (PlanCategoryDetailView); its «Добавить в план» CTA opens the SAME AddSheet
+  // as Home, in PLAN mode, with this category pre-selected. Submit creates a
+  // planned row (createPlanned → 200 fixture).
+  test('plan category detail «Добавить в план» opens the shared AddSheet in plan mode', async ({
+    page,
+  }) => {
     await installNative(page);
     await page.goto('/');
     await expect(page.getByTestId('native-shell')).toBeVisible({
@@ -649,8 +680,13 @@ test.describe('Liquid Glass native shell (web)', () => {
     await expect(page.getByTestId('native-plan-surplus')).toBeVisible({
       timeout: 5000,
     });
-    // Single global «+» (no disclosure needed).
-    await page.getByTestId('native-plan-add-open').click();
+    // Drill into Продукты (id 1) — the whole row taps into its planned detail.
+    await page.getByTestId('native-plan-cat-1').click();
+    await expect(page.getByTestId('native-plan-cat-ladder')).toBeVisible({
+      timeout: 5000,
+    });
+    // The detail's «Добавить в план» CTA opens the shared sheet (plan mode).
+    await page.getByTestId('native-plan-cat-add').click();
     await expect(page.getByTestId('native-add-sheet')).toBeVisible({
       timeout: 5000,
     });
@@ -663,30 +699,26 @@ test.describe('Liquid Glass native shell (web)', () => {
 
     // §B design-fix: «Дата → Своя дата» opens an in-app month-grid calendar,
     // NOT the OS `<input type="date">` popup. Assert no OS date input exists,
-    // open the date sheet, reveal the calendar, and capture it.
+    // open the date sheet, reveal the in-app calendar grid, and capture it.
     await expect(page.locator('input[type="date"]')).toHaveCount(0);
     await page.getByTestId('native-add-date-row').click();
     await expect(page.getByTestId('native-add-date-sheet')).toBeVisible({
       timeout: 5000,
     });
-    // «Своя дата» reveals the in-app calendar grid.
     await page.getByText('Своя дата', { exact: true }).click();
     await expect(page.getByTestId('native-add-date-calendar')).toBeVisible({
       timeout: 5000,
     });
     await freezeMotion(page);
     await page.screenshot({ path: `${OUT}/plan-add-calendar.png` });
-    // Pick day 15 → sheet closes, the date row reflects the choice.
-    await page.getByTestId('native-add-date-calendar-day-15').click();
+    // Close the date sheet (the calendar's exact selectable days depend on the
+    // active period bounds vs the current month, so we don't pin a day here).
+    await page.keyboard.press('Escape');
     await expect(page.getByTestId('native-add-date-sheet')).toHaveCount(0, {
       timeout: 5000,
     });
 
-    // Pick the category INSIDE the sheet.
-    await page.getByTestId('native-add-category-row').click();
-    await page.getByTestId('native-add-cat-1').click();
-
-    // Amount «500» via the native keypad.
+    // Amount «500» via the native keypad (category is pre-selected = Продукты).
     const keypad = page.getByTestId('native-add-keypad');
     await keypad.getByRole('button', { name: '5', exact: true }).click();
     await keypad.getByRole('button', { name: '0', exact: true }).click();
@@ -721,11 +753,23 @@ test.describe('Liquid Glass native shell (web)', () => {
 
   test('onboarding renders native iOS design', async ({ page }) => {
     // Not-onboarded user under the native theme → native onboarding flow.
+    // AuthGate prewarms BOTH /me and the /home bootstrap, then unconditionally
+    // re-seeds the `me` cache from `home.user` (AuthGate.tsx). The default
+    // fixture's /home mock carries an ONBOARDED user, which would clobber the
+    // not-onboarded /me and route to Home — so we override /home with a
+    // not-onboarded user too (keep them consistent).
     await installOnboardedFixture(page, {
       extraRoutes: [
         {
           pattern: '**/api/v1/me',
           handler: (r) => r.fulfill(json({ ...ME, onboarded_at: null })),
+        },
+        {
+          pattern: '**/api/v1/home',
+          handler: (r) =>
+            r.fulfill(
+              json({ ...HOME_BOOTSTRAP, user: { ...ME, onboarded_at: null } }),
+            ),
         },
       ],
     });

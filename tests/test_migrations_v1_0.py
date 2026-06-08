@@ -212,6 +212,13 @@ async def test_alembic_upgrade_from_0011_to_0015_succeeds(db_session):
         "0029_planned_posted_txn",
         "0030_adjustment_category",
         "0031_remove_savings_etc",
+        "0031_remove_savings_paused_rollover",
+        "0032_backfill_accounts",
+        "0033_drop_income_limits",
+        "0034_category_icon",
+        "0035_category_color",
+        # ADR-0007 recurring payments
+        "0036_recurring_interval",
     }
     assert heads & v10_revs, (
         f"DB is not at a v1.0 alembic head; current revisions: {heads}"

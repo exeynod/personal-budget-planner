@@ -29,9 +29,32 @@ vi.mock('../../../api/v10', async () => {
         code: 'food',
         ord: '01',
         plan_cents: 30_000_00,
-        rollover: 'misc',
-        paused: false,
         parent_id: null,
+      },
+      {
+        id: 2,
+        name: 'Зарплата',
+        kind: 'income',
+        is_archived: false,
+        sort_order: 1,
+        created_at: '2026-05-01T00:00:00Z',
+        code: 'salary',
+        ord: '02',
+        plan_cents: 0,
+        parent_id: null,
+      },
+    ]),
+    // Income for «Осталось распределить» now derives from the Σ of UNPOSTED
+    // PLANNED income rows (incomePlannedCents), not AppUser.income_cents.
+    listPlanned: vi.fn(async () => [
+      {
+        id: 10,
+        category_id: 2,
+        kind: 'income',
+        amount_cents: 100_000_00,
+        posted_txn_id: null,
+        planned_date: null,
+        source: 'manual',
       },
     ]),
     listSubscriptionsV10: vi.fn(async () => []),
@@ -58,7 +81,12 @@ vi.mock('../../../api/me', () => ({
 }));
 
 vi.mock('../../../api/periods', () => ({
-  getCurrentPeriod: vi.fn(async () => null),
+  getCurrentPeriod: vi.fn(async () => ({
+    id: 1,
+    period_start: '2026-05-01',
+    period_end: '2026-05-31',
+    status: 'active',
+  })),
 }));
 
 // ─────────── helpers ───────────

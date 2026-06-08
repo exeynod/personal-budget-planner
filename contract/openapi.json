@@ -998,6 +998,83 @@
         "title": "CapUpdate",
         "type": "object"
       },
+      "CashflowEvent": {
+        "description": "One projected recurring charge in the cashflow timeline (cents).",
+        "properties": {
+          "amount_cents": {
+            "title": "Amount Cents",
+            "type": "integer"
+          },
+          "balance_after_cents": {
+            "title": "Balance After Cents",
+            "type": "integer"
+          },
+          "category_id": {
+            "title": "Category Id",
+            "type": "integer"
+          },
+          "date": {
+            "format": "date",
+            "title": "Date",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "subscription_id": {
+            "title": "Subscription Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "date",
+          "name",
+          "amount_cents",
+          "kind",
+          "category_id",
+          "subscription_id",
+          "balance_after_cents"
+        ],
+        "title": "CashflowEvent",
+        "type": "object"
+      },
+      "CashflowProjectionResponse": {
+        "description": "GET .../recurring/cashflow — projection over the horizon (cents).",
+        "properties": {
+          "horizon_days": {
+            "title": "Horizon Days",
+            "type": "integer"
+          },
+          "monthly_burden_cents": {
+            "title": "Monthly Burden Cents",
+            "type": "integer"
+          },
+          "starting_balance_cents": {
+            "title": "Starting Balance Cents",
+            "type": "integer"
+          },
+          "timeline": {
+            "items": {
+              "$ref": "#/components/schemas/CashflowEvent"
+            },
+            "title": "Timeline",
+            "type": "array"
+          }
+        },
+        "required": [
+          "starting_balance_cents",
+          "horizon_days",
+          "monthly_burden_cents",
+          "timeline"
+        ],
+        "title": "CashflowProjectionResponse",
+        "type": "object"
+      },
       "CategoryCandidate": {
         "properties": {
           "id": {
@@ -1030,6 +1107,30 @@
       "CategoryCreate": {
         "description": "POST /categories request body.",
         "properties": {
+          "color": {
+            "anyOf": [
+              {
+                "maxLength": 32,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Color"
+          },
+          "icon": {
+            "anyOf": [
+              {
+                "maxLength": 32,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Icon"
+          },
           "kind": {
             "enum": [
               "expense",
@@ -1075,10 +1176,32 @@
             "title": "Code",
             "type": "string"
           },
+          "color": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Color"
+          },
           "created_at": {
             "format": "date-time",
             "title": "Created At",
             "type": "string"
+          },
+          "icon": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Icon"
           },
           "id": {
             "title": "Id",
@@ -1151,6 +1274,30 @@
       "CategoryUpdate": {
         "description": "PATCH /categories/{id} request body — all fields optional.\n\nCaller may pass only the fields they want to change. Empty body is\nvalid (no-op). The service layer applies non-None fields only.\n\nPhase 26 (BE Plan 26-01, CAT-V10-04 / PLAN-V10-05) extension: accepts\nthe v1.0 ORM columns (``plan_cents``, ``rollover``, ``paused``,\n``parent_id``) so the CategoryDetail rollover/paused toggles + atomic\nplan-month batch can drive them through the existing\n``model_dump(exclude_unset=True)`` setattr loop in\n``app.services.categories.update_category`` без service-side изменений.\nComposite FK (``parent_id``, ``user_id``) → (``id``, ``user_id``)\nenforced на DB-level (alembic 0013); request layer accepts the integer\nand surfaces violations as IntegrityError → 500. Full FK pre-validation\nв Phase 27.",
         "properties": {
+          "color": {
+            "anyOf": [
+              {
+                "maxLength": 32,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Color"
+          },
+          "icon": {
+            "anyOf": [
+              {
+                "maxLength": 32,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Icon"
+          },
           "is_archived": {
             "anyOf": [
               {
@@ -1598,6 +1745,20 @@
               }
             ]
           },
+          "periods": {
+            "items": {
+              "$ref": "#/components/schemas/PeriodRead"
+            },
+            "title": "Periods",
+            "type": "array"
+          },
+          "planned": {
+            "items": {
+              "$ref": "#/components/schemas/PlannedRead"
+            },
+            "title": "Planned",
+            "type": "array"
+          },
           "user": {
             "$ref": "#/components/schemas/MeV10Response"
           }
@@ -1608,7 +1769,9 @@
           "categories",
           "period",
           "balance",
-          "actuals"
+          "actuals",
+          "periods",
+          "planned"
         ],
         "title": "HomeResponse",
         "type": "object"
@@ -2521,6 +2684,141 @@
         "title": "ReconcileBalanceResponse",
         "type": "object"
       },
+      "RecurringDueRow": {
+        "description": "One due-today / overdue recurring occurrence for the home prompt.\n\nBacked by a materialised ``planned_transaction(source=subscription_auto)``\nrow of the current active period. ``id`` is the planned-row id (the target\nof pay / skip / postpone). Money stays in cents.",
+        "properties": {
+          "amount_cents": {
+            "title": "Amount Cents",
+            "type": "integer"
+          },
+          "category_id": {
+            "title": "Category Id",
+            "type": "integer"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "planned_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Planned Date"
+          },
+          "posted_txn_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Posted Txn Id"
+          },
+          "subscription_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subscription Id"
+          }
+        },
+        "required": [
+          "id",
+          "amount_cents",
+          "category_id"
+        ],
+        "title": "RecurringDueRow",
+        "type": "object"
+      },
+      "RecurringPayRequest": {
+        "additionalProperties": false,
+        "description": "POST .../recurring/{planned_id}/pay — optional amount override (cents).",
+        "properties": {
+          "amount_cents": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amount Cents"
+          },
+          "tx_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tx Date"
+          }
+        },
+        "title": "RecurringPayRequest",
+        "type": "object"
+      },
+      "RecurringPayResponse": {
+        "properties": {
+          "planned_id": {
+            "title": "Planned Id",
+            "type": "integer"
+          },
+          "txn_id": {
+            "title": "Txn Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "txn_id",
+          "planned_id"
+        ],
+        "title": "RecurringPayResponse",
+        "type": "object"
+      },
+      "RecurringPostponeRequest": {
+        "additionalProperties": false,
+        "description": "POST .../recurring/{planned_id}/postpone — shift within the period.",
+        "properties": {
+          "new_date": {
+            "format": "date",
+            "title": "New Date",
+            "type": "string"
+          }
+        },
+        "required": [
+          "new_date"
+        ],
+        "title": "RecurringPostponeRequest",
+        "type": "object"
+      },
       "SettingsRead": {
         "description": "GET /settings response.",
         "properties": {
@@ -2642,7 +2940,14 @@
             "type": "integer"
           },
           "cycle": {
-            "$ref": "#/components/schemas/SubCycle"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SubCycle"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "day_of_month": {
             "anyOf": [
@@ -2656,6 +2961,19 @@
               }
             ],
             "title": "Day Of Month"
+          },
+          "interval_months": {
+            "anyOf": [
+              {
+                "maximum": 120.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Interval Months"
           },
           "is_active": {
             "default": true,
@@ -2690,7 +3008,6 @@
         "required": [
           "name",
           "amount_cents",
-          "cycle",
           "next_charge_date",
           "category_id"
         ],
@@ -2796,6 +3113,10 @@
             "title": "Id",
             "type": "integer"
           },
+          "interval_months": {
+            "title": "Interval Months",
+            "type": "integer"
+          },
           "is_active": {
             "title": "Is Active",
             "type": "boolean"
@@ -2829,6 +3150,7 @@
           "id",
           "name",
           "amount_cents",
+          "interval_months",
           "cycle",
           "next_charge_date",
           "category_id",
@@ -2900,6 +3222,19 @@
               }
             ],
             "title": "Day Of Month"
+          },
+          "interval_months": {
+            "anyOf": [
+              {
+                "maximum": 120.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Interval Months"
           },
           "is_active": {
             "anyOf": [
@@ -6077,7 +6412,7 @@
     },
     "/api/v1/home": {
       "get": {
-        "description": "GET /api/v1/home — aggregated HOME bootstrap payload.\n\nReturns ``{ user, accounts, categories, period, balance, actuals }``. When\nthe user has no active budget period (onboarding incomplete), ``period`` /\n``balance`` are ``None`` and ``actuals`` is ``[]`` — ``user`` / ``accounts``\n/ ``categories`` still resolve.",
+        "description": "GET /api/v1/home — aggregated HOME bootstrap payload.\n\nReturns ``{ user, accounts, categories, period, balance, actuals, periods,\nplanned }``. When the user has no active budget period (onboarding\nincomplete), ``period`` / ``balance`` are ``None`` and ``actuals`` /\n``planned`` are ``[]`` — ``user`` / ``accounts`` / ``categories`` /\n``periods`` still resolve.\n\n``periods`` mirrors GET /api/v1/periods (newest-first list) and ``planned``\nmirrors GET /api/v1/periods/{period_id}/planned for the active period, so\nthe PeriodSwitcher + plan ladder boot from this one request.",
         "operationId": "get_home_api_v1_home_get",
         "parameters": [
           {
@@ -9286,6 +9621,496 @@
           }
         },
         "summary": "Create Sub",
+        "tags": [
+          "public",
+          "subscriptions"
+        ]
+      }
+    },
+    "/api/v1/subscriptions/recurring/cashflow": {
+      "get": {
+        "description": "GET /api/v1/subscriptions/recurring/cashflow — cashflow projection (ADR-0007).\n\nProjects active recurring payments forward over ``horizon_days`` (default\n90, 1..365) and returns a timeline with a running balance + monthly burden.",
+        "operationId": "recurring_cashflow_api_v1_subscriptions_recurring_cashflow_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "horizon_days",
+            "required": false,
+            "schema": {
+              "default": 90,
+              "title": "Horizon Days",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-telegram-init-data",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Telegram-Init-Data"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-test-user",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Test-User"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CashflowProjectionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Recurring Cashflow",
+        "tags": [
+          "public",
+          "subscriptions"
+        ]
+      }
+    },
+    "/api/v1/subscriptions/recurring/due": {
+      "get": {
+        "description": "GET /api/v1/subscriptions/recurring/due — due-today/overdue occurrences.\n\nADR-0007 home prompt: unposted ``subscription_auto`` rows of the current\nactive period with ``planned_date <= today``. Empty list if no active period.",
+        "operationId": "recurring_due_api_v1_subscriptions_recurring_due_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-telegram-init-data",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Telegram-Init-Data"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-test-user",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Test-User"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/RecurringDueRow"
+                  },
+                  "title": "Response Recurring Due Api V1 Subscriptions Recurring Due Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Recurring Due",
+        "tags": [
+          "public",
+          "subscriptions"
+        ]
+      }
+    },
+    "/api/v1/subscriptions/recurring/{planned_id}/pay": {
+      "post": {
+        "description": "POST /api/v1/subscriptions/recurring/{planned_id}/pay — «Оплачено» (ADR-0007).\n\nPosts the occurrence into a real actual (optional ``amount_cents`` override).",
+        "operationId": "recurring_pay_api_v1_subscriptions_recurring__planned_id__pay_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "planned_id",
+            "required": true,
+            "schema": {
+              "title": "Planned Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-telegram-init-data",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Telegram-Init-Data"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-test-user",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Test-User"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecurringPayRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecurringPayResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Occurrence not found / cross-tenant"
+          },
+          "409": {
+            "description": "Occurrence already paid"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Recurring Pay",
+        "tags": [
+          "public",
+          "subscriptions"
+        ]
+      }
+    },
+    "/api/v1/subscriptions/recurring/{planned_id}/postpone": {
+      "post": {
+        "description": "POST /api/v1/subscriptions/recurring/{planned_id}/postpone — «Перенести» (ADR-0007).\n\nShifts ``planned_date`` within the occurrence's own period bounds.",
+        "operationId": "recurring_postpone_api_v1_subscriptions_recurring__planned_id__postpone_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "planned_id",
+            "required": true,
+            "schema": {
+              "title": "Planned Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-telegram-init-data",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Telegram-Init-Data"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-test-user",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Test-User"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecurringPostponeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecurringDueRow"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "description": "new_date outside the occurrence's period"
+          },
+          "404": {
+            "description": "Occurrence not found / cross-tenant"
+          },
+          "409": {
+            "description": "Occurrence already paid"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Recurring Postpone",
+        "tags": [
+          "public",
+          "subscriptions"
+        ]
+      }
+    },
+    "/api/v1/subscriptions/recurring/{planned_id}/skip": {
+      "post": {
+        "description": "POST /api/v1/subscriptions/recurring/{planned_id}/skip — «Пропустить» (ADR-0007).\n\nDeletes the unposted occurrence without posting it to actual.",
+        "operationId": "recurring_skip_api_v1_subscriptions_recurring__planned_id__skip_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "planned_id",
+            "required": true,
+            "schema": {
+              "title": "Planned Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-telegram-init-data",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Telegram-Init-Data"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-test-user",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Test-User"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Occurrence not found / cross-tenant"
+          },
+          "409": {
+            "description": "Occurrence already paid — unpay first"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Recurring Skip",
         "tags": [
           "public",
           "subscriptions"

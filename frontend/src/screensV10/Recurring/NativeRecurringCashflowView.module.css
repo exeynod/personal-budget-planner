@@ -1,0 +1,139 @@
+/* ADR-0007 — cashflow projection screen. Reuses the plan-detail card idiom. */
+
+.root {
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 24px;
+}
+
+/* ─────────── Месячная нагрузка card ─────────── */
+.burdenCard {
+  position: relative;
+  margin: 8px var(--lgn-s-16) 0;
+  background: var(--lgn-card);
+  -webkit-backdrop-filter: var(--lgn-glass-blur);
+  backdrop-filter: var(--lgn-glass-blur);
+  border-radius: var(--lgn-r-card);
+  box-shadow: var(--lgn-shadow-card), var(--lgn-card-edge);
+  padding: 16px var(--lgn-s-16) 18px;
+  font-family: var(--lgn-font);
+  overflow: hidden;
+}
+.burdenCard::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--lgn-accent-orb);
+  pointer-events: none;
+  z-index: 0;
+}
+.burdenCard > * {
+  position: relative;
+  z-index: 1;
+}
+.burdenHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.burdenIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--lgn-seg-track, #ececec);
+  color: var(--lgn-accent, #f0801a);
+}
+.burdenLabel {
+  font-size: 13px;
+  color: var(--lgn-ink-2);
+}
+.burdenValue {
+  margin-top: 4px;
+  font-size: 29px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  color: var(--lgn-accent-ink);
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+.burdenCur {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--lgn-accent-ink);
+  opacity: 0.7;
+}
+.burdenSub {
+  margin-top: 6px;
+  font-size: 13px;
+  color: var(--lgn-ink-2);
+  line-height: 1.4;
+}
+
+/* ─────────── Timeline day group ─────────── */
+.dayGroup {
+  display: flex;
+  flex-direction: column;
+}
+.dayHeaderRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.dayBalance {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-right: var(--lgn-s-20);
+  font-family: var(--lgn-font);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--lgn-ink-2);
+  white-space: nowrap;
+}
+.dayBalanceNeg {
+  color: var(--lgn-red);
+}
+
+.eventName {
+  display: inline-flex;
+  align-items: center;
+  letter-spacing: 0.2px;
+}
+.recurringBadge {
+  color: var(--lgn-accent, #f0801a);
+  margin-right: 5px;
+}
+.eventAmount {
+  font-family: var(--lgn-font);
+  font-size: 17px;
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--lgn-ink);
+}
+
+/* ─────────── Empty + footnote ─────────── */
+.empty {
+  margin: 8px var(--lgn-s-16) 0;
+  padding: 28px var(--lgn-s-16);
+  text-align: center;
+  color: var(--lgn-ink-2);
+  font-size: 15px;
+  font-family: var(--lgn-font);
+  background: var(--lgn-card);
+  -webkit-backdrop-filter: var(--lgn-glass-blur);
+  backdrop-filter: var(--lgn-glass-blur);
+  border-radius: var(--lgn-r-card);
+  box-shadow: var(--lgn-shadow-card), var(--lgn-card-edge);
+}
+.footnote {
+  margin: 12px var(--lgn-s-20) 0;
+  font-family: var(--lgn-font);
+  font-size: 13px;
+  color: var(--lgn-ink-2);
+  line-height: 1.4;
+}

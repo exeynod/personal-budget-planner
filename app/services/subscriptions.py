@@ -18,7 +18,7 @@ RLS — defense-in-depth backstop.
 """
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, timedelta
 from typing import Optional
 
 from dateutil.relativedelta import relativedelta
@@ -32,12 +32,14 @@ from app.db.models import (
     ActualSource,
     ActualTransaction,
     AppUser,
+    BudgetPeriod,
     Category,
     PlannedTransaction,
     PlanSource,
     SubCycle,
     Subscription,
 )
+from app.services.periods import get_current_active_period
 
 
 class AlreadyChargedError(Exception):
@@ -59,16 +61,36 @@ class CategoryNotFoundOrArchived(Exception):
     """Raised when category_id does not exist, is archived, or belongs to other tenant (T-06-02)."""
 
 
-def _advance_charge_date(sub: Subscription) -> date:
-    """Compute the next charge date after advancing by one billing cycle (D-74).
+def _advance_date(
+    anchor: date, *, interval_months: int, day_of_month: Optional[int]
+) -> date:
+    """Advance ``anchor`` by ``interval_months`` months (ADR-0007).
 
-    Uses dateutil.relativedelta so leap-year and month-end edge cases are
-    handled correctly (e.g. Jan 31 + 1 month = Feb 28/29).
+    Uses dateutil.relativedelta so leap-year / month-length edge cases are
+    handled correctly. When ``day_of_month`` is set it is clamped to 1..28 and
+    used to normalise the resulting day (so a payment anchored to "the 2nd"
+    stays on the 2nd regardless of the starting day); otherwise the original
+    day is preserved by relativedelta.
     """
-    if sub.cycle == SubCycle.monthly:
-        return sub.next_charge_date + relativedelta(months=1)
-    # yearly
-    return sub.next_charge_date + relativedelta(years=1)
+    nxt = anchor + relativedelta(months=interval_months)
+    if day_of_month is not None:
+        dom = min(max(day_of_month, 1), 28)
+        nxt = nxt.replace(day=dom)
+    return nxt
+
+
+def _advance_charge_date(sub: Subscription) -> date:
+    """Compute the next charge date after advancing by ``interval_months`` (ADR-0007).
+
+    The legacy ``cycle`` column is no longer consulted — ``interval_months`` is
+    the source of truth (monthly=1, yearly=12). The day is normalised to
+    ``day_of_month`` when set.
+    """
+    return _advance_date(
+        sub.next_charge_date,
+        interval_months=sub.interval_months,
+        day_of_month=sub.day_of_month,
+    )
 
 
 async def list_subscriptions(
@@ -90,9 +112,10 @@ async def create_subscription(
     user_id: int,
     name: str,
     amount_cents: int,
-    cycle: SubCycle,
     next_charge_date: date,
     category_id: int,
+    interval_months: Optional[int] = None,
+    cycle: Optional[SubCycle] = None,
     notify_days_before: Optional[int] = None,
     is_active: bool = True,
     day_of_month: Optional[int] = None,
@@ -126,11 +149,23 @@ async def create_subscription(
         user = await db.scalar(select(AppUser).where(AppUser.id == user_id))
         notify_days_before = user.notify_days_before if user else 2
 
+    # ADR-0007: ``interval_months`` is the source of truth, ``cycle`` is
+    # deprecated (but still NOT NULL). Resolve both directions for backward
+    # compatibility:
+    #   - interval given, cycle absent  → derive a legacy cycle (12→yearly).
+    #   - cycle given, interval absent   → derive interval (yearly→12).
+    #   - neither given                  → monthly / interval 1.
+    if interval_months is None:
+        interval_months = 12 if cycle == SubCycle.yearly else 1
+    if cycle is None:
+        cycle = SubCycle.yearly if interval_months == 12 else SubCycle.monthly
+
     sub = Subscription(
         user_id=user_id,
         name=name,
         amount_cents=amount_cents,
         cycle=cycle,
+        interval_months=interval_months,
         next_charge_date=next_charge_date,
         category_id=category_id,
         notify_days_before=notify_days_before,
@@ -209,16 +244,22 @@ async def add_subscription_to_period(
     period_id: int,
     *,
     user_id: int,
+    advance: bool = True,
 ) -> PlannedTransaction | None:
-    """Create a PlannedTransaction for sub in period without advancing next_charge_date.
+    """Materialise a forecast planned row for ``sub`` into ``period_id``.
+
+    ADR-0007: materialisation is the moment the running cursor advances — when
+    ``advance`` is True (the default), ``sub.next_charge_date`` is moved forward
+    by ``interval_months`` after a successful insert, so the next occurrence
+    lands in a later period (the deprecated daily charge job is gone).
 
     Phase 11: PlannedTransaction INSERT задаёт user_id явно. Caller отвечает за
     то, чтобы sub.user_id == user_id и period с period_id принадлежит user_id
     (worker и routes это гарантируют до вызова).
 
-    Called when a new period is created or when a subscription is added mid-period.
-    Idempotent via SAVEPOINT: returns None if (subscription_id, original_charge_date)
-    already exists.
+    Called when a new period is created or when a recurring payment is added
+    mid-period. Idempotent via SAVEPOINT: returns None (and does NOT advance)
+    if (subscription_id, original_charge_date) already exists.
     """
     planned = PlannedTransaction(
         user_id=user_id,
@@ -226,8 +267,10 @@ async def add_subscription_to_period(
         category_id=sub.category_id,
         kind=sub.category.kind,
         amount_cents=sub.amount_cents,
+        description=sub.name,
         source=PlanSource.subscription_auto,
         subscription_id=sub.id,
+        planned_date=sub.next_charge_date,
         original_charge_date=sub.next_charge_date,
     )
     try:
@@ -236,6 +279,9 @@ async def add_subscription_to_period(
             await db.flush()
     except IntegrityError:
         return None
+    if advance:
+        sub.next_charge_date = _advance_charge_date(sub)
+        await db.flush()
     return planned
 
 
@@ -286,8 +332,10 @@ async def charge_subscription(
         category_id=sub.category_id,
         kind=sub.category.kind,
         amount_cents=sub.amount_cents,
+        description=sub.name,
         source=PlanSource.subscription_auto,
         subscription_id=sub.id,
+        planned_date=original_date,
         original_charge_date=original_date,
     )
     try:
@@ -497,3 +545,318 @@ async def unpost_subscription(
     await db.flush()
 
     await delete_actual_v10(db, txn_id, user_id=user_id)
+
+
+# ---------- ADR-0007 — home-prompt occurrence operations ----------
+#
+# These operate on the *materialised* planned_transaction(subscription_auto)
+# rows of the current active period (the "occurrences"), not on the
+# subscription cursor. They back the home prompt «Оплачено / Пропустить /
+# Перенести» and the cashflow projection screen.
+
+
+class RecurringOccurrenceNotFoundError(Exception):
+    """Raised when a recurring occurrence (materialised planned row) is missing.
+
+    Route layer maps to HTTP 404. Covers: id not found, cross-tenant, not a
+    ``subscription_auto`` row, or not in the requested period.
+    """
+
+    def __init__(self, planned_id: int) -> None:
+        self.planned_id = planned_id
+        super().__init__(f"Recurring occurrence {planned_id} not found")
+
+
+class RecurringOccurrenceAlreadyPaidError(Exception):
+    """Raised when paying an occurrence that already has ``posted_txn_id`` (→ 409)."""
+
+    def __init__(self, planned_id: int, posted_txn_id: int) -> None:
+        self.planned_id = planned_id
+        self.posted_txn_id = posted_txn_id
+        super().__init__(
+            f"Recurring occurrence {planned_id} already paid (txn {posted_txn_id})"
+        )
+
+
+async def _get_occurrence(
+    db: AsyncSession, planned_id: int, *, user_id: int, for_update: bool = False
+) -> PlannedTransaction:
+    """Fetch a materialised recurring planned row scoped by user_id."""
+    stmt = select(PlannedTransaction).where(
+        PlannedTransaction.id == planned_id,
+        PlannedTransaction.user_id == user_id,
+        PlannedTransaction.source == PlanSource.subscription_auto,
+    )
+    if for_update:
+        stmt = stmt.with_for_update()
+    row = await db.scalar(stmt)
+    if row is None:
+        raise RecurringOccurrenceNotFoundError(planned_id)
+    return row
+
+
+async def list_due_recurring(
+    db: AsyncSession, *, user_id: int, today: date
+) -> list[PlannedTransaction]:
+    """List due-today/overdue recurring occurrences for the current active period.
+
+    ADR-0007 home prompt: ``source=subscription_auto``, ``posted_txn_id IS NULL``,
+    ``planned_date <= today``, within the active period. Sorted by planned_date.
+    Returns ``[]`` when there is no active period.
+    """
+    period = await get_current_active_period(db, user_id=user_id)
+    if period is None:
+        return []
+    stmt = (
+        select(PlannedTransaction)
+        .where(
+            PlannedTransaction.user_id == user_id,
+            PlannedTransaction.period_id == period.id,
+            PlannedTransaction.source == PlanSource.subscription_auto,
+            PlannedTransaction.posted_txn_id.is_(None),
+            PlannedTransaction.planned_date.isnot(None),
+            PlannedTransaction.planned_date <= today,
+        )
+        .order_by(PlannedTransaction.planned_date, PlannedTransaction.id)
+    )
+    return list((await db.execute(stmt)).scalars().all())
+
+
+async def pay_recurring_occurrence(
+    db: AsyncSession,
+    planned_id: int,
+    *,
+    user_id: int,
+    tx_date: date,
+    amount_cents: Optional[int] = None,
+) -> ActualTransaction:
+    """Pay a recurring occurrence — post it into a real ActualTransaction.
+
+    ADR-0007 «Оплачено». Mirrors ``post_subscription`` but works on the
+    materialised planned row so each occurrence is paid independently. Optional
+    ``amount_cents`` overrides the planned amount (positive value; sign applied
+    by kind). Account resolved from the parent subscription, else the primary.
+
+    Raises:
+        RecurringOccurrenceNotFoundError: row missing / cross-tenant / not auto.
+        RecurringOccurrenceAlreadyPaidError: already has posted_txn_id (409).
+    """
+    from app.services.accounts import get_primary_account  # noqa: PLC0415
+    from app.services.actual import create_actual_v10  # noqa: PLC0415
+
+    row = await _get_occurrence(db, planned_id, user_id=user_id, for_update=True)
+    if row.posted_txn_id is not None:
+        raise RecurringOccurrenceAlreadyPaidError(planned_id, row.posted_txn_id)
+
+    account_id: Optional[int] = None
+    if row.subscription_id is not None:
+        sub = await db.scalar(
+            select(Subscription).where(
+                Subscription.id == row.subscription_id,
+                Subscription.user_id == user_id,
+            )
+        )
+        if sub is not None and sub.account_id is not None:
+            account_id = sub.account_id
+    if account_id is None:
+        primary = await get_primary_account(db, user_id=user_id)
+        account_id = primary.id if primary is not None else None
+
+    base = abs(amount_cents) if amount_cents is not None else abs(row.amount_cents)
+    kind_value = row.kind.value if hasattr(row.kind, "value") else row.kind
+    signed = base if kind_value == "income" else -base
+
+    parent, _child = await create_actual_v10(
+        db,
+        user_id=user_id,
+        kind=kind_value,
+        amount_cents=signed,
+        description=row.description or "Регулярный платёж",
+        category_id=row.category_id,
+        tx_date=tx_date,
+        source=ActualSource.mini_app,
+        account_id=account_id,
+    )
+    row.posted_txn_id = parent.id
+    try:
+        await db.flush()
+    except IntegrityError as exc:
+        await db.rollback()
+        raise RecurringOccurrenceAlreadyPaidError(planned_id, parent.id) from exc
+    return parent
+
+
+async def skip_recurring_occurrence(
+    db: AsyncSession, planned_id: int, *, user_id: int
+) -> None:
+    """Skip a recurring occurrence — delete the unposted planned row (ADR-0007).
+
+    «Пропустить»: removes the materialised row for the current period without
+    posting to actual. Does NOT touch the subscription cursor (already advanced
+    at materialisation).
+
+    Raises:
+        RecurringOccurrenceNotFoundError: row missing / cross-tenant / not auto.
+        RecurringOccurrenceAlreadyPaidError: row already posted (cannot skip a
+            paid occurrence — unpay first).
+    """
+    row = await _get_occurrence(db, planned_id, user_id=user_id, for_update=True)
+    if row.posted_txn_id is not None:
+        raise RecurringOccurrenceAlreadyPaidError(planned_id, row.posted_txn_id)
+    await db.delete(row)
+    await db.flush()
+
+
+class RecurringPostponeOutOfPeriodError(Exception):
+    """Raised when a postpone target date falls outside the occurrence's period (→ 400)."""
+
+    def __init__(self, planned_id: int, target: date) -> None:
+        self.planned_id = planned_id
+        self.target = target
+        super().__init__(
+            f"Recurring occurrence {planned_id}: {target} is outside its period"
+        )
+
+
+async def postpone_recurring_occurrence(
+    db: AsyncSession, planned_id: int, *, user_id: int, new_date: date
+) -> PlannedTransaction:
+    """Postpone a recurring occurrence — shift ``planned_date`` within its period.
+
+    ADR-0007 «Перенести». The new date is constrained to the occurrence's own
+    period bounds (cross-period overdue is not supported).
+
+    Raises:
+        RecurringOccurrenceNotFoundError: row missing / cross-tenant / not auto.
+        RecurringOccurrenceAlreadyPaidError: row already posted (cannot move a
+            paid occurrence).
+        RecurringPostponeOutOfPeriodError: new_date outside the period (400).
+    """
+    row = await _get_occurrence(db, planned_id, user_id=user_id, for_update=True)
+    if row.posted_txn_id is not None:
+        raise RecurringOccurrenceAlreadyPaidError(planned_id, row.posted_txn_id)
+    period = await db.scalar(
+        select(BudgetPeriod).where(
+            BudgetPeriod.id == row.period_id,
+            BudgetPeriod.user_id == user_id,
+        )
+    )
+    if period is None or not (
+        period.period_start <= new_date <= period.period_end
+    ):
+        raise RecurringPostponeOutOfPeriodError(planned_id, new_date)
+    row.planned_date = new_date
+    await db.flush()
+    await db.refresh(row)
+    return row
+
+
+async def cashflow_projection(
+    db: AsyncSession,
+    *,
+    user_id: int,
+    horizon_days: int = 90,
+    today: Optional[date] = None,
+) -> dict:
+    """Project upcoming recurring charges + running balance over a horizon (ADR-0007).
+
+    Builds the cashflow-projection screen payload:
+      - ``timeline``: each projected charge (date, name, amount_cents, category_id)
+        for active recurring payments, projecting each forward by
+        ``interval_months`` from ``next_charge_date`` until past the horizon.
+      - ``balance_after_cents`` per timeline entry: starting balance minus the
+        running sum of expense charges (income adds), so the UI can highlight
+        when the account goes negative.
+      - ``monthly_burden_cents``: Σ of one interval's worth of charges normalised
+        to a month (amount_cents * 30 / (interval_months * ~30)) → amount / interval.
+      - ``starting_balance_cents``: current primary-account balance.
+
+    Charges are forecast from the subscription cursor; this is a read-only
+    projection and does not materialise anything.
+    """
+    from app.services.accounts import get_primary_account  # noqa: PLC0415
+    from app.services.periods import _today_in_app_tz  # noqa: PLC0415
+
+    if today is None:
+        today = _today_in_app_tz()
+    horizon_end = today + timedelta(days=horizon_days)
+
+    primary = await get_primary_account(db, user_id=user_id)
+    starting_balance = int(primary.balance_cents) if primary is not None else 0
+
+    subs = (
+        (
+            await db.execute(
+                select(Subscription)
+                .where(
+                    Subscription.user_id == user_id,
+                    Subscription.is_active.is_(True),
+                )
+                .options(selectinload(Subscription.category))
+            )
+        )
+        .scalars()
+        .all()
+    )
+
+    events: list[dict] = []
+    monthly_burden = 0
+    for sub in subs:
+        kind_value = (
+            sub.category.kind.value
+            if sub.category is not None and hasattr(sub.category.kind, "value")
+            else "expense"
+        )
+        # Monthly burden: one interval's amount normalised to a month.
+        interval = max(sub.interval_months, 1)
+        if kind_value == "expense":
+            monthly_burden += round(sub.amount_cents / interval)
+        cursor = sub.next_charge_date
+        # Guard against runaway loops on degenerate data.
+        for _ in range(1000):
+            if cursor > horizon_end:
+                break
+            if cursor >= today:
+                events.append(
+                    {
+                        "date": cursor,
+                        "name": sub.name,
+                        "amount_cents": sub.amount_cents,
+                        "kind": kind_value,
+                        "category_id": sub.category_id,
+                        "subscription_id": sub.id,
+                    }
+                )
+            cursor = _advance_date(
+                cursor,
+                interval_months=interval,
+                day_of_month=sub.day_of_month,
+            )
+
+    events.sort(key=lambda e: (e["date"], e["subscription_id"]))
+
+    running = starting_balance
+    timeline: list[dict] = []
+    for e in events:
+        if e["kind"] == "income":
+            running += e["amount_cents"]
+        else:
+            running -= e["amount_cents"]
+        timeline.append(
+            {
+                "date": e["date"],
+                "name": e["name"],
+                "amount_cents": e["amount_cents"],
+                "kind": e["kind"],
+                "category_id": e["category_id"],
+                "subscription_id": e["subscription_id"],
+                "balance_after_cents": running,
+            }
+        )
+
+    return {
+        "starting_balance_cents": starting_balance,
+        "horizon_days": horizon_days,
+        "monthly_burden_cents": monthly_burden,
+        "timeline": timeline,
+    }

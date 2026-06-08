@@ -26,7 +26,7 @@ Idempotency: повторный запуск в тот же день — no-op (
 from datetime import datetime, timezone
 
 import structlog
-from sqlalchemy import select, text
+from sqlalchemy import delete, select, text
 
 from sqlalchemy.orm import selectinload
 
@@ -35,6 +35,8 @@ from app.db.models import (
     AppUser,
     BudgetPeriod,
     PeriodStatus,
+    PlannedTransaction,
+    PlanSource,
     Subscription,
     UserRole,
 )
@@ -42,7 +44,10 @@ from app.db.session import AsyncSessionLocal, set_tenant_scope
 from app.services.actual import compute_balance
 from app.services.periods import _today_in_app_tz
 from app.services.planned import apply_template_to_period
-from app.services.subscriptions import add_subscription_to_period
+from app.services.subscriptions import (
+    _advance_charge_date,
+    add_subscription_to_period,
+)
 
 logger = structlog.get_logger(__name__)
 
@@ -164,6 +169,19 @@ async def _close_period_for_user(session, *, user_id: int) -> None:
         logger.info("close_period.skipped.no_expired_period", user_id=user_id)
         return
 
+    # Step 2b (ADR-0007): auto-skip unposted recurring occurrences of the
+    # closing period — they "didn't happen". Delete only unposted
+    # subscription_auto rows; posted ones (with a linked actual) survive so the
+    # ending balance reflects real spend. Done BEFORE compute_balance / close.
+    await session.execute(
+        delete(PlannedTransaction).where(
+            PlannedTransaction.user_id == user_id,
+            PlannedTransaction.period_id == expired.id,
+            PlannedTransaction.source == PlanSource.subscription_auto,
+            PlannedTransaction.posted_txn_id.is_(None),
+        )
+    )
+
     # Step 3: compute ending_balance via shared service (scoped по user_id).
     # Only expense/income kinds are summed (deposit/roundup excluded). v1.1:
     # rollover выпилен (AGREED §G4) — the ending balance is just this number.
@@ -195,21 +213,41 @@ async def _close_period_for_user(session, *, user_id: int) -> None:
     # already exists). Runs inside the per-user tenant scope set above.
     await apply_template_to_period(session, user_id=user_id, period_id=new_period.id)
 
-    # Step 7: add subscription planned rows for the new period (scoped по
-    # user_id). apply_template_to_period intentionally does NOT touch
-    # subscriptions (different source) so these are added once here.
+    # Step 7 (ADR-0007): materialise recurring payments into the new period.
+    # apply_template_to_period intentionally does NOT touch subscriptions
+    # (different source) so these are added here. A payment may fall multiple
+    # times inside the period (interval < period length), so we loop while the
+    # cursor stays in bounds — add_subscription_to_period advances it by
+    # ``interval_months`` after each successful materialisation.
     subs_result = await session.execute(
         select(Subscription)
         .where(
             Subscription.user_id == user_id,
             Subscription.is_active.is_(True),
-            Subscription.next_charge_date >= p_start,
             Subscription.next_charge_date <= p_end,
         )
         .options(selectinload(Subscription.category))
     )
     for sub in subs_result.scalars().all():
-        await add_subscription_to_period(session, sub, new_period.id, user_id=user_id)
+        # Catch-up guard: if the cursor lags before the new period start (e.g.
+        # a payment that was never materialised), advance it without inserting
+        # into past periods until it reaches the window or passes the end.
+        guard = 0
+        while sub.next_charge_date < p_start and guard < 1000:
+            sub.next_charge_date = _advance_charge_date(sub)
+            guard += 1
+        await session.flush()
+        guard = 0
+        while p_start <= sub.next_charge_date <= p_end and guard < 1000:
+            inserted = await add_subscription_to_period(
+                session, sub, new_period.id, user_id=user_id
+            )
+            if inserted is None:
+                # Idempotent collision (already materialised for this charge
+                # date) — advance manually to avoid an infinite loop.
+                sub.next_charge_date = _advance_charge_date(sub)
+                await session.flush()
+            guard += 1
 
     logger.info(
         "close_period.done",

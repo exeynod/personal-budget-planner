@@ -29,11 +29,21 @@ const getCurrentPeriodMock = vi.fn();
 const getPeriodBalanceMock = vi.fn();
 const getHomeMock = vi.fn();
 
+const listRecurringDueMock = vi.fn();
+
 vi.mock('../../../api/v10', () => ({
   listAccounts: (...a: unknown[]) => listAccountsMock(...a),
   listCategoriesV10: (...a: unknown[]) => listCategoriesV10Mock(...a),
   listActualV10: (...a: unknown[]) => listActualV10Mock(...a),
   listPlanned: (...a: unknown[]) => listPlannedMock(...a),
+  // ADR-0007 — recurring due-list + actions (HomeMount fetches the due list in
+  // an effect; default to an empty list so the «Регулярные платежи» card hides).
+  listRecurringDue: (...a: unknown[]) => listRecurringDueMock(...a),
+  payRecurring: vi.fn(),
+  skipRecurring: vi.fn(),
+  postponeRecurring: vi.fn(),
+  postPlanned: vi.fn(),
+  postSubscription: vi.fn(),
 }));
 
 vi.mock('../../../api/periods', () => ({
@@ -114,6 +124,7 @@ beforeEach(() => {
   ]);
   listActualV10Mock.mockResolvedValue([]);
   listPlannedMock.mockResolvedValue([]);
+  listRecurringDueMock.mockResolvedValue([]);
   listPeriodsMock.mockResolvedValue([ACTIVE, PAST_MAY]); // newest-first
   getCurrentPeriodMock.mockResolvedValue(ACTIVE);
   getPeriodBalanceMock.mockResolvedValue(MAY_BALANCE);

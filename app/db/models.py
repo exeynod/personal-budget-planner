@@ -515,8 +515,16 @@ class Subscription(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     name: Mapped[str] = mapped_column(Text, nullable=False)
     amount_cents: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    # DEPRECATED (ADR-0007): ``cycle``/``subcycle`` enum kept in place to avoid
+    # a risky FK/enum migration on live data, but no longer drives the advance
+    # logic — ``interval_months`` is the source of truth. Will be dropped later.
     cycle: Mapped[SubCycle] = mapped_column(
         PgEnum(SubCycle, name="subcycle", create_type=False), nullable=False
+    )
+    # ADR-0007: recurring-payment interval in months (>=1). 1=monthly,
+    # 2=every 2 months, 12=yearly. Replaces ``cycle`` as the frequency source.
+    interval_months: Mapped[int] = mapped_column(
+        SmallInteger, nullable=False, default=1, server_default="1"
     )
     next_charge_date: Mapped[date] = mapped_column(Date, nullable=False)
     category_id: Mapped[int] = mapped_column(ForeignKey("category.id"), nullable=False)
@@ -570,6 +578,11 @@ class Subscription(Base):
         CheckConstraint(
             "day_of_month IS NULL OR (day_of_month BETWEEN 1 AND 28)",
             name="ck_subscription_day_of_month",
+        ),
+        # ADR-0007: interval_months must be a positive month count.
+        CheckConstraint(
+            "interval_months >= 1",
+            name="ck_subscription_interval_months",
         ),
     )
 

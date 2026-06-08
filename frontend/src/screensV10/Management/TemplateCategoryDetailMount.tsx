@@ -10,7 +10,19 @@
 //      every write) and surfaces errors via NativeToast.
 
 import { useCallback, useEffect, useState } from 'react';
-import { listCategoriesV10, type CategoryV10 } from '../../api/v10';
+import {
+  listCategoriesV10,
+  listAccounts,
+  listRecurringForCategory,
+  createRecurring,
+  updateRecurring,
+  deleteRecurring,
+  type CategoryV10,
+  type AccountResponse,
+  type SubscriptionV10Read,
+  type RecurringCreatePayload,
+  type RecurringUpdatePayload,
+} from '../../api/v10';
 import {
   getTemplateItems,
   getTemplateLines,
@@ -43,6 +55,8 @@ export function TemplateCategoryDetailMount({
   const [category, setCategory] = useState<CategoryV10 | null>(null);
   const [items, setItems] = useState<TemplateItemRead[]>([]);
   const [lines, setLines] = useState<TemplateLineRead[]>([]);
+  const [recurring, setRecurring] = useState<SubscriptionV10Read[]>([]);
+  const [accounts, setAccounts] = useState<AccountResponse[]>([]);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>(
     'loading',
   );
@@ -52,16 +66,21 @@ export function TemplateCategoryDetailMount({
   const [toastTone, setToastTone] = useState<'success' | 'error'>('success');
 
   const reload = useCallback(async () => {
-    const [cats, itemRows, lineRows] = await Promise.all([
-      listCategoriesV10(),
-      getTemplateItems(),
-      getTemplateLines(),
-    ]);
+    const [cats, itemRows, lineRows, recurringRows, accountRows] =
+      await Promise.all([
+        listCategoriesV10(),
+        getTemplateItems(),
+        getTemplateLines(),
+        listRecurringForCategory(categoryId),
+        listAccounts(),
+      ]);
     const cat = cats.find((c) => c.id === categoryId);
     if (!cat) throw new Error(NOT_FOUND_MESSAGE);
     setCategory(cat);
     setItems(itemRows);
     setLines(lineRows);
+    setRecurring(recurringRows);
+    setAccounts(accountRows);
   }, [categoryId]);
 
   useEffect(() => {
@@ -161,6 +180,57 @@ export function TemplateCategoryDetailMount({
     [reload, surfaceError],
   );
 
+  const handleCreateRecurring = useCallback(
+    async (payload: RecurringCreatePayload) => {
+      setBusy(true);
+      try {
+        await createRecurring(payload);
+        await reload();
+        setToastTone('success');
+        setToastMsg('✓ Регулярный платёж добавлен');
+      } catch (e: unknown) {
+        surfaceError('не удалось добавить платёж', e);
+      } finally {
+        setBusy(false);
+      }
+    },
+    [reload, surfaceError],
+  );
+
+  const handleUpdateRecurring = useCallback(
+    async (id: number, payload: RecurringUpdatePayload) => {
+      setBusy(true);
+      try {
+        await updateRecurring(id, payload);
+        await reload();
+        setToastTone('success');
+        setToastMsg('✓ Сохранено');
+      } catch (e: unknown) {
+        surfaceError('не удалось сохранить', e);
+      } finally {
+        setBusy(false);
+      }
+    },
+    [reload, surfaceError],
+  );
+
+  const handleDeleteRecurring = useCallback(
+    async (id: number) => {
+      setBusy(true);
+      try {
+        await deleteRecurring(id);
+        await reload();
+        setToastTone('success');
+        setToastMsg('Регулярный платёж удалён');
+      } catch (e: unknown) {
+        surfaceError('не удалось удалить платёж', e);
+      } finally {
+        setBusy(false);
+      }
+    },
+    [reload, surfaceError],
+  );
+
   const handleBack = useCallback(() => router.pop(), [router]);
 
   if (status === 'loading') {
@@ -186,6 +256,8 @@ export function TemplateCategoryDetailMount({
         category={category}
         limitCents={limitCents}
         lines={lines}
+        recurring={recurring}
+        accounts={accounts}
         busy={busy}
         // EXPENSE only: income has no limit/target, so it never gets the commit
         // handler (the view also guards on kind).
@@ -193,6 +265,9 @@ export function TemplateCategoryDetailMount({
         onCreateLine={handleCreateLine}
         onEditLine={handleEditLine}
         onDeleteLine={handleDeleteLine}
+        onCreateRecurring={handleCreateRecurring}
+        onUpdateRecurring={handleUpdateRecurring}
+        onDeleteRecurring={handleDeleteRecurring}
         onBack={handleBack}
       />
       <NativeToast

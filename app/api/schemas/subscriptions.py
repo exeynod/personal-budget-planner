@@ -26,7 +26,13 @@ class SubscriptionCreate(BaseModel):
 
     name: str = Field(..., min_length=1, max_length=255)
     amount_cents: int = Field(..., gt=0)
-    cycle: SubCycle
+    # ADR-0007: ``interval_months`` is the new frequency source (1=monthly,
+    # 12=yearly). Both ``interval_months`` and the deprecated ``cycle`` are
+    # optional; when neither is given the service defaults to monthly (1). If
+    # only the legacy ``cycle`` is supplied, the service derives the interval
+    # (yearly→12, monthly→1) for backward compatibility.
+    interval_months: Optional[int] = Field(None, ge=1, le=120)
+    cycle: Optional[SubCycle] = None
     next_charge_date: date
     category_id: int
     notify_days_before: Optional[int] = Field(None, ge=0, le=30)
@@ -55,6 +61,7 @@ class SubscriptionUpdate(BaseModel):
 
     name: Optional[str] = Field(None, min_length=1, max_length=255)
     amount_cents: Optional[int] = Field(None, gt=0)
+    interval_months: Optional[int] = Field(None, ge=1, le=120)
     cycle: Optional[SubCycle] = None
     next_charge_date: Optional[date] = None
     category_id: Optional[int] = None
@@ -73,6 +80,7 @@ class SubscriptionRead(BaseModel):
     id: int
     name: str
     amount_cents: int
+    interval_months: int
     cycle: SubCycle
     next_charge_date: date
     category_id: int
@@ -167,3 +175,68 @@ class SubscriptionPostResponse(BaseModel):
     txn_id: int
     subscription_id: int
     posted_at: str
+
+
+# ---- ADR-0007 — recurring-payment home prompt + cashflow projection ----
+
+
+class RecurringDueRow(BaseModel):
+    """One due-today / overdue recurring occurrence for the home prompt.
+
+    Backed by a materialised ``planned_transaction(source=subscription_auto)``
+    row of the current active period. ``id`` is the planned-row id (the target
+    of pay / skip / postpone). Money stays in cents.
+    """
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    subscription_id: Optional[int] = None
+    description: Optional[str] = None
+    amount_cents: int
+    category_id: int
+    planned_date: Optional[date] = None
+    posted_txn_id: Optional[int] = None
+
+
+class RecurringPayRequest(BaseModel):
+    """POST .../recurring/{planned_id}/pay — optional amount override (cents)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    tx_date: Optional[date] = None
+    amount_cents: Optional[int] = Field(default=None, gt=0)
+
+
+class RecurringPayResponse(BaseModel):
+    txn_id: int
+    planned_id: int
+
+
+class RecurringPostponeRequest(BaseModel):
+    """POST .../recurring/{planned_id}/postpone — shift within the period."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    new_date: date
+
+
+class CashflowEvent(BaseModel):
+    """One projected recurring charge in the cashflow timeline (cents)."""
+
+    date: date
+    name: str
+    amount_cents: int
+    kind: str
+    category_id: int
+    subscription_id: int
+    balance_after_cents: int
+
+
+class CashflowProjectionResponse(BaseModel):
+    """GET .../recurring/cashflow — projection over the horizon (cents)."""
+
+    starting_balance_cents: int
+    horizon_days: int
+    monthly_burden_cents: int
+    timeline: list[CashflowEvent]

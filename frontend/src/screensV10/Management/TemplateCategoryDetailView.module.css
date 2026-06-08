@@ -304,6 +304,66 @@
   box-shadow: var(--lgn-shadow-card), var(--lgn-card-edge);
 }
 
+/* ─────────── Recurring badge (↻ before the name) ─────────── */
+.recurringBadge {
+  color: var(--lgn-accent, #f0801a);
+  margin-right: 5px;
+  vertical-align: -1px;
+}
+
+/* ─────────── Add-fork action sheet ─────────── */
+.forkSheet {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px var(--lgn-s-16) 4px;
+  font-family: var(--lgn-font);
+}
+.forkTitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--lgn-ink-2);
+  text-align: center;
+  padding: 6px 0 4px;
+}
+.forkItem {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  border: none;
+  background: var(--lgn-seg-track, #ececec);
+  border-radius: var(--lgn-r-button, 14px);
+  padding: 13px var(--lgn-s-16);
+  font-family: var(--lgn-font);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  text-align: left;
+}
+.forkItem:active {
+  opacity: 0.7;
+}
+.forkItemMain {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.forkItemLabel {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--lgn-ink);
+}
+.forkItemSub {
+  font-size: 13px;
+  color: var(--lgn-ink-2);
+}
+.forkCancel {
+  justify-content: center;
+  color: var(--lgn-accent, #f0801a);
+  font-size: 16px;
+  font-weight: 600;
+  background: transparent;
+}
+
 /* ─────────── Footnote ─────────── */
 .footnote {
   margin: 12px var(--lgn-s-20) 0;

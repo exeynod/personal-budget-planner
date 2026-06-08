@@ -272,6 +272,23 @@ enum Gen {
         let spendingCapCents: Int
     }
 
+    struct CashflowEvent: Codable, Equatable {
+        let amountCents: Int
+        let balanceAfterCents: Int
+        let categoryId: Int
+        let date: BusinessDate
+        let kind: String
+        let name: String
+        let subscriptionId: Int
+    }
+
+    struct CashflowProjectionResponse: Codable, Equatable {
+        let horizonDays: Int
+        let monthlyBurdenCents: Int
+        let startingBalanceCents: Int
+        let timeline: [Gen.CashflowEvent]
+    }
+
     struct CategoryCandidate: Codable, Equatable {
         enum Kind: String, Codable, Equatable {
             case expense
@@ -297,6 +314,8 @@ enum Gen {
             case mixed
         }
 
+        let color: String?
+        let icon: String?
         let kind: Kind
         let name: String
         let sortOrder: Int?
@@ -316,7 +335,9 @@ enum Gen {
         }
 
         let code: String
+        let color: String?
         let createdAt: Date
+        let icon: String?
         let id: Int
         let isArchived: Bool
         let kind: Kind
@@ -335,6 +356,8 @@ enum Gen {
             case mixed
         }
 
+        let color: String?
+        let icon: String?
         let isArchived: Bool?
         let name: String?
         let parentId: Int?
@@ -407,6 +430,8 @@ enum Gen {
         let balance: Gen.BalanceResponse?
         let categories: [Gen.CategoryRead]
         let period: Gen.PeriodRead?
+        let periods: [Gen.PeriodRead]
+        let planned: [Gen.PlannedRead]
         let user: Gen.MeV10Response
     }
 
@@ -608,6 +633,30 @@ enum Gen {
         let balanceNowCents: Int
     }
 
+    struct RecurringDueRow: Codable, Equatable {
+        let amountCents: Int
+        let categoryId: Int
+        let description: String?
+        let id: Int
+        let plannedDate: BusinessDate?
+        let postedTxnId: Int?
+        let subscriptionId: Int?
+    }
+
+    struct RecurringPayRequest: Codable, Equatable {
+        let amountCents: Int?
+        let txDate: BusinessDate?
+    }
+
+    struct RecurringPayResponse: Codable, Equatable {
+        let plannedId: Int
+        let txnId: Int
+    }
+
+    struct RecurringPostponeRequest: Codable, Equatable {
+        let newDate: BusinessDate
+    }
+
     struct SettingsRead: Codable, Equatable {
         let cycleStartDay: Int
         let enableAiCategorization: Bool
@@ -634,8 +683,9 @@ enum Gen {
         let accountId: Int?
         let amountCents: Int
         let categoryId: Int
-        let cycle: Gen.SubCycle
+        let cycle: Gen.SubCycle?
         let dayOfMonth: Int?
+        let intervalMonths: Int?
         let isActive: Bool?
         let name: String
         let nextChargeDate: BusinessDate
@@ -663,6 +713,7 @@ enum Gen {
         let cycle: Gen.SubCycle
         let dayOfMonth: Int?
         let id: Int
+        let intervalMonths: Int
         let isActive: Bool
         let name: String
         let nextChargeDate: BusinessDate
@@ -676,6 +727,7 @@ enum Gen {
         let categoryId: Int?
         let cycle: Gen.SubCycle?
         let dayOfMonth: Int?
+        let intervalMonths: Int?
         let isActive: Bool?
         let name: String?
         let nextChargeDate: BusinessDate?

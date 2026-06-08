@@ -228,6 +228,58 @@
   font-weight: 600;
 }
 
+/* ↻ badge before a recurring planned row title (ADR-0007). */
+.recurringBadge {
+  color: var(--lgn-accent, #f0801a);
+  margin-right: 5px;
+  vertical-align: -1px;
+}
+
+/* ─────────── Recurring note sheet (read-only row tap) ─────────── */
+.recurringNote {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 18px var(--lgn-s-16) 8px;
+  font-family: var(--lgn-font);
+  text-align: center;
+}
+.recurringNoteIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: var(--lgn-seg-track, #ececec);
+  color: var(--lgn-accent, #f0801a);
+}
+.recurringNoteTitle {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--lgn-ink);
+}
+.recurringNoteText {
+  font-size: 15px;
+  color: var(--lgn-ink-2);
+  line-height: 1.4;
+  max-width: 280px;
+}
+.recurringNoteBtn {
+  margin-top: 6px;
+  width: 100%;
+  border: none;
+  border-radius: var(--lgn-r-card);
+  background: var(--lgn-accent, #f0801a);
+  color: #fff;
+  font-family: var(--lgn-font);
+  font-size: 16px;
+  font-weight: 600;
+  padding: 13px;
+  cursor: pointer;
+}
+
 /* ─────────── Empty state ─────────── */
 .empty {
   margin: 8px var(--lgn-s-16) 0;

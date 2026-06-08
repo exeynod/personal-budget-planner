@@ -15,6 +15,7 @@ import { AccessMount } from './AccessMount';
 import { CategoriesMount } from './CategoriesMount';
 import { TemplateMount } from './TemplateMount';
 import { AnalyticsMount } from '../Analytics';
+import { RecurringCashflowMount } from '../Recurring';
 
 export function MgmtHubMount() {
   const router = usePosterRouter();
@@ -42,6 +43,8 @@ export function MgmtHubMount() {
       router.push(<CategoriesMount />);
     } else if (id === 'template') {
       router.push(<TemplateMount />);
+    } else if (id === 'recurring') {
+      router.push(<RecurringCashflowMount />);
     } else if (id === 'settings') {
       router.push(<SettingsMount />);
     } else if (id === 'access') {

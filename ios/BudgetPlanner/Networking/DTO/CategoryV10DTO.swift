@@ -43,10 +43,14 @@ struct CategoryV10DTO: Decodable, Identifiable, Equatable {
     let parentId: Int?
     /// Category classification (Phase 36, server default `personal`).
     let tag: CategoryTag?
+    /// User-chosen icon key (migration 0034). Genuinely optional (NULL → name fallback).
+    let icon: String?
+    /// User-chosen colour key (migration 0035). Genuinely optional (NULL → hash fallback).
+    let color: String?
 
     private enum CodingKeys: String, CodingKey {
         case id, name, kind, isArchived, sortOrder, createdAt
-        case code, planCents, ord, parentId, tag
+        case code, planCents, ord, parentId, tag, icon, color
     }
 
     init(from decoder: Decoder) throws {
@@ -65,6 +69,8 @@ struct CategoryV10DTO: Decodable, Identifiable, Equatable {
         // Genuinely optional.
         self.parentId = try c.decodeIfPresent(Int.self, forKey: .parentId)
         self.tag = try c.decodeIfPresent(CategoryTag.self, forKey: .tag)
+        self.icon = try c.decodeIfPresent(String.self, forKey: .icon)
+        self.color = try c.decodeIfPresent(String.self, forKey: .color)
     }
 }
 

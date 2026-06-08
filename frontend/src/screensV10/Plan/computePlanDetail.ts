@@ -21,6 +21,12 @@ export interface PlanDetailRow {
   posted: boolean;
   /** Non-null for subscription-derived rows → post via /subscriptions/{id}. */
   subscriptionId: number | null;
+  /**
+   * True for rows materialised from a recurring payment
+   * (source === 'subscription_auto', ADR-0007). Gets the ↻ badge and is NOT
+   * editable from the plan — it's managed in the template/настройках.
+   */
+  isRecurring: boolean;
 }
 
 /** Per-category ladder: Лимит / Расписано (Σ unposted) / Свободно. */
@@ -48,6 +54,7 @@ export function groupPlannedByCategory(
       kind: p.kind,
       posted: p.posted_txn_id != null,
       subscriptionId: p.subscription_id ?? null,
+      isRecurring: p.source === 'subscription_auto',
     };
     const list = out.get(p.category_id);
     if (list) list.push(row);

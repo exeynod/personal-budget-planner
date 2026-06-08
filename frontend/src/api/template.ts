@@ -6,8 +6,8 @@
 //     amount_cents, day_of_period, title})
 //
 // It is applied to a new period server-side; the current period's plan is NOT
-// touched when the template changes. `saveCurrentAsTemplate()` is the reverse
-// direction — it snapshots the CURRENT active plan INTO the template (overwrite).
+// touched when the template changes. The template is edited only DIRECTLY
+// (ADR-0007 removed the «перезаписать шаблон текущим планом» save-current route).
 //
 // Endpoints (BACKEND contract /api/v1/template/*):
 //   GET    /template/items                 → TemplateItemRead[]
@@ -16,12 +16,9 @@
 //   POST   /template/lines                  → TemplateLineRead
 //   PATCH  /template/lines/{lineId}         → TemplateLineRead
 //   DELETE /template/lines/{lineId}         → 204
-//   POST   /template/save-current           → {items, lines}  (OVERWRITES template)
 //
 // Wire shapes come straight from the generated contract types (TemplateItem* /
-// TemplateLine*), re-exported here under their canonical names. `save-current`
-// is not yet in the codegen'd schema, so its response is typed locally from the
-// documented `{ items, lines }` shape using the SAME read types.
+// TemplateLine*), re-exported here under their canonical names.
 
 import { apiFetch } from './client';
 import type { components } from './generated/schema';
@@ -34,17 +31,11 @@ export type TemplateLineRead = components['schemas']['TemplateLineRead'];
 export type TemplateLineCreate = components['schemas']['TemplateLineCreate'];
 export type TemplateLineUpdate = components['schemas']['TemplateLineUpdate'];
 
-/** POST /template/save-current response — the freshly-overwritten template. */
-export interface SaveCurrentAsTemplateResponse {
-  items: TemplateItemRead[];
-  lines: TemplateLineRead[];
-}
-
 // ─────────── In-memory cache (light; invalidated on every mutation) ───────────
 //
 // The template screen reloads on mount, so a light per-tab cache is enough. Any
-// mutation (item upsert / line create-update-delete / save-current) clears it so
-// the next read re-fetches the authoritative server state.
+// mutation (item upsert / line create-update-delete) clears it so the next read
+// re-fetches the authoritative server state.
 
 let itemsCache: TemplateItemRead[] | null = null;
 let linesCache: TemplateLineRead[] | null = null;
@@ -120,21 +111,4 @@ export async function patchTemplateLine(
 export async function deleteTemplateLine(lineId: number): Promise<void> {
   await apiFetch<void>(`/template/lines/${lineId}`, { method: 'DELETE' });
   invalidateTemplateCache();
-}
-
-// ─────────── Save current plan AS template (overwrite) ───────────
-
-/**
- * POST /api/v1/template/save-current — snapshot the CURRENT active period plan
- * into the template, OVERWRITING it (items = current category limits, lines =
- * current period's manual planned rows). Returns the freshly-written template.
- * Caller MUST confirm first (this is destructive to the existing template).
- */
-export async function saveCurrentAsTemplate(): Promise<SaveCurrentAsTemplateResponse> {
-  const res = await apiFetch<SaveCurrentAsTemplateResponse>(
-    '/template/save-current',
-    { method: 'POST' },
-  );
-  invalidateTemplateCache();
-  return res;
 }

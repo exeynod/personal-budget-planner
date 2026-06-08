@@ -1,0 +1,97 @@
+/* ADR-0007 — inline recurring-payment editor. Mirrors the template line-editor
+   field styling so the fork reads identical to its «без даты» neighbour. */
+
+.editor {
+  display: flex;
+  flex-direction: column;
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px var(--lgn-s-16);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.fieldLabel {
+  font-family: var(--lgn-font);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--lgn-ink-2);
+}
+.fieldInput {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border: 1px solid var(--lgn-hairline, rgba(0, 0, 0, 0.12));
+  border-radius: var(--lgn-r-tile, 12px);
+  background: var(--lgn-field-bg, #fff);
+  color: var(--lgn-ink);
+  font-family: var(--lgn-font);
+  font-size: 16px;
+}
+.fieldInput:focus {
+  outline: none;
+  border-color: var(--lgn-accent, #f0801a);
+}
+
+.fieldRow {
+  display: flex;
+  gap: 10px;
+}
+.fieldRow > * {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 2px;
+}
+.actionsRight {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.primaryBtn,
+.secondaryBtn,
+.dangerBtn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: var(--lgn-r-pill, 999px);
+  font-family: var(--lgn-font);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.primaryBtn {
+  background: var(--lgn-accent, #f0801a);
+  color: #fff;
+}
+.primaryBtn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.secondaryBtn {
+  background: var(--lgn-seg-track, #ececec);
+  color: var(--lgn-ink);
+}
+.dangerBtn {
+  background: rgba(220, 60, 60, 0.12);
+  color: #c0392b;
+}
+.dangerBtn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}

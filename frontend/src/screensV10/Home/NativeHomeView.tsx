@@ -12,7 +12,9 @@
 import { memo, useState } from 'react';
 import { Plus, ListChecks, CaretRight } from '@phosphor-icons/react';
 import type { PeriodRead } from '../../api/types';
+import type { CategoryV10, RecurringDueRow } from '../../api/v10';
 import type { CategoryAggregateRow, PlannedTodayRow } from './computeHomeData';
+import { RecurringDuePrompt } from '../Recurring/RecurringDuePrompt';
 import {
   NativeLargeTitle,
   SectionHeader,
@@ -55,6 +57,20 @@ export interface NativeHomeViewProps {
   periods?: PeriodRead[];
   selectedPeriodId?: number | null;
   onSelectPeriod?: (id: number) => void;
+
+  /**
+   * ADR-0007 — recurring payments due today / overdue (active period). The
+   * «Регулярные платежи» card is shown above «На сегодня»; hidden when empty.
+   */
+  recurringDue?: RecurringDueRow[];
+  /** Full category list (CategoryV10) for the due card's icon/name resolution. */
+  categories?: CategoryV10[];
+  /** Active period bounds (ISO) constraining the «Перенести» date picker. */
+  periodStart?: string | null;
+  periodEnd?: string | null;
+  onPayRecurring?: (plannedId: number, amountCents?: number) => void;
+  onSkipRecurring?: (plannedId: number) => void;
+  onPostponeRecurring?: (plannedId: number, newDate: string) => void;
 }
 
 function sumPlan(rows: CategoryAggregateRow[]): number {
@@ -79,6 +95,13 @@ function NativeHomeViewInner(props: NativeHomeViewProps) {
     periods,
     selectedPeriodId,
     onSelectPeriod,
+    recurringDue = [],
+    categories = [],
+    periodStart,
+    periodEnd,
+    onPayRecurring,
+    onSkipRecurring,
+    onPostponeRecurring,
   } = props;
 
   const { openAddSheet } = useAddSheetHost();
@@ -171,6 +194,23 @@ function NativeHomeViewInner(props: NativeHomeViewProps) {
           </div>
         </div>
       </div>
+
+      {/* Регулярные платежи — due-today + overdue prompt (ADR-0007). Hidden
+          when empty. The user pays / skips / postpones each occurrence here. */}
+      {recurringDue.length > 0 &&
+        onPayRecurring &&
+        onSkipRecurring &&
+        onPostponeRecurring && (
+          <RecurringDuePrompt
+            due={recurringDue}
+            categories={categories}
+            periodStart={periodStart}
+            periodEnd={periodEnd}
+            onPay={onPayRecurring}
+            onSkip={onSkipRecurring}
+            onPostpone={onPostponeRecurring}
+          />
+        )}
 
       {/* Запланировано на сегодня — unposted planned rows due today (MSK). The
           «что мне надо сделать сегодня» list: one tap «Отметить» records the
