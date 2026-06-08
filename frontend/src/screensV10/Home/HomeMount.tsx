@@ -150,6 +150,20 @@ export function HomeMount() {
       setState({ status: 'loading' });
     }
 
+    // Wait for the SelectedPeriodProvider's FIRST resolution before fetching.
+    // The provider flips loading true→false and sets selectedPeriodId in one
+    // batch on initial load. Without this guard the effect fires once with
+    // period=null (a wasted granular round-trip that then shows an EMPTY Home),
+    // and again once the period resolves — 2-3× the work and a blank-screen
+    // flash that reads as "frozen". While the provider is still doing its very
+    // first load (no period chosen yet) we keep the loading plate and bail; the
+    // effect re-runs when sel.loading flips or selectedPeriodId resolves. Once a
+    // period has ever been selected (selectedPeriodId != null) this guard is
+    // inert, so back-navigation / refetches are unaffected.
+    if (sel != null && sel.loading && selectedPeriodId == null) {
+      return;
+    }
+
     // Fast path (perceived-speed): when we're in the shell (provider present)
     // and viewing the ACTIVE period, a single GET /api/v1/home returns
     // everything Home needs in one round-trip — AND lets us seed the granular
@@ -270,9 +284,21 @@ export function HomeMount() {
     return () => {
       cancelled = true;
     };
-    // selectedPeriodId in deps: switching the viewed period re-fetches.
-    // refetchToken in deps: external bump (AddSheet submit) re-runs the fetch.
-  }, [reloadToken, refetchToken, selectedPeriodId, selectedPeriod, sel]);
+    // Depend on PRIMITIVES, not the unstable `sel` / `selectedPeriod` object
+    // references (the provider's value object changes on every loading toggle,
+    // which previously re-ran this effect — and thus refetched /home — 3× per
+    // open). selectedPeriodId: switching the viewed period re-fetches.
+    // selectedPeriod?.status: catches an active→closed transition on reload.
+    // sel?.loading: lets the wait-guard above release once the provider settles
+    // (incl. the no-active-period case, so Home never gets stuck on loading).
+    // refetchToken / reloadToken: external + internal re-fetch bumps.
+  }, [
+    reloadToken,
+    refetchToken,
+    selectedPeriodId,
+    selectedPeriod?.status,
+    sel?.loading,
+  ]);
 
   // ─────────── push handlers (router-bound) ───────────
   const onPlanTap = useCallback(() => {
