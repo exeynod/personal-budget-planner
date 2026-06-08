@@ -63,7 +63,11 @@ log "building images (api, bot, worker, frontend)"
 "${COMPOSE[@]}" build api bot worker frontend
 
 log "rolling restart"
-"${COMPOSE[@]}" up -d api bot worker
+# Bring api up first (db must be healthy). bot/worker depend_on api:healthy, so
+# if api is unhealthy `up -d api bot worker` aborts BEFORE the health-wait loop
+# below can dump diagnostics. Split it so an api failure surfaces its own logs.
+"${COMPOSE[@]}" up -d --no-deps api \
+  || { log "api up failed — last 60 log lines:"; "${COMPOSE[@]}" logs --tail 60 api >&2; die "api failed to come up"; }
 
 # Frontend is a one-shot exporter that copies built SPA assets into the
 # `frontend_dist` named volume; caddy serves that volume read-only. Without
@@ -89,6 +93,10 @@ for i in $(seq 1 45); do
     fi
     sleep 2
 done
+
+# api is healthy → bring up bot/worker (their depends_on: api:healthy is now met).
+log "starting bot + worker"
+"${COMPOSE[@]}" up -d bot worker
 
 log "smoke tests via Caddy on 127.0.0.1:8087"
 check() {
