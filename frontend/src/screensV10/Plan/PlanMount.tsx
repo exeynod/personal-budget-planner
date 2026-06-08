@@ -42,17 +42,13 @@ import type { PlanMonthItem } from '../../api/types';
 import { NativePlanView } from './NativePlanView';
 import {
   applyPlanEdit,
+  computeDistributeProgress,
   computeIsOverflow,
   computeRegularsList,
   computeSurplus,
   plansFromCategories,
+  type RegularRow,
 } from './computePlan';
-import {
-  groupPlannedByCategory,
-  computeLadder,
-  computeIncomeLadder,
-  type PlanDetailRow,
-} from './computePlanDetail';
 
 /** Toast payload: message + tone (drives the NativeToast glyph/color). */
 type ToastState = { text: string; tone: 'success' | 'error' } | null;
@@ -86,6 +82,7 @@ export function PlanMount({ focusCategoryId = null }: PlanMountProps = {}) {
   const [subs, setSubs] = useState<SubscriptionV10Read[]>([]);
   const [plans, setPlans] = useState<PlanMonthItem[]>([]);
   const [periodId, setPeriodId] = useState<number | null>(null);
+  const [periodStart, setPeriodStart] = useState<string | null>(null);
   const [planned, setPlanned] = useState<PlannedV11Read[]>([]);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>(
     'loading',
@@ -109,6 +106,7 @@ export function PlanMount({ focusCategoryId = null }: PlanMountProps = {}) {
             sel?.periods[0]) ||
           (await getCurrentPeriod());
         const pid = resolvedPeriod?.id ?? null;
+        const pStart = resolvedPeriod?.period_start ?? null;
 
         const [cats, subsList, me, plannedList] = await Promise.all([
           listCategoriesV10(),
@@ -127,6 +125,7 @@ export function PlanMount({ focusCategoryId = null }: PlanMountProps = {}) {
         setSubs(subsList);
         setIncome(me.income_cents ?? 0);
         setPeriodId(pid);
+        setPeriodStart(pStart);
         setPlanned(plannedList);
         // Initial draft = current persisted plans for visible categories.
         setPlans(plansFromCategories(visible));
@@ -188,64 +187,38 @@ export function PlanMount({ focusCategoryId = null }: PlanMountProps = {}) {
     [categories, plans],
   );
 
-  // ─────────── regulars post / unpost ───────────
-  const handlePostRegular = useCallback(async (subId: number) => {
-    try {
-      await postSubscription(subId);
-      setToast({ text: 'Проведено в реестр', tone: 'success' });
-      // Reload to refresh subscription posted_txn_id state.
-      setReloadToken((n) => n + 1);
-    } catch {
-      setToast({
-        text: 'Не удалось провести регулярный платёж',
-        tone: 'error',
-      });
-    }
-  }, []);
-
-  const handleUnpostRegular = useCallback(async (subId: number) => {
-    try {
-      await unpostSubscription(subId);
-      setToast({ text: 'Проводка отменена', tone: 'success' });
-      setReloadToken((n) => n + 1);
-    } catch {
-      setToast({ text: 'Не удалось отменить проводку', tone: 'error' });
-    }
-  }, []);
-
-  // ─────────── detail surface handlers (v1.1) ───────────
-  // Post a single detail row: subscription-derived rows post via their own
-  // /subscriptions/{id}/post endpoint (planned post-route 400s on them); manual
-  // rows post via /planned/{id}/post.
+  // ─────────── «Регулярные платежи» mark-paid / undo ───────────
+  // A regular obligation is either a subscription (post via /subscriptions/{id})
+  // or a recurring planned row (post via /planned/{id}).
   //
-  // tx_date fix (DESIGN-REVIEW §2.2 «починить ошибку проведения»): «Провести»
-  // means «record this as a real fact NOW». The backend rejects tx_date more
-  // than 7 days ahead of today (actual.py _check_future_date → FutureDateError
-  // 400, D-58). A planned row scheduled later in the month therefore failed when
-  // we posted on its FUTURE planned_date. Post on TODAY whenever the planned_date
-  // is in the future (clamp) — exactly what post_subscription does (it always
-  // posts on _today_in_app_tz()). Past/near planned_date is preserved.
-  const handlePostDetail = useCallback(
-    async (row: PlanDetailRow) => {
+  // tx_date clamp (post «as a real fact NOW»): the backend rejects tx_date more
+  // than a few days ahead of today (actual.py FutureDateError 400, D-58). A
+  // planned row scheduled later this month would fail when posted on its FUTURE
+  // planned_date, so we post on TODAY whenever the planned_date is in the future
+  // (subscriptions always post on _today_in_app_tz() server-side anyway).
+  const handlePostRegular = useCallback(
+    async (row: RegularRow) => {
       try {
-        if (row.subscriptionId != null) {
-          await postSubscription(row.subscriptionId);
-        } else if (periodId != null) {
-          const today = todayIso();
-          const txDate =
-            row.plannedDate != null && row.plannedDate <= today
-              ? row.plannedDate
-              : today;
-          await postPlanned(periodId, row.id, txDate);
+        if (row.source === 'planned' && row.plannedId != null) {
+          if (periodId != null) {
+            const today = todayIso();
+            const txDate =
+              row.plannedDate != null && row.plannedDate <= today
+                ? row.plannedDate
+                : today;
+            await postPlanned(periodId, row.plannedId, txDate);
+          }
+        } else {
+          await postSubscription(row.id);
         }
-        setToast({ text: 'Проведено в реестр', tone: 'success' });
+        setToast({ text: 'Отмечено как оплачено', tone: 'success' });
         setReloadToken((n) => n + 1);
       } catch (e) {
         setToast({
           text:
             e instanceof ApiError && e.status === 409
-              ? 'Уже проведено'
-              : 'Не удалось провести трату',
+              ? 'Уже оплачено'
+              : 'Не удалось отметить платёж',
           tone: 'error',
         });
       }
@@ -253,18 +226,18 @@ export function PlanMount({ focusCategoryId = null }: PlanMountProps = {}) {
     [periodId],
   );
 
-  const handleUnpostDetail = useCallback(
-    async (row: PlanDetailRow) => {
+  const handleUnpostRegular = useCallback(
+    async (row: RegularRow) => {
       try {
-        if (row.subscriptionId != null) {
-          await unpostSubscription(row.subscriptionId);
-        } else if (periodId != null) {
-          await unpostPlanned(periodId, row.id);
+        if (row.source === 'planned' && row.plannedId != null) {
+          if (periodId != null) await unpostPlanned(periodId, row.plannedId);
+        } else {
+          await unpostSubscription(row.id);
         }
-        setToast({ text: 'Проводка отменена', tone: 'success' });
+        setToast({ text: 'Отметка снята', tone: 'success' });
         setReloadToken((n) => n + 1);
       } catch {
-        setToast({ text: 'Не удалось отменить проводку', tone: 'error' });
+        setToast({ text: 'Не удалось снять отметку', tone: 'error' });
       }
     },
     [periodId],
@@ -298,48 +271,42 @@ export function PlanMount({ focusCategoryId = null }: PlanMountProps = {}) {
     [income, expensePlans],
   );
   const isOverflow = useMemo(() => computeIsOverflow(surplus), [surplus]);
-  const regulars = useMemo(
-    () => computeRegularsList(subs, categories),
-    [subs, categories],
+
+  // «Осталось распределить» progress (Σ expense limits из дохода) — drives the
+  // bar + «X из Y» caption (refs #21-23). Tracks the live draft `expensePlans`.
+  const progress = useMemo(
+    () => computeDistributeProgress(income, expensePlans),
+    [income, expensePlans],
   );
 
-  // Detail surface: group planned rows + per-category ladder using the live
-  // draft limit (plans) so the «Свободно» figure tracks the edited limit.
-  const detailByCat = useMemo(() => groupPlannedByCategory(planned), [planned]);
-  const ladderByCat = useMemo(() => {
-    const limitByCat = new Map(plans.map((p) => [p.category_id, p.plan_cents]));
-    const out = new Map<number, ReturnType<typeof computeLadder>>();
-    for (const c of expenseCategories) {
-      const limit = limitByCat.get(c.id) ?? c.plan_cents ?? 0;
-      out.set(c.id, computeLadder(limit, detailByCat.get(c.id) ?? []));
-    }
-    return out;
-  }, [expenseCategories, plans, detailByCat]);
-
-  // Income ladder per category (План / Запланировано / Получено). No overflow.
-  const incomeLadderByCat = useMemo(() => {
-    const planByCat = new Map(plans.map((p) => [p.category_id, p.plan_cents]));
-    const out = new Map<number, ReturnType<typeof computeIncomeLadder>>();
-    for (const c of incomeCategories) {
-      const plan = planByCat.get(c.id) ?? c.plan_cents ?? 0;
-      out.set(c.id, computeIncomeLadder(plan, detailByCat.get(c.id) ?? []));
-    }
-    return out;
-  }, [incomeCategories, plans, detailByCat]);
+  // «Регулярные платежи» — ONE list from subscriptions + recurring planned rows.
+  const regulars = useMemo(
+    () => computeRegularsList(subs, categories, planned),
+    [subs, categories, planned],
+  );
 
   // Income summary (calm — no «осталось распределить» semantics):
   //   Запланировано дохода = Σ income category plans.
   //   Получено             = Σ posted income planned rows (факт дохода).
   const incomeSummary = useMemo(() => {
     const planByCat = new Map(plans.map((p) => [p.category_id, p.plan_cents]));
-    let planned = 0;
+    const incomeIds = new Set(incomeCategories.map((c) => c.id));
+    let plannedSum = 0;
     let received = 0;
     for (const c of incomeCategories) {
-      planned += planByCat.get(c.id) ?? c.plan_cents ?? 0;
-      received += incomeLadderByCat.get(c.id)?.receivedCents ?? 0;
+      plannedSum += planByCat.get(c.id) ?? c.plan_cents ?? 0;
     }
-    return { plannedCents: planned, receivedCents: received };
-  }, [incomeCategories, plans, incomeLadderByCat]);
+    for (const p of planned) {
+      if (
+        p.kind === 'income' &&
+        incomeIds.has(p.category_id) &&
+        p.posted_txn_id != null
+      ) {
+        received += Math.abs(p.amount_cents);
+      }
+    }
+    return { plannedCents: plannedSum, receivedCents: received };
+  }, [incomeCategories, plans, planned]);
 
   if (status === 'loading') {
     return <StatePlate variant="loading" testId="plan-loading" />;
@@ -367,6 +334,8 @@ export function PlanMount({ focusCategoryId = null }: PlanMountProps = {}) {
         regulars={regulars}
         surplusCents={surplus}
         isOverflow={isOverflow}
+        progress={progress}
+        periodStart={periodStart}
         saveError={saveError}
         focusCategoryId={focusCategoryId}
         onSliderChange={handleSliderChange}
@@ -377,11 +346,6 @@ export function PlanMount({ focusCategoryId = null }: PlanMountProps = {}) {
         incomePlannedCents={incomeSummary.plannedCents}
         incomeReceivedCents={incomeSummary.receivedCents}
         onLimitCommit={handleLimitCommit}
-        detailByCat={detailByCat}
-        ladderByCat={ladderByCat}
-        incomeLadderByCat={incomeLadderByCat}
-        onPostDetail={handlePostDetail}
-        onUnpostDetail={handleUnpostDetail}
       />
       <NativeToast
         message={toast?.text ?? ''}

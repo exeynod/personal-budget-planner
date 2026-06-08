@@ -20,7 +20,6 @@
 import { memo } from 'react';
 import {
   ChartBar,
-  SquaresFour,
   Stack,
   GearSix,
   Users,
@@ -34,12 +33,7 @@ import {
 } from '../native/NativePrimitives';
 import styles from './NativeMgmtHubView.module.css';
 
-export type MgmtRowId =
-  | 'template'
-  | 'analytics'
-  | 'subscriptions'
-  | 'settings'
-  | 'access';
+export type MgmtRowId = 'analytics' | 'subscriptions' | 'settings' | 'access';
 
 export interface MgmtHubViewProps {
   /** True → render the owner-only «Доступ» row. */
@@ -104,12 +98,6 @@ interface NativeRowDef {
 // DISTINCT, semantically-fitting icon (template no longer shares ChartBar with
 // analytics).
 const ROWS: NativeRowDef[] = [
-  {
-    id: 'template',
-    title: 'Шаблон бюджета',
-    subtitle: 'Лимиты и регулярные строки для нового периода',
-    Icon: SquaresFour,
-  },
   {
     id: 'analytics',
     title: 'Аналитика',

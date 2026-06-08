@@ -7,12 +7,30 @@ import { describe, it, expect } from 'vitest';
 import {
   computeSurplus,
   computeIsOverflow,
+  computeDistributeProgress,
   computeRegularsList,
+  formatRegularDate,
   applyPlanEdit,
   plansFromCategories,
 } from '../computePlan';
 import type { CategoryV10 } from '../../../api/v10';
-import type { SubscriptionV10Read } from '../../../api/v10';
+import type { SubscriptionV10Read, PlannedV11Read } from '../../../api/v10';
+
+function makePlanned(over: Partial<PlannedV11Read>): PlannedV11Read {
+  return {
+    id: 1,
+    category_id: 1,
+    amount_cents: 1_000_00,
+    description: null,
+    kind: 'expense',
+    period_id: 5,
+    planned_date: '2026-06-10',
+    posted_txn_id: null,
+    source: 'manual',
+    subscription_id: null,
+    ...over,
+  } as PlannedV11Read;
+}
 
 // ─────────── factories ───────────
 
@@ -107,6 +125,42 @@ describe('computeIsOverflow', () => {
   });
 });
 
+// ─────────── computeDistributeProgress ───────────
+
+describe('computeDistributeProgress', () => {
+  it('reports distributed / total and clamped ratio', () => {
+    const p = computeDistributeProgress(180_000_00, [
+      { category_id: 1, plan_cents: 100_000_00 },
+      { category_id: 2, plan_cents: 42_000_00 },
+    ]);
+    expect(p.distributedCents).toBe(142_000_00);
+    expect(p.totalCents).toBe(180_000_00);
+    expect(p.ratio).toBeCloseTo(142 / 180, 5);
+  });
+
+  it('clamps ratio to 1 on overflow and to 0 when income is 0', () => {
+    expect(
+      computeDistributeProgress(100_00, [
+        { category_id: 1, plan_cents: 500_00 },
+      ]).ratio,
+    ).toBe(1);
+    expect(computeDistributeProgress(0, []).ratio).toBe(0);
+  });
+});
+
+// ─────────── formatRegularDate ───────────
+
+describe('formatRegularDate', () => {
+  it('uses the period month genitive name', () => {
+    expect(formatRegularDate(1, '2026-06-01')).toBe('1 июня');
+    expect(formatRegularDate(15, '2026-01-01')).toBe('15 января');
+  });
+
+  it('falls back to «N числа» without a period', () => {
+    expect(formatRegularDate(5, null)).toBe('5 числа');
+  });
+});
+
 // ─────────── computeRegularsList ───────────
 
 describe('computeRegularsList', () => {
@@ -152,6 +206,51 @@ describe('computeRegularsList', () => {
     const out = computeRegularsList(subs, cats);
     expect(out[0].categoryName).toBe('Развлечения');
     expect(out[1].categoryName).toBe('—'); // unknown category falls back
+  });
+
+  it('flags posted subscriptions and tags source=subscription', () => {
+    const subs: SubscriptionV10Read[] = [
+      makeSub({ id: 7, day_of_month: 10, posted_txn_id: 555 }),
+      makeSub({ id: 8, day_of_month: 12, posted_txn_id: null }),
+    ];
+    const cats: CategoryV10[] = [makeCat({ id: 1 })];
+    const out = computeRegularsList(subs, cats);
+    expect(out[0].source).toBe('subscription');
+    expect(out[0].posted).toBe(true);
+    expect(out[1].posted).toBe(false);
+  });
+
+  it('adds recurring planned rows not backed by a listed subscription', () => {
+    const subs: SubscriptionV10Read[] = [makeSub({ id: 1, day_of_month: 20 })];
+    const cats: CategoryV10[] = [makeCat({ id: 1, name: 'Дом' })];
+    const planned: PlannedV11Read[] = [
+      // recurring planned, parent sub NOT in `subs` → becomes its own row
+      makePlanned({
+        id: 90,
+        source: 'subscription_auto',
+        subscription_id: 99,
+        description: 'Аренда',
+        amount_cents: 45_000_00,
+        planned_date: '2026-06-01',
+      }),
+      // recurring planned whose parent sub (id 1) is already listed → deduped out
+      makePlanned({
+        id: 91,
+        source: 'subscription_auto',
+        subscription_id: 1,
+        planned_date: '2026-06-20',
+      }),
+      // manual planned → never a regular
+      makePlanned({ id: 92, source: 'manual', planned_date: '2026-06-05' }),
+    ];
+    const out = computeRegularsList(subs, cats, planned);
+    // sub#1 (day 20) + planned#90 (day 1) → sorted by day asc
+    expect(out.map((r) => r.key)).toEqual(['plan-90', 'sub-1']);
+    const arenda = out.find((r) => r.key === 'plan-90');
+    expect(arenda?.source).toBe('planned');
+    expect(arenda?.plannedId).toBe(90);
+    expect(arenda?.name).toBe('Аренда');
+    expect(arenda?.dayOfMonth).toBe(1);
   });
 });
 

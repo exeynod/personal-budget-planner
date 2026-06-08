@@ -11,7 +11,7 @@
   margin: 8px var(--lgn-s-16) 0;
 }
 
-/* ─────────── Surplus card ─────────── */
+/* ─────────── «Осталось распределить» card ─────────── */
 .surplusCard {
   position: relative;
   margin: 8px var(--lgn-s-16) 0;
@@ -22,13 +22,12 @@
   box-shadow: var(--lgn-shadow-card), var(--lgn-card-edge);
   padding: 14px var(--lgn-s-16) 16px;
   font-family: var(--lgn-font);
-  border-left: 4px solid transparent;
 }
-.surplusOk {
-  border-left-color: var(--lgn-green);
-}
-.surplusOver {
-  border-left-color: var(--lgn-red);
+.surplusHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
 }
 .surplusLabel {
   font-size: 13px;
@@ -45,14 +44,12 @@
   color: var(--lgn-red);
 }
 .surplusBadge {
-  position: absolute;
-  top: 14px;
-  right: var(--lgn-s-16);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.4px;
-  text-transform: uppercase;
-  padding: 3px 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 3px 9px;
   border-radius: var(--lgn-r-pill);
 }
 .badgeOk {
@@ -62,6 +59,37 @@
 .badgeOver {
   color: var(--lgn-red);
   background: rgba(255, 59, 48, 0.14);
+}
+
+/* progress «X из Y» — bar + caption (refs #21-23) */
+.progressRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+}
+.progressTrack {
+  flex: 1 1 auto;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--lgn-seg-track);
+  overflow: hidden;
+}
+.progressFill {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+  background: var(--lgn-accent);
+  transition: width 0.2s ease;
+}
+.progressFillOver {
+  background: var(--lgn-red);
+}
+.progressCaption {
+  flex: 0 0 auto;
+  font-size: 13px;
+  color: var(--lgn-ink-2);
+  white-space: nowrap;
 }
 
 /* ─────────── Income summary (calm — no surplus/over chrome) ─────────── */
@@ -88,42 +116,87 @@
   font-weight: 600;
 }
 
-/* ─────────── Regulars ─────────── */
-.regularTrailing {
-  display: inline-flex;
+/* ─────────── «Регулярные платежи» rows ─────────── */
+.regularRow {
+  display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
+  padding: 12px var(--lgn-s-16);
   font-family: var(--lgn-font);
+  position: relative;
+}
+.regularRow:not(:first-child)::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: calc(var(--lgn-s-16) + 30px + 12px);
+  right: 0;
+  height: 1px;
+  background: var(--lgn-hairline-soft);
+}
+.regularMain {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.regularName {
+  font-size: 17px;
+  color: var(--lgn-ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.regularDate {
+  font-size: 13px;
+  color: var(--lgn-ink-2);
+}
+.regularTrailing {
+  flex: 0 0 auto;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
 }
 .regularAmount {
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 600;
   color: var(--lgn-ink);
   white-space: nowrap;
 }
-.regularCta {
+/* «✓ Оплачено» — green status (posted). Tap to undo. */
+.regularPaid {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
   border: none;
-  /* Accent-tinted (not blue): keep one action accent — orange tint bg + orange
-     text. Semantic green/red stay reserved for delta/status, blue for links. */
-  background: rgba(255, 122, 76, 0.12);
-  color: var(--lgn-accent);
+  background: none;
+  padding: 0;
   font-family: var(--lgn-font);
   font-size: 13px;
   font-weight: 600;
-  padding: 6px 12px;
-  border-radius: var(--lgn-r-pill);
+  color: var(--lgn-green);
   cursor: pointer;
   white-space: nowrap;
 }
-.regularCta:active {
-  background: rgba(255, 122, 76, 0.22);
+.regularPaid:active {
+  opacity: 0.6;
 }
-.regularCtaUndo {
-  background: var(--lgn-seg-track);
-  color: var(--lgn-ink-2);
+/* «Отметить» — accent action (post to fact). */
+.regularMark {
+  border: none;
+  background: none;
+  padding: 0;
+  font-family: var(--lgn-font);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--lgn-accent);
+  cursor: pointer;
+  white-space: nowrap;
 }
-.regularCtaUndo:active {
-  background: var(--lgn-card-press);
+.regularMark:active {
+  opacity: 0.6;
 }
 
 /* ─────────── Category rows (custom, inside InsetGroup) ─────────── */
@@ -188,20 +261,6 @@
   color: var(--lgn-ink-2);
 }
 
-/* Rollover segmented under the row, inset past the icon. */
-.catRollover {
-  padding-left: calc(30px + 12px);
-}
-
-/* ─────────── Total / income ─────────── */
-.totalLabel {
-  font-weight: 700;
-}
-.totalValue {
-  font-weight: 700;
-  color: var(--lgn-ink);
-}
-
 /* ─────────── Error + footnote ─────────── */
 .errorMsg {
   margin: 10px var(--lgn-s-16) 0;
@@ -221,89 +280,7 @@
   line-height: 1.4;
 }
 
-/* ─────────── Detail disclosure ─────────── */
-.detailWrap {
-  padding-left: calc(30px + 12px);
-}
-.detailToggle {
-  border: none;
-  background: none;
-  padding: 2px 0;
-  font-family: var(--lgn-font);
-  font-size: 14px;
-  font-weight: 600;
-  /* Accent (not blue) — disclosure is a secondary action, keep one accent. */
-  color: var(--lgn-accent);
-  cursor: pointer;
-}
-.detailBody {
-  margin-top: 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.ladder {
-  display: flex;
-  gap: 8px;
-}
-.ladderCell {
-  flex: 1 1 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 8px 10px;
-  background: var(--lgn-seg-track);
-  border-radius: var(--lgn-r-button);
-}
-.ladderLabel {
-  font-size: 11px;
-  color: var(--lgn-ink-2);
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
-}
-.ladderValue {
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--lgn-ink);
-}
-.ladderOver {
-  color: var(--lgn-red);
-}
-.detailWarn {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--lgn-red);
-}
-/* Income delta — calm neutral/green tone (income sign «больше = хорошо»). */
-.detailNote {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--lgn-green);
-}
-.detailRow {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-.detailRowMain {
-  flex: 1 1 auto;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-}
-.detailRowTitle {
-  font-size: 15px;
-  color: var(--lgn-ink);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.detailRowSub {
-  font-size: 12px;
-  color: var(--lgn-ink-2);
-}
-/* «+ Добавить в план» — single global accent row under the surplus card.
+/* «+ Добавить в план» — single global accent row.
    Opens the shared AddSheet (plan mode); category is chosen inside the sheet. */
 .addPlannedBtn {
   display: flex;

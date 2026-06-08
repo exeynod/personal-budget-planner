@@ -10,7 +10,6 @@ import { useEffect, useState } from 'react';
 import { getMeV10 } from '../../api/me';
 import { usePosterRouter } from '../common';
 import { NativeMgmtHubView, type MgmtRowId } from './NativeMgmtHubView';
-import { TemplateMount } from './TemplateMount';
 import { SettingsMount } from './SettingsMount';
 import { AccessMount } from './AccessMount';
 import { AnalyticsMount } from '../Analytics';
@@ -36,9 +35,7 @@ export function MgmtHubMount() {
   }, []);
 
   function handleRowTap(id: MgmtRowId) {
-    if (id === 'template') {
-      router.push(<TemplateMount />);
-    } else if (id === 'analytics') {
+    if (id === 'analytics') {
       router.push(<AnalyticsMount />);
     } else if (id === 'subscriptions') {
       router.push(<SubscriptionsMount />);

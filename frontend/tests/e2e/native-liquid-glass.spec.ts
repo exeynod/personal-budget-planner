@@ -182,28 +182,35 @@ const PLANNED = [
   }),
 ];
 
-// Template items (per-category limits) + recurring lines.
-const TEMPLATE_ITEMS = [
-  { category_id: 1, limit_cents: 16_000_00 },
-  { category_id: 2, limit_cents: 8_000_00 },
-  { category_id: 3, limit_cents: 4_800_00 },
-];
-
-function tline(
+// Monthly subscriptions → «Регулярные платежи» rows (subscription source).
+// Two posted («✓ Оплачено») + one unposted («Отметить»), matching refs #21-23.
+function sub(
   id: number,
+  name: string,
   category_id: number,
-  title: string,
   amount_cents: number,
-  day_of_period: number | null,
-  kind: 'expense' | 'income' = 'expense',
+  day_of_month: number,
+  posted_txn_id: number | null = null,
 ) {
-  return { id, category_id, title, amount_cents, day_of_period, kind };
+  return {
+    id,
+    name,
+    amount_cents,
+    cycle: 'monthly' as const,
+    next_charge_date: '2026-06-15',
+    category_id,
+    notify_days_before: 3,
+    is_active: true,
+    day_of_month,
+    account_id: null,
+    posted_txn_id,
+  };
 }
 
-const TEMPLATE_LINES = [
-  tline(301, 1, 'Еженедельная закупка', 4_000_00, 5),
-  tline(302, 1, 'Доставка воды', 600_00, 20),
-  tline(303, 2, 'Кофе по утрам', 1_500_00, null),
+const SUBSCRIPTIONS = [
+  sub(21, 'Аренда', 4, 45_000_00, 1, 9100), // posted → «✓ Оплачено»
+  sub(22, 'Кредит', 4, 18_000_00, 5, 9101), // posted → «✓ Оплачено»
+  sub(23, 'Подписки', 5, 2_597_00, 15, null), // unposted → «Отметить»
 ];
 
 // Per-period plan snapshot (PeriodPlanResponse) — mirrors category plan_cents.
@@ -230,6 +237,17 @@ function json(body: unknown) {
     contentType: 'application/json',
     body: JSON.stringify(body),
   };
+}
+
+/** Today as an MSK `YYYY-MM-DD` — matches HomeMount.todayMskIso (the «На
+ *  сегодня» filter compares planned_date against this). */
+function todayMskIso(): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Europe/Moscow',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date());
 }
 
 async function installNative(page: Page) {
@@ -305,24 +323,18 @@ async function installNative(page: Page) {
         pattern: '**/api/v1/plan-month',
         handler: (r) => r.fulfill(json({ categories: CATEGORIES })),
       },
-      // Budget template — per-category limits + recurring lines.
+      // Subscriptions → «Регулярные платежи» rows + post/unpost («Отметить»).
       {
-        pattern: '**/api/v1/template/items**',
-        handler: (r) => {
-          if (r.request().method() === 'GET')
-            return r.fulfill(json(TEMPLATE_ITEMS));
-          // PUT upsert → echo one item.
-          return r.fulfill(json({ category_id: 1, limit_cents: 16_000_00 }));
-        },
+        pattern: '**/api/v1/subscriptions',
+        handler: (r) => r.fulfill(json(SUBSCRIPTIONS)),
       },
       {
-        pattern: '**/api/v1/template/lines**',
-        handler: (r) => {
-          const m = r.request().method();
-          if (m === 'GET') return r.fulfill(json(TEMPLATE_LINES));
-          if (m === 'DELETE') return r.fulfill({ status: 204, body: '' });
-          return r.fulfill(json(tline(399, 1, 'new', 1_00, null)));
-        },
+        pattern: '**/api/v1/subscriptions/*/post',
+        handler: (r) => r.fulfill(json({ txn_id: 9200, posted_at: null })),
+      },
+      {
+        pattern: '**/api/v1/subscriptions/*/unpost',
+        handler: (r) => r.fulfill({ status: 204, body: '' }),
       },
       // Balance reconcile («Привести остаток») + computed balance for Settings.
       {
@@ -403,6 +415,53 @@ test.describe('Liquid Glass native shell (web)', () => {
     await page.screenshot({ path: `${OUT}/home.png` });
   });
 
+  test('home «На сегодня» section lists today-due planned + posts on «Отметить»', async ({
+    page,
+  }) => {
+    await installNative(page);
+    // Override the planned list with one EXPENSE row due TODAY (MSK) so the
+    // «Запланировано на сегодня» quick-action section renders. Last route wins.
+    const today = todayMskIso();
+    let posted = false;
+    await page.route('**/api/v1/periods/5/planned', (route) => {
+      if (route.request().method() !== 'GET') {
+        return route.fulfill(
+          json(planned(299, 1, 1_00, { description: 'new' })),
+        );
+      }
+      const rows = posted
+        ? PLANNED
+        : [
+            ...PLANNED,
+            planned(701, 2, 1_750_00, {
+              description: 'Обед сегодня',
+              planned_date: today,
+            }),
+          ];
+      return route.fulfill(json(rows));
+    });
+    await page.route('**/api/v1/periods/5/planned/*/post', (route) => {
+      posted = true; // next planned GET omits the row → section disappears
+      return route.fulfill(json({ planned_id: 701, txn_id: 9100 }));
+    });
+
+    await page.goto('/');
+    await expect(page.getByTestId('native-shell')).toBeVisible({
+      timeout: 8000,
+    });
+    // Section header + the today-row + its «Отметить» pill are present.
+    await expect(page.getByText('На сегодня')).toBeVisible();
+    await expect(page.getByTestId('native-home-today-701')).toBeVisible();
+    await freezeMotion(page);
+    await page.screenshot({ path: `${OUT}/home-today.png` });
+
+    // «Отметить» posts the row → it drops out of the next planned fetch.
+    await page.getByTestId('native-home-today-mark-701').click();
+    await expect(page.getByTestId('native-home-today-701')).toHaveCount(0, {
+      timeout: 5000,
+    });
+  });
+
   test('add-sheet renders native iOS design', async ({ page }) => {
     await installNative(page);
     await page.goto('/');
@@ -465,7 +524,6 @@ test.describe('Liquid Glass native shell (web)', () => {
   // 'Счета' (accounts) and 'Копилка' (savings) rows removed in the v1.1
   // planning rework — their hub rows + screens no longer exist.
   for (const { row, file } of [
-    { row: 'Шаблон бюджета', file: 'template' },
     { row: 'Аналитика', file: 'analytics' },
     { row: 'Подписки', file: 'subscriptions' },
     { row: 'Настройки', file: 'settings' },
@@ -505,11 +563,11 @@ test.describe('Liquid Glass native shell (web)', () => {
     await page.screenshot({ path: `${OUT}/category-detail.png` });
   });
 
-  // v1.1 — План месяца, opened from Home (NOT from Управление). Expands the
-  // «Детализация» disclosure for «Продукты» so the screenshot captures the
-  // planned rows (manual + subscription), the Лимит/Расписано/Свободно ladder,
-  // and the per-row «Провести»/«Отмена» CTAs in one frame.
-  test('plan month with expanded detail renders native iOS design', async ({
+  // v1.1 «План месяца» (owner refs #21-23) — opened from Home (NOT from
+  // Управление). ONE surface: «Осталось распределить» card + progress bar,
+  // «Регулярные платежи» (subscriptions, «✓ Оплачено»/«Отметить»), «Категории»
+  // with inline limits + «+ Добавить». No «Детализация» disclosures.
+  test('plan month renders native iOS design (refs #21-23)', async ({
     page,
   }) => {
     await installNative(page);
@@ -522,40 +580,44 @@ test.describe('Liquid Glass native shell (web)', () => {
     await expect(page.getByTestId('native-plan-surplus')).toBeVisible({
       timeout: 5000,
     });
-    // Expand «Детализация» for Продукты (category id 1).
-    await page.getByTestId('native-plan-detail-toggle-1').click();
-    await expect(page.getByTestId('native-plan-detail-1')).toBeVisible({
-      timeout: 5000,
-    });
-    // v1.1 «один глобальный +»: per-category inline add is gone; the detail
-    // disclosure is view-only (planned rows + «Провести»/«Отмена»). A single
-    // global «+ Добавить в план» lives under the surplus card.
-    await expect(page.getByTestId('native-plan-post-all')).toHaveCount(0);
-    await expect(page.getByTestId('native-plan-total')).toHaveCount(0);
-    await expect(page.getByTestId('native-plan-add-open-1')).toHaveCount(0);
+
+    // «Осталось распределить» card: progress bar + «X из Y» caption.
+    await expect(page.getByTestId('native-plan-progress')).toBeVisible();
+
+    // «Регулярные платежи»: subscription rows with status. Аренда (id 21) is
+    // posted → «Оплачено»; Подписки (id 23) is unposted → «Отметить».
+    await expect(page.getByTestId('native-plan-regular-sub-21')).toBeVisible();
+    await expect(page.getByTestId('native-plan-regular-cta-sub-21')).toHaveText(
+      /Оплачено/,
+    );
+    await expect(page.getByTestId('native-plan-regular-cta-sub-23')).toHaveText(
+      'Отметить',
+    );
+
+    // «Категории» header carries the «+ Добавить» accent action; the per-
+    // category «Детализация» disclosure is gone (owner disliked the dropdowns).
+    await expect(page.getByTestId('native-plan-cat-add').first()).toBeVisible();
+    await expect(page.getByTestId('native-plan-detail-toggle-1')).toHaveCount(
+      0,
+    );
+    // Global «+ Добавить в план» (shared AddSheet, plan mode) is still present.
     await expect(page.getByTestId('native-plan-add-open')).toBeVisible();
-    // §A design-fix: the «Сохранить» nav button is gone — limits auto-save on
-    // blur/Enter. No save CTA and no OS date input anywhere on the screen.
+    // §A: no «Сохранить» CTA and no OS date input — limits auto-save on blur.
     await expect(page.getByTestId('native-plan-save')).toHaveCount(0);
     await expect(page.locator('input[type="date"]')).toHaveCount(0);
-    // §C design-fix: the surplus card holds EXACTLY label + value + one status
-    // badge — no phantom empty box beside «ОК». Guards against a stray slot.
-    await expect(
-      page.getByTestId('native-plan-surplus').locator(':scope > *'),
-    ).toHaveCount(3);
+
     await freezeMotion(page);
     await page.screenshot({ path: `${OUT}/plan.png` });
 
-    // ── v1.1 design-fix: income / expense are split via a segmented control. ──
-    // Default segment is «Расходы» (income category «Зарплата» must NOT appear
-    // here — it lives in the «Доходы» segment).
+    // ── income / expense split via the segmented control ──
+    // Default segment is «Расходы» (income «Зарплата» hidden here).
     await expect(page.getByTestId('native-plan-cat-1')).toBeVisible(); // Продукты (expense)
     await expect(page.getByTestId('native-plan-cat-10')).toHaveCount(0); // Зарплата (income) hidden
 
     // Switch to «Доходы».
     await page.getByRole('tab', { name: 'Доходы' }).click();
 
-    // Income summary replaces the expense «Осталось распределить» surplus card:
+    // Income summary replaces the expense «Осталось распределить» card:
     // NO «осталось распределить» / «превышено» chrome in the income segment.
     await expect(page.getByTestId('native-plan-income-summary')).toBeVisible({
       timeout: 5000,
@@ -569,18 +631,6 @@ test.describe('Liquid Glass native shell (web)', () => {
     // Income category «Зарплата» (id 10) is now visible; expense «Продукты» hidden.
     await expect(page.getByTestId('native-plan-cat-10')).toBeVisible();
     await expect(page.getByTestId('native-plan-cat-1')).toHaveCount(0);
-
-    // Expand «Детализация» for the income category → the ladder uses «План» (NOT
-    // «Лимит») and there is NO «Свободно» level. Delta is «Осталось получить».
-    await page.getByTestId('native-plan-detail-toggle-10').click();
-    const incDetail = page.getByTestId('native-plan-detail-10');
-    await expect(incDetail).toBeVisible({ timeout: 5000 });
-    await expect(incDetail.getByText('Лимит')).toHaveCount(0);
-    await expect(incDetail.getByText('Свободно')).toHaveCount(0);
-    await expect(incDetail.getByText('План', { exact: true })).toBeVisible();
-    await expect(incDetail.getByText('Запланировано')).toBeVisible();
-    await expect(incDetail.getByText('Получено')).toBeVisible();
-    await expect(page.getByTestId('native-plan-income-delta-10')).toBeVisible();
 
     await freezeMotion(page);
     await page.screenshot({ path: `${OUT}/plan-income.png` });
@@ -653,12 +703,10 @@ test.describe('Liquid Glass native shell (web)', () => {
     });
   });
 
-  // v1.1 — Шаблон бюджета with one category's «Строки» disclosure expanded so
-  // the recurring template lines + add row are visible alongside the per-
-  // category limit fields.
-  test('template with expanded lines renders native iOS design', async ({
-    page,
-  }) => {
+  // «Шаблон бюджета» was removed in the v1.1 planning rework — limits moved
+  // inline into «Категории» on «План месяца», recurring obligations into
+  // «Регулярные платежи». No template screen / route / hub row remains.
+  test('management hub no longer lists Шаблон бюджета', async ({ page }) => {
     await installNative(page);
     await page.goto('/');
     await expect(page.getByTestId('native-shell')).toBeVisible({
@@ -668,27 +716,7 @@ test.describe('Liquid Glass native shell (web)', () => {
     await expect(page.getByRole('heading', { name: 'Управление' })).toBeVisible(
       { timeout: 5000 },
     );
-    await page.getByText('Шаблон бюджета', { exact: false }).first().click();
-    await expect(page.getByTestId('native-template-view')).toBeVisible({
-      timeout: 5000,
-    });
-    // Expand «Строки» for Продукты (id 1) → recurring lines + «+» add button.
-    await page.getByTestId('native-template-toggle-1').click();
-    await expect(page.getByTestId('native-template-lines-1')).toBeVisible({
-      timeout: 5000,
-    });
-    // P0 design-fixes: inline add-form replaced by a «+» bottom-sheet opener.
-    await expect(page.getByTestId('native-template-add-open-1')).toBeVisible();
-    await page.getByTestId('native-template-add-open-1').click();
-    await expect(page.getByTestId('native-plan-add-sheet')).toBeVisible({
-      timeout: 5000,
-    });
-    // Template mode uses a day-of-period stepper (not a date picker).
-    await expect(page.getByTestId('native-plan-add-day')).toBeVisible();
-    await page.getByTestId('native-plan-add-cancel').click();
-    await expect(page.getByTestId('native-plan-add-sheet')).toHaveCount(0);
-    await freezeMotion(page);
-    await page.screenshot({ path: `${OUT}/template-expanded.png` });
+    await expect(page.getByText('Шаблон бюджета')).toHaveCount(0);
   });
 
   test('onboarding renders native iOS design', async ({ page }) => {

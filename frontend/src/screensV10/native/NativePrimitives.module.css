@@ -66,6 +66,32 @@
   font-weight: 600;
   color: var(--lgn-ink-2);
   padding: 16px var(--lgn-gutter) 6px;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+.sectionHeaderTitle {
+  min-width: 0;
+}
+/* Trailing action (e.g. «+ Добавить») — accent, right-aligned. */
+.sectionHeaderTrailing {
+  flex: 0 0 auto;
+}
+.sectionHeaderAction {
+  border: none;
+  background: none;
+  padding: 0;
+  font: var(--lgn-t-subhead);
+  font-weight: 600;
+  color: var(--lgn-accent);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.sectionHeaderAction:active {
+  opacity: 0.6;
 }
 
 /* ─────────── Inset group (grouped card) ─────────── */

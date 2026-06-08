@@ -10,13 +10,6 @@ export {
   type MgmtRowId,
 } from './NativeMgmtHubView';
 
-export { TemplateMount } from './TemplateMount';
-export {
-  NativeTemplateView,
-  type NativeTemplateViewProps,
-  type AddTemplateLineDraft,
-} from './NativeTemplateView';
-
 export { SettingsMount } from './SettingsMount';
 export {
   NativeSettingsView,

@@ -66,8 +66,44 @@ export function NativeNavBar({
 
 // ─────────────────── Section header ───────────────────
 
-export function SectionHeader({ children }: { children: ReactNode }) {
-  return <div className={styles.sectionHeader}>{children}</div>;
+export function SectionHeader({
+  children,
+  trailing,
+}: {
+  children: ReactNode;
+  /** Optional trailing action (e.g. «+ Добавить») aligned to the right edge. */
+  trailing?: ReactNode;
+}) {
+  return (
+    <div className={styles.sectionHeader}>
+      <span className={styles.sectionHeaderTitle}>{children}</span>
+      {trailing != null && (
+        <span className={styles.sectionHeaderTrailing}>{trailing}</span>
+      )}
+    </div>
+  );
+}
+
+/** Accent text action for a SectionHeader's `trailing` slot (e.g. «+ Добавить»). */
+export function SectionHeaderAction({
+  children,
+  onClick,
+  testId,
+}: {
+  children: ReactNode;
+  onClick?: () => void;
+  testId?: string;
+}) {
+  return (
+    <button
+      type="button"
+      className={styles.sectionHeaderAction}
+      onClick={onClick}
+      data-testid={testId}
+    >
+      {children}
+    </button>
+  );
 }
 
 // ─────────────────── Inset group + row ───────────────────
