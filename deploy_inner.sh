@@ -16,7 +16,12 @@
 set -euo pipefail
 
 REPO=/home/exy/personal-budget-planner
-COMPOSE=(docker compose -f "$REPO/deploy/docker-compose.yml" -f "$REPO/deploy/docker-compose.cloudflare.yml")
+# Pin the compose project name. It used to default to the repo-dir basename
+# (`personal-budget-planner`) when the compose files lived at the repo root;
+# moving them into deploy/ silently changed the default to `deploy`, which
+# spun up a FRESH db volume (no budget_app role → unhealthy) instead of reusing
+# the existing prod data. `-p` keeps the project — and its volumes — stable.
+COMPOSE=(docker compose -p personal-budget-planner -f "$REPO/deploy/docker-compose.yml" -f "$REPO/deploy/docker-compose.cloudflare.yml")
 LOG_PREFIX="[deploy $(date -u +%FT%TZ)]"
 
 log() { echo "$LOG_PREFIX $*"; }
