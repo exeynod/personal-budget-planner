@@ -58,6 +58,7 @@ export async function patchSubscriptionV10(
   // name / amount / day / pause changed → drop the cached list so the next
   // Subscriptions / Plan read reflects the edit.
   invalidate(CACHE_KEYS.subscriptions);
+  invalidate(CACHE_KEYS.home);
   return updated;
 }
 
@@ -72,6 +73,7 @@ export async function deleteSubscription(id: number): Promise<void> {
   await apiFetch<void>(`/subscriptions/${id}`, { method: 'DELETE' });
   // Row gone → drop the cached list so it disappears on the next read.
   invalidate(CACHE_KEYS.subscriptions);
+  invalidate(CACHE_KEYS.home);
 }
 
 /**
@@ -101,6 +103,7 @@ export async function postSubscription(
   // post may create the active period on first charge → drop period caches.
   invalidate(CACHE_KEYS.periods);
   invalidate(CACHE_KEYS.currentPeriod);
+  invalidate(CACHE_KEYS.home);
   return res;
 }
 
@@ -122,4 +125,5 @@ export async function unpostSubscription(id: number): Promise<void> {
   invalidate(CACHE_KEYS.plannedPrefix);
   // Unposting nulls subscription.posted_txn_id → the cached list is now stale.
   invalidate(CACHE_KEYS.subscriptions);
+  invalidate(CACHE_KEYS.home);
 }

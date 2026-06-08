@@ -70,5 +70,6 @@ export async function updateCategoryV10(
   // cached period balances (they aggregate plan by category).
   invalidate(CACHE_KEYS.categoriesPrefix);
   invalidate(CACHE_KEYS.balancePrefix);
+  invalidate(CACHE_KEYS.home);
   return updated;
 }

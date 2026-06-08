@@ -77,6 +77,7 @@ export async function createPlanned(
   });
   // A new planned row → the cached per-period list is now stale.
   invalidate(CACHE_KEYS.plannedPrefix);
+  invalidate(CACHE_KEYS.home);
   return res;
 }
 
@@ -94,6 +95,7 @@ export async function patchPlanned(
   });
   // Amount / category / kind may have changed → drop the cached list.
   invalidate(CACHE_KEYS.plannedPrefix);
+  invalidate(CACHE_KEYS.home);
   return res;
 }
 
@@ -104,6 +106,7 @@ export async function patchPlanned(
 export async function deletePlanned(plannedId: number): Promise<void> {
   await apiFetch<void>(`/planned/${plannedId}`, { method: 'DELETE' });
   invalidate(CACHE_KEYS.plannedPrefix);
+  invalidate(CACHE_KEYS.home);
 }
 
 /**
@@ -131,6 +134,7 @@ export async function postPlanned(
   invalidate(CACHE_KEYS.balancePrefix);
   invalidate(CACHE_KEYS.accounts);
   invalidate(CACHE_KEYS.plannedPrefix);
+  invalidate(CACHE_KEYS.home);
   return res;
 }
 
@@ -151,6 +155,7 @@ export async function unpostPlanned(
   invalidate(CACHE_KEYS.balancePrefix);
   invalidate(CACHE_KEYS.accounts);
   invalidate(CACHE_KEYS.plannedPrefix);
+  invalidate(CACHE_KEYS.home);
 }
 
 /**
@@ -177,5 +182,6 @@ export async function postPlannedBatch(
   invalidate(CACHE_KEYS.balancePrefix);
   invalidate(CACHE_KEYS.accounts);
   invalidate(CACHE_KEYS.plannedPrefix);
+  invalidate(CACHE_KEYS.home);
   return res;
 }

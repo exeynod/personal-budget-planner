@@ -14,8 +14,9 @@
 // adapters layer (generated/adapters.ts) confirms these are wire-identical.
 
 import { apiFetch } from './client';
+import { getCached, CACHE_KEYS } from './cache';
 import type { AccountResponse, BalanceResponse, PeriodRead } from './types';
-import type { CategoryV10, ActualV10Read } from './v10';
+import type { CategoryV10, ActualV10Read, PlannedV11Read } from './v10';
 import type { MeV10Response } from './me';
 
 export interface HomeBootstrap {
@@ -25,6 +26,13 @@ export interface HomeBootstrap {
   period: PeriodRead | null;
   balance: BalanceResponse | null;
   actuals: ActualV10Read[];
+  /** All periods newest-first (identical to listPeriods() output). */
+  periods: PeriodRead[];
+  /**
+   * Active period's planned rows (identical to listPlanned(periodId) output;
+   * `[]` when there is no active period).
+   */
+  planned: PlannedV11Read[];
 }
 
 /**
@@ -32,7 +40,9 @@ export interface HomeBootstrap {
  * un-enumerated GET, so a bare `getHome()` could resolve to a non-object.
  * HomeMount uses this to decide whether to trust the bootstrap or fall back
  * to the granular calls. We only assert the array slots that the Home view
- * destructures; `period` / `balance` are legitimately nullable.
+ * destructures; `period` / `balance` are legitimately nullable. The newer
+ * `periods` / `planned` arrays are NOT hard-required — older payloads / e2e
+ * mocks may omit them; callers treat a missing array as `[]`.
  */
 export function isHomeBootstrap(v: unknown): v is HomeBootstrap {
   if (typeof v !== 'object' || v === null || Array.isArray(v)) return false;
@@ -49,9 +59,12 @@ export function isHomeBootstrap(v: unknown): v is HomeBootstrap {
 /**
  * GET /api/v1/home → {@link HomeBootstrap}.
  *
- * NOT cached itself (it's a one-shot bootstrap; the caller seeds the granular
- * caches from the payload). Throws like any apiFetch on non-2xx.
+ * CACHED so the AuthGate's prewarm getHome() and HomeMount's bootstrap
+ * getHome() dedupe to ONE network round-trip. Invalidated alongside the
+ * granular caches on every tx/plan/category/subscription mutation (see the
+ * `invalidate(CACHE_KEYS.home)` calls under api/), so it never serves stale
+ * after a write. Throws like any apiFetch on non-2xx.
  */
 export async function getHome(): Promise<HomeBootstrap> {
-  return apiFetch<HomeBootstrap>('/home');
+  return getCached(CACHE_KEYS.home, () => apiFetch<HomeBootstrap>('/home'));
 }

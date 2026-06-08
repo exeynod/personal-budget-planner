@@ -82,5 +82,6 @@ export async function createActualV10(
   invalidate(CACHE_KEYS.actualsPrefix);
   invalidate(CACHE_KEYS.balancePrefix);
   invalidate(CACHE_KEYS.accounts);
+  invalidate(CACHE_KEYS.home);
   return created;
 }

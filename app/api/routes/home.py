@@ -36,11 +36,13 @@ from app.api.schemas.actual import ActualRead, BalanceResponse
 from app.api.schemas.categories import CategoryRead
 from app.api.schemas.home import HomeResponse
 from app.api.schemas.periods import PeriodRead
+from app.api.schemas.planned import PlannedRead
 from app.db.models import AppUser
 from app.services import accounts as acct_svc
 from app.services import actual as actual_svc
 from app.services import categories as cat_svc
 from app.services import periods as period_svc
+from app.services import planned as plan_svc
 
 
 home_router = APIRouter(
@@ -57,10 +59,15 @@ async def get_home(
 ) -> HomeResponse:
     """GET /api/v1/home — aggregated HOME bootstrap payload.
 
-    Returns ``{ user, accounts, categories, period, balance, actuals }``. When
-    the user has no active budget period (onboarding incomplete), ``period`` /
-    ``balance`` are ``None`` and ``actuals`` is ``[]`` — ``user`` / ``accounts``
-    / ``categories`` still resolve.
+    Returns ``{ user, accounts, categories, period, balance, actuals, periods,
+    planned }``. When the user has no active budget period (onboarding
+    incomplete), ``period`` / ``balance`` are ``None`` and ``actuals`` /
+    ``planned`` are ``[]`` — ``user`` / ``accounts`` / ``categories`` /
+    ``periods`` still resolve.
+
+    ``periods`` mirrors GET /api/v1/periods (newest-first list) and ``planned``
+    mirrors GET /api/v1/periods/{period_id}/planned for the active period, so
+    the PeriodSwitcher + plan ladder boot from this one request.
     """
     # All reads share the single tenant-scoped session (one SET LOCAL already
     # applied by get_db_with_tenant_scope). Sequential by necessity (see module
@@ -72,12 +79,21 @@ async def get_home(
 
     balance_payload: BalanceResponse | None = None
     actuals_rows: list = []
+    planned_rows: list = []
     if period is not None:
         bal = await actual_svc.compute_balance(db, period.id, user_id=user_id)
         balance_payload = BalanceResponse(**bal)
         actuals_rows = await actual_svc.list_actual_for_period(
             db, period.id, user_id=user_id
         )
+        # Active period's planned ladder — same service + shape as
+        # GET /api/v1/periods/{period_id}/planned (no kind/category filter).
+        planned_rows = await plan_svc.list_planned_for_period(
+            db, period.id, user_id=user_id
+        )
+
+    # ALL periods, newest-first — same service + shape as GET /api/v1/periods.
+    periods = await period_svc.list_all_periods(db, user_id=user_id)
 
     return HomeResponse(
         user=user_payload,
@@ -86,4 +102,6 @@ async def get_home(
         period=PeriodRead.model_validate(period) if period is not None else None,
         balance=balance_payload,
         actuals=[ActualRead.model_validate(r) for r in actuals_rows],
+        periods=[PeriodRead.model_validate(p) for p in periods],
+        planned=[PlannedRead.model_validate(r) for r in planned_rows],
     )

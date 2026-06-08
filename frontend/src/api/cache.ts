@@ -163,6 +163,8 @@ export const CACHE_KEYS = {
   /** Active budget period (GET /periods/current). */
   currentPeriod: 'currentPeriod',
   me: 'me',
+  /** Aggregated HOME bootstrap payload (GET /home). */
+  home: 'home',
   /** Subscriptions list (GET /subscriptions). */
   subscriptions: 'subscriptions',
   actuals: (periodId: number) => `actuals:${periodId}`,

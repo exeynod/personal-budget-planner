@@ -187,20 +187,24 @@ export function HomeMount() {
         seedCache(CACHE_KEYS.accounts, home.accounts);
         seedCache(CACHE_KEYS.categories(false), home.categories);
         seedCache(CACHE_KEYS.me, home.user);
+        // `periods` / `planned` are newer fields — tolerate older payloads /
+        // e2e mocks that omit them (treat as []), since isHomeBootstrap does
+        // NOT hard-require them.
+        const homePeriods = home.periods ?? [];
+        const homePlanned: PlannedV11Read[] = home.planned ?? [];
+        seedCache(CACHE_KEYS.periods, homePeriods);
         if (home.period) {
           seedCache(CACHE_KEYS.actuals(home.period.id), home.actuals);
+          seedCache(CACHE_KEYS.planned(home.period.id), homePlanned);
           if (home.balance) {
             seedCache(CACHE_KEYS.balance(home.period.id), home.balance);
           }
         }
 
-        // The /home bootstrap doesn't carry planned rows; fetch them so the
-        // native plan↔fact ladder has its «Запланировано (unposted)» level.
-        // (Cached via getCached → no extra round-trip on later navigation.)
-        const planned: PlannedV11Read[] = home.period
-          ? await listPlanned(home.period.id)
-          : [];
-        if (cancelled) return true;
+        // The /home bootstrap now carries the active period's planned rows, so
+        // the native plan↔fact ladder gets its «Запланировано (unposted)» level
+        // with NO separate listPlanned round-trip.
+        const planned: PlannedV11Read[] = homePlanned;
 
         hasLoadedRef.current = true;
         setState({

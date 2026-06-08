@@ -27,5 +27,6 @@ export async function updateSettings(payload: SettingsUpdatePayload): Promise<Se
   // Settings changes (cycle_start_day, income_cents, …) change /me — drop its
   // cache so the next read reflects the update instead of the 30s-stale value.
   invalidate(CACHE_KEYS.me);
+  invalidate(CACHE_KEYS.home);
   return res;
 }

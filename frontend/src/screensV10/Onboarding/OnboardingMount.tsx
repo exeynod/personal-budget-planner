@@ -52,25 +52,32 @@ export function OnboardingMount() {
   // Liquid Glass is the only web design — the not-onboarded path always renders
   // the native single-scroll onboarding; the onboarded path renders HomeMount.
 
-  const refetch = useCallback(async (): Promise<void> => {
-    setState((s) => ({ ...s, status: 'loading', errorMsg: null }));
-    try {
-      // The gate is the source of truth for onboarding state — always read a
-      // FRESH /me (drop any cached value) so the post-onboarding flip
-      // (incl. the 409 «already onboarded» path, which doesn't clear the
-      // cache) is never masked by a stale `onboarded_at: null`.
-      invalidate(CACHE_KEYS.me);
-      const me = await getMeV10();
-      setState({ status: 'ready', me, errorMsg: null });
-    } catch {
-      // Threat T-24-10-02: never echo raw error body — fixed russian copy.
-      setState({
-        status: 'error',
-        me: null,
-        errorMsg: 'не удалось загрузить профиль',
-      });
-    }
-  }, []);
+  const refetch = useCallback(
+    async (opts?: { fresh?: boolean }): Promise<void> => {
+      setState((s) => ({ ...s, status: 'loading', errorMsg: null }));
+      try {
+        // Only force a FRESH /me right after the onboarding-complete action
+        // (opts.fresh) — there the post-onboarding flip, incl. the 409 «already
+        // onboarded» path, must not be masked by a stale `onboarded_at: null`.
+        // On a NORMAL mount we reuse the AuthGate-seeded /me from cache: an
+        // already-onboarded user then renders Home with ZERO round-trip.
+        // (Previously this invalidated + refetched /me on every mount, adding a
+        // ~240ms request on the critical path of every Home open AND every
+        // back-to-home navigation, since HomeMount only mounts after it.)
+        if (opts?.fresh) invalidate(CACHE_KEYS.me);
+        const me = await getMeV10();
+        setState({ status: 'ready', me, errorMsg: null });
+      } catch {
+        // Threat T-24-10-02: never echo raw error body — fixed russian copy.
+        setState({
+          status: 'error',
+          me: null,
+          errorMsg: 'не удалось загрузить профиль',
+        });
+      }
+    },
+    [],
+  );
 
   useEffect(() => {
     void refetch();
@@ -107,8 +114,9 @@ export function OnboardingMount() {
     return (
       <NativeOnboardingFlow
         onComplete={async () => {
-          // Both 200 and 409 paths refetch — server is the source of truth.
-          await refetch();
+          // Both 200 and 409 paths refetch FRESH — server is the source of
+          // truth for the onboarding flip.
+          await refetch({ fresh: true });
         }}
       />
     );
