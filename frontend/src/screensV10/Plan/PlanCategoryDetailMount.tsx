@@ -15,6 +15,7 @@ import { useCallback } from 'react';
 import {
   listCategoriesV10,
   listPlanned,
+  patchPlanMonth,
   type CategoryV10,
   type PlannedV11Read,
 } from '../../api/v10';
@@ -27,6 +28,7 @@ import {
   useSelectedPeriodOptional,
 } from '../common';
 import { useAddSheetHost } from '../native/AddSheetHost';
+import { plansFromCategories } from './computePlan';
 import { PlanCategoryDetailView } from './PlanCategoryDetailView';
 
 // ─────────────────── Props ───────────────────
@@ -41,6 +43,12 @@ interface DataPayload {
   category: CategoryV10;
   /** THIS category's planned rows for the viewed period (manual + subscription). */
   planned: PlannedV11Read[];
+  /**
+   * All visible (non-savings) categories — needed to build the FULL plan-month
+   * batch for the inline limit commit (the server validates Σplan ≤ income over
+   * the whole batch, so we resend every category's persisted limit + the edit).
+   */
+  allCategories: CategoryV10[];
 }
 
 /** Sentinel «category not found» message (cross-tenant / non-existent id). */
@@ -63,14 +71,18 @@ export function PlanCategoryDetailMount({
 
   const fetchDetail = useCallback(
     async (isCancelled: () => boolean): Promise<DataPayload> => {
-      const resolvedPeriod =
-        (sel?.periods.find((p) => p.id === selectedPeriodId) ??
-          sel?.periods[0]) ||
-        (await getCurrentPeriod());
+      // Resolve the period from the shell selection when present (no fetch);
+      // otherwise fall back to getCurrentPeriod(). Kick off the categories fetch
+      // CONCURRENTLY with that period resolution, then fetch planned once the
+      // period id is known (planned is period-scoped, so it must wait).
+      const shellPeriod =
+        sel?.periods.find((p) => p.id === selectedPeriodId) ?? sel?.periods[0];
+      const catsP = listCategoriesV10();
+      const resolvedPeriod = shellPeriod ?? (await getCurrentPeriod());
       const pid = resolvedPeriod?.id ?? null;
 
       const [cats, planned] = await Promise.all([
-        listCategoriesV10(),
+        catsP,
         pid != null
           ? listPlanned(pid, categoryId)
           : Promise.resolve<PlannedV11Read[]>([]),
@@ -81,23 +93,53 @@ export function PlanCategoryDetailMount({
         // it just looks like «не найдена».
         throw new Error(NOT_FOUND_MESSAGE);
       }
-      if (isCancelled()) return { category: cat, planned: [] };
-      return { category: cat, planned };
+      const allCategories = cats.filter((c) => c.code !== 'savings');
+      if (isCancelled()) return { category: cat, planned: [], allCategories };
+      return { category: cat, planned, allCategories };
     },
     [categoryId, sel, selectedPeriodId],
   );
 
-  const { status, data, error, reload } = useResource<DataPayload>(fetchDetail, [
-    categoryId,
-    selectedPeriodId,
-    refetchToken,
-  ]);
+  const { status, data, error, reload } = useResource<DataPayload>(
+    fetchDetail,
+    [categoryId, selectedPeriodId, refetchToken],
+    { keepPreviousData: true },
+  );
 
   const handleAddPlanned = useCallback(
     (catId: number) => {
       openAddSheet('plan', catId);
     },
     [openAddSheet],
+  );
+
+  // Inline EXPENSE limit commit (blur / Enter in the detail summary card). We
+  // send the full EXPENSE plan-month batch — every expense category's persisted
+  // limit with the edited one overridden — so the server-side Σplan ≤ income
+  // check covers all expense categories (mirrors PlanMount's old onLimitCommit).
+  // INCOME categories are deliberately EXCLUDED: income has no limit/plan-target,
+  // so we never send an income plan_cents. On commit we reload the detail
+  // (refetch the persisted limit + ladder). No-op when unchanged.
+  const handleLimitCommit = useCallback(
+    async (catId: number, cents: number) => {
+      const expenseCats = (data?.allCategories ?? []).filter(
+        (c) => c.kind !== 'income',
+      );
+      const persisted = expenseCats.find((c) => c.id === catId);
+      if (!persisted) return; // income / unknown — never send a limit
+      if ((persisted.plan_cents ?? 0) === cents) return; // no-op — unchanged
+      const payload = plansFromCategories(expenseCats).map((p) =>
+        p.category_id === catId ? { ...p, plan_cents: cents } : p,
+      );
+      try {
+        await patchPlanMonth(payload);
+      } finally {
+        // Reload either way: on success to show the saved value, on failure to
+        // revert the input to the persisted limit.
+        reload();
+      }
+    },
+    [data, reload],
   );
 
   const handleBack = useCallback(() => {
@@ -124,6 +166,11 @@ export function PlanCategoryDetailMount({
       category={data.category}
       planned={data.planned}
       onAddPlanned={handleAddPlanned}
+      // EXPENSE only: income has no limit/plan-target, so it never gets the
+      // commit handler (the view also guards on kind, belt-and-suspenders).
+      onLimitCommit={
+        data.category.kind === 'income' ? undefined : handleLimitCommit
+      }
       onBack={handleBack}
     />
   );

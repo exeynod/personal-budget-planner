@@ -188,6 +188,7 @@
   align-items: center;
   gap: 12px;
   width: 100%;
+  box-sizing: border-box;
   padding: 11px var(--lgn-s-16);
   min-height: 44px;
   position: relative;

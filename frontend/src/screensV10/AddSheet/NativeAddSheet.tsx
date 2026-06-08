@@ -196,6 +196,12 @@ export function NativeAddSheet({
           placeholder="Описание (кафе / продукты / …)"
           value={c.description}
           onChange={(e) => c.setDescription(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              e.currentTarget.blur();
+            }
+          }}
           aria-label="Описание операции"
           data-testid="native-add-description"
         />

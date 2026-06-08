@@ -94,9 +94,14 @@ export function CategoryDetailMount({ categoryId }: CategoryDetailMountProps) {
     [categoryId],
   );
 
+  // keepPreviousData: a category switch (or post-mutation reload) keeps the
+  // current detail on screen during the (usually cached, sub-second) refetch
+  // instead of flashing the full-screen loading plate. Initial mount still
+  // shows 'loading'.
   const { status, data, error, reload } = useResource<DataPayload>(
     fetchCategory,
     [categoryId],
+    { keepPreviousData: true },
   );
 
   const handleAddTransaction = useCallback(

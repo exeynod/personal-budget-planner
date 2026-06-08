@@ -160,7 +160,11 @@ export const CACHE_KEYS = {
   /** Prefix that matches BOTH categories:active and categories:all. */
   categoriesPrefix: 'categories:',
   periods: 'periods',
+  /** Active budget period (GET /periods/current). */
+  currentPeriod: 'currentPeriod',
   me: 'me',
+  /** Subscriptions list (GET /subscriptions). */
+  subscriptions: 'subscriptions',
   actuals: (periodId: number) => `actuals:${periodId}`,
   actualsPrefix: 'actuals:',
   balance: (periodId: number) => `balance:${periodId}`,

@@ -1,4 +1,5 @@
 import { apiFetch } from './client';
+import { invalidate, CACHE_KEYS } from './cache';
 import type { SettingsRead, SettingsUpdatePayload } from './types';
 
 /**
@@ -19,8 +20,12 @@ export async function getSettings(): Promise<SettingsRead> {
  * Returns the updated settings; caller should sync `current` from response.
  */
 export async function updateSettings(payload: SettingsUpdatePayload): Promise<SettingsRead> {
-  return apiFetch<SettingsRead>('/settings', {
+  const res = await apiFetch<SettingsRead>('/settings', {
     method: 'PATCH',
     body: JSON.stringify(payload),
   });
+  // Settings changes (cycle_start_day, income_cents, …) change /me — drop its
+  // cache so the next read reflects the update instead of the 30s-stale value.
+  invalidate(CACHE_KEYS.me);
+  return res;
 }

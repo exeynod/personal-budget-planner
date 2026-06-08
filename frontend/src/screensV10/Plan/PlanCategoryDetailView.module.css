@@ -112,6 +112,47 @@
   color: var(--lgn-red);
 }
 
+/* ─────────── Inline «Лимит» edit (expense only) ─────────── */
+.limitEditRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--lgn-hairline-soft);
+}
+.limitEditLabel {
+  font-size: 15px;
+  color: var(--lgn-ink-2);
+}
+.limitInputWrap {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  background: var(--lgn-seg-track);
+  border-radius: var(--lgn-r-button);
+  padding: 6px 10px;
+}
+.limitInput {
+  width: 100px;
+  border: none;
+  background: none;
+  outline: none;
+  font-family: var(--lgn-font);
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--lgn-ink);
+  text-align: right;
+  padding: 0;
+}
+.limitCur {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--lgn-ink-2);
+}
+
 /* ─────────── CTA row ─────────── */
 .ctaRow {
   display: flex;

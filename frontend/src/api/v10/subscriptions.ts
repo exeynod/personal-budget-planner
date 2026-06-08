@@ -11,7 +11,7 @@
 // (`s.day_of_month ?? null`, `s.posted_txn_id ?? null`).
 
 import { apiFetch } from '../client';
-import { invalidate, CACHE_KEYS } from '../cache';
+import { getCached, invalidate, CACHE_KEYS } from '../cache';
 import type {
   SubscriptionV10Read,
   SubscriptionV10UpdatePayload,
@@ -31,7 +31,12 @@ export type {
  * emits them (Phase 22 BE-12); fields stay optional in the type.
  */
 export async function listSubscriptionsV10(): Promise<SubscriptionV10Read[]> {
-  return apiFetch<SubscriptionV10Read[]>('/subscriptions');
+  // Cached + deduped (perceived-speed): read on every Subscriptions / Plan
+  // mount. Invalidated by every subscription mutation below (patch / delete /
+  // post / unpost) so a paused/deleted/posted row is never served stale.
+  return getCached(CACHE_KEYS.subscriptions, () =>
+    apiFetch<SubscriptionV10Read[]>('/subscriptions'),
+  );
 }
 
 /**
@@ -46,10 +51,14 @@ export async function patchSubscriptionV10(
   id: number,
   payload: SubscriptionV10UpdatePayload,
 ): Promise<SubscriptionV10Read> {
-  return apiFetch<SubscriptionV10Read>(`/subscriptions/${id}`, {
+  const updated = await apiFetch<SubscriptionV10Read>(`/subscriptions/${id}`, {
     method: 'PATCH',
     body: JSON.stringify(payload),
   });
+  // name / amount / day / pause changed → drop the cached list so the next
+  // Subscriptions / Plan read reflects the edit.
+  invalidate(CACHE_KEYS.subscriptions);
+  return updated;
 }
 
 /**
@@ -61,6 +70,8 @@ export async function patchSubscriptionV10(
  */
 export async function deleteSubscription(id: number): Promise<void> {
   await apiFetch<void>(`/subscriptions/${id}`, { method: 'DELETE' });
+  // Row gone → drop the cached list so it disappears on the next read.
+  invalidate(CACHE_KEYS.subscriptions);
 }
 
 /**
@@ -85,6 +96,11 @@ export async function postSubscription(
   invalidate(CACHE_KEYS.balancePrefix);
   invalidate(CACHE_KEYS.accounts);
   invalidate(CACHE_KEYS.plannedPrefix);
+  // Posting sets subscription.posted_txn_id → the cached list is now stale.
+  invalidate(CACHE_KEYS.subscriptions);
+  // post may create the active period on first charge → drop period caches.
+  invalidate(CACHE_KEYS.periods);
+  invalidate(CACHE_KEYS.currentPeriod);
   return res;
 }
 
@@ -104,4 +120,6 @@ export async function unpostSubscription(id: number): Promise<void> {
   invalidate(CACHE_KEYS.balancePrefix);
   invalidate(CACHE_KEYS.accounts);
   invalidate(CACHE_KEYS.plannedPrefix);
+  // Unposting nulls subscription.posted_txn_id → the cached list is now stale.
+  invalidate(CACHE_KEYS.subscriptions);
 }

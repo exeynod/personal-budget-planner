@@ -13,7 +13,7 @@
 // The mount layer is intentionally thin — all sort/filter/aggregate logic
 // lives in pure functions in computeHomeData.ts (unit-tested separately).
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   listAccounts,
   listCategoriesV10,
@@ -115,6 +115,12 @@ export function HomeMount() {
   const router = usePosterRouter();
   const [state, setState] = useState<LoadState>({ status: 'loading' });
   const [reloadToken, setReloadToken] = useState(0);
+  // keepPreviousData parity (mirrors useResource): once at least one load has
+  // settled, a subsequent fetch (period switch / refetchToken bump / retry)
+  // keeps the already-rendered Home on screen during the usually-cached,
+  // sub-second refetch instead of flashing the full-screen loading plate. The
+  // very first mount still shows 'loading'.
+  const hasLoadedRef = useRef(false);
   // Phase 30-02 (DEBT-02): AddSheet submit bumps this token via V10MainShell
   // → RefetchTokenProvider → useRefetchToken. We include it in the fetch
   // effect deps so Home actuals refresh immediately after a successful POST.
@@ -138,7 +144,11 @@ export function HomeMount() {
 
   useEffect(() => {
     let cancelled = false;
-    setState({ status: 'loading' });
+    // keepPreviousData: only drop to the loading plate on the very first load.
+    // Later fetches keep the current ready/error state until the new data lands.
+    if (!hasLoadedRef.current) {
+      setState({ status: 'loading' });
+    }
 
     // Fast path (perceived-speed): when we're in the shell (provider present)
     // and viewing the ACTIVE period, a single GET /api/v1/home returns
@@ -178,6 +188,7 @@ export function HomeMount() {
           : [];
         if (cancelled) return true;
 
+        hasLoadedRef.current = true;
         setState({
           status: 'ready',
           data: {
@@ -234,6 +245,7 @@ export function HomeMount() {
           : [];
 
         if (cancelled) return;
+        hasLoadedRef.current = true;
         setState({
           status: 'ready',
           data: { accounts, categories, period, actuals, balance, planned },

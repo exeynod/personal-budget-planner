@@ -123,27 +123,20 @@ export function computeLadder(
 }
 
 /**
- * Per-category INCOME ladder. Income is planned (not capped): «План» is the
- * expected amount, never a limit. There is NO «free»/«overflow» — the income
- * sign convention is «больше = хорошо» (delta = Факт − План).
+ * Per-category INCOME ladder. Income has NO «limit»/«plan target» entity — only
+ * plan detailing. There is NO «План» target, NO «free»/«remaining»/«overflow».
+ * The income sign convention is «больше = хорошо» (delta = Факт − План), so the
+ * ladder is purely descriptive of what is detailed vs. received:
  *
- *   planCents      — expected income for the category (category.plan_cents).
  *   scheduledCents — Σ of UNPOSTED income planned rows («Запланировано»).
  *   receivedCents  — Σ of POSTED income planned rows («Получено» / факт дохода).
- *   remainingCents — План − Получено: «Осталось получить» when ≥ 0; when
- *                    negative we surface «Сверх плана» (received exceeds plan).
- *   overReceived   — true when Получено > План (good — beats the plan).
  */
 export interface IncomeLadder {
-  planCents: number;
   scheduledCents: number;
   receivedCents: number;
-  remainingCents: number;
-  overReceived: boolean;
 }
 
 export function computeIncomeLadder(
-  planCents: number,
   rows: ReadonlyArray<PlanDetailRow>,
 ): IncomeLadder {
   const scheduled = rows
@@ -152,13 +145,9 @@ export function computeIncomeLadder(
   const received = rows
     .filter((r) => r.posted)
     .reduce((s, r) => s + r.amountCents, 0);
-  const remaining = planCents - received;
   return {
-    planCents,
     scheduledCents: scheduled,
     receivedCents: received,
-    remainingCents: remaining,
-    overReceived: received > planCents,
   };
 }
 

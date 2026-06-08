@@ -3,8 +3,11 @@
 // ONE surface (owner mockup refs #21-23): «План месяца» merges per-category
 // limits + recurring obligations + month plan into a single screen. The old
 // dualism («Шаблон бюджета» + «План месяца» + per-category «Детализация»
-// disclosures) is gone — limits live inline in «Категории», recurring
-// obligations in «Регулярные платежи».
+// disclosures) is gone — recurring obligations in «Регулярные платежи».
+//
+// The overview rows are COMPACT READ-ONLY summaries (no inline edit, no «+»):
+// tap a row to drill into its per-category planned detail, where the EXPENSE
+// limit is edited and planned rows are added.
 //
 // Structure (expense segment, top → bottom):
 //   - NativeNavBar «План месяца» + back
@@ -13,15 +16,16 @@
 //     («ок» green / «Превышено» red) + progress-bar «X из Y» (Σ limits из дохода)
 //   - «Регулярные платежи»: subscriptions + recurring planned, each row =
 //     icon · name · «N июня» · amount · «✓ Оплачено» (posted) / «Отметить» (post)
-//   - «Категории»: each row = icon · name (tap → per-category planned detail) ·
-//     inline ₽ limit (auto-saves on blur / Enter) · per-row «+» (plan add,
-//     pre-selected category) · chevron
+//   - «Категории»: each row = icon · name · summary
+//       expense → «Лимит X / Запланировано Y»
+//       income  → «Запланировано Y» (no limit/plan-target)
+//     · chevron — whole row taps into the per-category planned detail.
 //
-// All editing reuses the SAME handlers PlanMount feeds (onSliderChange live
-// draft, onLimitCommit autosave PATCH, onPostRegular/onUnpostRegular post/unpost).
+// Editing reuses the SAME handlers PlanMount feeds (onPostRegular/onUnpostRegular
+// post/unpost). Limit edit + plan add live in the per-category detail now.
 
 import { memo, useEffect, useRef, useState, type ReactNode } from 'react';
-import { Plus, CheckCircle, CaretRight } from '@phosphor-icons/react';
+import { CheckCircle, CaretRight } from '@phosphor-icons/react';
 import {
   NativeNavBar,
   SectionHeader,
@@ -49,6 +53,11 @@ export interface NativePlanViewProps {
   /** Σ posted income planned rows («Получено» summary). */
   incomeReceivedCents?: number;
   plans: PlanMonthItem[];
+  /**
+   * Σ of UNPOSTED planned rows per category id («Запланировано» / what the
+   * detail calls «Расписано»). Drives the read-only overview summary line.
+   */
+  scheduledByCat: Map<number, number>;
   /** Combined recurring obligations (subscriptions + recurring planned). */
   regulars: RegularRow[];
   surplusCents: number;
@@ -60,39 +69,13 @@ export interface NativePlanViewProps {
   saveError: string | null;
   focusCategoryId?: number | null;
 
-  /** Live draft edit (controlled input) — updates local surplus/progress only. */
-  onSliderChange: (catId: number, cents: number) => void;
-  /** Commit one category's limit (blur / Enter) → PATCH /plan-month, autosave. */
-  onLimitCommit: (catId: number, cents: number) => void;
   /** Mark a regular obligation as paid (post to fact). */
   onPostRegular: (row: RegularRow) => void;
   /** Undo a regular obligation's posting. */
   onUnpostRegular: (row: RegularRow) => void;
-  /** Open the shared AddSheet in plan mode, pre-selecting this category. */
-  onAddPlanned: (categoryId: number) => void;
   /** Drill into a category's planned-transaction detail (push). */
   onCategoryTap: (categoryId: number) => void;
   onBack: () => void;
-}
-
-// ─────────── Inline rubles → cents parsing (IDENTICAL semantics to slider) ───────────
-function rublesInputToCents(raw: string): number {
-  const cleaned = raw
-    .replace(/[\s  ]/g, '')
-    .replace(',', '.')
-    .replace(/[^0-9.]/g, '');
-  if (cleaned === '' || cleaned === '.') return 0;
-  const rub = Number.parseFloat(cleaned);
-  if (!Number.isFinite(rub) || rub < 0) return 0;
-  return Math.round(rub * 100);
-}
-
-/** Cents → editable rubles string for the input value (no ₽, no grouping). */
-function centsToRublesInput(cents: number): string {
-  const abs = Math.max(0, Math.trunc(cents));
-  const rub = Math.floor(abs / 100);
-  const kop = abs % 100;
-  return kop === 0 ? `${rub}` : `${rub},${kop.toString().padStart(2, '0')}`;
 }
 
 // ─────────── Component ───────────
@@ -106,6 +89,7 @@ function NativePlanViewInner(props: NativePlanViewProps) {
     incomePlannedCents = 0,
     incomeReceivedCents = 0,
     plans,
+    scheduledByCat,
     regulars,
     surplusCents,
     isOverflow,
@@ -113,11 +97,8 @@ function NativePlanViewInner(props: NativePlanViewProps) {
     periodStart = null,
     saveError,
     focusCategoryId,
-    onSliderChange,
-    onLimitCommit,
     onPostRegular,
     onUnpostRegular,
-    onAddPlanned,
     onCategoryTap,
     onBack,
   } = props;
@@ -125,7 +106,7 @@ function NativePlanViewInner(props: NativePlanViewProps) {
   // Расходы / Доходы segment (mirrors the Home segmented control).
   const [seg, setSeg] = useState<Seg>('expenses');
 
-  const focusRowRef = useRef<HTMLDivElement | null>(null);
+  const focusRowRef = useRef<HTMLButtonElement | null>(null);
   useEffect(() => {
     if (focusCategoryId != null && focusRowRef.current) {
       focusRowRef.current.scrollIntoView({
@@ -137,78 +118,41 @@ function NativePlanViewInner(props: NativePlanViewProps) {
 
   const planByCat = new Map(plans.map((p) => [p.category_id, p.plan_cents]));
 
-  // ── Shared category row (icon + tappable name [drill-in] + inline limit
-  //    input + per-category «+» plan-add + chevron). ──
-  function renderCategoryRow(c: CategoryV10, label: string) {
+  // ── Compact READ-ONLY category row: icon + name + summary line + chevron.
+  //    The WHOLE row taps into the per-category planned detail (where the limit
+  //    is edited and planned rows are added). No inline input, no «+».
+  //      expense → «Лимит X · Запланировано Y»
+  //      income  → «Запланировано Y» (income has NO limit/plan-target). ──
+  function renderCategoryRow(c: CategoryV10) {
+    const isIncome = c.kind === 'income';
     const planCents = planByCat.get(c.id) ?? c.plan_cents ?? 0;
+    const scheduledCents = scheduledByCat.get(c.id) ?? 0;
     const focused = focusCategoryId === c.id;
     return (
-      <div
+      <button
         key={c.id}
+        type="button"
         ref={focused ? focusRowRef : undefined}
         className={`${styles.catRow} ${focused ? styles.catRowFocused : ''}`}
+        onClick={() => onCategoryTap(c.id)}
         data-testid={`native-plan-cat-${c.id}`}
       >
-        <div className={styles.catTop}>
-          {/* Tappable lead (icon + name) → drill into the category's planned
-              detail. The limit input + «+» are siblings so their clicks never
-              bubble through this button. */}
-          <button
-            type="button"
-            className={styles.catLead}
-            onClick={() => onCategoryTap(c.id)}
-            data-testid={`native-plan-cat-open-${c.id}`}
+        <CategoryIcon name={c.name} id={c.id} />
+        <span className={styles.catMain}>
+          <span className={styles.catName}>{c.name}</span>
+          <span
+            className={styles.catSummary}
+            data-testid={`native-plan-cat-summary-${c.id}`}
           >
-            <CategoryIcon name={c.name} id={c.id} />
-            <span className={styles.catName}>{c.name}</span>
-          </button>
-          <span className={styles.catInputWrap}>
-            <input
-              type="text"
-              inputMode="decimal"
-              className={styles.catInput}
-              value={centsToRublesInput(planCents)}
-              onChange={(e) =>
-                onSliderChange(c.id, rublesInputToCents(e.target.value))
-              }
-              onBlur={(e) =>
-                onLimitCommit(c.id, rublesInputToCents(e.target.value))
-              }
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  onLimitCommit(
-                    c.id,
-                    rublesInputToCents(e.currentTarget.value),
-                  );
-                  e.currentTarget.blur();
-                }
-              }}
-              aria-label={`${label} для «${c.name}» в рублях`}
-              data-testid={`native-plan-input-${c.id}`}
-            />
-            <span className={styles.catCur}>₽</span>
+            {isIncome
+              ? `Запланировано ${formatMoneyNative(scheduledCents)} ₽`
+              : `Лимит ${formatMoneyNative(planCents)} ₽ · Запланировано ${formatMoneyNative(scheduledCents)} ₽`}
           </span>
-          {/* Per-category plan add → shared AddSheet (plan mode, pre-selected). */}
-          <button
-            type="button"
-            className={styles.catAddBtn}
-            onClick={() => onAddPlanned(c.id)}
-            aria-label={`Добавить в план для «${c.name}»`}
-            data-testid={`native-plan-cat-add-${c.id}`}
-          >
-            <Plus size={16} weight="bold" />
-          </button>
-          <button
-            type="button"
-            className={styles.catChevron}
-            onClick={() => onCategoryTap(c.id)}
-            aria-label={`Открыть «${c.name}»`}
-            tabIndex={-1}
-          >
-            <CaretRight size={16} weight="bold" />
-          </button>
-        </div>
-      </div>
+        </span>
+        <span className={styles.catChevron} aria-hidden="true">
+          <CaretRight size={16} weight="bold" />
+        </span>
+      </button>
     );
   }
 
@@ -332,12 +276,10 @@ function NativePlanViewInner(props: NativePlanViewProps) {
             <InsetGroup>{regulars.map(renderRegularRow)}</InsetGroup>
           )}
 
-          {/* expense categories — tap a row to drill into its planned detail;
-              edit «Лимит» inline; «+» adds a planned row to that category. */}
+          {/* expense categories — read-only summary; tap a row to drill into its
+              planned detail (limit edit + plan add live there). */}
           <SectionHeader>Категории</SectionHeader>
-          <InsetGroup>
-            {categories.map((c) => renderCategoryRow(c, 'Лимит'))}
-          </InsetGroup>
+          <InsetGroup>{categories.map((c) => renderCategoryRow(c))}</InsetGroup>
 
           {saveError && (
             <div
@@ -350,8 +292,9 @@ function NativePlanViewInner(props: NativePlanViewProps) {
         </>
       ) : (
         // ───────── Доходы segment ─────────
-        // No «лимит»/«осталось распределить»/«превышено». Income is planned as
-        // an expected amount; delta = Факт − План (больше = хорошо).
+        // No «лимит»/«план»/«осталось распределить»/«превышено». Income has no
+        // limit/plan-target — only plan detailing (Σ запланировано / получено);
+        // delta = Факт − План (больше = хорошо).
         <>
           {/* calm income summary — Запланировано / Получено (no surplus chrome) */}
           <div
@@ -376,14 +319,14 @@ function NativePlanViewInner(props: NativePlanViewProps) {
             </div>
           </div>
 
-          {/* income categories — tap a row to drill into its planned detail;
-              edit «План» inline; «+» adds a planned row to that category. */}
+          {/* income categories — read-only «Запланировано» summary (NO limit /
+              plan-target); tap a row to drill into its planned detail. */}
           <SectionHeader>Категории</SectionHeader>
           {incomeCategories.length === 0 ? (
             <div className={styles.empty}>Нет категорий доходов.</div>
           ) : (
             <InsetGroup>
-              {incomeCategories.map((c) => renderCategoryRow(c, 'План'))}
+              {incomeCategories.map((c) => renderCategoryRow(c))}
             </InsetGroup>
           )}
 
@@ -397,8 +340,8 @@ function NativePlanViewInner(props: NativePlanViewProps) {
           )}
 
           <div className={styles.footnote}>
-            План дохода — ожидаемая сумма по категории. Когда поступление
-            приходит, проведите его в факт.
+            Доход планируется операциями: добавьте ожидаемые поступления в
+            категорию. Когда поступление приходит, проведите его в факт.
           </div>
         </>
       )}

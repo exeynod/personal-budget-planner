@@ -239,13 +239,19 @@
   opacity: 0.6;
 }
 
-/* ─────────── Category rows (custom, inside InsetGroup) ─────────── */
+/* ─────────── Category rows (compact read-only, inside InsetGroup) ───────────
+   The whole row is a tappable button → per-category planned detail. */
 .catRow {
   display: flex;
-  flex-direction: column;
-  gap: 10px;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
   padding: 12px var(--lgn-s-16);
+  border: none;
+  background: none;
   font-family: var(--lgn-font);
+  text-align: left;
+  cursor: pointer;
   position: relative;
 }
 .catRow:not(:first-child)::before {
@@ -257,83 +263,33 @@
   height: 1px;
   background: var(--lgn-hairline-soft);
 }
+.catRow:active {
+  background: rgba(0, 0, 0, 0.04);
+}
 .catRowFocused {
   background: rgba(255, 122, 76, 0.08);
 }
-.catTop {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-/* Tappable lead (icon + name) → drill into the category's planned detail. */
-.catLead {
+.catMain {
   flex: 1 1 auto;
   min-width: 0;
   display: flex;
-  align-items: center;
-  gap: 12px;
-  border: none;
-  background: none;
-  padding: 0;
-  margin: 0;
-  font-family: var(--lgn-font);
-  text-align: left;
-  cursor: pointer;
-}
-.catLead:active {
-  opacity: 0.6;
+  flex-direction: column;
+  gap: 2px;
 }
 .catName {
-  flex: 1 1 auto;
-  min-width: 0;
   font-size: 17px;
   color: var(--lgn-ink);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.catInputWrap {
-  flex: 0 0 auto;
-  display: inline-flex;
-  align-items: baseline;
-  gap: 4px;
-  background: var(--lgn-seg-track);
-  border-radius: var(--lgn-r-button);
-  padding: 6px 10px;
-}
-.catInput {
-  width: 88px;
-  border: none;
-  background: none;
-  outline: none;
-  font-family: var(--lgn-font);
-  font-size: 17px;
-  font-weight: 600;
-  color: var(--lgn-ink);
-  text-align: right;
-  padding: 0;
-}
-.catCur {
-  font-size: 15px;
-  font-weight: 600;
+/* Read-only «Лимит X · Запланировано Y» summary line. */
+.catSummary {
+  font-size: 13px;
   color: var(--lgn-ink-2);
-}
-/* Per-category «+» — plan add (shared AddSheet, pre-selected category). */
-.catAddBtn {
-  flex: 0 0 auto;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 30px;
-  height: 30px;
-  border: none;
-  border-radius: 50%;
-  background: rgba(255, 122, 76, 0.12);
-  color: var(--lgn-accent);
-  cursor: pointer;
-}
-.catAddBtn:active {
-  background: rgba(255, 122, 76, 0.22);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 /* Drill-in affordance — mirrors InsetRow's trailing chevron. */
 .catChevron {
@@ -341,15 +297,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: none;
-  background: none;
-  padding: 0;
-  margin-left: -2px;
   color: var(--lgn-ink-3, var(--lgn-ink-2));
-  cursor: pointer;
-}
-.catChevron:active {
-  opacity: 0.6;
 }
 
 /* ─────────── Error + footnote ─────────── */
