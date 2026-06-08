@@ -42,10 +42,18 @@ export async function getPeriodBalance(
  * period (rare race window).
  */
 export async function getCurrentPeriod(): Promise<PeriodRead | null> {
-  try {
-    return await apiFetch<PeriodRead>('/periods/current');
-  } catch (err) {
-    if (err instanceof ApiError && err.status === 404) return null;
-    throw err;
-  }
+  // Cached + deduped (perceived-speed): read on every CategoryDetail /
+  // PlanCategoryDetail mount. The active period is stable within the TTL; the
+  // 404 → null result is cached too (so an onboarding-race empty isn't
+  // re-probed every navigation). Invalidated alongside `periods` by
+  // subscription post/unpost (which may create a period) — see
+  // api/v10/subscriptions.ts.
+  return getCached(CACHE_KEYS.currentPeriod, async () => {
+    try {
+      return await apiFetch<PeriodRead>('/periods/current');
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 404) return null;
+      throw err;
+    }
+  });
 }

@@ -5,6 +5,13 @@ export type { PlanMountProps } from './PlanMount';
 
 export { NativePlanView } from './NativePlanView';
 
+// v1.1 plan-side per-category planned-transaction drill-down (pushed from the
+// month-plan category rows).
+export { PlanCategoryDetailMount } from './PlanCategoryDetailMount';
+export type { PlanCategoryDetailMountProps } from './PlanCategoryDetailMount';
+export { PlanCategoryDetailView } from './PlanCategoryDetailView';
+export type { PlanCategoryDetailViewProps } from './PlanCategoryDetailView';
+
 export {
   computeSurplus,
   computeIsOverflow,

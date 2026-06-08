@@ -24,7 +24,7 @@ from __future__ import annotations
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models import AppUser, Category
+from app.db.models import AppUser, Category, CategoryKind
 
 
 class PlanOverflowError(Exception):
@@ -41,6 +41,24 @@ class PlanOverflowError(Exception):
         self.sum_plan_cents = sum_plan_cents
         super().__init__(
             f"Σplan ({sum_plan_cents}) exceeds income ({income_cents})"
+        )
+
+
+class IncomeLimitForbiddenError(Exception):
+    """Raised when a non-zero ``plan_cents`` targets an INCOME category.
+
+    SYSTEMIC invariant: income categories must NEVER carry a limit / plan-target.
+    A "limit" only makes sense for expenses (a ceiling on spending); an income
+    category has no spend ceiling, so setting ``plan_cents > 0`` on it is a
+    domain error. The route layer maps this to HTTPException(400) with structured
+    detail ``{error: 'income_limit_forbidden', category_id}`` — mirroring the
+    ``PlanOverflowError`` convention so the frontend reads the code, not the text.
+    """
+
+    def __init__(self, category_id: int) -> None:
+        self.category_id = category_id
+        super().__init__(
+            f"Category {category_id} is income — a plan limit is forbidden"
         )
 
 
@@ -79,20 +97,17 @@ async def update_plan_month_atomic(
 
     Raises:
         PlanOverflowError: Σplan > user.income_cents (with income IS NOT
-            NULL). Nothing was modified.
+            NULL). Nothing was modified. Σplan sums EXPENSE plans only —
+            income categories never carry a plan.
         CategoryNotInTenantError: at least one ``category_id`` is missing
             (or belongs to another user). Nothing was modified.
+        IncomeLimitForbiddenError: a tuple targets an INCOME category with a
+            non-zero plan_cents — a limit on income is forbidden. Nothing was
+            modified.
     """
-    # 1. Pre-validate Σplan ≤ income (skipped when income IS NULL — legacy
-    #    user предан onboarding-edit redirect by frontend, не блокируется).
-    income = await db.scalar(
-        select(AppUser.income_cents).where(AppUser.id == user_id)
-    )
-    sum_plan = sum(p[1] for p in plans)
-    if income is not None and sum_plan > income:
-        raise PlanOverflowError(income, sum_plan)
-
-    # 2. Bulk fetch all referenced categories belonging to this user.
+    # 1. Bulk fetch all referenced categories belonging to this user FIRST —
+    #    we need each category's ``kind`` to (a) reject income limits and
+    #    (b) exclude income rows from the Σplan ≤ income validation.
     cat_ids = [p[0] for p in plans]
     result = await db.execute(
         select(Category).where(
@@ -102,13 +117,38 @@ async def update_plan_month_atomic(
     )
     cats_by_id = {c.id: c for c in result.scalars().all()}
 
-    # 3. Detect missing / cross-tenant — fail-fast БЕЗ мутаций.
+    # 2. Detect missing / cross-tenant — fail-fast БЕЗ мутаций.
     for cid in cat_ids:
         if cid not in cats_by_id:
             raise CategoryNotInTenantError(cid)
 
-    # 4. Mutate plan_cents in-memory; flush so DB sees the new values.
+    # 3. Validate kind + collect ONLY expense plans to apply.
+    #    SYSTEMIC: income categories must NEVER carry a limit/plan-target.
+    #      - non-zero plan_cents on an income category → hard error.
+    #      - zero plan_cents on an income category → silently skipped (never
+    #        mutated), so income rows can never acquire a limit.
+    expense_plans: list[tuple[int, int]] = []
     for cid, pcents in plans:
+        if cats_by_id[cid].kind == CategoryKind.income:
+            if pcents != 0:
+                raise IncomeLimitForbiddenError(cid)
+            continue  # zero-limit income tuple — skip, never mutate.
+        expense_plans.append((cid, pcents))
+
+    # 4. Pre-validate Σplan ≤ income over EXPENSE plans only (skipped when
+    #    income IS NULL — legacy user предан onboarding-edit redirect by
+    #    frontend, не блокируется). Income categories carry no plan so they
+    #    are excluded from the sum entirely.
+    income = await db.scalar(
+        select(AppUser.income_cents).where(AppUser.id == user_id)
+    )
+    sum_plan = sum(p[1] for p in expense_plans)
+    if income is not None and sum_plan > income:
+        raise PlanOverflowError(income, sum_plan)
+
+    # 5. Mutate plan_cents in-memory (expense rows only); flush so DB sees
+    #    the new values.
+    for cid, pcents in expense_plans:
         cats_by_id[cid].plan_cents = pcents
 
     await db.flush()

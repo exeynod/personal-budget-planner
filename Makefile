@@ -14,10 +14,11 @@
 # (dev publishes api on :8000, DEV_MODE=true, console logs). Matches what
 # `docker compose up` loads implicitly, but spelled out so the targets are
 # self-documenting and don't depend on override auto-loading.
-# --project-directory . pins the project dir to the repo root so Compose reads
-# the root .env for ${VAR} interpolation (it otherwise defaults to deploy/, the
-# first -f file's dir, and silently interpolates empty — see deploy_inner.sh).
-DC := docker compose --project-directory . -f deploy/docker-compose.yml -f deploy/docker-compose.dev.yml
+# --env-file .env points Compose at the repo-root .env for ${VAR} interpolation
+# (it otherwise defaults to deploy/, the first -f file's dir, and silently
+# interpolates empty — see deploy_inner.sh). Using --env-file (not
+# --project-directory) keeps the relative build contexts `context: ..` intact.
+DC := docker compose --env-file .env -f deploy/docker-compose.yml -f deploy/docker-compose.dev.yml
 
 # ============================================================
 # help — the catalog. `make` or `make help`.
@@ -190,7 +191,7 @@ hooks:
 # and does NOT bind-mount the repo, so we pipe the dump script in via stdin and
 # redirect its --stdout output into the host file. sort_keys makes it
 # byte-stable for the B5 git-diff sync-guard.
-DC_TEST = docker compose --project-directory . -f deploy/docker-compose.yml -f deploy/docker-compose.dev.yml -f deploy/docker-compose.test.yml
+DC_TEST = docker compose --env-file .env -f deploy/docker-compose.yml -f deploy/docker-compose.dev.yml -f deploy/docker-compose.test.yml
 contract:
 	@echo "Regenerating contract/openapi.json from the live app (docker api)…"
 	@# Atomic write (WR-02): dump to a temp file first; only mv into place on a

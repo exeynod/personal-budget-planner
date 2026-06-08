@@ -6,7 +6,8 @@
 //   - Summary card: CategoryIcon + plan / fact / «в запасе» stat row (same
 //     План−Факт surplus the poster computes) + a CSS progress bar reusing the
 //     exact computeBarSegments ratio (capped 100%, over-budget tick).
-//   - CTA: «Поднять лимит» (push Plan focused).
+//   - CTA: «Добавить транзакцию» (opens the Add sheet pre-selected to this
+//     category — fact/expense add).
 //   - SectionHeader + InsetGroup of this category's operations, day-grouped,
 //     each row: CategoryIcon + UPPERCASE name + time/desc + signed amount
 //     (income «+» green, expense «−» ink — kind-driven, like NativeTransactions).
@@ -50,8 +51,11 @@ export interface NativeCategoryDetailViewProps {
   /** Reference date for day labels (defaults to `new Date()`). */
   today?: Date;
 
-  /** Push Plan view focused on this category («Поднять лимит»). */
-  onPushPlan: (categoryId: number) => void;
+  /**
+   * Open the Add sheet pre-selected to this category («Добавить транзакцию» —
+   * fact/expense add for this category).
+   */
+  onAddTransaction: (categoryId: number) => void;
   /** Pop the router stack (back chevron). */
   onBack: () => void;
 }
@@ -64,7 +68,7 @@ function NativeCategoryDetailViewInner(props: NativeCategoryDetailViewProps) {
     actuals,
     plannedUnpostedCents = 0,
     today = new Date(),
-    onPushPlan,
+    onAddTransaction,
     onBack,
   } = props;
 
@@ -160,9 +164,9 @@ function NativeCategoryDetailViewInner(props: NativeCategoryDetailViewProps) {
           type="button"
           className={styles.ctaPrimary}
           data-testid="native-cat-raise-limit"
-          onClick={() => onPushPlan(category.id)}
+          onClick={() => onAddTransaction(category.id)}
         >
-          Поднять лимит
+          Добавить транзакцию
         </button>
       </div>
 

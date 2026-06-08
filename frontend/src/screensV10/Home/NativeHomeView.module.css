@@ -152,8 +152,8 @@
   text-align: right;
 }
 .statLabel {
-  /* 4-level ladder (Лимит/Расписано/Факт/В запасе): tighter tracking + slight
-     overflow guard so the longer «Расписано» label never wraps in a 4-col row. */
+  /* 3-level ladder (План/Факт/В запасе): tighter tracking + slight overflow
+     guard so labels never wrap. */
   font-size: 10.5px;
   letter-spacing: 0.2px;
   color: var(--lgn-ink-2);
@@ -188,6 +188,7 @@
   align-items: center;
   gap: 12px;
   width: 100%;
+  box-sizing: border-box;
   padding: 11px var(--lgn-s-16);
   min-height: 44px;
   position: relative;

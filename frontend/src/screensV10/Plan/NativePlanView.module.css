@@ -239,13 +239,19 @@
   opacity: 0.6;
 }
 
-/* ─────────── Category rows (custom, inside InsetGroup) ─────────── */
+/* ─────────── Category rows (compact read-only, inside InsetGroup) ───────────
+   The whole row is a tappable button → per-category planned detail. */
 .catRow {
   display: flex;
-  flex-direction: column;
-  gap: 10px;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
   padding: 12px var(--lgn-s-16);
+  border: none;
+  background: none;
   font-family: var(--lgn-font);
+  text-align: left;
+  cursor: pointer;
   position: relative;
 }
 .catRow:not(:first-child)::before {
@@ -257,48 +263,41 @@
   height: 1px;
   background: var(--lgn-hairline-soft);
 }
+.catRow:active {
+  background: rgba(0, 0, 0, 0.04);
+}
 .catRowFocused {
   background: rgba(255, 122, 76, 0.08);
 }
-.catTop {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-.catName {
+.catMain {
   flex: 1 1 auto;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.catName {
   font-size: 17px;
   color: var(--lgn-ink);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.catInputWrap {
+/* Read-only «Лимит X · Запланировано Y» summary line. */
+.catSummary {
+  font-size: 13px;
+  color: var(--lgn-ink-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Drill-in affordance — mirrors InsetRow's trailing chevron. */
+.catChevron {
   flex: 0 0 auto;
   display: inline-flex;
-  align-items: baseline;
-  gap: 4px;
-  background: var(--lgn-seg-track);
-  border-radius: var(--lgn-r-button);
-  padding: 6px 10px;
-}
-.catInput {
-  width: 88px;
-  border: none;
-  background: none;
-  outline: none;
-  font-family: var(--lgn-font);
-  font-size: 17px;
-  font-weight: 600;
-  color: var(--lgn-ink);
-  text-align: right;
-  padding: 0;
-}
-.catCur {
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--lgn-ink-2);
+  align-items: center;
+  justify-content: center;
+  color: var(--lgn-ink-3, var(--lgn-ink-2));
 }
 
 /* ─────────── Error + footnote ─────────── */
@@ -318,29 +317,6 @@
   font-size: 13px;
   color: var(--lgn-ink-2);
   line-height: 1.4;
-}
-
-/* «+ Добавить в план» — single global accent row.
-   Opens the shared AddSheet (plan mode); category is chosen inside the sheet. */
-.addPlannedBtn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  width: 100%;
-  border: none;
-  background: rgba(255, 122, 76, 0.12);
-  color: var(--lgn-accent);
-  font-family: var(--lgn-font);
-  font-size: 16px;
-  font-weight: 600;
-  padding: 14px;
-  border-radius: var(--lgn-r-card, 14px);
-  cursor: pointer;
-  margin: 10px var(--lgn-s-16) 0;
-}
-.addPlannedBtn:active {
-  background: rgba(255, 122, 76, 0.22);
 }
 
 /* ─────────── Empty (regulars) ─────────── */

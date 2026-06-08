@@ -34,5 +34,6 @@ export async function reconcileBalance(
   invalidate(CACHE_KEYS.actualsPrefix);
   invalidate(CACHE_KEYS.balancePrefix);
   invalidate(CACHE_KEYS.accounts);
+  invalidate(CACHE_KEYS.home);
   return res;
 }

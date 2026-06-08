@@ -18,6 +18,17 @@ if (typeof window !== 'undefined' && window.Telegram?.WebApp?.ready) {
   window.Telegram.WebApp.ready();
 }
 
+// Perceived-speed: kick off the Home bootstrap (auth /me + aggregated /home)
+// as EARLY as possible — right after SDK init (so initData is available),
+// before React mounts. Both are cached (api/cache), so AuthGate /
+// OnboardingMount / HomeMount dedupe to these in-flight promises instead of
+// firing their own — the network round-trip overlaps React mount + JS parse
+// instead of waiting for it. Fire-and-forget; the gate/mounts own error UX.
+void Promise.allSettled([
+  import('./api/me').then(({ getMeV10 }) => getMeV10()),
+  import('./api/home').then(({ getHome }) => getHome()),
+]);
+
 // Phase 3 (web UX): best-effort expand to the full TG viewport. No-op outside
 // Telegram. Combined with setupSafeArea() below this binds the stable viewport
 // height into --tg-viewport-stable so the AI composer stays above the keyboard.

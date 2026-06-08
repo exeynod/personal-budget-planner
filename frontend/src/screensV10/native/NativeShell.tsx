@@ -110,12 +110,18 @@ export function NativeShell() {
   const [active, setActive] = useState<NativeTabId>('home');
   const [isAddOpen, setAddOpen] = useState(false);
   const [addMode, setAddMode] = useState<AddSheetMode>('fact');
+  // CategoryDetail «Добавить транзакцию» deep-link: which category to pre-select
+  // in the sheet (undefined = none, e.g. Home/Plan «+»).
+  const [addCategoryId, setAddCategoryId] = useState<number | undefined>(
+    undefined,
+  );
   const [refetchToken, setRefetchToken] = useState(0);
 
   const closeSheet = () => setAddOpen(false);
 
-  const openAddSheet = (mode: AddSheetMode = 'fact') => {
+  const openAddSheet = (mode: AddSheetMode = 'fact', categoryId?: number) => {
     setAddMode(mode);
+    setAddCategoryId(categoryId);
     setAddOpen(true);
   };
 
@@ -141,6 +147,7 @@ export function NativeShell() {
             >
               <NativeAddSheet
                 mode={addMode}
+                initialCategoryId={addCategoryId}
                 onSubmitted={() => {
                   setAddOpen(false);
                   setRefetchToken((t) => t + 1);

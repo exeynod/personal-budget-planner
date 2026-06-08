@@ -1,9 +1,9 @@
 // v1.1 design-fix — income/expense split on «План месяца».
 //
 // The income ladder is intentionally DIFFERENT from the expense ladder: income
-// is planned (expected), never capped. There is NO «лимит»/«свободно»/«over».
-// We assert the income ladder exposes План / Запланировано / Получено and the
-// delta «Осталось получить» (План − Получено), with «больше = хорошо».
+// has NO «limit»/«plan target» entity — only plan detailing. There is NO
+// «лимит»/«свободно»/«over»/«План»/«остаток». We assert the income ladder
+// exposes ONLY Запланировано (unposted) / Получено (posted).
 
 import { describe, it, expect } from 'vitest';
 import {
@@ -26,43 +26,39 @@ function row(over: Partial<PlanDetailRow> = {}): PlanDetailRow {
 }
 
 describe('computeIncomeLadder', () => {
-  it('splits scheduled (unposted) and received (posted) with no overflow concept', () => {
+  it('splits scheduled (unposted) and received (posted) — no limit/target/overflow concept', () => {
     const rows = [
       row({ id: 1, amountCents: 50_000_00, posted: false }),
       row({ id: 2, amountCents: 100_000_00, posted: true }),
     ];
-    const ladder = computeIncomeLadder(150_000_00, rows);
+    const ladder = computeIncomeLadder(rows);
 
-    expect(ladder.planCents).toBe(150_000_00);
     expect(ladder.scheduledCents).toBe(50_000_00); // unposted only
     expect(ladder.receivedCents).toBe(100_000_00); // posted only
-    // «Осталось получить» = План − Получено (positive → still to come).
-    expect(ladder.remainingCents).toBe(50_000_00);
-    expect(ladder.overReceived).toBe(false);
 
-    // No expense-style fields leak in — income has no «лимит»/«свободно».
+    // No plan-target/limit/overflow fields exist — income has only detailing.
+    expect(ladder).not.toHaveProperty('planCents');
+    expect(ladder).not.toHaveProperty('remainingCents');
+    expect(ladder).not.toHaveProperty('overReceived');
     expect(ladder).not.toHaveProperty('limitCents');
     expect(ladder).not.toHaveProperty('freeCents');
     expect(ladder).not.toHaveProperty('overflow');
   });
 
-  it('flags «Сверх плана» (overReceived) when received beats the plan — больше = хорошо', () => {
+  it('sums only posted rows into received (больше = хорошо, no cap)', () => {
     const rows = [row({ id: 1, amountCents: 180_000_00, posted: true })];
-    const ladder = computeIncomeLadder(150_000_00, rows);
+    const ladder = computeIncomeLadder(rows);
 
     expect(ladder.receivedCents).toBe(180_000_00);
-    // Negative «остаток» means we overshot the plan (a good outcome for income).
-    expect(ladder.remainingCents).toBe(-30_000_00);
-    expect(ladder.overReceived).toBe(true);
+    expect(ladder.scheduledCents).toBe(0);
   });
 
-  it('returns the full plan as «осталось получить» when nothing is received yet', () => {
-    const ladder = computeIncomeLadder(150_000_00, [
+  it('counts unposted rows as scheduled when nothing is received yet', () => {
+    const ladder = computeIncomeLadder([
       row({ id: 1, amountCents: 150_000_00, posted: false }),
     ]);
     expect(ladder.receivedCents).toBe(0);
-    expect(ladder.remainingCents).toBe(150_000_00);
-    expect(ladder.overReceived).toBe(false);
+    expect(ladder.scheduledCents).toBe(150_000_00);
   });
 });
 

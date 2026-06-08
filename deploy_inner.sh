@@ -21,17 +21,19 @@ REPO=/home/exy/personal-budget-planner
 # moving them into deploy/ silently changed the default to `deploy`, which
 # spun up a FRESH db volume (no budget_app role → unhealthy) instead of reusing
 # the existing prod data. `-p` keeps the project — and its volumes — stable.
-# --project-directory "$REPO" is CRITICAL: Compose resolves the default `.env`
+# --env-file "$REPO/.env" is CRITICAL: Compose resolves the default `.env`
 # (used to interpolate ${DB_PASSWORD}/${BUDGET_APP_PASSWORD} into the service
-# env) relative to the project directory, which otherwise defaults to the dir
-# of the first -f file (deploy/). After the compose files moved into deploy/,
-# Compose looked for deploy/.env (absent) and silently interpolated the DB
-# passwords to EMPTY — api/bot/worker got `budget:@db` and crash-looped with
-# `password authentication failed for user "budget"`, while the db kept the
-# real password baked in from an earlier (root-era) deploy. Pinning the project
-# directory back to $REPO makes Compose read $REPO/.env again. The -p flag (and
-# the top-level `name:` in the compose file) keep the volume namespace stable.
-COMPOSE=(docker compose -p personal-budget-planner --project-directory "$REPO" -f "$REPO/deploy/docker-compose.yml" -f "$REPO/deploy/docker-compose.cloudflare.yml")
+# env) relative to the project directory, which defaults to the dir of the
+# first -f file (deploy/). After the compose files moved into deploy/, Compose
+# looked for deploy/.env (absent) and silently interpolated the DB passwords to
+# EMPTY — api/bot/worker got `budget:@db` and crash-looped with `password
+# authentication failed for user "budget"`, while the db kept the real password
+# baked in from an earlier (root-era) deploy. --env-file points Compose back at
+# the repo-root .env WITHOUT moving the project directory (so the relative build
+# contexts `context: ..` still resolve correctly — --project-directory would
+# rebase them to /home/exy/deploy and break the build). Project/volume
+# namespace stays stable via -p and the top-level `name:` in the compose file.
+COMPOSE=(docker compose -p personal-budget-planner --env-file "$REPO/.env" -f "$REPO/deploy/docker-compose.yml" -f "$REPO/deploy/docker-compose.cloudflare.yml")
 LOG_PREFIX="[deploy $(date -u +%FT%TZ)]"
 
 log() { echo "$LOG_PREFIX $*"; }

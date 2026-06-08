@@ -1,0 +1,293 @@
+// Liquid Glass v2 — native iOS per-category PLANNED detail (pushed from Plan).
+//
+// The plan-side mirror of NativeCategoryDetailView (the fact-side drill-down):
+//   - NativeNavBar with the category name + back chevron.
+//   - Summary card: CategoryIcon + plan ladder.
+//       expense → Лимит / Расписано / Свободно (computeLadder) + inline limit edit
+//       income  → Запланировано / Получено (computeIncomeLadder) — NO limit/target
+//   - CTA: «Добавить в план» (shared AddSheet, plan mode, this category).
+//   - SectionHeader + InsetGroup of this category's PLANNED rows, day-grouped
+//     by planned_date, each row: CategoryIcon + title + date/«Без даты» +
+//     amount + «✓ Проведено» (posted) badge.
+//   - Empty state when there are no planned rows.
+//
+// The EXPENSE «Лимит» edit lives here (moved off the overview): an inline ₽
+// input that autosaves on blur / Enter → PATCH /plan-month (onLimitCommit). A
+// successful save reloads the detail via the mount's refetch-token. Income has
+// NO limit/plan-target — never shown, never sent.
+//
+// Pure presentational: PlanCategoryDetailMount wires the props. All math lives
+// in computePlanDetail.ts (computeLadder / computeIncomeLadder / day grouping).
+
+import { memo } from 'react';
+import { Plus, CheckCircle } from '@phosphor-icons/react';
+import {
+  NativeNavBar,
+  SectionHeader,
+  InsetGroup,
+  InsetRow,
+} from '../native/NativePrimitives';
+import { CategoryIcon } from '../native/CategoryIcon';
+import { formatMoneyNative, formatSignedMoneyNative } from '../native/money';
+import { formatDay } from '../common/format';
+import {
+  computeLadder,
+  computeIncomeLadder,
+  groupPlannedByCategory,
+  groupPlannedRowsByDay,
+} from './computePlanDetail';
+import type { CategoryV10, PlannedV11Read } from '../../api/v10';
+import styles from './PlanCategoryDetailView.module.css';
+
+// ─────────────────── Props ───────────────────
+
+export interface PlanCategoryDetailViewProps {
+  category: CategoryV10;
+  /** This category's planned rows for the period (manual + subscription). */
+  planned: PlannedV11Read[];
+  /** Reference date for day labels (defaults to `new Date()`). */
+  today?: Date;
+
+  /** Add a planned row to THIS category (shared AddSheet, plan mode). */
+  onAddPlanned: (categoryId: number) => void;
+  /**
+   * Commit this EXPENSE category's limit (blur / Enter) → PATCH /plan-month.
+   * Income categories have no limit and never receive this prop.
+   */
+  onLimitCommit?: (catId: number, cents: number) => void;
+  /** Pop the router stack (back chevron). */
+  onBack: () => void;
+}
+
+/** ISO `YYYY-MM-DD` → LOCAL-midnight Date (mirrors Transactions/groupByDay). */
+function parseLocalDate(iso: string): Date {
+  const [y, m, d] = iso.split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+
+// ─────────── Inline rubles → cents parsing (mirrors the old overview input) ───────────
+function rublesInputToCents(raw: string): number {
+  const cleaned = raw
+    .replace(/[\s  ]/g, '')
+    .replace(',', '.')
+    .replace(/[^0-9.]/g, '');
+  if (cleaned === '' || cleaned === '.') return 0;
+  const rub = Number.parseFloat(cleaned);
+  if (!Number.isFinite(rub) || rub < 0) return 0;
+  return Math.round(rub * 100);
+}
+
+/** Cents → editable rubles string for the input value (no ₽, no grouping). */
+function centsToRublesInput(cents: number): string {
+  const abs = Math.max(0, Math.trunc(cents));
+  const rub = Math.floor(abs / 100);
+  const kop = abs % 100;
+  return kop === 0 ? `${rub}` : `${rub},${kop.toString().padStart(2, '0')}`;
+}
+
+// ─────────────────── Component ───────────────────
+
+function PlanCategoryDetailViewInner(props: PlanCategoryDetailViewProps) {
+  const {
+    category,
+    planned,
+    today = new Date(),
+    onAddPlanned,
+    onLimitCommit,
+    onBack,
+  } = props;
+
+  const isIncome = category.kind === 'income';
+  // Expense «лимит» (income has NO limit/plan target — never read plan_cents).
+  const planCents = category.plan_cents ?? 0;
+
+  // Per-category detail rows (manual + subscription), already filtered to this
+  // category by the mount; groupPlannedByCategory normalises the shape.
+  const rows = groupPlannedByCategory(planned).get(category.id) ?? [];
+
+  // Ladder differs by kind: expense is capped («Свободно»), income is purely
+  // descriptive («Запланировано» / «Получено» — no target). Both reuse the
+  // shared compute helpers.
+  const expenseLadder = isIncome ? null : computeLadder(planCents, rows);
+  const incomeLadder = isIncome ? computeIncomeLadder(rows) : null;
+
+  const dayGroups = groupPlannedRowsByDay(rows, (iso) =>
+    formatDay(parseLocalDate(iso), today),
+  );
+
+  return (
+    <div className={styles.root}>
+      <NativeNavBar title={category.name} onBack={onBack} />
+
+      {/* ─────────── Summary card ─────────── */}
+      <div className={styles.summaryCard} data-testid="native-plan-cat-summary">
+        <div className={styles.summaryHead}>
+          <CategoryIcon name={category.name} id={category.id} size={36} />
+          <div className={styles.summaryHeadText}>
+            <div className={styles.summaryName}>{category.name}</div>
+            {/* Hero number: expense → лимит; income → Σ запланировано (income has
+                no limit/plan-target, so we surface the detailed amount instead). */}
+            <div className={styles.summaryFact}>
+              {formatMoneyNative(
+                isIncome ? (incomeLadder?.scheduledCents ?? 0) : planCents,
+              )}
+              <span className={styles.summaryCur}>₽</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Plan ladder. */}
+        <div className={styles.statsRow} data-testid="native-plan-cat-ladder">
+          {expenseLadder && (
+            <>
+              <div className={styles.statCol}>
+                <span className={styles.statLabel}>Лимит</span>
+                <span className={styles.statValue}>
+                  {formatMoneyNative(expenseLadder.limitCents)}
+                </span>
+              </div>
+              <div className={styles.statCol}>
+                <span className={styles.statLabel}>Расписано</span>
+                <span className={styles.statValue}>
+                  {formatMoneyNative(expenseLadder.scheduledCents)}
+                </span>
+              </div>
+              <div className={`${styles.statCol} ${styles.statColEnd}`}>
+                <span className={styles.statLabel}>Свободно</span>
+                <span
+                  className={`${styles.statValue} ${
+                    expenseLadder.overflow
+                      ? styles.statNegative
+                      : styles.statPositive
+                  }`}
+                >
+                  {formatSignedMoneyNative(expenseLadder.freeCents)}
+                </span>
+              </div>
+            </>
+          )}
+          {incomeLadder && (
+            // Income: NO «План»/limit/target column — only what is detailed vs.
+            // received.
+            <>
+              <div className={styles.statCol}>
+                <span className={styles.statLabel}>Запланировано</span>
+                <span className={styles.statValue}>
+                  {formatMoneyNative(incomeLadder.scheduledCents)}
+                </span>
+              </div>
+              <div className={`${styles.statCol} ${styles.statColEnd}`}>
+                <span className={styles.statLabel}>Получено</span>
+                <span className={`${styles.statValue} ${styles.statPositive}`}>
+                  {formatMoneyNative(incomeLadder.receivedCents)}
+                </span>
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* Inline «Лимит» edit (EXPENSE only) — autosaves on blur / Enter →
+            PATCH /plan-month. Income has no limit, so this never renders. */}
+        {!isIncome && onLimitCommit && (
+          <div className={styles.limitEditRow}>
+            <span className={styles.limitEditLabel}>Лимит</span>
+            <span className={styles.limitInputWrap}>
+              <input
+                type="text"
+                inputMode="decimal"
+                className={styles.limitInput}
+                defaultValue={centsToRublesInput(planCents)}
+                key={planCents}
+                onBlur={(e) =>
+                  onLimitCommit(category.id, rublesInputToCents(e.target.value))
+                }
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    onLimitCommit(
+                      category.id,
+                      rublesInputToCents(e.currentTarget.value),
+                    );
+                    e.currentTarget.blur();
+                  }
+                }}
+                aria-label={`Лимит для «${category.name}» в рублях`}
+                data-testid={`native-plan-cat-limit-input-${category.id}`}
+              />
+              <span className={styles.limitCur}>₽</span>
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* ─────────── CTA row ─────────── */}
+      <div className={styles.ctaRow}>
+        <button
+          type="button"
+          className={styles.ctaPrimary}
+          data-testid="native-plan-cat-add"
+          onClick={() => onAddPlanned(category.id)}
+        >
+          <Plus size={17} weight="bold" />
+          Добавить в план
+        </button>
+      </div>
+
+      {/* ─────────── Planned rows list ─────────── */}
+      <SectionHeader>Запланированные операции</SectionHeader>
+
+      {dayGroups.length === 0 ? (
+        <div className={styles.empty} data-testid="native-plan-cat-empty">
+          Запланированных операций пока нет
+        </div>
+      ) : (
+        dayGroups.map((group) => (
+          <div key={group.dateKey || 'no-date'} className={styles.dayGroup}>
+            <div className={styles.dayHeaderRow}>
+              <SectionHeader>{group.dateLabel}</SectionHeader>
+              <span className={styles.daySum}>
+                {`${formatMoneyNative(group.sumCents)} ₽`}
+              </span>
+            </div>
+
+            <InsetGroup>
+              {group.rows.map((r) => {
+                const sign = isIncome ? '+' : '−';
+                const amountStr = `${sign}${formatMoneyNative(r.amountCents)} ₽`;
+                const amountClass = isIncome
+                  ? styles.amountPositive
+                  : styles.amountNegative;
+                return (
+                  <InsetRow
+                    key={r.id}
+                    testId={`native-plan-cat-row-${r.id}`}
+                    leading={
+                      <CategoryIcon name={category.name} id={category.id} />
+                    }
+                    title={<span className={styles.catName}>{r.title}</span>}
+                    subtitle={
+                      r.posted ? (
+                        <span className={styles.postedTag}>
+                          <CheckCircle size={13} weight="fill" />
+                          {isIncome ? 'Получено' : 'Проведено'}
+                        </span>
+                      ) : (
+                        category.name
+                      )
+                    }
+                    trailing={
+                      <span className={`${styles.amount} ${amountClass}`}>
+                        {amountStr}
+                      </span>
+                    }
+                  />
+                );
+              })}
+            </InsetGroup>
+          </div>
+        ))
+      )}
+    </div>
+  );
+}
+
+export const PlanCategoryDetailView = memo(PlanCategoryDetailViewInner);

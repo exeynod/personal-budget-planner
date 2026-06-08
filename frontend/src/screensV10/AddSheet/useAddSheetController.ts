@@ -52,6 +52,13 @@ export interface UseAddSheetControllerArgs {
    *    = chosen date, kind from the selected category).
    */
   mode?: AddSheetMode;
+  /**
+   * Optional category to pre-select when the sheet opens (CategoryDetail
+   * «Добавить транзакцию» deep-link). Seeds the `categoryId` state; the view
+   * may still change it via the picker. When it changes (sheet re-opened for a
+   * different category) the selection re-syncs.
+   */
+  initialCategoryId?: number;
   /** Called with the newly-created tx/planned id after a successful POST. */
   onSubmitted: (txId: number) => void;
   /** Called when the user dismisses the sheet (clean form or confirmed cancel). */
@@ -104,6 +111,7 @@ export interface AddSheetController {
 
 export function useAddSheetController({
   mode = 'fact',
+  initialCategoryId,
   onSubmitted,
   onClose,
 }: UseAddSheetControllerArgs): AddSheetController {
@@ -113,7 +121,17 @@ export function useAddSheetController({
   const [description, setDescription] = useState('');
   const [dateChip, setDateChip] = useState<AddSheetDateChip>('today');
   const [customDate, setCustomDate] = useState<string>('');
-  const [categoryId, setCategoryId] = useState<number | null>(null);
+  const [categoryId, setCategoryId] = useState<number | null>(
+    initialCategoryId ?? null,
+  );
+
+  // CategoryDetail deep-link safety net: PosterSheet unmounts NativeAddSheet on
+  // close, so the useState initializer above already seeds the right category on
+  // each fresh open. This effect re-syncs if the prop ever changes while the
+  // sheet stays mounted (defensive — keeps the picker honest either way).
+  useEffect(() => {
+    if (initialCategoryId != null) setCategoryId(initialCategoryId);
+  }, [initialCategoryId]);
   const [accountId, setAccountId] = useState<number | null>(null);
   const [accounts, setAccounts] = useState<AccountResponse[]>([]);
   const [categories, setCategories] = useState<CategoryV10[]>([]);

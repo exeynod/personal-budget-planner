@@ -40,5 +40,6 @@ export async function patchPeriodPlan(
   });
   // Per-period limits feed compute_balance → drop the cached balances.
   invalidate(CACHE_KEYS.balancePrefix);
+  invalidate(CACHE_KEYS.home);
   return res;
 }

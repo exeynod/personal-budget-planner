@@ -1,15 +1,21 @@
-// Phase 26-04 Task 4: PlanMount — data fetcher + state management + PATCH glue.
+// Phase 26-04 Task 4: PlanMount — data fetcher + state management.
 //
 // Lifecycle:
-//   1. On mount, parallel fetch:
+//   1. On mount, fetch (period resolution runs CONCURRENTLY with the
+//      period-independent fetches; planned waits for the resolved period id):
+//        - getCurrentPeriod (only when no shell-selected period)
 //        - listCategoriesV10 (categories with v1.0 plan_cents)
 //        - listSubscriptionsV10 (regulars block)
 //        - getMeV10          (User.income_cents — surplus denominator)
+//        - listPlanned(pid)  (per-category «Запланировано» summaries + regulars)
 //   2. Filter + sort categories (drop savings; sort by ord ASC).
-//   3. Initial draft `plans` from category.plan_cents (plansFromCategories).
-//   4. Slider drag → applyPlanEdit (immutable local state).
-//   5. Regular post/unpost → POST /subscriptions/:id/post(unpost) → reload.
-//   6. Submit → patchPlanMonth(plans) → 200 toast + router.pop / 400 inline.
+//   3. Read-only `plans` from category.plan_cents (plansFromCategories) — drives
+//      the expense surplus/progress only (limits are edited in the detail now).
+//   4. Regular post/unpost → POST /subscriptions/:id/post(unpost) → reload.
+//
+// The overview rows are COMPACT READ-ONLY summaries — the EXPENSE limit edit and
+// the per-category plan add both moved into the per-category detail (pushed via
+// handleCategoryTap → PlanCategoryDetailMount).
 //
 // Toast UX (T-26-04-02 mitigation): every post/unpost shows confirm; user can
 // undo via inline button without leaving the screen.
@@ -27,7 +33,6 @@ import {
   listSubscriptionsV10,
   postSubscription,
   unpostSubscription,
-  patchPlanMonth,
   listPlanned,
   postPlanned,
   unpostPlanned,
@@ -40,8 +45,8 @@ import { getMeV10 } from '../../api/me';
 import { ApiError } from '../../api/client';
 import type { PlanMonthItem } from '../../api/types';
 import { NativePlanView } from './NativePlanView';
+import { PlanCategoryDetailMount } from './PlanCategoryDetailMount';
 import {
-  applyPlanEdit,
   computeDistributeProgress,
   computeIsOverflow,
   computeRegularsList,
@@ -73,8 +78,9 @@ export interface PlanMountProps {
 export function PlanMount({ focusCategoryId = null }: PlanMountProps = {}) {
   const router = usePosterRouter();
   const sel = useSelectedPeriodOptional();
-  // Shared AddSheet (plan mode «+») bumps this token on a successful create →
-  // reload the plan so the new planned row + ladder appear immediately.
+  // The shared AddSheet (plan mode) — used inside the per-category detail — bumps
+  // this token on a successful create → reload the plan so the new planned row +
+  // updated summaries appear immediately on return to the overview.
   const refetchToken = useRefetchToken();
 
   const [income, setIncome] = useState<number>(0);
@@ -88,7 +94,6 @@ export function PlanMount({ focusCategoryId = null }: PlanMountProps = {}) {
     'loading',
   );
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [saveError, setSaveError] = useState<string | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
   const [toast, setToast] = useState<ToastState>(null);
 
@@ -100,18 +105,26 @@ export function PlanMount({ focusCategoryId = null }: PlanMountProps = {}) {
     async function load() {
       try {
         // Resolve the period whose plan we're editing: the shell's selected
-        // period when available (newest-first), else the active period.
-        const resolvedPeriod =
-          (sel?.periods.find((p) => p.id === sel.selectedPeriodId) ??
-            sel?.periods[0]) ||
-          (await getCurrentPeriod());
+        // period when available (newest-first), else the active period. When no
+        // shell period exists we must fetch getCurrentPeriod() — kick off the
+        // period-independent fetches (cats/subs/me) CONCURRENTLY with it instead
+        // of awaiting the period first.
+        const shellPeriod =
+          sel?.periods.find((p) => p.id === sel.selectedPeriodId) ??
+          sel?.periods[0];
+        const catsP = listCategoriesV10();
+        const subsP = listSubscriptionsV10();
+        const meP = getMeV10();
+
+        const resolvedPeriod = shellPeriod ?? (await getCurrentPeriod());
         const pid = resolvedPeriod?.id ?? null;
         const pStart = resolvedPeriod?.period_start ?? null;
 
+        // planned is period-scoped, so it only starts once pid is known.
         const [cats, subsList, me, plannedList] = await Promise.all([
-          listCategoriesV10(),
-          listSubscriptionsV10(),
-          getMeV10(),
+          catsP,
+          subsP,
+          meP,
           pid != null ? listPlanned(pid) : Promise.resolve([]),
         ]);
         if (cancelled) return;
@@ -144,48 +157,6 @@ export function PlanMount({ focusCategoryId = null }: PlanMountProps = {}) {
       cancelled = true;
     };
   }, [reloadToken, refetchToken, sel?.selectedPeriodId, sel]);
-
-  // ─────────── inline limit edit (live draft) ───────────
-  const handleSliderChange = useCallback((catId: number, cents: number) => {
-    setPlans((prev) => applyPlanEdit(prev, catId, cents));
-  }, []);
-
-  // ─────────── inline limit auto-save (blur / Enter) ───────────
-  // §A (design-fix): no «Сохранить» button — each category limit persists on
-  // commit. We send the FULL draft batch (the same payload the old «Сохранить»
-  // sent) so the server-side Σplan ≤ income validation still covers every
-  // category, not just the edited one. No-op when the committed value already
-  // matches the persisted limit. On 400 overflow we surface the inline error and
-  // reload to revert the rejected limit to its persisted value.
-  const handleLimitCommit = useCallback(
-    async (catId: number, cents: number) => {
-      const persisted = categories.find((c) => c.id === catId);
-      if ((persisted?.plan_cents ?? 0) === cents) {
-        setSaveError(null);
-        return; // no-op — unchanged
-      }
-      setSaveError(null);
-      // Full batch with the committed value applied to the edited category.
-      const payload = plans.map((p) =>
-        p.category_id === catId ? { ...p, plan_cents: cents } : p,
-      );
-      try {
-        const res = await patchPlanMonth(payload);
-        // Sync persisted snapshot so the next no-op check is accurate.
-        setCategories(res.categories);
-        setToast({ text: 'Лимит сохранён', tone: 'success' });
-      } catch (e) {
-        if (e instanceof ApiError && e.status === 400) {
-          setSaveError('Σplan превышает доход — уменьшите лимиты');
-        } else {
-          setSaveError(e instanceof Error ? e.message : 'Ошибка сохранения');
-        }
-        // Revert the rejected draft to the persisted limit.
-        setReloadToken((n) => n + 1);
-      }
-    },
-    [categories, plans],
-  );
 
   // ─────────── «Регулярные платежи» mark-paid / undo ───────────
   // A regular obligation is either a subscription (post via /subscriptions/{id})
@@ -243,6 +214,15 @@ export function PlanMount({ focusCategoryId = null }: PlanMountProps = {}) {
     [periodId],
   );
 
+  // Tapping a category row drills into its planned-transaction detail (mirrors
+  // the fact-side CategoryDetail push). Period scoping happens inside the mount.
+  const handleCategoryTap = useCallback(
+    (categoryId: number) => {
+      router.push(<PlanCategoryDetailMount categoryId={categoryId} />);
+    },
+    [router],
+  );
+
   // ─────────── derived view-model ───────────
   // v1.1 design-fix: income and expense are SEPARATE on «План месяца». Income
   // is not capped — it has no «лимит»/«осталось распределить»/«превышено». We
@@ -285,28 +265,36 @@ export function PlanMount({ focusCategoryId = null }: PlanMountProps = {}) {
     [subs, categories, planned],
   );
 
-  // Income summary (calm — no «осталось распределить» semantics):
-  //   Запланировано дохода = Σ income category plans.
-  //   Получено             = Σ posted income planned rows (факт дохода).
+  // Σ of UNPOSTED planned rows per category id («Запланировано» — what the
+  // detail calls «Расписано»). Drives the read-only overview summary line for
+  // BOTH expense and income rows (posted rows are already fact, so excluded).
+  const scheduledByCat = useMemo(() => {
+    const m = new Map<number, number>();
+    for (const p of planned) {
+      if (p.posted_txn_id != null) continue;
+      m.set(
+        p.category_id,
+        (m.get(p.category_id) ?? 0) + Math.abs(p.amount_cents),
+      );
+    }
+    return m;
+  }, [planned]);
+
+  // Income summary (calm — no «осталось распределить»/plan-target semantics).
+  // Income has NO plan target, so «Запланировано дохода» is the Σ of UNPOSTED
+  // income planned rows (NOT category.plan_cents); «Получено» is the Σ of POSTED
+  // income planned rows (факт дохода).
   const incomeSummary = useMemo(() => {
-    const planByCat = new Map(plans.map((p) => [p.category_id, p.plan_cents]));
     const incomeIds = new Set(incomeCategories.map((c) => c.id));
     let plannedSum = 0;
     let received = 0;
-    for (const c of incomeCategories) {
-      plannedSum += planByCat.get(c.id) ?? c.plan_cents ?? 0;
-    }
     for (const p of planned) {
-      if (
-        p.kind === 'income' &&
-        incomeIds.has(p.category_id) &&
-        p.posted_txn_id != null
-      ) {
-        received += Math.abs(p.amount_cents);
-      }
+      if (p.kind !== 'income' || !incomeIds.has(p.category_id)) continue;
+      if (p.posted_txn_id != null) received += Math.abs(p.amount_cents);
+      else plannedSum += Math.abs(p.amount_cents);
     }
     return { plannedCents: plannedSum, receivedCents: received };
-  }, [incomeCategories, plans, planned]);
+  }, [incomeCategories, planned]);
 
   if (status === 'loading') {
     return <StatePlate variant="loading" testId="plan-loading" />;
@@ -323,29 +311,29 @@ export function PlanMount({ focusCategoryId = null }: PlanMountProps = {}) {
     );
   }
 
-  // The native view auto-saves each limit on commit (onLimitCommit) and has no
-  // save button (§A design-fix).
+  // The overview rows are read-only summaries — limit edit + plan add moved into
+  // the per-category detail (PlanCategoryDetailView). No save errors here.
   return (
     <>
       <NativePlanView
         incomeCents={income}
         categories={expenseCategories}
         plans={plans}
+        scheduledByCat={scheduledByCat}
         regulars={regulars}
         surplusCents={surplus}
         isOverflow={isOverflow}
         progress={progress}
         periodStart={periodStart}
-        saveError={saveError}
+        saveError={null}
         focusCategoryId={focusCategoryId}
-        onSliderChange={handleSliderChange}
         onPostRegular={handlePostRegular}
         onUnpostRegular={handleUnpostRegular}
+        onCategoryTap={handleCategoryTap}
         onBack={() => router.pop()}
         incomeCategories={incomeCategories}
         incomePlannedCents={incomeSummary.plannedCents}
         incomeReceivedCents={incomeSummary.receivedCents}
-        onLimitCommit={handleLimitCommit}
       />
       <NativeToast
         message={toast?.text ?? ''}

@@ -10,6 +10,8 @@ Wire contract (T-BE-02):
   request (insertion order).
 - 400: Σplan > income → ``{"detail": {"error": "plan_overflow",
   "income_cents": int, "sum_plan_cents": int}}``.
+- 400: plan_cents set on an INCOME category → ``{"detail": {"error":
+  "income_limit_forbidden", "category_id": int}}`` (income carries no limit).
 - 404: any ``category_id`` is missing OR cross-tenant → free-form text
   ``"category {id} not found"`` (REST convention — не leak existence).
 - 422: Pydantic violations (negative plan_cents, empty plans list,
@@ -71,6 +73,14 @@ async def patch_plan_month(
                 "error": "plan_overflow",
                 "income_cents": exc.income_cents,
                 "sum_plan_cents": exc.sum_plan_cents,
+            },
+        ) from exc
+    except plan_svc.IncomeLimitForbiddenError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "error": "income_limit_forbidden",
+                "category_id": exc.category_id,
             },
         ) from exc
     except plan_svc.CategoryNotInTenantError as exc:

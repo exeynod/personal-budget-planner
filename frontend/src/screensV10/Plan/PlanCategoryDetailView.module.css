@@ -1,0 +1,244 @@
+/* Liquid Glass v2 — native per-category PLANNED detail. Scoped (CSS module).
+   Mirrors NativeCategoryDetailView so the plan-side drill-down reads identical. */
+
+.root {
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 24px;
+}
+
+/* ─────────── Summary card (hero glass surface) ─────────── */
+.summaryCard {
+  position: relative;
+  margin: 8px var(--lgn-s-16) 0;
+  background: var(--lgn-card);
+  -webkit-backdrop-filter: var(--lgn-glass-blur);
+  backdrop-filter: var(--lgn-glass-blur);
+  border-radius: var(--lgn-r-card);
+  box-shadow: var(--lgn-shadow-card), var(--lgn-card-edge);
+  padding: 16px var(--lgn-s-16) 18px;
+  font-family: var(--lgn-font);
+  overflow: hidden;
+}
+.summaryCard::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--lgn-accent-orb);
+  pointer-events: none;
+  z-index: 0;
+}
+.summaryCard::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--lgn-sheen);
+  pointer-events: none;
+}
+.summaryCard > * {
+  position: relative;
+  z-index: 1;
+}
+
+.summaryHead {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.summaryHeadText {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.summaryName {
+  font-size: 13px;
+  color: var(--lgn-ink-2);
+}
+.summaryFact {
+  margin-top: 1px;
+  font-size: 29px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  color: var(--lgn-accent-ink);
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+.summaryCur {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--lgn-accent-ink);
+  opacity: 0.7;
+}
+
+/* Plan ladder row */
+.statsRow {
+  display: flex;
+  margin-top: 14px;
+  gap: 6px;
+}
+.statCol {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1 1 0;
+  min-width: 0;
+}
+.statColEnd {
+  align-items: flex-end;
+  text-align: right;
+}
+.statLabel {
+  font-size: 10.5px;
+  letter-spacing: 0.2px;
+  color: var(--lgn-ink-2);
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.statValue {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--lgn-ink);
+  white-space: nowrap;
+}
+.statPositive {
+  color: var(--lgn-green);
+}
+.statNegative {
+  color: var(--lgn-red);
+}
+
+/* ─────────── Inline «Лимит» edit (expense only) ─────────── */
+.limitEditRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--lgn-hairline-soft);
+}
+.limitEditLabel {
+  font-size: 15px;
+  color: var(--lgn-ink-2);
+}
+.limitInputWrap {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  background: var(--lgn-seg-track);
+  border-radius: var(--lgn-r-button);
+  padding: 6px 10px;
+}
+.limitInput {
+  width: 100px;
+  border: none;
+  background: none;
+  outline: none;
+  font-family: var(--lgn-font);
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--lgn-ink);
+  text-align: right;
+  padding: 0;
+}
+.limitCur {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--lgn-ink-2);
+}
+
+/* ─────────── CTA row ─────────── */
+.ctaRow {
+  display: flex;
+  gap: 10px;
+  margin: 14px var(--lgn-s-16) 0;
+}
+.ctaPrimary {
+  flex: 1 1 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: none;
+  border-radius: var(--lgn-r-card);
+  background: var(--lgn-accent);
+  color: #fff;
+  font-family: var(--lgn-font);
+  font-size: 16px;
+  font-weight: 600;
+  padding: 13px;
+  cursor: pointer;
+}
+.ctaPrimary:active {
+  background: var(--lgn-accent-press);
+}
+
+/* ─────────── Day group ─────────── */
+.dayGroup {
+  display: flex;
+  flex-direction: column;
+}
+.dayHeaderRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding-right: var(--lgn-s-20);
+}
+.dayHeaderRow > :first-child {
+  flex: 1 1 auto;
+}
+.daySum {
+  flex: 0 0 auto;
+  font-family: var(--lgn-font);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--lgn-ink-2);
+  white-space: nowrap;
+}
+
+/* ─────────── Row title + signed amount ─────────── */
+.catName {
+  letter-spacing: 0.2px;
+}
+.amount {
+  font-family: var(--lgn-font);
+  font-size: 17px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.amountPositive {
+  color: var(--lgn-green);
+}
+.amountNegative {
+  color: var(--lgn-ink);
+}
+
+/* «✓ Проведено / Получено» — posted planned row tag. */
+.postedTag {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: var(--lgn-green);
+  font-weight: 600;
+}
+
+/* ─────────── Empty state ─────────── */
+.empty {
+  margin: 8px var(--lgn-s-16) 0;
+  padding: 28px var(--lgn-s-16);
+  text-align: center;
+  color: var(--lgn-ink-2);
+  font-size: 15px;
+  font-family: var(--lgn-font);
+  background: var(--lgn-card);
+  -webkit-backdrop-filter: var(--lgn-glass-blur);
+  backdrop-filter: var(--lgn-glass-blur);
+  border-radius: var(--lgn-r-card);
+  box-shadow: var(--lgn-shadow-card), var(--lgn-card-edge);
+}

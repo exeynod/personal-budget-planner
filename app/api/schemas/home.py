@@ -25,6 +25,7 @@ from app.api.schemas.actual import ActualRead, BalanceResponse
 from app.api.schemas.categories import CategoryRead
 from app.api.schemas.me_v10 import MeV10Response
 from app.api.schemas.periods import PeriodRead
+from app.api.schemas.planned import PlannedRead
 
 
 class HomeResponse(BaseModel):
@@ -45,3 +46,11 @@ class HomeResponse(BaseModel):
     period: Optional[PeriodRead]
     balance: Optional[BalanceResponse]
     actuals: list[ActualRead]
+    # ALL budget periods, newest-first — identical shape/order to
+    # GET /api/v1/periods (the list endpoint backing listPeriods). Lets the
+    # PeriodSwitcher boot without a separate /periods round-trip.
+    periods: list[PeriodRead]
+    # The active period's planned rows — identical shape to
+    # GET /api/v1/periods/{period_id}/planned. ``[]`` when no active period
+    # exists. Lets the plan ladder boot without a separate /planned round-trip.
+    planned: list[PlannedRead]

@@ -13,7 +13,7 @@
 // The mount layer is intentionally thin — all sort/filter/aggregate logic
 // lives in pure functions in computeHomeData.ts (unit-tested separately).
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   listAccounts,
   listCategoriesV10,
@@ -115,6 +115,12 @@ export function HomeMount() {
   const router = usePosterRouter();
   const [state, setState] = useState<LoadState>({ status: 'loading' });
   const [reloadToken, setReloadToken] = useState(0);
+  // keepPreviousData parity (mirrors useResource): once at least one load has
+  // settled, a subsequent fetch (period switch / refetchToken bump / retry)
+  // keeps the already-rendered Home on screen during the usually-cached,
+  // sub-second refetch instead of flashing the full-screen loading plate. The
+  // very first mount still shows 'loading'.
+  const hasLoadedRef = useRef(false);
   // Phase 30-02 (DEBT-02): AddSheet submit bumps this token via V10MainShell
   // → RefetchTokenProvider → useRefetchToken. We include it in the fetch
   // effect deps so Home actuals refresh immediately after a successful POST.
@@ -138,7 +144,25 @@ export function HomeMount() {
 
   useEffect(() => {
     let cancelled = false;
-    setState({ status: 'loading' });
+    // keepPreviousData: only drop to the loading plate on the very first load.
+    // Later fetches keep the current ready/error state until the new data lands.
+    if (!hasLoadedRef.current) {
+      setState({ status: 'loading' });
+    }
+
+    // Wait for the SelectedPeriodProvider's FIRST resolution before fetching.
+    // The provider flips loading true→false and sets selectedPeriodId in one
+    // batch on initial load. Without this guard the effect fires once with
+    // period=null (a wasted granular round-trip that then shows an EMPTY Home),
+    // and again once the period resolves — 2-3× the work and a blank-screen
+    // flash that reads as "frozen". While the provider is still doing its very
+    // first load (no period chosen yet) we keep the loading plate and bail; the
+    // effect re-runs when sel.loading flips or selectedPeriodId resolves. Once a
+    // period has ever been selected (selectedPeriodId != null) this guard is
+    // inert, so back-navigation / refetches are unaffected.
+    if (sel != null && sel.loading && selectedPeriodId == null) {
+      return;
+    }
 
     // Fast path (perceived-speed): when we're in the shell (provider present)
     // and viewing the ACTIVE period, a single GET /api/v1/home returns
@@ -163,21 +187,26 @@ export function HomeMount() {
         seedCache(CACHE_KEYS.accounts, home.accounts);
         seedCache(CACHE_KEYS.categories(false), home.categories);
         seedCache(CACHE_KEYS.me, home.user);
+        // `periods` / `planned` are newer fields — tolerate older payloads /
+        // e2e mocks that omit them (treat as []), since isHomeBootstrap does
+        // NOT hard-require them.
+        const homePeriods = home.periods ?? [];
+        const homePlanned: PlannedV11Read[] = home.planned ?? [];
+        seedCache(CACHE_KEYS.periods, homePeriods);
         if (home.period) {
           seedCache(CACHE_KEYS.actuals(home.period.id), home.actuals);
+          seedCache(CACHE_KEYS.planned(home.period.id), homePlanned);
           if (home.balance) {
             seedCache(CACHE_KEYS.balance(home.period.id), home.balance);
           }
         }
 
-        // The /home bootstrap doesn't carry planned rows; fetch them so the
-        // native plan↔fact ladder has its «Запланировано (unposted)» level.
-        // (Cached via getCached → no extra round-trip on later navigation.)
-        const planned: PlannedV11Read[] = home.period
-          ? await listPlanned(home.period.id)
-          : [];
-        if (cancelled) return true;
+        // The /home bootstrap now carries the active period's planned rows, so
+        // the native plan↔fact ladder gets its «Запланировано (unposted)» level
+        // with NO separate listPlanned round-trip.
+        const planned: PlannedV11Read[] = homePlanned;
 
+        hasLoadedRef.current = true;
         setState({
           status: 'ready',
           data: {
@@ -234,6 +263,7 @@ export function HomeMount() {
           : [];
 
         if (cancelled) return;
+        hasLoadedRef.current = true;
         setState({
           status: 'ready',
           data: { accounts, categories, period, actuals, balance, planned },
@@ -258,9 +288,21 @@ export function HomeMount() {
     return () => {
       cancelled = true;
     };
-    // selectedPeriodId in deps: switching the viewed period re-fetches.
-    // refetchToken in deps: external bump (AddSheet submit) re-runs the fetch.
-  }, [reloadToken, refetchToken, selectedPeriodId, selectedPeriod, sel]);
+    // Depend on PRIMITIVES, not the unstable `sel` / `selectedPeriod` object
+    // references (the provider's value object changes on every loading toggle,
+    // which previously re-ran this effect — and thus refetched /home — 3× per
+    // open). selectedPeriodId: switching the viewed period re-fetches.
+    // selectedPeriod?.status: catches an active→closed transition on reload.
+    // sel?.loading: lets the wait-guard above release once the provider settles
+    // (incl. the no-active-period case, so Home never gets stuck on loading).
+    // refetchToken / reloadToken: external + internal re-fetch bumps.
+  }, [
+    reloadToken,
+    refetchToken,
+    selectedPeriodId,
+    selectedPeriod?.status,
+    sel?.loading,
+  ]);
 
   // ─────────── push handlers (router-bound) ───────────
   const onPlanTap = useCallback(() => {
