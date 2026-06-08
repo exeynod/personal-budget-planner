@@ -13,24 +13,22 @@
 //     («ок» green / «Превышено» red) + progress-bar «X из Y» (Σ limits из дохода)
 //   - «Регулярные платежи»: subscriptions + recurring planned, each row =
 //     icon · name · «N июня» · amount · «✓ Оплачено» (posted) / «Отметить» (post)
-//   - «Категории» (header carries «+ Добавить» accent action): icon · name ·
-//     inline ₽ limit (auto-saves on blur / Enter)
-//   - global «+ Добавить в план» (shared AddSheet, plan mode)
+//   - «Категории»: each row = icon · name (tap → per-category planned detail) ·
+//     inline ₽ limit (auto-saves on blur / Enter) · per-row «+» (plan add,
+//     pre-selected category) · chevron
 //
 // All editing reuses the SAME handlers PlanMount feeds (onSliderChange live
 // draft, onLimitCommit autosave PATCH, onPostRegular/onUnpostRegular post/unpost).
 
 import { memo, useEffect, useRef, useState, type ReactNode } from 'react';
-import { Plus, CheckCircle } from '@phosphor-icons/react';
+import { Plus, CheckCircle, CaretRight } from '@phosphor-icons/react';
 import {
   NativeNavBar,
   SectionHeader,
-  SectionHeaderAction,
   InsetGroup,
   Segmented,
 } from '../native/NativePrimitives';
 import { CategoryIcon } from '../native/CategoryIcon';
-import { useAddSheetHost } from '../native/AddSheetHost';
 import { formatMoneyNative, formatSignedMoneyNative } from '../native/money';
 import type { CategoryV10 } from '../../api/v10';
 import type { PlanMonthItem } from '../../api/types';
@@ -70,6 +68,10 @@ export interface NativePlanViewProps {
   onPostRegular: (row: RegularRow) => void;
   /** Undo a regular obligation's posting. */
   onUnpostRegular: (row: RegularRow) => void;
+  /** Open the shared AddSheet in plan mode, pre-selecting this category. */
+  onAddPlanned: (categoryId: number) => void;
+  /** Drill into a category's planned-transaction detail (push). */
+  onCategoryTap: (categoryId: number) => void;
   onBack: () => void;
 }
 
@@ -115,15 +117,13 @@ function NativePlanViewInner(props: NativePlanViewProps) {
     onLimitCommit,
     onPostRegular,
     onUnpostRegular,
+    onAddPlanned,
+    onCategoryTap,
     onBack,
   } = props;
 
   // Расходы / Доходы segment (mirrors the Home segmented control).
   const [seg, setSeg] = useState<Seg>('expenses');
-
-  // Single global «+»: opens the SAME AddSheet as Home, in plan mode (category
-  // chosen inside the sheet).
-  const { openAddSheet } = useAddSheetHost();
 
   const focusRowRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
@@ -137,7 +137,8 @@ function NativePlanViewInner(props: NativePlanViewProps) {
 
   const planByCat = new Map(plans.map((p) => [p.category_id, p.plan_cents]));
 
-  // ── Shared category row (icon + name + inline plan/limit input). ──
+  // ── Shared category row (icon + tappable name [drill-in] + inline limit
+  //    input + per-category «+» plan-add + chevron). ──
   function renderCategoryRow(c: CategoryV10, label: string) {
     const planCents = planByCat.get(c.id) ?? c.plan_cents ?? 0;
     const focused = focusCategoryId === c.id;
@@ -149,8 +150,18 @@ function NativePlanViewInner(props: NativePlanViewProps) {
         data-testid={`native-plan-cat-${c.id}`}
       >
         <div className={styles.catTop}>
-          <CategoryIcon name={c.name} id={c.id} />
-          <span className={styles.catName}>{c.name}</span>
+          {/* Tappable lead (icon + name) → drill into the category's planned
+              detail. The limit input + «+» are siblings so their clicks never
+              bubble through this button. */}
+          <button
+            type="button"
+            className={styles.catLead}
+            onClick={() => onCategoryTap(c.id)}
+            data-testid={`native-plan-cat-open-${c.id}`}
+          >
+            <CategoryIcon name={c.name} id={c.id} />
+            <span className={styles.catName}>{c.name}</span>
+          </button>
           <span className={styles.catInputWrap}>
             <input
               type="text"
@@ -177,6 +188,25 @@ function NativePlanViewInner(props: NativePlanViewProps) {
             />
             <span className={styles.catCur}>₽</span>
           </span>
+          {/* Per-category plan add → shared AddSheet (plan mode, pre-selected). */}
+          <button
+            type="button"
+            className={styles.catAddBtn}
+            onClick={() => onAddPlanned(c.id)}
+            aria-label={`Добавить в план для «${c.name}»`}
+            data-testid={`native-plan-cat-add-${c.id}`}
+          >
+            <Plus size={16} weight="bold" />
+          </button>
+          <button
+            type="button"
+            className={styles.catChevron}
+            onClick={() => onCategoryTap(c.id)}
+            aria-label={`Открыть «${c.name}»`}
+            tabIndex={-1}
+          >
+            <CaretRight size={16} weight="bold" />
+          </button>
         </div>
       </div>
     );
@@ -302,20 +332,9 @@ function NativePlanViewInner(props: NativePlanViewProps) {
             <InsetGroup>{regulars.map(renderRegularRow)}</InsetGroup>
           )}
 
-          {/* expense categories — header «+ Добавить» + inline «Лимит» edit */}
-          <SectionHeader
-            trailing={
-              <SectionHeaderAction
-                onClick={() => openAddSheet('plan')}
-                testId="native-plan-cat-add"
-              >
-                <Plus size={15} weight="bold" />
-                Добавить
-              </SectionHeaderAction>
-            }
-          >
-            Категории
-          </SectionHeader>
+          {/* expense categories — tap a row to drill into its planned detail;
+              edit «Лимит» inline; «+» adds a planned row to that category. */}
+          <SectionHeader>Категории</SectionHeader>
           <InsetGroup>
             {categories.map((c) => renderCategoryRow(c, 'Лимит'))}
           </InsetGroup>
@@ -328,17 +347,6 @@ function NativePlanViewInner(props: NativePlanViewProps) {
               {saveError}
             </div>
           )}
-
-          {/* single global «+ Добавить в план» (expense plan mode) */}
-          <button
-            type="button"
-            className={styles.addPlannedBtn}
-            onClick={() => openAddSheet('plan')}
-            data-testid="native-plan-add-open"
-          >
-            <Plus size={17} weight="bold" />
-            Добавить в план
-          </button>
         </>
       ) : (
         // ───────── Доходы segment ─────────
@@ -368,20 +376,9 @@ function NativePlanViewInner(props: NativePlanViewProps) {
             </div>
           </div>
 
-          {/* income categories — header «+ Добавить» + inline «План» edit */}
-          <SectionHeader
-            trailing={
-              <SectionHeaderAction
-                onClick={() => openAddSheet('plan')}
-                testId="native-plan-cat-add"
-              >
-                <Plus size={15} weight="bold" />
-                Добавить
-              </SectionHeaderAction>
-            }
-          >
-            Категории
-          </SectionHeader>
+          {/* income categories — tap a row to drill into its planned detail;
+              edit «План» inline; «+» adds a planned row to that category. */}
+          <SectionHeader>Категории</SectionHeader>
           {incomeCategories.length === 0 ? (
             <div className={styles.empty}>Нет категорий доходов.</div>
           ) : (
@@ -398,17 +395,6 @@ function NativePlanViewInner(props: NativePlanViewProps) {
               {saveError}
             </div>
           )}
-
-          {/* single global «+ Добавить в план» (income plan mode) */}
-          <button
-            type="button"
-            className={styles.addPlannedBtn}
-            onClick={() => openAddSheet('plan')}
-            data-testid="native-plan-add-open"
-          >
-            <Plus size={17} weight="bold" />
-            Добавить в план
-          </button>
 
           <div className={styles.footnote}>
             План дохода — ожидаемая сумма по категории. Когда поступление

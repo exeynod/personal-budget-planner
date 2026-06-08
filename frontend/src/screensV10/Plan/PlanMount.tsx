@@ -39,7 +39,9 @@ import { getCurrentPeriod } from '../../api/periods';
 import { getMeV10 } from '../../api/me';
 import { ApiError } from '../../api/client';
 import type { PlanMonthItem } from '../../api/types';
+import { useAddSheetHost } from '../native/AddSheetHost';
 import { NativePlanView } from './NativePlanView';
+import { PlanCategoryDetailMount } from './PlanCategoryDetailMount';
 import {
   applyPlanEdit,
   computeDistributeProgress,
@@ -73,6 +75,8 @@ export interface PlanMountProps {
 export function PlanMount({ focusCategoryId = null }: PlanMountProps = {}) {
   const router = usePosterRouter();
   const sel = useSelectedPeriodOptional();
+  // Shared AddSheet (plan mode «+») — per-category plan add pre-selects the row.
+  const { openAddSheet } = useAddSheetHost();
   // Shared AddSheet (plan mode «+») bumps this token on a successful create →
   // reload the plan so the new planned row + ladder appear immediately.
   const refetchToken = useRefetchToken();
@@ -243,6 +247,26 @@ export function PlanMount({ focusCategoryId = null }: PlanMountProps = {}) {
     [periodId],
   );
 
+  // ─────────── per-category plan add + drill-in ───────────
+  // «+» on a category row → shared AddSheet (plan mode) with that category
+  // pre-selected. A successful create bumps the refetch token → the plan + the
+  // pushed PlanCategoryDetailMount both reload.
+  const handleAddPlanned = useCallback(
+    (categoryId: number) => {
+      openAddSheet('plan', categoryId);
+    },
+    [openAddSheet],
+  );
+
+  // Tapping a category row drills into its planned-transaction detail (mirrors
+  // the fact-side CategoryDetail push). Period scoping happens inside the mount.
+  const handleCategoryTap = useCallback(
+    (categoryId: number) => {
+      router.push(<PlanCategoryDetailMount categoryId={categoryId} />);
+    },
+    [router],
+  );
+
   // ─────────── derived view-model ───────────
   // v1.1 design-fix: income and expense are SEPARATE on «План месяца». Income
   // is not capped — it has no «лимит»/«осталось распределить»/«превышено». We
@@ -341,6 +365,8 @@ export function PlanMount({ focusCategoryId = null }: PlanMountProps = {}) {
         onSliderChange={handleSliderChange}
         onPostRegular={handlePostRegular}
         onUnpostRegular={handleUnpostRegular}
+        onAddPlanned={handleAddPlanned}
+        onCategoryTap={handleCategoryTap}
         onBack={() => router.pop()}
         incomeCategories={incomeCategories}
         incomePlannedCents={incomeSummary.plannedCents}

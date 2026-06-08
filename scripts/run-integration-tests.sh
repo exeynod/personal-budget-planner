@@ -27,9 +27,10 @@ REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$REPO_ROOT"
 
 COMPOSE=(docker compose
-  # Pin project dir to repo root so Compose reads the root .env for ${VAR}
-  # interpolation (defaults to deploy/ otherwise → empty passwords).
-  --project-directory "$REPO_ROOT"
+  # Point Compose at the repo-root .env for ${VAR} interpolation (it defaults to
+  # deploy/ otherwise → empty passwords). --env-file (not --project-directory)
+  # keeps the relative build contexts `context: ..` resolving correctly.
+  --env-file "$REPO_ROOT/.env"
   -f deploy/docker-compose.yml
   -f deploy/docker-compose.dev.yml
   -f deploy/docker-compose.test.yml

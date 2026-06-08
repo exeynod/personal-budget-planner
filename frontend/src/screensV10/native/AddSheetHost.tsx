@@ -18,8 +18,11 @@ interface AddSheetHostAPI {
    * Open the shared add-transaction sheet.
    *  - `'fact'` (default): creates an actual_transaction (Home «+»).
    *  - `'plan'`: creates a planned row in the selected period (Plan «+»).
+   *  - `categoryId` (optional): pre-select this category in the sheet's category
+   *    picker (CategoryDetail «Добавить транзакцию»). Positional + backward-
+   *    compatible: `openAddSheet()` and `openAddSheet('plan')` keep working.
    */
-  openAddSheet: (mode?: AddSheetMode) => void;
+  openAddSheet: (mode?: AddSheetMode, categoryId?: number) => void;
 }
 
 const AddSheetHostCtx = createContext<AddSheetHostAPI>({
@@ -30,7 +33,7 @@ export function AddSheetHostProvider({
   openAddSheet,
   children,
 }: {
-  openAddSheet: (mode?: AddSheetMode) => void;
+  openAddSheet: (mode?: AddSheetMode, categoryId?: number) => void;
   children: ReactNode;
 }) {
   return (

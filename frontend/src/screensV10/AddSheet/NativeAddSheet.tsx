@@ -31,6 +31,12 @@ export interface NativeAddSheetProps {
    * date), different submit + chrome («В план» / «Добавить в план»).
    */
   mode?: import('../native/AddSheetHost').AddSheetMode;
+  /**
+   * Optional category to pre-select when the sheet opens (CategoryDetail
+   * «Добавить транзакцию» deep-link). Threaded into the controller's
+   * `categoryId` state; the user may still re-pick via the category sheet.
+   */
+  initialCategoryId?: number;
   /** Called with the newly-created tx/planned id after a successful POST. */
   onSubmitted: (txId: number) => void;
   /** Called when the user dismisses the sheet (clean form or confirmed cancel). */
@@ -92,10 +98,16 @@ function yesterdayIsoLocal(): string {
 
 export function NativeAddSheet({
   mode = 'fact',
+  initialCategoryId,
   onSubmitted,
   onClose,
 }: NativeAddSheetProps) {
-  const c = useAddSheetController({ mode, onSubmitted, onClose });
+  const c = useAddSheetController({
+    mode,
+    initialCategoryId,
+    onSubmitted,
+    onClose,
+  });
   const isPlan = mode === 'plan';
 
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);

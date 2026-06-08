@@ -4,15 +4,15 @@
 //   1. On mount, fetch categories + current period in parallel; resolve the
 //      target category locally (cats.find(id)). Then fetch period actuals
 //      sequentially once period.id is known.
-//   2. Render <CategoryDetailView> wired to a router-push handler for
-//      «+ ПОДНЯТЬ ЛИМИТ».
+//   2. Render <CategoryDetailView> wired to the shared Add-sheet host for
+//      «Добавить транзакцию» (opens the sheet pre-selected to this category).
 //   3. On any fetch error, render an error sub-view with a retry button.
 //
 // Mount layer is intentionally thin — all sort/filter/aggregate logic lives
 // in pure functions in computeCategoryDetail.ts (unit-tested separately).
 //
-// Phase 26-04: «+ ПОДНЯТЬ ЛИМИТ» now pushes the real <PlanMount focusCategoryId>
-// deep-link (Plan 26-04 retrofit; PLAN_FOCUS_TODO marker resolved).
+// Item 7: the detail CTA now opens the Add sheet (fact/expense for this
+// category) instead of deep-linking into the Plan editor.
 
 import { useCallback, useState } from 'react';
 import {
@@ -26,9 +26,7 @@ import { unpostedByCategory } from '../Home/computeHomeData';
 import { getCurrentPeriod } from '../../api/periods';
 import { NativeToast } from '../native/NativeToast';
 import { StatePlate, usePosterRouter, useResource } from '../common';
-// Phase 26-04: real Plan editor with focusCategoryId deep-link replaces the
-// prior WIP PlanViewPlaceholder push.
-import { PlanMount } from '../Plan';
+import { useAddSheetHost } from '../native/AddSheetHost';
 import { NativeCategoryDetailView } from './NativeCategoryDetailView';
 
 // TODO P2 (period switching): this drill-down still pins to getCurrentPeriod().
@@ -64,6 +62,7 @@ const NOT_FOUND_MESSAGE = 'Категория не найдена';
 
 export function CategoryDetailMount({ categoryId }: CategoryDetailMountProps) {
   const router = usePosterRouter();
+  const { openAddSheet } = useAddSheetHost();
   // P2-11: mutation error surface (single toast slot, last error wins).
   const [toastMsg, setToastMsg] = useState<string | null>(null);
 
@@ -100,13 +99,13 @@ export function CategoryDetailMount({ categoryId }: CategoryDetailMountProps) {
     [categoryId],
   );
 
-  const handlePushPlan = useCallback(
+  const handleAddTransaction = useCallback(
     (catId: number) => {
-      // Phase 26-04: PLAN_FOCUS_TODO resolved — real PlanMount with deep-link
-      // scroll to this category.
-      router.push(<PlanMount focusCategoryId={catId} />);
+      // Item 7: open the shared Add sheet as a fact/expense add pre-selected to
+      // this category (replaces the prior «Поднять лимит» Plan deep-link).
+      openAddSheet('fact', catId);
     },
-    [router],
+    [openAddSheet],
   );
 
   const handleBack = useCallback(() => {
@@ -134,7 +133,7 @@ export function CategoryDetailMount({ categoryId }: CategoryDetailMountProps) {
         category={data.category}
         actuals={data.actuals}
         plannedUnpostedCents={data.plannedUnpostedCents}
-        onPushPlan={handlePushPlan}
+        onAddTransaction={handleAddTransaction}
         onBack={handleBack}
       />
       <NativeToast

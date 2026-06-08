@@ -263,7 +263,25 @@
 .catTop {
   display: flex;
   align-items: center;
+  gap: 10px;
+}
+/* Tappable lead (icon + name) → drill into the category's planned detail. */
+.catLead {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
   gap: 12px;
+  border: none;
+  background: none;
+  padding: 0;
+  margin: 0;
+  font-family: var(--lgn-font);
+  text-align: left;
+  cursor: pointer;
+}
+.catLead:active {
+  opacity: 0.6;
 }
 .catName {
   flex: 1 1 auto;
@@ -300,6 +318,39 @@
   font-weight: 600;
   color: var(--lgn-ink-2);
 }
+/* Per-category «+» — plan add (shared AddSheet, pre-selected category). */
+.catAddBtn {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255, 122, 76, 0.12);
+  color: var(--lgn-accent);
+  cursor: pointer;
+}
+.catAddBtn:active {
+  background: rgba(255, 122, 76, 0.22);
+}
+/* Drill-in affordance — mirrors InsetRow's trailing chevron. */
+.catChevron {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: none;
+  padding: 0;
+  margin-left: -2px;
+  color: var(--lgn-ink-3, var(--lgn-ink-2));
+  cursor: pointer;
+}
+.catChevron:active {
+  opacity: 0.6;
+}
 
 /* ─────────── Error + footnote ─────────── */
 .errorMsg {
@@ -318,29 +369,6 @@
   font-size: 13px;
   color: var(--lgn-ink-2);
   line-height: 1.4;
-}
-
-/* «+ Добавить в план» — single global accent row.
-   Opens the shared AddSheet (plan mode); category is chosen inside the sheet. */
-.addPlannedBtn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  width: 100%;
-  border: none;
-  background: rgba(255, 122, 76, 0.12);
-  color: var(--lgn-accent);
-  font-family: var(--lgn-font);
-  font-size: 16px;
-  font-weight: 600;
-  padding: 14px;
-  border-radius: var(--lgn-r-card, 14px);
-  cursor: pointer;
-  margin: 10px var(--lgn-s-16) 0;
-}
-.addPlannedBtn:active {
-  background: rgba(255, 122, 76, 0.22);
 }
 
 /* ─────────── Empty (regulars) ─────────── */

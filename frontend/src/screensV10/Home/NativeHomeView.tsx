@@ -86,12 +86,13 @@ function NativeHomeViewInner(props: NativeHomeViewProps) {
 
   const rows = seg === 'expenses' ? expenseRows : incomeRows;
 
-  // 4-level plan↔fact ladder (expense-scoped, mirrors the iOS Home header):
-  //   Лимит      — Σ per-period category limit (expense plan).
-  //   Расписано  — Σ UNPOSTED planned amount (prop; anti-double-count applied
-  //                upstream in plannedUnpostedTotal).
-  //   Факт       — Σ realised expense actuals.
-  //   В запасе   — Лимит − Факт (sign convention «+ = good»).
+  // 3-level plan↔fact ladder (expense-scoped, mirrors the iOS Home header):
+  //   План      — Σ UNPOSTED planned amount (prop; anti-double-count applied
+  //               upstream in plannedUnpostedTotal).
+  //   Факт      — Σ realised expense actuals.
+  //   В запасе  — planTotal − Факт (sign convention «+ = good»). planTotal is
+  //              the Σ per-period category limit (expense plan); still computed
+  //              for the surplus math even though the «Лимит» column was removed.
   const planTotalCents = sumPlan(expenseRows);
   const factTotalExpenseCents = sumFact(expenseRows);
   const surplusCents = planTotalCents - factTotalExpenseCents;
@@ -138,13 +139,7 @@ function NativeHomeViewInner(props: NativeHomeViewProps) {
         </div>
         <div className={styles.statsRow} data-testid="native-home-ladder">
           <div className={styles.statCol}>
-            <span className={styles.statLabel}>Лимит</span>
-            <span className={styles.statValue}>
-              {formatMoneyNative(planTotalCents)}
-            </span>
-          </div>
-          <div className={styles.statCol}>
-            <span className={styles.statLabel}>Расписано</span>
+            <span className={styles.statLabel}>План</span>
             <span
               className={styles.statValue}
               data-testid="native-home-planned"
@@ -275,10 +270,9 @@ function NativeHomeViewInner(props: NativeHomeViewProps) {
                   hasPlan
                     ? `${formatMoneyNative(cat.fact_cents)} / ${formatMoneyNative(
                         cat.plan_cents,
-                      )}`
+                      )} ₽`
                     : 'Без плана'
                 }
-                trailing={formatMoneyNative(cat.fact_cents)}
                 chevron
                 onClick={() => onCategoryTap(cat.id)}
               />
