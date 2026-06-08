@@ -340,3 +340,58 @@
   border-radius: var(--lgn-r-card);
   box-shadow: var(--lgn-shadow-card), var(--lgn-card-edge);
 }
+
+/* ─────────── «…» action menu + OVERWRITE confirm (PosterSheet body) ─────────── */
+.menuSheet {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 16px 24px;
+}
+
+.menuItem {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 14px 16px;
+  border: none;
+  border-radius: var(--lgn-r-tile, 12px);
+  background: var(--lgn-seg-track, #ececec);
+  color: var(--lgn-ink-1, #111);
+  font-family: var(--lgn-font);
+  font-size: 16px;
+  font-weight: 600;
+  text-align: center;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.menuItem:active {
+  opacity: 0.7;
+}
+
+.menuCancel {
+  color: var(--lgn-ink-2, #666);
+}
+
+.menuDanger {
+  background: var(--lgn-accent, #f0801a);
+  color: #fff;
+}
+
+.confirmTitle {
+  padding: 8px 16px 0;
+  font-family: var(--lgn-font);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--lgn-ink-1, #111);
+  text-align: center;
+}
+
+.confirmText {
+  padding: 4px 16px 8px;
+  font-family: var(--lgn-font);
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--lgn-ink-2, #666);
+  text-align: center;
+}

@@ -1,0 +1,182 @@
+/* v1.1 planning — native Template management view. Scoped (CSS module).
+   Mirrors NativeCategoriesView.module.css conventions. */
+
+.root {
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 24px;
+}
+
+/* Loading / error banners (mirrors NativeSettingsView / NativeCategoriesView). */
+.banner {
+  margin: 8px 16px;
+  padding: 10px 14px;
+  border-radius: var(--lgn-r-card, 14px);
+  background: var(--lgn-seg-track, #eee);
+  color: var(--lgn-ink-2, #666);
+  font-family: var(--lgn-font);
+  font-size: 14px;
+}
+
+.bannerError {
+  background: rgba(220, 60, 60, 0.12);
+  color: #c0392b;
+}
+
+.muted {
+  color: var(--lgn-ink-2, #888);
+}
+
+/* Intro blurb explaining the template auto-applies to new months. */
+.intro {
+  margin: 4px 16px 8px;
+  padding: 12px 14px;
+  border-radius: var(--lgn-r-card, 14px);
+  background: var(--lgn-seg-track, rgba(120, 120, 128, 0.12));
+  color: var(--lgn-ink-2, #555);
+  font-family: var(--lgn-font);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+/* Footnote (same role as the Plan view footnote). */
+.footnote {
+  margin: 12px 16px 0;
+  color: var(--lgn-ink-2, #888);
+  font-family: var(--lgn-font);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+/* Trailing value (template limit) on a category row. */
+.limitValue {
+  font-family: var(--lgn-font);
+  font-size: 15px;
+  color: var(--lgn-ink-1, #111);
+  font-variant-numeric: tabular-nums;
+}
+
+.limitValueEmpty {
+  color: var(--lgn-ink-2, #999);
+}
+
+/* Recurring line: secondary meta line under the title. */
+.lineMeta {
+  color: var(--lgn-ink-2, #888);
+}
+
+.lineAmount {
+  font-family: var(--lgn-font);
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+}
+
+.lineAmountIncome {
+  color: #2e9e5b;
+}
+
+/* Inline editor inside an InsetGroup. */
+.editor {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 14px 16px;
+}
+
+.editorLabel {
+  font-family: var(--lgn-font);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--lgn-ink-2, #666);
+}
+
+.field {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border: 1px solid var(--lgn-hairline, rgba(0, 0, 0, 0.12));
+  border-radius: var(--lgn-r-tile, 12px);
+  background: var(--lgn-field-bg, #fff);
+  color: var(--lgn-ink-1, #111);
+  font-family: var(--lgn-font);
+  font-size: 16px;
+}
+
+.field:focus {
+  outline: none;
+  border-color: var(--lgn-accent, #f0801a);
+}
+
+select.field {
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.fieldRow {
+  display: flex;
+  gap: 10px;
+}
+
+.fieldRow > * {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.editorActions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.editorActionsRight {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.primaryBtn,
+.secondaryBtn,
+.dangerBtn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: var(--lgn-r-pill, 999px);
+  font-family: var(--lgn-font);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.primaryBtn {
+  background: var(--lgn-accent, #f0801a);
+  color: #fff;
+}
+
+.primaryBtn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.secondaryBtn {
+  background: var(--lgn-seg-track, #ececec);
+  color: var(--lgn-ink-1, #111);
+}
+
+.dangerBtn {
+  background: rgba(220, 60, 60, 0.12);
+  color: #c0392b;
+}
+
+.dangerBtn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.empty {
+  margin: 0 16px;
+  padding: 14px 16px;
+  color: var(--lgn-ink-2, #888);
+  font-family: var(--lgn-font);
+  font-size: 14px;
+}

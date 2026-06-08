@@ -43,6 +43,8 @@ import {
 import { getCurrentPeriod } from '../../api/periods';
 import { getMeV10 } from '../../api/me';
 import { ApiError } from '../../api/client';
+import { saveCurrentAsTemplate } from '../../api/template';
+import { TemplateMount } from '../Management/TemplateMount';
 import type { PlanMonthItem } from '../../api/types';
 import { NativePlanView } from './NativePlanView';
 import { PlanCategoryDetailMount } from './PlanCategoryDetailMount';
@@ -226,6 +228,21 @@ export function PlanMount({ focusCategoryId = null }: PlanMountProps = {}) {
     [router],
   );
 
+  // «Сохранить план как шаблон» — snapshot the CURRENT plan into the reusable
+  // template (OVERWRITE). The view owns the confirm; this fires after confirm.
+  const handleSaveAsTemplate = useCallback(async () => {
+    try {
+      await saveCurrentAsTemplate();
+      setToast({ text: 'Шаблон обновлён', tone: 'success' });
+    } catch {
+      setToast({ text: 'Не удалось сохранить шаблон', tone: 'error' });
+    }
+  }, []);
+
+  const handleOpenTemplate = useCallback(() => {
+    router.push(<TemplateMount />);
+  }, [router]);
+
   // ─────────── derived view-model ───────────
   // v1.1 design-fix: income and expense are SEPARATE on «План месяца». Income
   // is not capped — it has no «лимит»/«осталось распределить»/«превышено». We
@@ -345,6 +362,8 @@ export function PlanMount({ focusCategoryId = null }: PlanMountProps = {}) {
         onUnpostRegular={handleUnpostRegular}
         onCategoryTap={handleCategoryTap}
         onBack={() => router.pop()}
+        onSaveAsTemplate={handleSaveAsTemplate}
+        onOpenTemplate={handleOpenTemplate}
         incomeCategories={incomeCategories}
         incomePlannedCents={incomePlannedCents}
       />

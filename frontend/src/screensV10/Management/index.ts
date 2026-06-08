@@ -24,6 +24,12 @@ export {
   type CategoryEditInput,
 } from './NativeCategoriesView';
 
+export { TemplateMount } from './TemplateMount';
+export {
+  NativeTemplateView,
+  type TemplateViewProps,
+} from './NativeTemplateView';
+
 export { AccessMount } from './AccessMount';
 export {
   NativeAccessView,

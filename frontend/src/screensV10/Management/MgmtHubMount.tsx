@@ -13,6 +13,7 @@ import { NativeMgmtHubView, type MgmtRowId } from './NativeMgmtHubView';
 import { SettingsMount } from './SettingsMount';
 import { AccessMount } from './AccessMount';
 import { CategoriesMount } from './CategoriesMount';
+import { TemplateMount } from './TemplateMount';
 import { AnalyticsMount } from '../Analytics';
 import { SubscriptionsMount } from '../Subscriptions';
 
@@ -42,6 +43,8 @@ export function MgmtHubMount() {
       router.push(<SubscriptionsMount />);
     } else if (id === 'categories') {
       router.push(<CategoriesMount />);
+    } else if (id === 'template') {
+      router.push(<TemplateMount />);
     } else if (id === 'settings') {
       router.push(<SettingsMount />);
     } else if (id === 'access') {

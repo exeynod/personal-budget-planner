@@ -27,13 +27,15 @@
 // post/unpost). Limit edit + plan add live in the per-category detail now.
 
 import { memo, useEffect, useRef, useState, type ReactNode } from 'react';
-import { CheckCircle, CaretRight } from '@phosphor-icons/react';
+import { CheckCircle, CaretRight, DotsThree } from '@phosphor-icons/react';
 import {
   NativeNavBar,
   SectionHeader,
   InsetGroup,
   Segmented,
+  CircleButton,
 } from '../native/NativePrimitives';
+import { PosterSheet } from '../common';
 import { CategoryIcon } from '../native/CategoryIcon';
 import { formatMoneyNative, formatSignedMoneyNative } from '../native/money';
 import type { CategoryV10 } from '../../api/v10';
@@ -83,6 +85,14 @@ export interface NativePlanViewProps {
   /** Drill into a category's planned-transaction detail (push). */
   onCategoryTap: (categoryId: number) => void;
   onBack: () => void;
+  /**
+   * Snapshot the CURRENT plan into the reusable template (OVERWRITE). The view
+   * owns the confirm dialog; this fires only AFTER the user confirms. Optional
+   * — omitted callers hide the «…» action.
+   */
+  onSaveAsTemplate?: () => void;
+  /** Open the «Шаблон» management screen (optional quick link). */
+  onOpenTemplate?: () => void;
 }
 
 // ─────────── Component ───────────
@@ -108,10 +118,17 @@ function NativePlanViewInner(props: NativePlanViewProps) {
     onUnpostRegular,
     onCategoryTap,
     onBack,
+    onSaveAsTemplate,
+    onOpenTemplate,
   } = props;
 
   // Расходы / Доходы segment (mirrors the Home segmented control).
   const [seg, setSeg] = useState<Seg>('expenses');
+
+  // «…» overflow → action menu (sheet); «Сохранить как шаблон» opens the
+  // OVERWRITE confirm before firing onSaveAsTemplate.
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   const focusRowRef = useRef<HTMLButtonElement | null>(null);
   useEffect(() => {
@@ -207,9 +224,102 @@ function NativePlanViewInner(props: NativePlanViewProps) {
     );
   }
 
+  const showOverflow = onSaveAsTemplate != null || onOpenTemplate != null;
+
   return (
     <div className={styles.root}>
-      <NativeNavBar title="План месяца" onBack={onBack} />
+      <NativeNavBar
+        title="План месяца"
+        onBack={onBack}
+        trailing={
+          showOverflow ? (
+            <CircleButton
+              ariaLabel="Действия с планом"
+              testId="native-plan-menu-btn"
+              onClick={() => setMenuOpen(true)}
+            >
+              <DotsThree size={22} weight="bold" />
+            </CircleButton>
+          ) : undefined
+        }
+      />
+
+      {/* «…» action menu */}
+      <PosterSheet
+        isOpen={menuOpen}
+        onClose={() => setMenuOpen(false)}
+        testId="native-plan-menu-sheet"
+      >
+        <div className={styles.menuSheet}>
+          {onSaveAsTemplate != null && (
+            <button
+              type="button"
+              className={styles.menuItem}
+              data-testid="native-plan-save-as-template"
+              onClick={() => {
+                setMenuOpen(false);
+                setConfirmOpen(true);
+              }}
+            >
+              Сохранить план как шаблон
+            </button>
+          )}
+          {onOpenTemplate != null && (
+            <button
+              type="button"
+              className={styles.menuItem}
+              data-testid="native-plan-open-template"
+              onClick={() => {
+                setMenuOpen(false);
+                onOpenTemplate();
+              }}
+            >
+              Открыть шаблон
+            </button>
+          )}
+          <button
+            type="button"
+            className={`${styles.menuItem} ${styles.menuCancel}`}
+            onClick={() => setMenuOpen(false)}
+          >
+            Отмена
+          </button>
+        </div>
+      </PosterSheet>
+
+      {/* OVERWRITE confirm */}
+      <PosterSheet
+        isOpen={confirmOpen}
+        onClose={() => setConfirmOpen(false)}
+        testId="native-plan-confirm-sheet"
+      >
+        <div className={styles.menuSheet} data-testid="native-plan-confirm">
+          <div className={styles.confirmTitle}>Перезаписать шаблон?</div>
+          <div className={styles.confirmText}>
+            Текущий план месяца станет новым шаблоном и перезапишет прежний.
+            Лимиты и регулярные операции шаблона будут заменены.
+          </div>
+          <button
+            type="button"
+            className={`${styles.menuItem} ${styles.menuDanger}`}
+            data-testid="native-plan-confirm-yes"
+            onClick={() => {
+              setConfirmOpen(false);
+              onSaveAsTemplate?.();
+            }}
+          >
+            Перезаписать шаблон текущим планом
+          </button>
+          <button
+            type="button"
+            className={`${styles.menuItem} ${styles.menuCancel}`}
+            data-testid="native-plan-confirm-no"
+            onClick={() => setConfirmOpen(false)}
+          >
+            Отмена
+          </button>
+        </div>
+      </PosterSheet>
 
       {/* ───── Расходы / Доходы segment ───── */}
       <div className={styles.segmentRow}>

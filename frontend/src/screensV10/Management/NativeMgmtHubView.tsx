@@ -24,6 +24,7 @@ import {
   GearSix,
   Users,
   SquaresFour,
+  ClipboardText,
   type Icon as PhosphorIcon,
 } from '@phosphor-icons/react';
 import {
@@ -38,6 +39,7 @@ export type MgmtRowId =
   | 'analytics'
   | 'subscriptions'
   | 'categories'
+  | 'template'
   | 'settings'
   | 'access';
 
@@ -121,6 +123,12 @@ const ROWS: NativeRowDef[] = [
     title: 'Категории',
     subtitle: 'Создание, иконки, архив',
     Icon: SquaresFour,
+  },
+  {
+    id: 'template',
+    title: 'Шаблон',
+    subtitle: 'Лимиты и регулярные операции для новых месяцев',
+    Icon: ClipboardText,
   },
   {
     id: 'settings',
