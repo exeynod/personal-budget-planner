@@ -70,9 +70,9 @@ test.describe('Phase 3 responsiveness (native web shell)', () => {
     );
     expect(noHScroll).toBe(true);
 
-    // 4) Fixed TabBar re-anchors inside the column (within ±2px of column edges,
-    //    accounting for the 14px side gutters).
-    const tabBar = page.locator('[class*="tabBar"]').first();
+    // 4) Floating nav (pill + AI bubble) re-anchors inside the column (within
+    //    ±2px of column edges, accounting for the side gutters).
+    const tabBar = page.locator('[class*="navRow"]').first();
     await expect(tabBar).toBeVisible();
     const tabBox = await tabBar.boundingBox();
     expect(tabBox).not.toBeNull();
