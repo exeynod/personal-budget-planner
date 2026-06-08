@@ -19,6 +19,16 @@
   font-family: var(--lgn-font);
   overflow: hidden;
 }
+/* Warm gradient-orb glow (the «Movimientos» blob on #25) — hero depth accent. */
+.summaryCard::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--lgn-accent-orb);
+  pointer-events: none;
+  z-index: 0;
+}
 .summaryCard::after {
   content: '';
   position: absolute;
@@ -48,10 +58,12 @@
 }
 .summaryFact {
   margin-top: 1px;
-  font-size: 28px;
+  font-size: 29px;
   font-weight: 700;
   letter-spacing: 0.2px;
-  color: var(--lgn-ink);
+  /* Hero ФАКТ sum carries the brand accent (highlighted number like on #25);
+     accent-ink keeps it ≥4.5:1 on the light glass. */
+  color: var(--lgn-accent-ink);
   display: flex;
   align-items: baseline;
   gap: 4px;
@@ -59,7 +71,8 @@
 .summaryCur {
   font-size: 18px;
   font-weight: 600;
-  color: var(--lgn-ink-2);
+  color: var(--lgn-accent-ink);
+  opacity: 0.7;
 }
 
 /* Ladder row (Лимит / Расписано / Факт / В запасе) — mirrors NativeHomeView */

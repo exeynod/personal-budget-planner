@@ -86,6 +86,17 @@
   cursor: pointer;
   overflow: hidden;
 }
+/* Sheen + a warm gradient-orb glow in the top-right (the «Movimientos» blob on
+   #25): a touch of colour + depth on the hero balance surface, sparingly. */
+.balanceCard::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--lgn-accent-orb);
+  pointer-events: none;
+  z-index: 0;
+}
 .balanceCard::after {
   content: '';
   position: absolute;
@@ -107,10 +118,12 @@
 }
 .balanceAmount {
   margin-top: 2px;
-  font-size: 30px;
+  font-size: 32px;
   font-weight: 700;
   letter-spacing: 0.2px;
-  color: var(--lgn-ink);
+  /* Hero sum carries the brand accent (like «$356» on #25). accent-ink keeps it
+     ≥4.5:1 on the light glass. */
+  color: var(--lgn-accent-ink);
   display: flex;
   align-items: baseline;
   gap: 4px;
@@ -118,7 +131,8 @@
 .balanceCur {
   font-size: 19px;
   font-weight: 600;
-  color: var(--lgn-ink-2);
+  color: var(--lgn-accent-ink);
+  opacity: 0.7;
 }
 
 .statsRow {

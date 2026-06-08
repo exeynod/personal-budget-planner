@@ -22,6 +22,31 @@
   box-shadow: var(--lgn-shadow-card), var(--lgn-card-edge);
   padding: 14px var(--lgn-s-16) 16px;
   font-family: var(--lgn-font);
+  overflow: hidden;
+}
+/* Warm gradient-orb glow (the «Movimientos» blob on #25) — hero depth accent. */
+.surplusCard::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--lgn-accent-orb);
+  pointer-events: none;
+  z-index: 0;
+}
+.surplusCard > * {
+  position: relative;
+  z-index: 1;
+}
+/* Over-budget → swap the warm orb for a red-tinted glow so the whole hero reads
+   «превышение» at a glance. */
+.surplusOver.surplusCard::before {
+  background: radial-gradient(
+    120% 130% at 88% -20%,
+    rgba(255, 59, 48, 0.26) 0%,
+    rgba(255, 59, 48, 0.08) 36%,
+    rgba(255, 59, 48, 0) 62%
+  );
 }
 .surplusHead {
   display: flex;
@@ -35,13 +60,19 @@
 }
 .surplusValue {
   margin-top: 2px;
-  font-size: 28px;
+  font-size: 29px;
   font-weight: 700;
   letter-spacing: 0.2px;
-  color: var(--lgn-ink);
+  /* Key «Осталось распределить» sum carries the brand accent (the highlighted
+     number like «$356» on #25); accent-ink keeps it ≥4.5:1 on light glass. */
+  color: var(--lgn-accent-ink);
 }
 .surplusOver .surplusValue {
   color: var(--lgn-red);
+}
+/* Income hero value stays calm ink (green is already carried by the section). */
+.incomeSummary .surplusValue {
+  color: var(--lgn-ink);
 }
 .surplusBadge {
   display: inline-flex;
@@ -95,6 +126,15 @@
 /* ─────────── Income summary (calm — no surplus/over chrome) ─────────── */
 .incomeSummary {
   border-left-color: var(--lgn-green);
+}
+/* Income hero gets a calm green-tinted glow instead of the warm orange orb. */
+.incomeSummary.surplusCard::before {
+  background: radial-gradient(
+    120% 130% at 88% -20%,
+    rgba(47, 178, 79, 0.2) 0%,
+    rgba(47, 178, 79, 0.06) 36%,
+    rgba(47, 178, 79, 0) 62%
+  );
 }
 .incomeSummaryRow {
   display: flex;
