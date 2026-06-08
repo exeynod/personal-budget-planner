@@ -112,6 +112,9 @@ export const PERIOD_CURRENT_V10 = {
   ending_balance_cents: null,
   status: 'active',
   closed_at: null,
+  // ADR-0008 — already planned so the monthly planning gate does NOT trigger in
+  // the baseline specs (needs_planning is derived false below).
+  planned_at: '2026-05-01T00:00:00Z',
 };
 
 /**
@@ -210,6 +213,9 @@ export const HOME_BOOTSTRAP_V10 = {
   period: PERIOD_CURRENT_V10,
   balance: null,
   actuals: [],
+  // ADR-0008 — false so the planning gate stays down for the baseline specs
+  // (the active period above has a non-null planned_at).
+  needs_planning: false,
 };
 
 // ─────────────────── route installation ───────────────────

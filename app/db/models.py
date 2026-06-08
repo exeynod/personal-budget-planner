@@ -450,6 +450,13 @@ class BudgetPeriod(Base):
     closed_at: Mapped[Optional[datetime]] = mapped_column(
         TIMESTAMP(timezone=True), nullable=True
     )
+    # ADR-0008 (monthly planning gate): NULL = period not yet planned -> the
+    # planning interstitial is shown; non-NULL = plan confirmed. Onboarding's
+    # first period and confirm-plan set now(); periods rolled by
+    # close_period_job leave this NULL (which triggers the gate).
+    planned_at: Mapped[Optional[datetime]] = mapped_column(
+        TIMESTAMP(timezone=True), nullable=True
+    )
     user_id: Mapped[int] = mapped_column(
         BigInteger,
         ForeignKey("app_user.id", ondelete="RESTRICT"),

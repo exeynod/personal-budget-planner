@@ -23,6 +23,7 @@ import {
   SectionHeader,
   InsetGroup,
   InsetRow,
+  useScrollIntoViewOnFocus,
 } from '../native/NativePrimitives';
 import { formatMoneyNative } from '../native/money';
 import { useEnterToDismiss } from '../common/useEnterToDismiss';
@@ -174,6 +175,8 @@ function ReconcileSection({
   const onInputKeyDown = useEnterToDismiss(() => {
     if (canSubmit) handleSubmit();
   });
+  // Bug fix B: keep the focused «Реальный остаток» field above the keyboard.
+  const inputFocusScroll = useScrollIntoViewOnFocus();
 
   return (
     <>
@@ -206,6 +209,7 @@ function ReconcileSection({
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={onInputKeyDown}
+                {...inputFocusScroll}
                 aria-label="Реальный остаток в рублях"
                 data-testid="reconcile-input"
               />

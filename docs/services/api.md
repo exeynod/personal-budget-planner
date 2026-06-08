@@ -80,6 +80,23 @@ Home-prompt и прогноз кэшфлоу:
 Роут `POST /template/save-current` удалён (ADR-0007 — перезапись шаблона текущим
 планом признана ненадёжной; шаблон правится напрямую).
 
+### Месячный гейт планирования (ADR-0008)
+
+`budget_period.planned_at TIMESTAMPTZ NULL` отмечает, спланирован ли период:
+`NULL` = период не спланирован → shell показывает гейт; non-NULL = план
+подтверждён. Лайфцикл: онбординг (`create_first_period`) ставит `planned_at = now()`
+(первый период не гейтим); периоды, прокатанные `close_period_job`, создаются с
+`planned_at = NULL` (триггерит гейт на первом входе в новый период). Миграция
+`0037` бэкфилит существующие периоды `now()` — текущий месяц не гейтится на деплое.
+
+| Метод | Путь | Назначение |
+| --- | --- | --- |
+| POST | `/periods/{period_id}/confirm-plan` | снять гейт: `planned_at = now()`, идемпотентно. → `PeriodRead` (200); `404` если период не принадлежит тенанту |
+
+`PeriodRead` отдаёт `planned_at: datetime \| None`. `GET /home` несёт
+`needs_planning: bool = (period is not None and period.planned_at is None)` — shell
+гейтит на первом bootstrap без доп. запроса.
+
 ## Зависимости
 
 - **db** (`db` сервис) — единственный источник состояния.

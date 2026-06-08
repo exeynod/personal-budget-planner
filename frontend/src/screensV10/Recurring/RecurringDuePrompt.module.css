@@ -17,15 +17,24 @@
   text-transform: uppercase;
 }
 
+/* Bug fix A: each row is now a vertical stack — name/amount on top, actions on
+   their OWN row below — so on iPhone width the action pills never overlap the
+   amount or truncate the name. */
 .row {
   display: flex;
-  align-items: center;
-  gap: 12px;
+  flex-direction: column;
+  gap: 10px;
   padding: 12px var(--lgn-s-16);
   font-family: var(--lgn-font);
 }
 .row + .row {
   border-top: 1px solid var(--lgn-hairline-soft);
+}
+
+.rowTop {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 .main {
@@ -39,9 +48,8 @@
   font-size: 15px;
   font-weight: 600;
   color: var(--lgn-ink);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  /* Show the full name — wrap rather than clip with an ellipsis. */
+  overflow-wrap: anywhere;
 }
 .amount {
   font-size: 13px;
@@ -49,12 +57,14 @@
 }
 
 .actions {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 6px;
-  flex: 0 0 auto;
+  gap: 8px;
   flex-wrap: wrap;
-  justify-content: flex-end;
+}
+.actions .actionBtn {
+  flex: 1 1 auto;
+  text-align: center;
 }
 .actionBtn {
   border: none;

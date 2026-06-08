@@ -25,3 +25,6 @@ class PeriodRead(BaseModel):
     ending_balance_cents: Optional[int]
     status: PeriodStatusStr
     closed_at: Optional[datetime]
+    # ADR-0008 (monthly planning gate): NULL = period not yet planned (gate
+    # shown); non-NULL = plan confirmed via POST /periods/{id}/confirm-plan.
+    planned_at: Optional[datetime]

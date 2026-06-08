@@ -25,6 +25,7 @@ import {
   SquaresFour,
   ClipboardText,
   ArrowsClockwise,
+  CalendarCheck,
   type Icon as PhosphorIcon,
 } from '@phosphor-icons/react';
 import {
@@ -36,6 +37,7 @@ import {
 import styles from './NativeMgmtHubView.module.css';
 
 export type MgmtRowId =
+  | 'planning'
   | 'analytics'
   | 'categories'
   | 'template'
@@ -106,6 +108,12 @@ interface NativeRowDef {
 // DISTINCT, semantically-fitting icon (template no longer shares ChartBar with
 // analytics).
 const ROWS: NativeRowDef[] = [
+  {
+    id: 'planning',
+    title: 'Спланировать',
+    subtitle: 'Провести регулярные и расписать план месяца',
+    Icon: CalendarCheck,
+  },
   {
     id: 'analytics',
     title: 'Аналитика',

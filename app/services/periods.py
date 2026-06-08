@@ -5,7 +5,7 @@ keyword-only and filters/inserts ``BudgetPeriod.user_id`` explicitly.
 ``_today_in_app_tz()`` is a system-wide helper (no DB access) and remains
 unchanged.
 """
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from typing import Optional
 from zoneinfo import ZoneInfo
 
@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.period import period_for
 from app.core.settings import settings
 from app.db.models import BudgetPeriod, PeriodStatus
+from app.services.planned import PeriodNotFoundError
 
 
 def _today_in_app_tz() -> date:
@@ -88,8 +89,39 @@ async def create_first_period(
         period_end=p_end,
         starting_balance_cents=starting_balance_cents,
         status=PeriodStatus.active,
+        # ADR-0008: onboarding IS the first planning, so the first period is
+        # pre-planned (not gated). Periods rolled later by close_period_job
+        # leave planned_at NULL to trigger the monthly planning gate.
+        planned_at=datetime.now(timezone.utc),
     )
     db.add(period)
+    await db.flush()
+    await db.refresh(period)
+    return period
+
+
+async def confirm_plan(
+    db: AsyncSession, *, user_id: int, period_id: int
+) -> BudgetPeriod:
+    """ADR-0008: mark ``period_id`` as planned (snap the planning gate).
+
+    Sets ``planned_at = now()`` for the given period belonging to ``user_id``.
+    Idempotent — calling it again simply refreshes the timestamp.
+
+    Raises ``PeriodNotFoundError`` when the period does not exist or belongs to
+    another tenant (RLS already scopes the query; the explicit ``user_id``
+    filter is defence-in-depth, matching the rest of this module).
+    """
+    result = await db.execute(
+        select(BudgetPeriod).where(
+            BudgetPeriod.id == period_id,
+            BudgetPeriod.user_id == user_id,
+        )
+    )
+    period = result.scalar_one_or_none()
+    if period is None:
+        raise PeriodNotFoundError(f"Budget period {period_id} not found")
+    period.planned_at = datetime.now(timezone.utc)
     await db.flush()
     await db.refresh(period)
     return period

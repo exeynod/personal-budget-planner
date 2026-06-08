@@ -28,6 +28,7 @@ import {
   SectionHeader,
   InsetGroup,
   InsetRow,
+  useScrollIntoViewOnFocus,
 } from '../native/NativePrimitives';
 import { CategoryIcon } from '../native/CategoryIcon';
 import { formatMoneyNative, formatSignedMoneyNative } from '../native/money';
@@ -102,6 +103,8 @@ function PlanCategoryDetailViewInner(props: PlanCategoryDetailViewProps) {
   // Tapping a recurring (subscription_auto) row opens a non-editable note
   // instead of an edit sheet — recurring rows are managed in the template.
   const [recurringNoteOpen, setRecurringNoteOpen] = useState(false);
+  // Bug fix B: keep the focused «Лимит» field above the iPhone keyboard.
+  const limitFocusScroll = useScrollIntoViewOnFocus();
 
   const isIncome = category.kind === 'income';
   // Expense «лимит» (income has NO limit/plan target — never read plan_cents).
@@ -198,9 +201,11 @@ function PlanCategoryDetailViewInner(props: PlanCategoryDetailViewProps) {
                 className={styles.limitInput}
                 defaultValue={centsToRublesInput(planCents)}
                 key={planCents}
-                onBlur={(e) =>
-                  onLimitCommit(category.id, rublesInputToCents(e.target.value))
-                }
+                onFocus={limitFocusScroll.onFocus}
+                onBlur={(e) => {
+                  limitFocusScroll.onBlur();
+                  onLimitCommit(category.id, rublesInputToCents(e.target.value));
+                }}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
                     onLimitCommit(

@@ -33,6 +33,13 @@ export interface HomeBootstrap {
    * `[]` when there is no active period).
    */
   planned: PlannedV11Read[];
+  /**
+   * ADR-0008 — monthly planning gate. `true` = an active period exists AND its
+   * `planned_at` is null → the shell renders the full planning interstitial
+   * instead of the normal tab chrome. Optional for back-compat: older payloads /
+   * e2e mocks that omit it are treated as `false` (no gate).
+   */
+  needs_planning?: boolean;
 }
 
 /**

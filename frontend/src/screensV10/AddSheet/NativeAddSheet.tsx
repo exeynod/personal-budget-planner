@@ -16,7 +16,11 @@
 
 import { useState } from 'react';
 import { Backspace, Check, CalendarBlank, Tag } from '@phosphor-icons/react';
-import { InsetGroup, InsetRow } from '../native/NativePrimitives';
+import {
+  InsetGroup,
+  InsetRow,
+  useScrollIntoViewOnFocus,
+} from '../native/NativePrimitives';
 import { CategoryIcon } from '../native/CategoryIcon';
 import { NativeCalendar } from '../native/NativeCalendar';
 import { formatMoneyNative } from '../native/money';
@@ -131,6 +135,8 @@ export function NativeAddSheet({
   const isEdit = c.isEdit;
   // REQ5: dismiss the soft keyboard on Enter for the text inputs we own.
   const onDescKeyDown = useEnterToDismiss();
+  // Bug fix B: keep the focused free-text field above the iPhone keyboard.
+  const descFocusScroll = useScrollIntoViewOnFocus();
 
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -226,6 +232,7 @@ export function NativeAddSheet({
           value={c.description}
           onChange={(e) => c.setDescription(e.target.value)}
           onKeyDown={onDescKeyDown}
+          {...descFocusScroll}
           aria-label="Описание операции"
           data-testid="native-add-description"
         />

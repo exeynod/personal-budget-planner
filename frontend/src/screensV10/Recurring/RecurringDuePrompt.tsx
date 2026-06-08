@@ -10,7 +10,11 @@
 
 import { useState } from 'react';
 import { ArrowsClockwise } from '@phosphor-icons/react';
-import { SectionHeader, InsetGroup } from '../native/NativePrimitives';
+import {
+  SectionHeader,
+  InsetGroup,
+  useScrollIntoViewOnFocus,
+} from '../native/NativePrimitives';
 import { PosterSheet } from '../common';
 import { NativeDatePicker } from '../native/NativeDatePicker';
 import { CategoryIcon } from '../native/CategoryIcon';
@@ -58,6 +62,8 @@ export function RecurringDuePrompt({
   const [payAmountRaw, setPayAmountRaw] = useState('');
   const [postponeRow, setPostponeRow] = useState<RecurringDueRow | null>(null);
   const [postponeDate, setPostponeDate] = useState<string | null>(null);
+  // Bug fix B: keep the pay-amount field above the iPhone keyboard.
+  const payAmountFocusScroll = useScrollIntoViewOnFocus();
 
   if (due.length === 0) return null;
 
@@ -108,14 +114,19 @@ export function RecurringDuePrompt({
         className={styles.row}
         data-testid={`recurring-due-${row.id}`}
       >
-        <CategoryIcon name={cat?.name ?? name} id={row.category_id} icon={cat?.icon} />
-        <span className={styles.main}>
-          <span className={styles.title}>{name}</span>
-          <span className={styles.amount}>
-            {formatMoneyNative(row.amount_cents)} ₽
+        {/* Top line: icon + name (full, wraps — no ellipsis clipping) + amount.
+            Actions move to their OWN row below so the iPhone-width 3-column flex
+            can no longer crush the name/amount (bug fix A). */}
+        <div className={styles.rowTop}>
+          <CategoryIcon name={cat?.name ?? name} id={row.category_id} icon={cat?.icon} />
+          <span className={styles.main}>
+            <span className={styles.title}>{name}</span>
+            <span className={styles.amount}>
+              {formatMoneyNative(row.amount_cents)} ₽
+            </span>
           </span>
-        </span>
-        <span className={styles.actions}>
+        </div>
+        <div className={styles.actions}>
           <button
             type="button"
             className={`${styles.actionBtn} ${styles.payBtn}`}
@@ -140,7 +151,7 @@ export function RecurringDuePrompt({
           >
             Пропустить
           </button>
-        </span>
+        </div>
       </div>
     );
   }
@@ -193,6 +204,7 @@ export function RecurringDuePrompt({
               className={styles.fieldInput}
               value={payAmountRaw}
               onChange={(e) => setPayAmountRaw(sanitizeMoneyInput(e.target.value))}
+              {...payAmountFocusScroll}
               aria-label="Сумма платежа"
               data-testid="recurring-pay-amount"
               autoFocus

@@ -104,3 +104,11 @@
 .screenPad {
   padding-bottom: 24px;
 }
+
+/* ADR-0008 — manual planning gate overlay: covers the whole shell while open
+   (the gate itself owns the liquid_glass background + its own router). */
+.manualGateOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+}

@@ -25,6 +25,7 @@ import {
   SectionHeader,
   InsetGroup,
   InsetRow,
+  useScrollIntoViewOnFocus,
 } from '../native/NativePrimitives';
 import { PosterSheet } from '../common';
 import { CategoryIcon } from '../native/CategoryIcon';
@@ -193,6 +194,10 @@ function LineEditor({
     if (canSubmit) submit();
   });
   const dayOnEnter = useEnterToDismiss(commitDayClamp);
+  // Bug fix B: keep each focused free-text field above the iPhone keyboard.
+  const titleFocusScroll = useScrollIntoViewOnFocus();
+  const amountFocusScroll = useScrollIntoViewOnFocus();
+  const dayFocusScroll = useScrollIntoViewOnFocus();
 
   return (
     <div className={styles.editor} data-testid="template-line-editor">
@@ -205,6 +210,7 @@ function LineEditor({
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           onKeyDown={submitOnEnter}
+          {...titleFocusScroll}
           maxLength={200}
           aria-label="Название операции"
           data-testid="template-line-title"
@@ -223,6 +229,7 @@ function LineEditor({
             value={amountRaw}
             onChange={(e) => setAmountRaw(sanitizeMoneyInput(e.target.value))}
             onKeyDown={submitOnEnter}
+            {...amountFocusScroll}
             aria-label="Сумма операции"
             data-testid="template-line-amount"
           />
@@ -243,7 +250,11 @@ function LineEditor({
             onChange={(e) =>
               setDayRaw(e.target.value.replace(/[^0-9]/g, '').slice(0, 2))
             }
-            onBlur={commitDayClamp}
+            onFocus={dayFocusScroll.onFocus}
+            onBlur={() => {
+              dayFocusScroll.onBlur();
+              commitDayClamp();
+            }}
             onKeyDown={dayOnEnter}
             aria-label={`День месяца (${TEMPLATE_DAY_MIN}–${TEMPLATE_DAY_MAX})`}
             data-testid="template-line-day"
@@ -316,6 +327,7 @@ function LimitEditor({
   }
 
   const onEnter = useEnterToDismiss(commit);
+  const limitFocusScroll = useScrollIntoViewOnFocus();
 
   return (
     <div className={styles.limitEditRow}>
@@ -327,7 +339,11 @@ function LimitEditor({
           className={styles.limitInput}
           value={raw}
           onChange={(e) => setRaw(sanitizeMoneyInput(e.target.value))}
-          onBlur={commit}
+          onFocus={limitFocusScroll.onFocus}
+          onBlur={() => {
+            limitFocusScroll.onBlur();
+            commit();
+          }}
           onKeyDown={onEnter}
           aria-label={`Лимит для «${category.name}» в рублях`}
           data-testid="template-cat-limit-input"

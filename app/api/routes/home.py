@@ -95,6 +95,9 @@ async def get_home(
     # ALL periods, newest-first — same service + shape as GET /api/v1/periods.
     periods = await period_svc.list_all_periods(db, user_id=user_id)
 
+    # ADR-0008: gate when an active period exists but is not yet planned.
+    needs_planning = period is not None and period.planned_at is None
+
     return HomeResponse(
         user=user_payload,
         accounts=[AccountRead.model_validate(a) for a in accounts],
@@ -104,4 +107,5 @@ async def get_home(
         actuals=[ActualRead.model_validate(r) for r in actuals_rows],
         periods=[PeriodRead.model_validate(p) for p in periods],
         planned=[PlannedRead.model_validate(r) for r in planned_rows],
+        needs_planning=needs_planning,
     )

@@ -9,6 +9,7 @@
 import { useEffect, useState } from 'react';
 import { getMeV10 } from '../../api/me';
 import { usePosterRouter } from '../common';
+import { usePlanningLaunchOptional } from '../native/PlanningLaunch';
 import { NativeMgmtHubView, type MgmtRowId } from './NativeMgmtHubView';
 import { SettingsMount } from './SettingsMount';
 import { AccessMount } from './AccessMount';
@@ -19,6 +20,7 @@ import { RecurringCashflowMount } from '../Recurring';
 
 export function MgmtHubMount() {
   const router = usePosterRouter();
+  const planningLaunch = usePlanningLaunchOptional();
   const [isOwner, setIsOwner] = useState(false);
 
   useEffect(() => {
@@ -37,7 +39,10 @@ export function MgmtHubMount() {
   }, []);
 
   function handleRowTap(id: MgmtRowId) {
-    if (id === 'analytics') {
+    if (id === 'planning') {
+      // ADR-0008 — open the SAME planning gate in manual (closeable) mode.
+      planningLaunch?.launch();
+    } else if (id === 'analytics') {
       router.push(<AnalyticsMount />);
     } else if (id === 'categories') {
       router.push(<CategoriesMount />);

@@ -1735,6 +1735,10 @@
             "title": "Categories",
             "type": "array"
           },
+          "needs_planning": {
+            "title": "Needs Planning",
+            "type": "boolean"
+          },
           "period": {
             "anyOf": [
               {
@@ -1771,7 +1775,8 @@
           "balance",
           "actuals",
           "periods",
-          "planned"
+          "planned",
+          "needs_planning"
         ],
         "title": "HomeResponse",
         "type": "object"
@@ -2258,6 +2263,18 @@
             "title": "Period Start",
             "type": "string"
           },
+          "planned_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Planned At"
+          },
           "starting_balance_cents": {
             "title": "Starting Balance Cents",
             "type": "integer"
@@ -2278,7 +2295,8 @@
           "starting_balance_cents",
           "ending_balance_cents",
           "status",
-          "closed_at"
+          "closed_at",
+          "planned_at"
         ],
         "title": "PeriodRead",
         "type": "object"
@@ -8252,6 +8270,98 @@
           }
         },
         "summary": "Get Period Balance",
+        "tags": [
+          "public",
+          "periods"
+        ]
+      }
+    },
+    "/api/v1/periods/{period_id}/confirm-plan": {
+      "post": {
+        "description": "POST /api/v1/periods/{period_id}/confirm-plan — snap the planning gate (ADR-0008).\n\nSets ``planned_at = now()`` on the period so ``needs_planning`` flips to\nFalse and the planning interstitial is dismissed. Idempotent — re-confirming\nan already-planned period just refreshes the timestamp.\n\nStatus codes:\n    200: updated period (PeriodRead with planned_at set)\n    404: period does not exist or belongs to another tenant",
+        "operationId": "confirm_plan_api_v1_periods__period_id__confirm_plan_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "period_id",
+            "required": true,
+            "schema": {
+              "title": "Period Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-telegram-init-data",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Telegram-Init-Data"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-test-user",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Test-User"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PeriodRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Confirm Plan",
         "tags": [
           "public",
           "periods"

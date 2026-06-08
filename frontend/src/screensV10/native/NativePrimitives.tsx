@@ -9,7 +9,7 @@
 // Icons reuse @phosphor-icons/react (already a project dependency) as the web
 // stand-in for SF Symbols.
 
-import type { ReactNode } from 'react';
+import { useCallback, useEffect, useRef, type FocusEvent, type ReactNode } from 'react';
 import {
   House,
   ListBullets,
@@ -170,6 +170,84 @@ export function InsetRow({
       )}
     </button>
   );
+}
+
+// ─────────────────── Keyboard-aware focus scroll (iPhone) ───────────────────
+
+/**
+ * ADR-0008 (bug fix B) — on iPhone the on-screen keyboard covers a focused
+ * free-text input (and the info below it) because the WebView doesn't scroll the
+ * field into view. This hook returns props to spread onto an `<input>` /
+ * `<textarea>` (or any focusable field): on focus it scrolls the element into
+ * the centre of the (now keyboard-shrunken) visible area, after a short delay so
+ * the keyboard has finished animating in. It ALSO listens to
+ * `window.visualViewport` resize while the field is focused, so a late keyboard
+ * open (or rotation) re-centres the field.
+ *
+ * Composes with {@link useEnterToDismiss}: pass an existing `onKeyDown` straight
+ * through — this hook only owns `onFocus`/`onBlur`, never `onKeyDown`.
+ *
+ * Usage:
+ *   const focusScroll = useScrollIntoViewOnFocus();
+ *   <input {...focusScroll} onKeyDown={onEnter} />
+ */
+export function useScrollIntoViewOnFocus(): {
+  onFocus: (e: FocusEvent<HTMLElement>) => void;
+  onBlur: () => void;
+} {
+  const elRef = useRef<HTMLElement | null>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const scrollIntoCenter = useCallback(() => {
+    const el = elRef.current;
+    if (!el) return;
+    try {
+      el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    } catch {
+      // Older WebViews without smooth-scroll options — best effort.
+      el.scrollIntoView();
+    }
+  }, []);
+
+  const onFocus = useCallback(
+    (e: FocusEvent<HTMLElement>) => {
+      elRef.current = e.currentTarget;
+      // Delay so the keyboard has animated in and visualViewport has shrunk
+      // before we measure/scroll (~300ms is the iOS keyboard slide duration).
+      if (timerRef.current) clearTimeout(timerRef.current);
+      timerRef.current = setTimeout(scrollIntoCenter, 300);
+      // Keep the field visible if the viewport resizes later (keyboard open /
+      // rotation). Removed on blur.
+      const vv =
+        typeof window !== 'undefined' ? window.visualViewport : undefined;
+      vv?.addEventListener('resize', scrollIntoCenter);
+    },
+    [scrollIntoCenter],
+  );
+
+  const onBlur = useCallback(() => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+    const vv =
+      typeof window !== 'undefined' ? window.visualViewport : undefined;
+    vv?.removeEventListener('resize', scrollIntoCenter);
+    elRef.current = null;
+  }, [scrollIntoCenter]);
+
+  // Safety net: clean up the viewport listener + timer on unmount (e.g. the
+  // input is removed while still focused, so onBlur never fires).
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+      const vv =
+        typeof window !== 'undefined' ? window.visualViewport : undefined;
+      vv?.removeEventListener('resize', scrollIntoCenter);
+    };
+  }, [scrollIntoCenter]);
+
+  return { onFocus, onBlur };
 }
 
 // ─────────────────── Segmented control ───────────────────

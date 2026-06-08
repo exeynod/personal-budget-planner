@@ -16,7 +16,7 @@
 //   - pushed detail screens (CategoryDetail, Plan, Accounts, Settings…) use a
 //     native nav bar with a back chevron (provided by each native view).
 
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   PosterRouterProvider,
   PosterSheet,
@@ -29,6 +29,7 @@ import { NativeAddSheet } from '../AddSheet';
 import { MgmtHubMount } from '../Management';
 import { AiMount } from '../Ai';
 import { TransactionsMount } from '../Transactions';
+import { PlanningGate, type PlanningGateMode } from '../Planning';
 import { NativeTabBar, type NativeTabId } from './NativeTabBar';
 import { ShellVariantProvider } from './ShellVariant';
 import {
@@ -36,7 +37,9 @@ import {
   type AddSheetKind,
   type AddSheetMode,
 } from './AddSheetHost';
+import { PlanningLaunchProvider } from './PlanningLaunch';
 import type { ActualV10Read } from '../../api/v10';
+import { getHome, isHomeBootstrap } from '../../api/home';
 import { NavLevelProvider } from './NavLevel';
 import styles from './NativeShell.module.css';
 
@@ -128,6 +131,51 @@ export function NativeShell() {
   );
   const [refetchToken, setRefetchToken] = useState(0);
 
+  // ADR-0008 — monthly planning gate. We read `needs_planning` from the same
+  // /home bootstrap HomeMount uses (cached + deduped, so this is the SAME
+  // round-trip — no extra request). `null` = not yet known (don't gate while
+  // loading, so onboarding / first paint is never covered). `gatePeriod` is the
+  // active period to confirm; `manualOpen` opens the SAME gate in closeable mode
+  // from the Management hub even when the period is already planned.
+  const [needsPlanning, setNeedsPlanning] = useState<boolean | null>(null);
+  const [gatePeriod, setGatePeriod] = useState<
+    import('../../api/types').PeriodRead | null
+  >(null);
+  const [manualOpen, setManualOpen] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    getHome()
+      .then((home) => {
+        if (cancelled) return;
+        if (!isHomeBootstrap(home)) {
+          setNeedsPlanning(false);
+          return;
+        }
+        setNeedsPlanning(home.needs_planning === true);
+        setGatePeriod(home.period ?? null);
+      })
+      .catch(() => {
+        // /home unavailable → never gate (fail-open: don't trap the user).
+        if (!cancelled) setNeedsPlanning(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // Re-evaluate after a confirm (gateRefetch bump) so the gate lifts.
+  }, [refetchToken]);
+
+  const liftGate = useCallback(() => {
+    // After confirm-plan: the home cache was invalidated by confirmPlan(); bump
+    // the refetch token so the effect re-reads /home (now needs_planning:false)
+    // AND HomeMount/TransactionsMount refresh their data.
+    setNeedsPlanning(false);
+    setRefetchToken((t) => t + 1);
+  }, []);
+
+  const openManualPlanning = useCallback(() => setManualOpen(true), []);
+  const closeManualPlanning = useCallback(() => setManualOpen(false), []);
+
   const closeSheet = () => setAddOpen(false);
 
   const openAddSheet = (
@@ -151,42 +199,76 @@ export function NativeShell() {
     setAddOpen(true);
   };
 
+  // ADR-0008 — when the active period needs planning, the gate REPLACES the
+  // whole tab chrome + AddSheet (full interstitial). Onboarding is never gated:
+  // `needsPlanning` only flips true off a /home bootstrap that already requires
+  // an active (onboarded) period, and stays `null` (→ no gate) while loading.
+  const gated = needsPlanning === true;
+
   return (
     <SelectedPeriodProvider>
       <RefetchTokenProvider value={refetchToken}>
         <ShellVariantProvider value="native">
-          <AddSheetHostProvider
-            openAddSheet={openAddSheet}
-            openEditSheet={openEditSheet}
-          >
-            <PosterRouterProvider root={<OnboardingMount />}>
-              <NativeChrome active={active} onTab={setActive} />
-            </PosterRouterProvider>
-            {/* Native add-transaction sheet — a LIGHT iOS bottom sheet
-                (systemGroupedBackground #F2F2F7), not the dark poster sheet.
-                Reuses PosterSheet purely for the bottom-sheet chrome (backdrop,
-                drag handle, drag-to-close, Escape, scroll-lock). Wiring is
-                unchanged: openAddSheet (Home «+») opens it; onSubmitted bumps the
-                RefetchToken (HomeMount/TransactionsMount refetch) + closes;
-                onClose dismisses. */}
-            <PosterSheet
-              isOpen={isAddOpen}
-              onClose={closeSheet}
-              backgroundColor="#F2F2F7"
+          <PlanningLaunchProvider value={{ launch: openManualPlanning }}>
+            <AddSheetHostProvider
+              openAddSheet={openAddSheet}
+              openEditSheet={openEditSheet}
             >
-              <NativeAddSheet
-                mode={addMode}
-                initialCategoryId={addCategoryId}
-                kind={addKind}
-                editActual={editActual}
-                onSubmitted={() => {
-                  setAddOpen(false);
-                  setRefetchToken((t) => t + 1);
-                }}
-                onClose={closeSheet}
-              />
-            </PosterSheet>
-          </AddSheetHostProvider>
+              {gated ? (
+                <PlanningGate
+                  mode={'gate' satisfies PlanningGateMode}
+                  period={gatePeriod}
+                  onDone={liftGate}
+                />
+              ) : (
+                <>
+                  <PosterRouterProvider root={<OnboardingMount />}>
+                    <NativeChrome active={active} onTab={setActive} />
+                  </PosterRouterProvider>
+                  {/* Native add-transaction sheet — a LIGHT iOS bottom sheet
+                      (systemGroupedBackground #F2F2F7), not the dark poster sheet.
+                      Reuses PosterSheet purely for the bottom-sheet chrome (backdrop,
+                      drag handle, drag-to-close, Escape, scroll-lock). Wiring is
+                      unchanged: openAddSheet (Home «+») opens it; onSubmitted bumps the
+                      RefetchToken (HomeMount/TransactionsMount refetch) + closes;
+                      onClose dismisses. */}
+                  <PosterSheet
+                    isOpen={isAddOpen}
+                    onClose={closeSheet}
+                    backgroundColor="#F2F2F7"
+                  >
+                    <NativeAddSheet
+                      mode={addMode}
+                      initialCategoryId={addCategoryId}
+                      kind={addKind}
+                      editActual={editActual}
+                      onSubmitted={() => {
+                        setAddOpen(false);
+                        setRefetchToken((t) => t + 1);
+                      }}
+                      onClose={closeSheet}
+                    />
+                  </PosterSheet>
+
+                  {/* Manual launch (Management hub «Спланировать») — the SAME
+                      gate in closeable mode, overlaid on the normal shell. */}
+                  {manualOpen && (
+                    <div className={styles.manualGateOverlay}>
+                      <PlanningGate
+                        mode={'manual' satisfies PlanningGateMode}
+                        period={gatePeriod}
+                        onDone={() => {
+                          closeManualPlanning();
+                          setRefetchToken((t) => t + 1);
+                        }}
+                        onClose={closeManualPlanning}
+                      />
+                    </div>
+                  )}
+                </>
+              )}
+            </AddSheetHostProvider>
+          </PlanningLaunchProvider>
         </ShellVariantProvider>
       </RefetchTokenProvider>
     </SelectedPeriodProvider>

@@ -94,3 +94,33 @@ async def get_period_balance(
             status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
         ) from exc
     return BalanceResponse(**bal)
+
+
+@periods_router.post(
+    "/{period_id}/confirm-plan",
+    response_model=PeriodRead,
+)
+async def confirm_plan(
+    period_id: int,
+    db: Annotated[AsyncSession, Depends(get_db_with_tenant_scope)],
+    user_id: Annotated[int, Depends(get_current_user_id)],
+) -> PeriodRead:
+    """POST /api/v1/periods/{period_id}/confirm-plan — snap the planning gate (ADR-0008).
+
+    Sets ``planned_at = now()`` on the period so ``needs_planning`` flips to
+    False and the planning interstitial is dismissed. Idempotent — re-confirming
+    an already-planned period just refreshes the timestamp.
+
+    Status codes:
+        200: updated period (PeriodRead with planned_at set)
+        404: period does not exist or belongs to another tenant
+    """
+    try:
+        period = await period_svc.confirm_plan(
+            db, user_id=user_id, period_id=period_id
+        )
+    except PeriodNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
+        ) from exc
+    return PeriodRead.model_validate(period)

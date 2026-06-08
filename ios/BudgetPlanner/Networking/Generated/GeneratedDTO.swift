@@ -429,6 +429,7 @@ enum Gen {
         let actuals: [Gen.ActualRead]
         let balance: Gen.BalanceResponse?
         let categories: [Gen.CategoryRead]
+        let needsPlanning: Bool
         let period: Gen.PeriodRead?
         let periods: [Gen.PeriodRead]
         let planned: [Gen.PlannedRead]
@@ -538,6 +539,7 @@ enum Gen {
         let id: Int
         let periodEnd: BusinessDate
         let periodStart: BusinessDate
+        let plannedAt: Date?
         let startingBalanceCents: Int
         let status: Status
     }

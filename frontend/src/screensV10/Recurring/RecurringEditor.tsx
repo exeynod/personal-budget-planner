@@ -16,6 +16,7 @@ import { useState } from 'react';
 import {
   InsetGroup,
   SectionHeader,
+  useScrollIntoViewOnFocus,
 } from '../native/NativePrimitives';
 import { NativeDatePicker } from '../native/NativeDatePicker';
 import { parseRublesToKopecks } from '../../utils/format';
@@ -146,6 +147,11 @@ export function RecurringEditor({
   const submitOnEnter = useEnterToDismiss(() => {
     if (canSubmit) submit();
   });
+  // Bug fix B: keep each focused free-text field above the iPhone keyboard.
+  const nameFocusScroll = useScrollIntoViewOnFocus();
+  const amountFocusScroll = useScrollIntoViewOnFocus();
+  const intervalFocusScroll = useScrollIntoViewOnFocus();
+  const dayFocusScroll = useScrollIntoViewOnFocus();
 
   return (
     <div className={styles.editor} data-testid="recurring-editor">
@@ -163,6 +169,7 @@ export function RecurringEditor({
               value={name}
               onChange={(e) => setName(e.target.value)}
               onKeyDown={submitOnEnter}
+              {...nameFocusScroll}
               maxLength={200}
               aria-label="Название платежа"
               data-testid="recurring-name"
@@ -181,6 +188,7 @@ export function RecurringEditor({
                 value={amountRaw}
                 onChange={(e) => setAmountRaw(sanitizeMoneyInput(e.target.value))}
                 onKeyDown={submitOnEnter}
+                {...amountFocusScroll}
                 aria-label="Сумма платежа"
                 data-testid="recurring-amount"
               />
@@ -202,6 +210,7 @@ export function RecurringEditor({
                   setIntervalRaw(e.target.value.replace(/[^0-9]/g, '').slice(0, 3))
                 }
                 onKeyDown={submitOnEnter}
+                {...intervalFocusScroll}
                 aria-label="Повторять каждые N месяцев"
                 data-testid="recurring-interval"
               />
@@ -225,6 +234,7 @@ export function RecurringEditor({
                 setDayRaw(e.target.value.replace(/[^0-9]/g, '').slice(0, 2))
               }
               onKeyDown={submitOnEnter}
+              {...dayFocusScroll}
               aria-label="Число месяца"
               data-testid="recurring-day"
             />

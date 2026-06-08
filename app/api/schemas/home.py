@@ -54,3 +54,7 @@ class HomeResponse(BaseModel):
     # GET /api/v1/periods/{period_id}/planned. ``[]`` when no active period
     # exists. Lets the plan ladder boot without a separate /planned round-trip.
     planned: list[PlannedRead]
+    # ADR-0008 (monthly planning gate): True when an active period exists but
+    # has not been planned yet (``period.planned_at IS NULL``) — lets the shell
+    # gate on the first bootstrap without a separate request.
+    needs_planning: bool

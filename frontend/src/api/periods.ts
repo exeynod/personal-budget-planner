@@ -1,5 +1,5 @@
 import { apiFetch, ApiError } from './client';
-import { getCached, CACHE_KEYS } from './cache';
+import { getCached, invalidate, CACHE_KEYS } from './cache';
 import type { BalanceResponse, PeriodRead } from './types';
 
 /**
@@ -56,4 +56,25 @@ export async function getCurrentPeriod(): Promise<PeriodRead | null> {
       throw err;
     }
   });
+}
+
+/**
+ * POST /api/v1/periods/{period_id}/confirm-plan — ADR-0008 monthly planning
+ * gate completion. Sets `planned_at = now()` on the period so `needs_planning`
+ * flips to false and the shell lifts the planning interstitial. No request
+ * body; idempotent (re-confirm is a no-op server-side). Returns the updated
+ * {@link PeriodRead} (with `planned_at` set). 404 if the period isn't owned.
+ *
+ * Invalidates the period/home caches so the next bootstrap read reflects the
+ * confirmed plan (the gate evaluates `needs_planning` off a fresh /home).
+ */
+export async function confirmPlan(periodId: number): Promise<PeriodRead> {
+  const res = await apiFetch<PeriodRead>(
+    `/periods/${periodId}/confirm-plan`,
+    { method: 'POST' },
+  );
+  invalidate(CACHE_KEYS.home);
+  invalidate(CACHE_KEYS.periods);
+  invalidate(CACHE_KEYS.currentPeriod);
+  return res;
 }

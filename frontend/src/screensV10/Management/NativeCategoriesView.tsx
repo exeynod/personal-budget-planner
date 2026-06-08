@@ -20,6 +20,7 @@ import {
   SectionHeaderAction,
   InsetGroup,
   InsetRow,
+  useScrollIntoViewOnFocus,
 } from '../native/NativePrimitives';
 import { CategoryIcon } from '../native/CategoryIcon';
 import { IconPicker, ColorPicker } from '../native/IconPicker';
@@ -75,6 +76,7 @@ function CreateEditor({
     if (name.trim() !== '') onSubmit({ name: name.trim(), kind, icon, color });
   };
   const onNameKeyDown = useEnterToDismiss(submit);
+  const nameFocusScroll = useScrollIntoViewOnFocus();
 
   return (
     <div className={styles.editor} data-testid="category-create-editor">
@@ -85,6 +87,7 @@ function CreateEditor({
         value={name}
         onChange={(e) => setName(e.target.value)}
         onKeyDown={onNameKeyDown}
+        {...nameFocusScroll}
         maxLength={200}
         aria-label="Название новой категории"
         data-testid="category-create-name"
@@ -146,6 +149,7 @@ function EditEditor({
     if (name.trim() !== '') onSubmit({ name: name.trim(), icon, color });
   };
   const onNameKeyDown = useEnterToDismiss(submit);
+  const nameFocusScroll = useScrollIntoViewOnFocus();
 
   return (
     <div className={styles.editor} data-testid="category-edit-editor">
@@ -156,6 +160,7 @@ function EditEditor({
         value={name}
         onChange={(e) => setName(e.target.value)}
         onKeyDown={onNameKeyDown}
+        {...nameFocusScroll}
         maxLength={200}
         aria-label="Название категории"
         data-testid="category-edit-name"

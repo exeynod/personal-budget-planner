@@ -1,0 +1,198 @@
+/* ADR-0008 — monthly planning gate (full interstitial). Liquid Glass native. */
+
+.root {
+  position: relative;
+  width: 100%;
+  height: var(--tg-viewport-stable, 100dvh);
+  background-color: var(--lgn-bg);
+  background-image: var(--lgn-bg-image);
+  font-family: var(--lgn-font);
+  color: var(--lgn-ink);
+  --ink-on-home: var(--lgn-ink);
+  --eyebrow-ink: var(--lgn-ink-2);
+  --link-ink: var(--lgn-accent);
+}
+
+/* Scrollable body — leaves room for the pinned «Готово» footer. The
+   overflow-y:auto here gives focused inputs room to scroll into view above the
+   on-screen keyboard (Part 3). */
+.scroll {
+  position: absolute;
+  inset: 0 0 calc(84px + env(safe-area-inset-bottom, 0px)) 0;
+  overflow-y: auto;
+  overflow-x: clip;
+  -webkit-overflow-scrolling: touch;
+  isolation: isolate;
+  contain: paint;
+}
+
+.body {
+  padding-bottom: 24px;
+}
+
+/* ── Header ── */
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px var(--lgn-gutter) 4px;
+}
+.headerText {
+  min-width: 0;
+}
+.eyebrow {
+  font: var(--lgn-t-subhead);
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--lgn-accent);
+}
+.title {
+  font: var(--lgn-t-largeTitle);
+  letter-spacing: 0.37px;
+  color: var(--lgn-ink);
+  margin: 2px 0 0;
+}
+.subtitle {
+  font: var(--lgn-t-subhead);
+  color: var(--lgn-ink-2);
+  margin: 4px 0 0;
+}
+.closeBtn {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--lgn-r-pill);
+  border: none;
+  background: var(--lgn-card);
+  -webkit-backdrop-filter: var(--lgn-glass-blur);
+  backdrop-filter: var(--lgn-glass-blur);
+  color: var(--lgn-ink-2);
+  box-shadow: var(--lgn-shadow-card), var(--lgn-card-edge);
+  cursor: pointer;
+}
+.closeBtn:active {
+  background: var(--lgn-card-press);
+}
+
+/* ── План месяца summary ── */
+.summaryRows {
+  display: flex;
+  flex-direction: column;
+}
+.summaryRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px var(--lgn-s-16);
+  min-height: 44px;
+  position: relative;
+}
+.summaryRow:not(:first-child)::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 16px;
+  right: 0;
+  height: 1px;
+  background: var(--lgn-hairline-soft);
+}
+.summaryLabel {
+  font: var(--lgn-t-body);
+  color: var(--lgn-ink);
+}
+.summaryValue {
+  font: var(--lgn-t-body);
+  font-weight: 600;
+  color: var(--lgn-ink);
+  white-space: nowrap;
+}
+.summaryValueWarn {
+  color: var(--lgn-accent);
+}
+.summaryHint {
+  padding: 6px var(--lgn-gutter) 0;
+  font: var(--lgn-t-footnote);
+  color: var(--lgn-ink-2);
+}
+
+/* CTA inside «План месяца» card group — full-width row buttons. */
+.cardCta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  border: none;
+  background: none;
+  text-align: left;
+  padding: 13px var(--lgn-s-16);
+  min-height: 48px;
+  position: relative;
+  cursor: pointer;
+  color: var(--lgn-accent);
+  font: var(--lgn-t-body);
+  font-weight: 600;
+  font-family: var(--lgn-font);
+}
+.cardCta:not(:first-child)::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 16px;
+  right: 0;
+  height: 1px;
+  background: var(--lgn-hairline-soft);
+}
+.cardCta:active {
+  background: var(--lgn-card-press);
+}
+.cardCtaChevron {
+  color: var(--lgn-ink-3);
+  display: inline-flex;
+}
+
+/* ── Pinned footer «Готово» ── */
+.footer {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 10px var(--lgn-gutter) calc(12px + env(safe-area-inset-bottom, 0px));
+  background: linear-gradient(
+    180deg,
+    rgba(0, 0, 0, 0) 0%,
+    var(--lgn-bg) 38%
+  );
+}
+.doneBtn {
+  width: 100%;
+  border: none;
+  border-radius: var(--lgn-r-card);
+  background: var(--lgn-accent, #f0801a);
+  color: #fff;
+  font-family: var(--lgn-font);
+  font-size: 17px;
+  font-weight: 700;
+  padding: 15px;
+  cursor: pointer;
+  box-shadow: var(--lgn-shadow-card);
+}
+.doneBtn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.errorBanner {
+  margin: 0 var(--lgn-gutter) 8px;
+  padding: 10px 12px;
+  border-radius: var(--lgn-r-tile, 12px);
+  background: rgba(255, 59, 48, 0.12);
+  color: #b3261e;
+  font: var(--lgn-t-footnote);
+}

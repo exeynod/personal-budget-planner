@@ -62,6 +62,13 @@ export interface PeriodRead {
   ending_balance_cents: number | null;
   status: PeriodStatus;
   closed_at: string | null;
+  /**
+   * ADR-0008 — monthly planning gate. `null` = the period has not been planned
+   * yet → the shell shows the planning interstitial. Set (ISO datetime) once the
+   * user confirms the plan via POST /periods/{id}/confirm-plan. Optional on the
+   * wire for back-compat with older payloads / e2e mocks that omit it.
+   */
+  planned_at?: string | null;
 }
 
 /** POST /onboarding/complete request. */

@@ -192,6 +192,10 @@ async def _close_period_for_user(session, *, user_id: int) -> None:
     # balance of the expired period.
     cycle_start_day = await _resolve_cycle_start_day(session, user_id=user_id)
     p_start, p_end = period_for(today, cycle_start_day)
+    # ADR-0008: the rolled period is created WITHOUT planned_at (NULL) on
+    # purpose — a NULL planned_at is what flips home.needs_planning to True and
+    # triggers the monthly planning gate on the user's first entry into the new
+    # period. It is set later by POST /periods/{id}/confirm-plan.
     new_period = BudgetPeriod(
         user_id=user_id,
         period_start=p_start,

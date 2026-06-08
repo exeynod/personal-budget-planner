@@ -83,6 +83,8 @@ const PERIOD = {
   ending_balance_cents: null,
   status: 'active',
   closed_at: null,
+  // ADR-0008 — already planned → no planning gate in these specs.
+  planned_at: '2026-05-01T00:00:00Z',
 };
 
 // A prior closed period so the native period switcher (≥2 periods) renders.
@@ -235,6 +237,9 @@ const HOME_BOOTSTRAP = {
   // reuse that cache. Carrying PLANNED here means the Home ladder «План» level
   // and the «План месяца» income-planned (row 206 → progress bar) both render.
   planned: PLANNED,
+  // ADR-0008 — false so NativeShell does NOT raise the planning gate (PERIOD
+  // above carries a non-null planned_at). The dedicated gate test overrides this.
+  needs_planning: false,
 };
 
 function json(body: unknown) {
@@ -786,5 +791,47 @@ test.describe('Liquid Glass native shell (web)', () => {
     });
     await freezeMotion(page);
     await page.screenshot({ path: `${OUT}/onboarding.png` });
+  });
+
+  // ADR-0008 — monthly planning gate. The gate shows when the /home bootstrap
+  // reports needs_planning:true, covering the whole shell (no tab bar / «+»),
+  // and lifts after «Готово» (confirm-plan flips needs_planning → false on the
+  // next bootstrap).
+  test('planning gate shows when needs_planning, lifts after «Готово»', async ({
+    page,
+  }) => {
+    let confirmed = false;
+    await installNative(page);
+    // First bootstrap: unplanned period → gate. After confirm-plan, the next
+    // bootstrap reports planned → gate lifts and the normal shell renders.
+    await page.route('**/api/v1/home', (route) => {
+      const period = confirmed
+        ? PERIOD
+        : { ...PERIOD, planned_at: null };
+      return route.fulfill(
+        json({ ...HOME_BOOTSTRAP, period, needs_planning: !confirmed }),
+      );
+    });
+    await page.route('**/api/v1/periods/5/confirm-plan', (route) => {
+      confirmed = true;
+      return route.fulfill(json({ ...PERIOD, planned_at: '2026-05-01T00:00:00Z' }));
+    });
+
+    await page.goto('/');
+    // Gate is up: its body + «Готово» are visible; the tab shell is NOT.
+    await expect(page.getByTestId('planning-gate')).toBeVisible({
+      timeout: 8000,
+    });
+    await expect(page.getByTestId('planning-gate-done')).toBeVisible();
+    await expect(page.getByTestId('native-shell')).toHaveCount(0);
+    await freezeMotion(page);
+    await page.screenshot({ path: `${OUT}/planning-gate.png` });
+
+    // «Готово» → confirm-plan → gate lifts → the normal native shell renders.
+    await page.getByTestId('planning-gate-done').click();
+    await expect(page.getByTestId('native-shell')).toBeVisible({
+      timeout: 8000,
+    });
+    await expect(page.getByTestId('planning-gate')).toHaveCount(0);
   });
 });

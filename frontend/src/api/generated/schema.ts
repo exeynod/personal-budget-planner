@@ -1293,6 +1293,34 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/periods/{period_id}/confirm-plan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Confirm Plan
+         * @description POST /api/v1/periods/{period_id}/confirm-plan — snap the planning gate (ADR-0008).
+         *
+         *     Sets ``planned_at = now()`` on the period so ``needs_planning`` flips to
+         *     False and the planning interstitial is dismissed. Idempotent — re-confirming
+         *     an already-planned period just refreshes the timestamp.
+         *
+         *     Status codes:
+         *         200: updated period (PeriodRead with planned_at set)
+         *         404: period does not exist or belongs to another tenant
+         */
+        post: operations["confirm_plan_api_v1_periods__period_id__confirm_plan_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/periods/{period_id}/plan": {
         parameters: {
             query?: never;
@@ -2675,6 +2703,8 @@ export interface components {
             balance: components["schemas"]["BalanceResponse"] | null;
             /** Categories */
             categories: components["schemas"]["CategoryRead"][];
+            /** Needs Planning */
+            needs_planning: boolean;
             period: components["schemas"]["PeriodRead"] | null;
             /** Periods */
             periods: components["schemas"]["PeriodRead"][];
@@ -2914,6 +2944,8 @@ export interface components {
              * Format: date
              */
             period_start: string;
+            /** Planned At */
+            planned_at: string | null;
             /** Starting Balance Cents */
             starting_balance_cents: number;
             /**
@@ -5362,6 +5394,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["BalanceResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    confirm_plan_api_v1_periods__period_id__confirm_plan_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-telegram-init-data"?: string | null;
+                authorization?: string | null;
+                "x-test-user"?: string | null;
+            };
+            path: {
+                period_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PeriodRead"];
                 };
             };
             /** @description Validation Error */
