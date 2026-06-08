@@ -83,7 +83,10 @@ export function PlanMount({ focusCategoryId = null }: PlanMountProps = {}) {
   // updated summaries appear immediately on return to the overview.
   const refetchToken = useRefetchToken();
 
-  const [income, setIncome] = useState<number>(0);
+  // income_cents is NULLABLE on app_user — keep null distinct from a real 0 so
+  // the «Осталось распределить» card can render a neutral «укажите доход» prompt
+  // instead of a scary negative «Превышено» when the owner never set it.
+  const [income, setIncome] = useState<number | null>(null);
   const [categories, setCategories] = useState<CategoryV10[]>([]);
   const [subs, setSubs] = useState<SubscriptionV10Read[]>([]);
   const [plans, setPlans] = useState<PlanMonthItem[]>([]);
@@ -136,7 +139,7 @@ export function PlanMount({ focusCategoryId = null }: PlanMountProps = {}) {
 
         setCategories(visible);
         setSubs(subsList);
-        setIncome(me.income_cents ?? 0);
+        setIncome(me.income_cents ?? null);
         setPeriodId(pid);
         setPeriodStart(pStart);
         setPlanned(plannedList);
@@ -246,17 +249,28 @@ export function PlanMount({ focusCategoryId = null }: PlanMountProps = {}) {
     const expenseIds = new Set(expenseCategories.map((c) => c.id));
     return plans.filter((p) => expenseIds.has(p.category_id));
   }, [plans, expenseCategories]);
+  // income_cents may be NULL (never set). The surplus/progress math is only
+  // meaningful with a real income denominator; when unset we still compute
+  // against 0 (so the props are well-typed numbers) but flag `incomeUnset` so
+  // the view shows a neutral «укажите доход» prompt instead of «Превышено».
+  const incomeUnset = income == null;
+  const incomeForCalc = income ?? 0;
   const surplus = useMemo(
-    () => computeSurplus(income, expensePlans),
-    [income, expensePlans],
+    () => computeSurplus(incomeForCalc, expensePlans),
+    [incomeForCalc, expensePlans],
   );
-  const isOverflow = useMemo(() => computeIsOverflow(surplus), [surplus]);
+  // Never flag overflow when income is unset — it would be a meaningless
+  // «−Σплан» negative. The view renders the neutral prompt in that case.
+  const isOverflow = useMemo(
+    () => !incomeUnset && computeIsOverflow(surplus),
+    [incomeUnset, surplus],
+  );
 
   // «Осталось распределить» progress (Σ expense limits из дохода) — drives the
   // bar + «X из Y» caption (refs #21-23). Tracks the live draft `expensePlans`.
   const progress = useMemo(
-    () => computeDistributeProgress(income, expensePlans),
-    [income, expensePlans],
+    () => computeDistributeProgress(incomeForCalc, expensePlans),
+    [incomeForCalc, expensePlans],
   );
 
   // «Регулярные платежи» — ONE list from subscriptions + recurring planned rows.
@@ -282,18 +296,17 @@ export function PlanMount({ focusCategoryId = null }: PlanMountProps = {}) {
 
   // Income summary (calm — no «осталось распределить»/plan-target semantics).
   // Income has NO plan target, so «Запланировано дохода» is the Σ of UNPOSTED
-  // income planned rows (NOT category.plan_cents); «Получено» is the Σ of POSTED
-  // income planned rows (факт дохода).
-  const incomeSummary = useMemo(() => {
+  // income planned rows (NOT category.plan_cents). This is the PLAN surface, so
+  // the fact of RECEIVED income («Получено») is intentionally NOT summarised
+  // here — it lives on the fact/home side.
+  const incomePlannedCents = useMemo(() => {
     const incomeIds = new Set(incomeCategories.map((c) => c.id));
     let plannedSum = 0;
-    let received = 0;
     for (const p of planned) {
       if (p.kind !== 'income' || !incomeIds.has(p.category_id)) continue;
-      if (p.posted_txn_id != null) received += Math.abs(p.amount_cents);
-      else plannedSum += Math.abs(p.amount_cents);
+      if (p.posted_txn_id == null) plannedSum += Math.abs(p.amount_cents);
     }
-    return { plannedCents: plannedSum, receivedCents: received };
+    return plannedSum;
   }, [incomeCategories, planned]);
 
   if (status === 'loading') {
@@ -317,6 +330,7 @@ export function PlanMount({ focusCategoryId = null }: PlanMountProps = {}) {
     <>
       <NativePlanView
         incomeCents={income}
+        incomeUnset={incomeUnset}
         categories={expenseCategories}
         plans={plans}
         scheduledByCat={scheduledByCat}
@@ -332,8 +346,7 @@ export function PlanMount({ focusCategoryId = null }: PlanMountProps = {}) {
         onCategoryTap={handleCategoryTap}
         onBack={() => router.pop()}
         incomeCategories={incomeCategories}
-        incomePlannedCents={incomeSummary.plannedCents}
-        incomeReceivedCents={incomeSummary.receivedCents}
+        incomePlannedCents={incomePlannedCents}
       />
       <NativeToast
         message={toast?.text ?? ''}

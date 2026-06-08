@@ -21,7 +21,7 @@
 // account deletion (see app/api/routes/me.py § ---- Phase 33 ----).
 
 import { apiFetch } from './client';
-import { getCached, CACHE_KEYS } from './cache';
+import { getCached, invalidate, CACHE_KEYS } from './cache';
 import type { MeV10Response } from './types';
 
 export type { MeV10Response };
@@ -40,6 +40,31 @@ export type { MeV10Response };
  */
 export function getMeV10(): Promise<MeV10Response> {
   return getCached(CACHE_KEYS.me, () => apiFetch<MeV10Response>('/me'));
+}
+
+/**
+ * PATCH /api/v1/me — set the owner's monthly income (`income_cents`).
+ *
+ * The only PATCHable field today (see app/api/routes/me.py / MePatchV10):
+ * `income_cents` is bounded (0, 100M ₽] server-side (`gt=0`, `≤100_000_000_00`).
+ * Pass cents; the caller converts rubles → cents.
+ *
+ * On success the returned `MeV10Response` carries the new `income_cents`. We
+ * drop the `me` + `home` caches (mirrors api/settings.updateSettings) so the
+ * auth/onboarding gate, Plan and Home re-read the fresh value instead of the
+ * ≤30s-stale one — otherwise «Осталось распределить» would keep using the old
+ * denominator after the user just set their income.
+ */
+export async function updateIncome(
+  incomeCents: number,
+): Promise<MeV10Response> {
+  const res = await apiFetch<MeV10Response>('/me', {
+    method: 'PATCH',
+    body: JSON.stringify({ income_cents: incomeCents }),
+  });
+  invalidate(CACHE_KEYS.me);
+  invalidate(CACHE_KEYS.home);
+  return res;
 }
 
 // ---------- Phase 33: ПДн compliance helpers ----------

@@ -70,6 +70,13 @@
 .surplusOver .surplusValue {
   color: var(--lgn-red);
 }
+/* Neutral prompt shown in place of the value when income_cents is unset. */
+.surplusPrompt {
+  margin-top: 6px;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--lgn-ink-2);
+}
 /* Income hero value stays calm ink (green is already carried by the section). */
 .incomeSummary .surplusValue {
   color: var(--lgn-ink);

@@ -16,6 +16,14 @@ export {
   type SettingsViewProps,
 } from './NativeSettingsView';
 
+export { CategoriesMount } from './CategoriesMount';
+export {
+  NativeCategoriesView,
+  type CategoriesViewProps,
+  type CategoryCreateInput,
+  type CategoryEditInput,
+} from './NativeCategoriesView';
+
 export { AccessMount } from './AccessMount';
 export {
   NativeAccessView,

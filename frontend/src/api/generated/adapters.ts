@@ -53,7 +53,16 @@ export type CategoryV10 = Omit<
   Schemas['CategoryRead'],
   CategoryV10DefaultedOptional
 > &
-  Partial<Pick<Schemas['CategoryRead'], CategoryV10DefaultedOptional>>;
+  Partial<Pick<Schemas['CategoryRead'], CategoryV10DefaultedOptional>> & {
+    /**
+     * 0034: explicit icon key (e.g. `'food'`, `'cafe'`, `'home'`, ...) matching
+     * the preset bins in `utils/categoryVisuals.ts`. Optional + nullable: NULL /
+     * absent → fall back to the name-based icon mapping. Carried as an
+     * intersection (not via the generated schema) until the OpenAPI contract is
+     * regenerated; `npm run gen:api` will fold it into `Schemas['CategoryRead']`.
+     */
+    icon?: string | null;
+  };
 
 /** Generated category `tag` union (`"personal" | "business" | "mixed"`). */
 export type CategoryTag = Schemas['CategoryRead']['tag'];

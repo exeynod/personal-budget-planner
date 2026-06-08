@@ -125,15 +125,15 @@ export function computeLadder(
 /**
  * Per-category INCOME ladder. Income has NO «limit»/«plan target» entity — only
  * plan detailing. There is NO «План» target, NO «free»/«remaining»/«overflow».
- * The income sign convention is «больше = хорошо» (delta = Факт − План), so the
- * ladder is purely descriptive of what is detailed vs. received:
+ *
+ * This is the PLAN surface, so it surfaces only what is PLANNED — the fact of
+ * received income lives on the fact/home side and is intentionally not shown
+ * here («Получено» was dropped):
  *
  *   scheduledCents — Σ of UNPOSTED income planned rows («Запланировано»).
- *   receivedCents  — Σ of POSTED income planned rows («Получено» / факт дохода).
  */
 export interface IncomeLadder {
   scheduledCents: number;
-  receivedCents: number;
 }
 
 export function computeIncomeLadder(
@@ -142,12 +142,8 @@ export function computeIncomeLadder(
   const scheduled = rows
     .filter((r) => !r.posted)
     .reduce((s, r) => s + r.amountCents, 0);
-  const received = rows
-    .filter((r) => r.posted)
-    .reduce((s, r) => s + r.amountCents, 0);
   return {
     scheduledCents: scheduled,
-    receivedCents: received,
   };
 }
 

@@ -23,6 +23,7 @@ import {
   Stack,
   GearSix,
   Users,
+  SquaresFour,
   type Icon as PhosphorIcon,
 } from '@phosphor-icons/react';
 import {
@@ -33,7 +34,12 @@ import {
 } from '../native/NativePrimitives';
 import styles from './NativeMgmtHubView.module.css';
 
-export type MgmtRowId = 'analytics' | 'subscriptions' | 'settings' | 'access';
+export type MgmtRowId =
+  | 'analytics'
+  | 'subscriptions'
+  | 'categories'
+  | 'settings'
+  | 'access';
 
 export interface MgmtHubViewProps {
   /** True → render the owner-only «Доступ» row. */
@@ -109,6 +115,12 @@ const ROWS: NativeRowDef[] = [
     title: 'Подписки',
     subtitle: 'Регулярные платежи и напоминания',
     Icon: Stack,
+  },
+  {
+    id: 'categories',
+    title: 'Категории',
+    subtitle: 'Создание, иконки, архив',
+    Icon: SquaresFour,
   },
   {
     id: 'settings',

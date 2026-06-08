@@ -82,10 +82,12 @@ async def create_category(
     name: str,
     kind: str,
     sort_order: int = 0,
+    icon: str | None = None,
 ) -> Category:
     """Create a new category. ``kind`` must be a CategoryKind value ('expense' or 'income').
 
     Phase 11: assigns ``user_id`` so the row belongs to the current tenant.
+    0034: optional ``icon`` key (NULL → client falls back to name-based mapping).
     """
     # Phase 65 follow-up hotfix: ``Category.code`` (String(40)) and ``ord``
     # (String(2)) are NOT NULL (alembic 0013/14 v1.0 schema), but Phase 11
@@ -104,6 +106,7 @@ async def create_category(
         is_archived=False,
         code=f"u{uuid.uuid4().hex[:12]}",
         ord="99",
+        icon=icon,
     )
     db.add(cat)
     await db.flush()

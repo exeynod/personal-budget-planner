@@ -44,6 +44,42 @@ export interface CategoryV10UpdatePayload {
   /** Phase 26 — v1.0 fields (CAT-V10-04 / PLAN-V10-05). */
   plan_cents?: number;
   parent_id?: number | null;
+  /** 0034 — explicit icon key (e.g. `'food'`); picked via IconPicker. */
+  icon?: string | null;
+}
+
+/**
+ * 0034 — POST /api/v1/categories request payload.
+ *
+ * `name` + `kind` are required server-side; `sort_order` defaults to 0, `tag`
+ * to `'personal'`, `icon` is optional (NULL → name-based icon fallback).
+ */
+export interface CategoryV10CreatePayload {
+  name: string;
+  kind: 'expense' | 'income';
+  sort_order?: number;
+  tag?: 'personal' | 'business' | 'mixed';
+  icon?: string | null;
+}
+
+/**
+ * POST /api/v1/categories (0034) — create a new user category.
+ *
+ * Returns the created CategoryV10 row. Invalidates the category family + the
+ * cached period balances + the HOME bootstrap so the new category shows up
+ * everywhere immediately (mirrors `updateCategoryV10`).
+ */
+export async function createCategoryV10(
+  payload: CategoryV10CreatePayload,
+): Promise<CategoryV10> {
+  const created = await apiFetch<CategoryV10>('/categories', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+  invalidate(CACHE_KEYS.categoriesPrefix);
+  invalidate(CACHE_KEYS.balancePrefix);
+  invalidate(CACHE_KEYS.home);
+  return created;
 }
 
 /**
@@ -72,4 +108,22 @@ export async function updateCategoryV10(
   invalidate(CACHE_KEYS.balancePrefix);
   invalidate(CACHE_KEYS.home);
   return updated;
+}
+
+/**
+ * DELETE /api/v1/categories/{id} (0034) — soft-archive a category.
+ *
+ * Sets `is_archived=true` server-side (CAT-02); historical transactions stay
+ * intact. Returns the archived CategoryV10 row. Invalidates the same caches as
+ * `updateCategoryV10`. Use `updateCategoryV10(id, { is_archived: false })` to
+ * unarchive.
+ */
+export async function archiveCategoryV10(id: number): Promise<CategoryV10> {
+  const archived = await apiFetch<CategoryV10>(`/categories/${id}`, {
+    method: 'DELETE',
+  });
+  invalidate(CACHE_KEYS.categoriesPrefix);
+  invalidate(CACHE_KEYS.balancePrefix);
+  invalidate(CACHE_KEYS.home);
+  return archived;
 }

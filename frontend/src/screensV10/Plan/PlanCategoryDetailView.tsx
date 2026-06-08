@@ -4,7 +4,8 @@
 //   - NativeNavBar with the category name + back chevron.
 //   - Summary card: CategoryIcon + plan ladder.
 //       expense → Лимит / Расписано / Свободно (computeLadder) + inline limit edit
-//       income  → Запланировано / Получено (computeIncomeLadder) — NO limit/target
+//       income  → Запланировано (computeIncomeLadder) — NO limit/target, and
+//                 NO «Получено» (received-fact lives on the fact/home side)
 //   - CTA: «Добавить в план» (shared AddSheet, plan mode, this category).
 //   - SectionHeader + InsetGroup of this category's PLANNED rows, day-grouped
 //     by planned_date, each row: CategoryIcon + title + date/«Без даты» +
@@ -106,8 +107,8 @@ function PlanCategoryDetailViewInner(props: PlanCategoryDetailViewProps) {
   const rows = groupPlannedByCategory(planned).get(category.id) ?? [];
 
   // Ladder differs by kind: expense is capped («Свободно»), income is purely
-  // descriptive («Запланировано» / «Получено» — no target). Both reuse the
-  // shared compute helpers.
+  // descriptive («Запланировано» — no target, no «Получено» on the plan). Both
+  // reuse the shared compute helpers.
   const expenseLadder = isIncome ? null : computeLadder(planCents, rows);
   const incomeLadder = isIncome ? computeIncomeLadder(rows) : null;
 
@@ -167,22 +168,16 @@ function PlanCategoryDetailViewInner(props: PlanCategoryDetailViewProps) {
             </>
           )}
           {incomeLadder && (
-            // Income: NO «План»/limit/target column — only what is detailed vs.
-            // received.
-            <>
-              <div className={styles.statCol}>
-                <span className={styles.statLabel}>Запланировано</span>
-                <span className={styles.statValue}>
-                  {formatMoneyNative(incomeLadder.scheduledCents)}
-                </span>
-              </div>
-              <div className={`${styles.statCol} ${styles.statColEnd}`}>
-                <span className={styles.statLabel}>Получено</span>
-                <span className={`${styles.statValue} ${styles.statPositive}`}>
-                  {formatMoneyNative(incomeLadder.receivedCents)}
-                </span>
-              </div>
-            </>
+            // Income: NO «План»/limit/target column, and this is the PLAN
+            // surface — «Получено» (the fact of received income) lives on the
+            // fact/home side, not here. We show only «Запланировано» (Σ planned
+            // income for the category).
+            <div className={styles.statCol}>
+              <span className={styles.statLabel}>Запланировано</span>
+              <span className={`${styles.statValue} ${styles.statPositive}`}>
+                {formatMoneyNative(incomeLadder.scheduledCents)}
+              </span>
+            </div>
           )}
         </div>
 

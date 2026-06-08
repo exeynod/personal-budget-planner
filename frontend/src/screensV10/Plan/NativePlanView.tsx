@@ -13,7 +13,9 @@
 //   - NativeNavBar «План месяца» + back
 //   - Расходы / Доходы segment
 //   - «Осталось распределить» card: big signed value + status badge
-//     («ок» green / «Превышено» red) + progress-bar «X из Y» (Σ limits из дохода)
+//     («ок» green / «Превышено» red) + progress-bar «X из Y» (Σ limits из дохода).
+//     When income_cents is unset (null) this card shows a NEUTRAL «укажите доход
+//     в настройках» prompt instead of a meaningless negative «Превышено».
 //   - «Регулярные платежи»: subscriptions + recurring planned, each row =
 //     icon · name · «N июня» · amount · «✓ Оплачено» (posted) / «Отметить» (post)
 //   - «Категории»: each row = icon · name · summary
@@ -43,15 +45,20 @@ import styles from './NativePlanView.module.css';
 // ─────────── Props ───────────
 
 export interface NativePlanViewProps {
-  incomeCents: number;
+  /**
+   * Owner's monthly income in cents, or `null` when never set (income_cents is
+   * nullable on app_user). Kept distinct from a real 0 so the «Осталось
+   * распределить» card can show a neutral prompt instead of «Превышено».
+   */
+  incomeCents: number | null;
+  /** True when `income_cents` is unset (null) — drives the neutral prompt. */
+  incomeUnset?: boolean;
   /** EXPENSE categories (income split out into `incomeCategories`). */
   categories: CategoryV10[];
   /** INCOME categories — planned (expected) amount, never a «лимит». */
   incomeCategories?: CategoryV10[];
   /** Σ income category plans («Запланировано дохода» summary). */
   incomePlannedCents?: number;
-  /** Σ posted income planned rows («Получено» summary). */
-  incomeReceivedCents?: number;
   plans: PlanMonthItem[];
   /**
    * Σ of UNPOSTED planned rows per category id («Запланировано» / what the
@@ -84,10 +91,10 @@ type Seg = 'expenses' | 'income';
 
 function NativePlanViewInner(props: NativePlanViewProps) {
   const {
+    incomeUnset = false,
     categories,
     incomeCategories = [],
     incomePlannedCents = 0,
-    incomeReceivedCents = 0,
     plans,
     scheduledByCat,
     regulars,
@@ -220,51 +227,76 @@ function NativePlanViewInner(props: NativePlanViewProps) {
       {seg === 'expenses' ? (
         // ───────── Расходы segment ─────────
         <>
-          {/* «Осталось распределить» card: value + badge + progress bar */}
-          <div
-            className={`${styles.surplusCard} ${
-              isOverflow ? styles.surplusOver : styles.surplusOk
-            }`}
-            data-testid="native-plan-surplus"
-          >
-            <div className={styles.surplusHead}>
-              <span className={styles.surplusLabel}>Осталось распределить</span>
-              <span
-                className={`${styles.surplusBadge} ${
-                  isOverflow ? styles.badgeOver : styles.badgeOk
-                }`}
+          {/* «Осталось распределить» card. When income_cents is unset (null),
+              surplus = −Σплан is a meaningless scary negative, so we render a
+              NEUTRAL prompt instead of the value/badge/«Превышено» + progress —
+              pointing the owner to set their income in Настройки. */}
+          {incomeUnset ? (
+            <div
+              className={`${styles.surplusCard} ${styles.surplusOk}`}
+              data-testid="native-plan-surplus"
+            >
+              <div className={styles.surplusHead}>
+                <span className={styles.surplusLabel}>
+                  Осталось распределить
+                </span>
+              </div>
+              <div
+                className={styles.surplusPrompt}
+                data-testid="native-plan-surplus-unset"
               >
-                {isOverflow ? (
-                  'Превышено'
-                ) : (
-                  <>
-                    <CheckCircle size={13} weight="fill" />
-                    ок
-                  </>
-                )}
-              </span>
+                Укажите месячный доход в настройках, чтобы видеть, сколько
+                осталось распределить.
+              </div>
             </div>
-            <div className={styles.surplusValue}>
-              {formatSignedMoneyNative(surplusCents)} ₽
-            </div>
-            <div className={styles.progressRow}>
-              <span
-                className={styles.progressTrack}
-                data-testid="native-plan-progress"
-              >
+          ) : (
+            <div
+              className={`${styles.surplusCard} ${
+                isOverflow ? styles.surplusOver : styles.surplusOk
+              }`}
+              data-testid="native-plan-surplus"
+            >
+              <div className={styles.surplusHead}>
+                <span className={styles.surplusLabel}>
+                  Осталось распределить
+                </span>
                 <span
-                  className={`${styles.progressFill} ${
-                    isOverflow ? styles.progressFillOver : ''
+                  className={`${styles.surplusBadge} ${
+                    isOverflow ? styles.badgeOver : styles.badgeOk
                   }`}
-                  style={{ width: `${Math.round(progress.ratio * 100)}%` }}
-                />
-              </span>
-              <span className={styles.progressCaption}>
-                {formatMoneyNative(progress.distributedCents)} из{' '}
-                {formatMoneyNative(progress.totalCents)}
-              </span>
+                >
+                  {isOverflow ? (
+                    'Превышено'
+                  ) : (
+                    <>
+                      <CheckCircle size={13} weight="fill" />
+                      ок
+                    </>
+                  )}
+                </span>
+              </div>
+              <div className={styles.surplusValue}>
+                {formatSignedMoneyNative(surplusCents)} ₽
+              </div>
+              <div className={styles.progressRow}>
+                <span
+                  className={styles.progressTrack}
+                  data-testid="native-plan-progress"
+                >
+                  <span
+                    className={`${styles.progressFill} ${
+                      isOverflow ? styles.progressFillOver : ''
+                    }`}
+                    style={{ width: `${Math.round(progress.ratio * 100)}%` }}
+                  />
+                </span>
+                <span className={styles.progressCaption}>
+                  {formatMoneyNative(progress.distributedCents)} из{' '}
+                  {formatMoneyNative(progress.totalCents)}
+                </span>
+              </div>
             </div>
-          </div>
+          )}
 
           {/* regulars block */}
           <SectionHeader>Регулярные платежи</SectionHeader>
@@ -296,7 +328,9 @@ function NativePlanViewInner(props: NativePlanViewProps) {
         // limit/plan-target — only plan detailing (Σ запланировано / получено);
         // delta = Факт − План (больше = хорошо).
         <>
-          {/* calm income summary — Запланировано / Получено (no surplus chrome) */}
+          {/* calm income summary — only «Запланировано дохода» (no surplus
+              chrome). This is the PLAN surface, so the fact of RECEIVED income
+              («Получено») is intentionally not shown — it lives on fact/home. */}
           <div
             className={`${styles.surplusCard} ${styles.incomeSummary}`}
             data-testid="native-plan-income-summary"
@@ -308,12 +342,6 @@ function NativePlanViewInner(props: NativePlanViewProps) {
                 </span>
                 <span className={styles.surplusValue}>
                   {formatMoneyNative(incomePlannedCents)} ₽
-                </span>
-              </span>
-              <span className={styles.incomeSummaryCol}>
-                <span className={styles.surplusLabel}>Получено</span>
-                <span className={styles.surplusValue}>
-                  {formatMoneyNative(incomeReceivedCents)} ₽
                 </span>
               </span>
             </div>

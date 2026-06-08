@@ -1,0 +1,43 @@
+/* 0034 — IconPicker grid (native iOS look). */
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 10px;
+  padding: 4px 0;
+}
+
+.cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border: none;
+  background: transparent;
+  border-radius: var(--lgn-r-tile, 12px);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.cell:focus-visible {
+  outline: 2px solid var(--lgn-accent, #f0801a);
+  outline-offset: 2px;
+}
+
+.tile {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--lgn-r-tile, 12px);
+  flex: 0 0 auto;
+  box-shadow: 0 0 0 0 transparent;
+  transition: box-shadow 0.12s ease;
+}
+
+.cellSelected .tile {
+  box-shadow:
+    0 0 0 2px var(--lgn-card-bg, #fff),
+    0 0 0 4px var(--lgn-accent, #f0801a);
+}
