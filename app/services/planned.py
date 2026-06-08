@@ -55,6 +55,7 @@ from app.db.models import (
 # replacement endpoint if a "materialise plan into PlannedTransaction rows"
 # operation is still needed.
 from app.services import categories as cat_svc
+from app.services.periods import get_current_active_period
 
 
 # ---------- Domain exceptions ----------
@@ -416,6 +417,7 @@ async def apply_template_to_period(
         .scalars()
         .all()
     )
+    template_item_ids = [item.category_id for item in items]
     for item in items:
         db.add(
             PeriodCategoryPlan(
@@ -425,6 +427,29 @@ async def apply_template_to_period(
                 limit_cents=item.limit_cents,
             )
         )
+
+    # Keep the global display/edit source (Category.plan_cents) in sync with
+    # the applied template limit, so the Plan overview (which reads/writes
+    # Category.plan_cents) reflects what was materialised into
+    # period_category_plan after a rollover. Income categories are untouched.
+    if template_item_ids:
+        cats = (
+            (
+                await db.execute(
+                    select(Category).where(
+                        Category.user_id == user_id,
+                        Category.id.in_(template_item_ids),
+                    )
+                )
+            )
+            .scalars()
+            .all()
+        )
+        limit_by_cat = {item.category_id: item.limit_cents for item in items}
+        for cat in cats:
+            if cat.kind == CategoryKind.income:
+                continue
+            cat.plan_cents = limit_by_cat[cat.id]
 
     # 2. Lines: plan_template_line → planned_transaction(source=manual).
     lines = (
@@ -462,6 +487,135 @@ async def apply_template_to_period(
         "created": len(created_rows),
         "planned": created_rows,
     }
+
+
+# ---------- Save current plan as template (overwrite) ----------
+
+
+async def save_template_from_current(
+    db: AsyncSession, *, user_id: int
+) -> dict:
+    """Overwrite the plan template from the CURRENT ACTIVE period (one txn).
+
+    Snapshots the user's current effective plan into the reusable template,
+    replacing whatever was there before:
+
+      ITEMS (limits): DELETE all ``plan_template_item`` for the user, then
+        INSERT one per active (non-archived) EXPENSE category whose effective
+        limit is non-null/non-zero. The current period has no
+        ``period_category_plan`` rows yet, so the effective limit is
+        ``Category.plan_cents``. Income categories carry no limit and are
+        excluded (consistent with IncomeLimitForbiddenError / alembic 0033).
+
+      LINES: DELETE all ``plan_template_line`` for the user, then INSERT one
+        per ``planned_transaction`` in the current active period with
+        ``source=manual`` (user-entered, both income & expense). Subscription-
+        sourced rows (``source != manual``) are skipped — subscriptions are
+        materialised separately. Mapping:
+          category_id  → category_id
+          kind         → kind
+          amount_cents → amount_cents
+          day_of_period = day-of-month of ``planned_date`` (clamped 1..28),
+                          or NULL when ``planned_date`` is NULL
+          description  → title
+
+    Returns ``{"items": [PlanTemplateItem...], "lines": [PlanTemplateLine...]}``.
+
+    Raises:
+        PeriodNotFoundError: no active period for the user (→ 404). ``period_id``
+            is reported as 0 (sentinel) since there is no concrete id.
+    """
+    period = await get_current_active_period(db, user_id=user_id)
+    if period is None:
+        raise PeriodNotFoundError(0)
+
+    # --- ITEMS: overwrite plan_template_item ---
+    existing_items = (
+        (
+            await db.execute(
+                select(PlanTemplateItem).where(PlanTemplateItem.user_id == user_id)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    for row in existing_items:
+        await db.delete(row)
+
+    active_expense_cats = (
+        (
+            await db.execute(
+                select(Category).where(
+                    Category.user_id == user_id,
+                    Category.is_archived.is_(False),
+                    Category.kind == CategoryKind.expense,
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    for cat in active_expense_cats:
+        if not cat.plan_cents:  # skip NULL / 0
+            continue
+        db.add(
+            PlanTemplateItem(
+                user_id=user_id,
+                category_id=cat.id,
+                limit_cents=cat.plan_cents,
+            )
+        )
+
+    # --- LINES: overwrite plan_template_line ---
+    existing_lines = (
+        (
+            await db.execute(
+                select(PlanTemplateLine).where(PlanTemplateLine.user_id == user_id)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    for row in existing_lines:
+        await db.delete(row)
+
+    manual_planned = (
+        (
+            await db.execute(
+                select(PlannedTransaction)
+                .where(
+                    PlannedTransaction.user_id == user_id,
+                    PlannedTransaction.period_id == period.id,
+                    PlannedTransaction.source == PlanSource.manual,
+                )
+                .order_by(PlannedTransaction.id)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    for p in manual_planned:
+        if p.planned_date is None:
+            day_of_period: Optional[int] = None
+        else:
+            # Clamp to 1..28 to stay valid in every month / period length.
+            day_of_period = min(max(p.planned_date.day, 1), 28)
+        db.add(
+            PlanTemplateLine(
+                user_id=user_id,
+                category_id=p.category_id,
+                title=p.description or "",
+                amount_cents=p.amount_cents,
+                day_of_period=day_of_period,
+                kind=p.kind,
+            )
+        )
+
+    await db.flush()
+
+    items = await list_template_items(db, user_id=user_id)
+    lines = await list_template_lines(db, user_id=user_id)
+    return {"items": items, "lines": lines}
 
 
 # ---------- Post / unpost planned → actual (v1.1, mirror post_subscription) ----------

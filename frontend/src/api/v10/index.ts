@@ -7,18 +7,33 @@
  * consumers can `import { listAccounts, listCategoriesV10, createActualV10 }
  * from '../api/v10'` without reaching into individual files.
  */
-export { listActualV10, createActualV10 } from './actual';
+export {
+  listActualV10,
+  createActualV10,
+  updateActualV10,
+  deleteActualV10,
+} from './actual';
 export type {
   ActualV10Read,
   ActualV10CreatePayload,
+  ActualV10UpdatePayload,
   ActualV10Kind,
 } from './actual';
 
 export { listAccounts } from './accounts';
 export type { AccountResponse, AccountKindStr } from './accounts';
 
-export { listCategoriesV10, updateCategoryV10 } from './categories';
-export type { CategoryV10, CategoryV10UpdatePayload } from './categories';
+export {
+  listCategoriesV10,
+  updateCategoryV10,
+  createCategoryV10,
+  archiveCategoryV10,
+} from './categories';
+export type {
+  CategoryV10,
+  CategoryV10UpdatePayload,
+  CategoryV10CreatePayload,
+} from './categories';
 
 export {
   listSubscriptionsV10,

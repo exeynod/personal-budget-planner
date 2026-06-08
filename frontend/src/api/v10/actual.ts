@@ -14,13 +14,33 @@
  */
 import { apiFetch } from '../client';
 import { getCached, invalidate, CACHE_KEYS } from '../cache';
-import type { ActualV10Read, ActualV10CreatePayload } from '../types';
+import type {
+  ActualV10Read,
+  ActualV10CreatePayload,
+  ActualV10Kind,
+} from '../types';
 
 export type {
   ActualV10Read,
   ActualV10CreatePayload,
   ActualV10Kind,
 } from '../types';
+
+/**
+ * Phase 27 (edit flow) — request body for `PATCH /api/v1/actual/{id}`.
+ *
+ * Mirrors the backend `ActualUpdate` schema (all fields optional; `extra=forbid`
+ * server-side). The edit AddSheet sends `amount_cents` / `category_id` /
+ * `tx_date` / `description` (+ `kind` re-derived from the chosen category so an
+ * expense↔income re-classification stays consistent with the wire).
+ */
+export interface ActualV10UpdatePayload {
+  kind?: ActualV10Kind;
+  amount_cents?: number;
+  description?: string | null;
+  category_id?: number;
+  tx_date?: string; // ISO date
+}
 
 /**
  * GET /api/v1/periods/{periodId}/actual
@@ -84,4 +104,56 @@ export async function createActualV10(
   invalidate(CACHE_KEYS.accounts);
   invalidate(CACHE_KEYS.home);
   return created;
+}
+
+/**
+ * PATCH /api/v1/actual/{id}
+ *
+ * Partial update of an existing actual transaction (amount / category / date /
+ * description / kind). The server re-resolves `period_id` when `tx_date`
+ * changes (ACT-05) and validates the category/kind pairing.
+ *
+ * Runtime guard: when `amount_cents` is present it must be positive (the server
+ * independently enforces `gt=0`) — defence-in-depth against caller bugs, same
+ * shape as `createActualV10`.
+ *
+ * Cache invalidation mirrors `createActualV10`: an edit can move the amount,
+ * the category, the date (→ a different period) and — via the balance hook —
+ * account/wallet balances, so the actuals / balance / accounts / home families
+ * are all dropped so the next read never serves a stale row.
+ */
+export async function updateActualV10(
+  id: number,
+  payload: ActualV10UpdatePayload,
+): Promise<ActualV10Read> {
+  if (payload.amount_cents !== undefined && payload.amount_cents <= 0) {
+    throw new Error('updateActualV10: amount_cents must be positive');
+  }
+  const updated = await apiFetch<ActualV10Read>(`/actual/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  });
+  invalidate(CACHE_KEYS.actualsPrefix);
+  invalidate(CACHE_KEYS.balancePrefix);
+  invalidate(CACHE_KEYS.accounts);
+  invalidate(CACHE_KEYS.home);
+  return updated;
+}
+
+/**
+ * DELETE /api/v1/actual/{id}
+ *
+ * Hard-delete an actual transaction. Returns the deleted row state (the server
+ * echoes it back). Invalidates the same cache families as create/update so all
+ * lists + balances reflect the removal on the next read.
+ */
+export async function deleteActualV10(id: number): Promise<ActualV10Read> {
+  const deleted = await apiFetch<ActualV10Read>(`/actual/${id}`, {
+    method: 'DELETE',
+  });
+  invalidate(CACHE_KEYS.actualsPrefix);
+  invalidate(CACHE_KEYS.balancePrefix);
+  invalidate(CACHE_KEYS.accounts);
+  invalidate(CACHE_KEYS.home);
+  return deleted;
 }

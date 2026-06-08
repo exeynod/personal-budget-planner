@@ -305,6 +305,19 @@ class Category(Base):
         String(16), nullable=False, default="personal", server_default="personal"
     )
 
+    # ---- 0034: explicit, user-chosen icon key ----
+    # Stable key (e.g. 'food', 'cafe', 'home', 'transit', 'salary', ...) matching
+    # the preset bins in frontend/src/utils/categoryVisuals.ts. Nullable: NULL →
+    # fall back to the name-based icon mapping (backwards compatible).
+    icon: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
+
+    # ---- 0035: explicit, user-chosen colour key ----
+    # Stable key (e.g. 'orange', 'red', 'blue', ...) matching the COLOR_SET
+    # bins in frontend/src/utils/categoryVisuals.ts. Independent of ``icon``
+    # (iOS-Shortcuts style: pick glyph and colour separately). Nullable:
+    # NULL → fall back to the name/hash-based colour (backwards compatible).
+    color: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
+
     # Self-referencing relationship (R3 future subcategories).
     # Использует foreign_keys+remote_side для self-FK без declared FK constraint
     # (composite FK живёт на DB-level).

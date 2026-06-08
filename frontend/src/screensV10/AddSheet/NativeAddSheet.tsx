@@ -21,7 +21,10 @@ import { CategoryIcon } from '../native/CategoryIcon';
 import { NativeCalendar } from '../native/NativeCalendar';
 import { formatMoneyNative } from '../native/money';
 import { MONTHS_RU_GENITIVE } from '../common';
+import { useEnterToDismiss } from '../common/useEnterToDismiss';
 import { useAddSheetController } from './useAddSheetController';
+import type { AddSheetKind } from '../native/AddSheetHost';
+import type { ActualV10Read } from '../../api/v10';
 import styles from './NativeAddSheet.module.css';
 
 export interface NativeAddSheetProps {
@@ -37,7 +40,18 @@ export interface NativeAddSheetProps {
    * `categoryId` state; the user may still re-pick via the category sheet.
    */
   initialCategoryId?: number;
-  /** Called with the newly-created tx/planned id after a successful POST. */
+  /**
+   * REQ 4a — income/expense context. Seeds the kind and filters the category
+   * picker to that kind. Omitted → derived from the (pre-selected/edited)
+   * category, default expense.
+   */
+  kind?: AddSheetKind;
+  /**
+   * REQ 7 — when set, the sheet opens in EDIT mode pre-filled with this actual;
+   * submit PATCHes (instead of create) and a «Удалить» action is shown.
+   */
+  editActual?: ActualV10Read;
+  /** Called with the newly-created/updated/deleted tx id after a successful op. */
   onSubmitted: (txId: number) => void;
   /** Called when the user dismisses the sheet (clean form or confirmed cancel). */
   onClose: () => void;
@@ -99,18 +113,26 @@ function yesterdayIsoLocal(): string {
 export function NativeAddSheet({
   mode = 'fact',
   initialCategoryId,
+  kind,
+  editActual,
   onSubmitted,
   onClose,
 }: NativeAddSheetProps) {
   const c = useAddSheetController({
     mode,
     initialCategoryId,
+    kind,
+    editActual,
     onSubmitted,
     onClose,
   });
   const isPlan = mode === 'plan';
+  const isEdit = c.isEdit;
+  // REQ5: dismiss the soft keyboard on Enter for the text inputs we own.
+  const onDescKeyDown = useEnterToDismiss();
 
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [catPickerOpen, setCatPickerOpen] = useState(false);
   const [dateSheetOpen, setDateSheetOpen] = useState(false);
   // In-app month-grid calendar («Своя дата») expanded inside the date sheet.
@@ -147,9 +169,11 @@ export function NativeAddSheet({
         ? 'Выберите категорию'
         : c.cta === 'no-account'
           ? 'Нет счёта'
-          : isPlan
-            ? 'Добавить в план'
-            : 'Добавить';
+          : isEdit
+            ? 'Сохранить'
+            : isPlan
+              ? 'Добавить в план'
+              : 'Добавить';
 
   const periodHint =
     c.isScopedPeriod && c.viewedPeriod
@@ -169,7 +193,11 @@ export function NativeAddSheet({
           Отмена
         </button>
         <span className={styles.title}>
-          {isPlan ? 'В план' : 'Новая транзакция'}
+          {isEdit
+            ? 'Редактировать'
+            : isPlan
+              ? 'В план'
+              : 'Новая транзакция'}
         </span>
         {/* Right slot kept balanced; primary submit lives in the «Добавить»
             CTA below (matches the poster's single CTA — no duplicate action). */}
@@ -196,19 +224,18 @@ export function NativeAddSheet({
           placeholder="Описание (кафе / продукты / …)"
           value={c.description}
           onChange={(e) => c.setDescription(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              e.preventDefault();
-              e.currentTarget.blur();
-            }
-          }}
+          onKeyDown={onDescKeyDown}
           aria-label="Описание операции"
           data-testid="native-add-description"
         />
       </div>
 
-      {/* ── Категория / Счёт / Дата rows ── */}
+      {/* ── Категория / Дата rows ── */}
       <InsetGroup>
+        {/* REQ 4b: the category selector reads as ONE coherent control — the
+            «Категория» label is the row eyebrow and the chosen category (or
+            «Выбрать» placeholder) sits directly beneath it next to the icon,
+            instead of the label and value being torn to opposite row edges. */}
         <InsetRow
           leading={
             selectedCat ? (
@@ -219,13 +246,16 @@ export function NativeAddSheet({
               </span>
             )
           }
-          title="Категория"
-          trailing={
-            <span className={styles.rowValue}>
+          title={<span className={styles.catEyebrow}>Категория</span>}
+          subtitle={
+            <span
+              className={
+                selectedCat ? styles.catChosen : styles.catChosenPlaceholder
+              }
+            >
               {selectedCat ? selectedCat.name : 'Выбрать'}
             </span>
           }
-          trailingMuted={!selectedCat}
           chevron
           onClick={() => setCatPickerOpen(true)}
           testId="native-add-category-row"
@@ -318,6 +348,19 @@ export function NativeAddSheet({
       >
         {ctaLabel}
       </button>
+
+      {/* ── Delete (edit mode only, REQ 7) ── */}
+      {isEdit && (
+        <button
+          type="button"
+          className={styles.deleteBtn}
+          onClick={() => setShowDeleteConfirm(true)}
+          disabled={c.submitting}
+          data-testid="native-add-delete"
+        >
+          Удалить
+        </button>
+      )}
 
       {/* ── Date action-sheet ── */}
       {dateSheetOpen && (
@@ -440,6 +483,44 @@ export function NativeAddSheet({
                 }}
               >
                 Отменить
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Delete confirm (edit mode, REQ 7) ── */}
+      {showDeleteConfirm && (
+        <div
+          className={styles.confirmBackdrop}
+          role="dialog"
+          aria-modal="true"
+          data-testid="native-add-delete-confirm"
+        >
+          <div className={styles.confirmBox}>
+            <div className={styles.confirmTitle}>Удалить операцию?</div>
+            <div className={styles.confirmHint}>
+              Это действие нельзя отменить.
+            </div>
+            <div className={styles.confirmActions}>
+              <button
+                type="button"
+                className={styles.confirmContinue}
+                onClick={() => setShowDeleteConfirm(false)}
+              >
+                Отмена
+              </button>
+              <button
+                type="button"
+                className={styles.confirmCancel}
+                disabled={c.submitting}
+                onClick={() => {
+                  setShowDeleteConfirm(false);
+                  void c.onDelete();
+                }}
+                data-testid="native-add-delete-confirm-yes"
+              >
+                Удалить
               </button>
             </div>
           </div>

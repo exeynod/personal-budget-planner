@@ -30,6 +30,12 @@ class CategoryCreate(BaseModel):
     # Phase 36: default 'personal' — categories created до Persona E flow
     # автоматически получают personal-tag (mirror DB DEFAULT).
     tag: CategoryTagStr = "personal"
+    # 0034: explicit icon key (e.g. 'food', 'cafe', 'home', ...). Optional —
+    # NULL falls back to the name-based icon mapping on the client.
+    icon: Optional[str] = Field(default=None, max_length=32)
+    # 0035: explicit colour key (e.g. 'orange', 'red', ...), picked
+    # independently of the icon. NULL falls back to the name/hash-based colour.
+    color: Optional[str] = Field(default=None, max_length=32)
 
 
 class CategoryUpdate(BaseModel):
@@ -59,6 +65,12 @@ class CategoryUpdate(BaseModel):
     parent_id: Optional[int] = None
     # Phase 36 (REQ-36-01): business/personal tag для Persona E.
     tag: Optional[CategoryTagStr] = None
+    # 0034: explicit icon key — patched via the category-management UI's
+    # IconPicker. Applied through the generic exclude_unset setattr loop.
+    icon: Optional[str] = Field(default=None, max_length=32)
+    # 0035: explicit colour key — patched via the colour picker, applied
+    # through the same exclude_unset setattr loop.
+    color: Optional[str] = Field(default=None, max_length=32)
 
 
 class CategoryRead(BaseModel):
@@ -80,3 +92,7 @@ class CategoryRead(BaseModel):
     parent_id: Optional[int] = None
     # Phase 36 (REQ-36-01): business/personal tag.
     tag: CategoryTagStr = "personal"
+    # 0034: explicit icon key (NULL → client falls back to name-based mapping).
+    icon: Optional[str] = None
+    # 0035: explicit colour key (NULL → client falls back to name/hash colour).
+    color: Optional[str] = None

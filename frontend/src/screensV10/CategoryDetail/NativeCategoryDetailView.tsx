@@ -56,6 +56,10 @@ export interface NativeCategoryDetailViewProps {
    * fact/expense add for this category).
    */
   onAddTransaction: (categoryId: number) => void;
+  /**
+   * REQ 7 — tapping an operation row opens the edit sheet for that actual.
+   */
+  onTransactionTap: (tx: ActualV10Read) => void;
   /** Pop the router stack (back chevron). */
   onBack: () => void;
 }
@@ -69,6 +73,7 @@ function NativeCategoryDetailViewInner(props: NativeCategoryDetailViewProps) {
     plannedUnpostedCents = 0,
     today = new Date(),
     onAddTransaction,
+    onTransactionTap,
     onBack,
   } = props;
 
@@ -219,6 +224,7 @@ function NativeCategoryDetailViewInner(props: NativeCategoryDetailViewProps) {
                         {amountStr}
                       </span>
                     }
+                    onClick={() => onTransactionTap(tx)}
                   />
                 );
               })}

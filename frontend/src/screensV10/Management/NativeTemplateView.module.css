@@ -1,0 +1,120 @@
+/* Native Template OVERVIEW. Scoped (CSS module).
+   Mirrors the Plan overview rows (Plan/NativePlanView.module.css). */
+
+.root {
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 24px;
+}
+
+/* Loading / error banners. */
+.banner {
+  margin: 8px 16px;
+  padding: 10px 14px;
+  border-radius: var(--lgn-r-card, 14px);
+  background: var(--lgn-seg-track, #eee);
+  color: var(--lgn-ink-2, #666);
+  font-family: var(--lgn-font);
+  font-size: 14px;
+}
+.bannerError {
+  background: rgba(220, 60, 60, 0.12);
+  color: #c0392b;
+}
+
+/* Intro blurb — the template auto-applies to each NEW month. */
+.intro {
+  margin: 4px 16px 8px;
+  padding: 12px 14px;
+  border-radius: var(--lgn-r-card, 14px);
+  background: var(--lgn-seg-track, rgba(120, 120, 128, 0.12));
+  color: var(--lgn-ink-2, #555);
+  font-family: var(--lgn-font);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+/* Segment row (Расходы / Доходы). */
+.segmentRow {
+  margin: 8px var(--lgn-s-16, 16px) 4px;
+}
+
+/* ─────────── Category rows (compact read-only, inside InsetGroup) ───────────
+   The whole row is a tappable button → per-category template detail. */
+.catRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px var(--lgn-s-16);
+  border: none;
+  background: none;
+  font-family: var(--lgn-font);
+  text-align: left;
+  cursor: pointer;
+  position: relative;
+}
+.catRow:not(:first-child)::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: calc(var(--lgn-s-16) + 30px + 12px);
+  right: 0;
+  height: 1px;
+  background: var(--lgn-hairline-soft);
+}
+.catRow:active {
+  background: rgba(0, 0, 0, 0.04);
+}
+.catMain {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.catName {
+  font-size: 17px;
+  color: var(--lgn-ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.catSummary {
+  font-size: 13px;
+  color: var(--lgn-ink-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.catChevron {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--lgn-ink-3, var(--lgn-ink-2));
+}
+
+/* ─────────── Empty state ─────────── */
+.empty {
+  margin: 8px var(--lgn-s-16) 0;
+  padding: 24px var(--lgn-s-16);
+  text-align: center;
+  color: var(--lgn-ink-2);
+  font-size: 15px;
+  font-family: var(--lgn-font);
+  background: var(--lgn-card);
+  -webkit-backdrop-filter: var(--lgn-glass-blur);
+  backdrop-filter: var(--lgn-glass-blur);
+  border-radius: var(--lgn-r-card);
+  box-shadow: var(--lgn-shadow-card), var(--lgn-card-edge);
+}
+
+/* ─────────── Footnote ─────────── */
+.footnote {
+  margin: 12px var(--lgn-s-20, 20px) 0;
+  font-family: var(--lgn-font);
+  font-size: 13px;
+  color: var(--lgn-ink-2, #888);
+  line-height: 1.4;
+}

@@ -10,13 +10,22 @@ import { visualForCategory } from '../../utils/categoryVisuals';
 export function CategoryIcon({
   name,
   id,
+  icon,
+  color,
   size = 30,
 }: {
   name: string;
   id?: number;
+  /** 0034: explicit icon key; preferred over name-based mapping when set. */
+  icon?: string | null;
+  /**
+   * 0035: explicit colour key; preferred over the name/hash colour when set.
+   * Optional — existing call sites that omit it keep their previous look.
+   */
+  color?: string | null;
   size?: number;
 }) {
-  const v = visualForCategory(name, id);
+  const v = visualForCategory(name, id, icon, color);
   const Icon = v.Icon;
   return (
     <span

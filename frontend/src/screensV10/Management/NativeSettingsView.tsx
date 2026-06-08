@@ -25,6 +25,7 @@ import {
   InsetRow,
 } from '../native/NativePrimitives';
 import { formatMoneyNative } from '../native/money';
+import { useEnterToDismiss } from '../common/useEnterToDismiss';
 import styles from './NativeSettingsView.module.css';
 
 export interface SettingsViewProps {
@@ -163,6 +164,17 @@ function ReconcileSection({
   const targetCents = rublesInputToCents(input);
   const canSubmit = input.trim() !== '' && !reconciling;
 
+  function handleSubmit() {
+    if (!canSubmit) return;
+    onReconcileBalance(targetCents);
+    setInput('');
+  }
+
+  // Enter commits the reconcile (when valid) then blurs to dismiss the keyboard.
+  const onInputKeyDown = useEnterToDismiss(() => {
+    if (canSubmit) handleSubmit();
+  });
+
   return (
     <>
       <SectionHeader>Остаток</SectionHeader>
@@ -193,6 +205,7 @@ function ReconcileSection({
                 placeholder="₽"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
+                onKeyDown={onInputKeyDown}
                 aria-label="Реальный остаток в рублях"
                 data-testid="reconcile-input"
               />
@@ -200,10 +213,7 @@ function ReconcileSection({
                 type="button"
                 className={styles.reconcileBtn}
                 disabled={!canSubmit}
-                onClick={() => {
-                  onReconcileBalance(targetCents);
-                  setInput('');
-                }}
+                onClick={handleSubmit}
                 data-testid="reconcile-submit"
               >
                 {reconciling ? '…' : 'Привести'}

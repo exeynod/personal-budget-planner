@@ -1,0 +1,116 @@
+/* 0034 — native Category management view. Scoped (CSS module). */
+
+.root {
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 24px;
+}
+
+/* Loading / error banners (mirrors NativeSettingsView). */
+.banner {
+  margin: 8px 16px;
+  padding: 10px 14px;
+  border-radius: var(--lgn-r-card, 14px);
+  background: var(--lgn-seg-track, #eee);
+  color: var(--lgn-ink-2, #666);
+  font-family: var(--lgn-font);
+  font-size: 14px;
+}
+
+.bannerError {
+  background: rgba(220, 60, 60, 0.12);
+  color: #c0392b;
+}
+
+.muted {
+  color: var(--lgn-ink-2, #888);
+}
+
+/* Inline create / edit editor inside an InsetGroup. */
+.editor {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 14px 16px;
+}
+
+.nameInput {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border: 1px solid var(--lgn-hairline, rgba(0, 0, 0, 0.12));
+  border-radius: var(--lgn-r-tile, 12px);
+  background: var(--lgn-field-bg, #fff);
+  color: var(--lgn-ink-1, #111);
+  font-family: var(--lgn-font);
+  font-size: 16px;
+}
+
+.nameInput:focus {
+  outline: none;
+  border-color: var(--lgn-accent, #f0801a);
+}
+
+.editorActions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.editorActionsRight {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.primaryBtn,
+.secondaryBtn,
+.dangerBtn,
+.unarchiveBtn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: var(--lgn-r-pill, 999px);
+  font-family: var(--lgn-font);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.primaryBtn {
+  background: var(--lgn-accent, #f0801a);
+  color: #fff;
+}
+
+.primaryBtn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.secondaryBtn {
+  background: var(--lgn-seg-track, #ececec);
+  color: var(--lgn-ink-1, #111);
+}
+
+.dangerBtn {
+  background: rgba(220, 60, 60, 0.12);
+  color: #c0392b;
+}
+
+.dangerBtn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.unarchiveBtn {
+  padding: 6px 12px;
+  font-size: 13px;
+  background: var(--lgn-seg-track, #ececec);
+  color: var(--lgn-accent, #f0801a);
+}
+
+.unarchiveBtn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}

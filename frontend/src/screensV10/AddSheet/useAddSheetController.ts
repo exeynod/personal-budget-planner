@@ -23,11 +23,14 @@ import {
   listAccounts,
   listCategoriesV10,
   createActualV10,
+  updateActualV10,
+  deleteActualV10,
   createPlanned,
   type AccountResponse,
+  type ActualV10Read,
   type CategoryV10,
 } from '../../api/v10';
-import type { AddSheetMode } from '../native/AddSheetHost';
+import type { AddSheetKind, AddSheetMode } from '../native/AddSheetHost';
 import { useSelectedPeriodOptional } from '../common';
 import type { PeriodRead } from '../../api/types';
 import {
@@ -59,7 +62,21 @@ export interface UseAddSheetControllerArgs {
    * different category) the selection re-syncs.
    */
   initialCategoryId?: number;
-  /** Called with the newly-created tx/planned id after a successful POST. */
+  /**
+   * REQ 4a — force the income/expense context. When provided, the controller
+   * seeds this kind AND filters `visibleCategories` to ONLY this kind (savings
+   * still excluded). When omitted, the kind is derived from the pre-selected
+   * category (`initialCategoryId` / `editActual`) and defaults to `'expense'`.
+   */
+  kind?: AddSheetKind;
+  /**
+   * REQ 7 — when set, the sheet opens in EDIT mode pre-filled with this
+   * transaction; submit PATCHes via `updateActualV10` (instead of create) and
+   * `onDelete` becomes available («Удалить»). The amount/category/date/
+   * description seed from this row.
+   */
+  editActual?: ActualV10Read;
+  /** Called with the newly-created/updated tx/planned id after a successful POST/PATCH. */
   onSubmitted: (txId: number) => void;
   /** Called when the user dismisses the sheet (clean form or confirmed cancel). */
   onClose: () => void;
@@ -68,6 +85,10 @@ export interface UseAddSheetControllerArgs {
 export interface AddSheetController {
   /** Active surface mode (drives view chrome: title / CTA label). */
   mode: AddSheetMode;
+  /** REQ 7 — true when editing an existing actual (chrome: title / delete). */
+  isEdit: boolean;
+  /** REQ 4a — the effective income/expense context the sheet is bound to. */
+  kind: AddSheetKind;
   // amount
   amountString: string;
   amountCents: number;
@@ -105,25 +126,56 @@ export interface AddSheetController {
   submitError: string | null;
   isDirty: boolean;
   onSubmit: () => Promise<void>;
+  /**
+   * REQ 7 — delete the edited transaction (only meaningful when `isEdit`).
+   * No-op outside edit mode. On success calls `onSubmitted(id)` so the host
+   * closes + bumps the refetch token, identically to a save.
+   */
+  onDelete: () => Promise<void>;
   /** Returns true if the form is dirty (caller should show a confirm gate). */
   requestClose: () => boolean;
+}
+
+/**
+ * Render BIGINT cents back into the keypad amount-string («550» → «5.5», «500»
+ * → «5», «5» → «0.05»). Used to pre-fill the keypad when editing an existing
+ * actual. Trailing-zero kopecks are trimmed so whole rubles read cleanly.
+ */
+function centsToAmountString(cents: number): string {
+  if (cents <= 0) return '';
+  const rub = Math.floor(cents / 100);
+  const kop = cents % 100;
+  if (kop === 0) return String(rub);
+  // Two-digit kopecks, trim a single trailing zero («50» → «5», «05» stays).
+  const kopStr = kop % 10 === 0 ? String(kop / 10) : String(kop).padStart(2, '0');
+  return `${rub}.${kopStr}`;
 }
 
 export function useAddSheetController({
   mode = 'fact',
   initialCategoryId,
+  kind: forcedKind,
+  editActual,
   onSubmitted,
   onClose,
 }: UseAddSheetControllerArgs): AddSheetController {
   const isPlan = mode === 'plan';
+  const isEdit = editActual != null;
+  // Category to seed the picker with: explicit deep-link wins, else the edited
+  // row's category.
+  const seedCategoryId = initialCategoryId ?? editActual?.category_id ?? null;
   // ── State (mirrors poster AddSheet) ───────────────────────────────
-  const [amountString, setAmountString] = useState('');
-  const [description, setDescription] = useState('');
-  const [dateChip, setDateChip] = useState<AddSheetDateChip>('today');
-  const [customDate, setCustomDate] = useState<string>('');
-  const [categoryId, setCategoryId] = useState<number | null>(
-    initialCategoryId ?? null,
+  const [amountString, setAmountString] = useState(() =>
+    editActual ? centsToAmountString(editActual.amount_cents) : '',
   );
+  const [description, setDescription] = useState(editActual?.description ?? '');
+  const [dateChip, setDateChip] = useState<AddSheetDateChip>(
+    editActual ? 'custom' : 'today',
+  );
+  const [customDate, setCustomDate] = useState<string>(
+    editActual?.tx_date ?? '',
+  );
+  const [categoryId, setCategoryId] = useState<number | null>(seedCategoryId);
 
   // CategoryDetail deep-link safety net: PosterSheet unmounts NativeAddSheet on
   // close, so the useState initializer above already seeds the right category on
@@ -151,6 +203,9 @@ export function useAddSheetController({
     viewedPeriod != null && viewedPeriod.status !== 'active';
 
   useEffect(() => {
+    // Edit mode keeps the row's own tx_date — never override it with the
+    // viewed-period default.
+    if (isEdit) return;
     if (isScopedPeriod && viewedPeriod) {
       setDateChip('custom');
       setCustomDate(defaultDateForPeriod(viewedPeriod, today));
@@ -205,10 +260,36 @@ export function useAddSheetController({
     ? ctaState(amountCents, categoryId)
     : ctaState(amountCents, categoryId, accountId);
 
+  // REQ 4a — effective income/expense context. Precedence:
+  //   1. explicit `kind` passed to openAddSheet (the active Home tab),
+  //   2. else derive from the currently-selected category,
+  //   3. else the edited row's kind (roundup/deposit → treated as expense),
+  //   4. else default 'expense'.
+  const selectedCategoryKind = useMemo(() => {
+    if (categoryId === null) return null;
+    const cat = categories.find((c) => c.id === categoryId);
+    return cat ? cat.kind : null;
+  }, [categories, categoryId]);
+
+  const editKind: AddSheetKind | null =
+    editActual != null ? (editActual.kind === 'income' ? 'income' : 'expense') : null;
+
+  const effectiveKind: AddSheetKind =
+    forcedKind ?? selectedCategoryKind ?? editKind ?? 'expense';
+
   // ADD-V10-04: hide the system savings category.
+  // REQ 4a: when a `kind` context is forced, also restrict the list to that
+  // kind so the picker only ever shows categories the user can pick for the
+  // active tab. Without a forced kind the full (non-savings) list shows — the
+  // category's own kind drives the submit payload.
   const visibleCategories = useMemo(
-    () => categories.filter((c) => c.code !== 'savings'),
-    [categories],
+    () =>
+      categories.filter(
+        (c) =>
+          c.code !== 'savings' &&
+          (forcedKind == null || c.kind === forcedKind),
+      ),
+    [categories, forcedKind],
   );
 
   const currentAccount = useMemo(
@@ -273,9 +354,51 @@ export function useAddSheetController({
       return;
     }
 
+    // Submit kind tracks the chosen category (income↔expense), preserving the
+    // edited row's original roundup/deposit kind when its savings category is
+    // untouched. New facts default to the selected category's kind.
+    const submitCat = categories.find((c) => c.id === categoryId);
+    const submitKind: ActualV10Read['kind'] =
+      isEdit && editActual != null && editActual.category_id === categoryId
+        ? editActual.kind
+        : (submitCat?.kind ?? 'expense');
+
+    // ── Edit mode: PATCH the existing actual instead of POSTing a new one ──
+    if (isEdit && editActual != null) {
+      try {
+        const res = await updateActualV10(editActual.id, {
+          kind: submitKind,
+          amount_cents: amountCents,
+          description: description.trim() === '' ? null : description.trim(),
+          category_id: categoryId,
+          tx_date,
+        });
+        // Phase P2: auto-switch the viewed period if the edit moved the date
+        // outside it (mirrors the create path).
+        if (sel && tx_date) {
+          const inViewed =
+            viewedPeriod != null &&
+            findPeriodForDate([viewedPeriod], tx_date) !== null;
+          if (!inViewed) {
+            sel.reload();
+            const target = findPeriodForDate(sel.periods, tx_date);
+            if (target) sel.setSelectedPeriodId(target.id);
+          }
+        }
+        onSubmitted(res.id);
+      } catch (err) {
+        setSubmitError(
+          err instanceof Error ? err.message : 'Не удалось сохранить',
+        );
+      } finally {
+        setSubmitting(false);
+      }
+      return;
+    }
+
     try {
       const res = await createActualV10({
-        kind: 'expense',
+        kind: submitKind,
         amount_cents: amountCents,
         description: description.trim() === '' ? null : description.trim(),
         category_id: categoryId,
@@ -303,6 +426,23 @@ export function useAddSheetController({
     }
   };
 
+  // ── Delete (edit mode only) ───────────────────────────────────────
+  const onDelete = async () => {
+    if (!isEdit || editActual == null || submitting) return;
+    setSubmitting(true);
+    setSubmitError(null);
+    try {
+      await deleteActualV10(editActual.id);
+      onSubmitted(editActual.id);
+    } catch (err) {
+      setSubmitError(
+        err instanceof Error ? err.message : 'Не удалось удалить',
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   // ── Close (dirty gate handled by the view) ───────────────────────
   const requestClose = (): boolean => {
     if (isDirty) return true; // caller shows confirm overlay
@@ -312,6 +452,8 @@ export function useAddSheetController({
 
   return {
     mode,
+    isEdit,
+    kind: effectiveKind,
     amountString,
     amountCents,
     onAppendDigit,
@@ -341,6 +483,7 @@ export function useAddSheetController({
     submitError,
     isDirty,
     onSubmit,
+    onDelete,
     requestClose,
   };
 }

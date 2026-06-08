@@ -48,3 +48,13 @@ class TemplateLineUpdate(BaseModel):
     amount_cents: Optional[int] = Field(default=None, gt=0)
     day_of_period: Optional[int] = Field(default=None, ge=1, le=31)
     kind: Optional[TemplateKindStr] = None
+
+
+class TemplateRead(BaseModel):
+    """Full plan template — per-category limits (items) + recurring lines.
+
+    Response of POST /template/save-current (overwrite-from-current-period).
+    """
+
+    items: list[TemplateItemRead]
+    lines: list[TemplateLineRead]

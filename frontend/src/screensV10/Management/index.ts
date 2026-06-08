@@ -16,6 +16,28 @@ export {
   type SettingsViewProps,
 } from './NativeSettingsView';
 
+export { CategoriesMount } from './CategoriesMount';
+export {
+  NativeCategoriesView,
+  type CategoriesViewProps,
+  type CategoryCreateInput,
+  type CategoryEditInput,
+} from './NativeCategoriesView';
+
+export { TemplateMount } from './TemplateMount';
+export {
+  NativeTemplateView,
+  type TemplateViewProps,
+} from './NativeTemplateView';
+
+// Template per-category drill-down (pushed from the template overview rows).
+export { TemplateCategoryDetailMount } from './TemplateCategoryDetailMount';
+export type { TemplateCategoryDetailMountProps } from './TemplateCategoryDetailMount';
+export {
+  TemplateCategoryDetailView,
+  type TemplateCategoryDetailViewProps,
+} from './TemplateCategoryDetailView';
+
 export { AccessMount } from './AccessMount';
 export {
   NativeAccessView,

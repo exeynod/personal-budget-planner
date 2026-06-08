@@ -29,12 +29,14 @@ from app.api.schemas.template import (
     TemplateLineCreate,
     TemplateLineRead,
     TemplateLineUpdate,
+    TemplateRead,
 )
 from app.services import planned as plan_svc
 from app.services.categories import CategoryNotFoundError
 from app.services.planned import (
     InvalidCategoryError,
     KindMismatchError,
+    PeriodNotFoundError,
     PlannedNotFoundError,
 )
 
@@ -53,6 +55,28 @@ async def list_template_items(
 ) -> list[TemplateItemRead]:
     rows = await plan_svc.list_template_items(db, user_id=user_id)
     return [TemplateItemRead.model_validate(r) for r in rows]
+
+
+@template_router.post(
+    "/save-current", response_model=TemplateRead, status_code=status.HTTP_200_OK
+)
+async def save_template_from_current(
+    db: Annotated[AsyncSession, Depends(get_db_with_tenant_scope)],
+    user_id: Annotated[int, Depends(get_current_user_id)],
+) -> TemplateRead:
+    """Overwrite the plan template from the current active period (one txn).
+
+    Snapshots current effective per-category EXPENSE limits (Category.plan_cents)
+    → template items, and current manual planned rows → template lines.
+    """
+    try:
+        result = await plan_svc.save_template_from_current(db, user_id=user_id)
+    except PeriodNotFoundError as exc:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    return TemplateRead(
+        items=[TemplateItemRead.model_validate(r) for r in result["items"]],
+        lines=[TemplateLineRead.model_validate(r) for r in result["lines"]],
+    )
 
 
 @template_router.put("/items/{category_id}", response_model=TemplateItemRead)

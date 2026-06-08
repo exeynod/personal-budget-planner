@@ -2,8 +2,9 @@
 //
 // The income ladder is intentionally DIFFERENT from the expense ladder: income
 // has NO «limit»/«plan target» entity — only plan detailing. There is NO
-// «лимит»/«свободно»/«over»/«План»/«остаток». We assert the income ladder
-// exposes ONLY Запланировано (unposted) / Получено (posted).
+// «лимит»/«свободно»/«over»/«План»/«остаток». This is the PLAN surface, so the
+// ladder exposes ONLY Запланировано (Σ unposted) — «Получено» (the fact of
+// received income) was dropped; it lives on the fact/home side now.
 
 import { describe, it, expect } from 'vitest';
 import {
@@ -26,7 +27,7 @@ function row(over: Partial<PlanDetailRow> = {}): PlanDetailRow {
 }
 
 describe('computeIncomeLadder', () => {
-  it('splits scheduled (unposted) and received (posted) — no limit/target/overflow concept', () => {
+  it('sums only UNPOSTED rows into scheduled — no received/limit/target/overflow concept', () => {
     const rows = [
       row({ id: 1, amountCents: 50_000_00, posted: false }),
       row({ id: 2, amountCents: 100_000_00, posted: true }),
@@ -34,8 +35,9 @@ describe('computeIncomeLadder', () => {
     const ladder = computeIncomeLadder(rows);
 
     expect(ladder.scheduledCents).toBe(50_000_00); // unposted only
-    expect(ladder.receivedCents).toBe(100_000_00); // posted only
 
+    // «Получено» (the fact of received income) is NOT surfaced on the plan.
+    expect(ladder).not.toHaveProperty('receivedCents');
     // No plan-target/limit/overflow fields exist — income has only detailing.
     expect(ladder).not.toHaveProperty('planCents');
     expect(ladder).not.toHaveProperty('remainingCents');
@@ -45,11 +47,10 @@ describe('computeIncomeLadder', () => {
     expect(ladder).not.toHaveProperty('overflow');
   });
 
-  it('sums only posted rows into received (больше = хорошо, no cap)', () => {
+  it('excludes posted (received) rows from scheduled', () => {
     const rows = [row({ id: 1, amountCents: 180_000_00, posted: true })];
     const ladder = computeIncomeLadder(rows);
 
-    expect(ladder.receivedCents).toBe(180_000_00);
     expect(ladder.scheduledCents).toBe(0);
   });
 
@@ -57,7 +58,6 @@ describe('computeIncomeLadder', () => {
     const ladder = computeIncomeLadder([
       row({ id: 1, amountCents: 150_000_00, posted: false }),
     ]);
-    expect(ladder.receivedCents).toBe(0);
     expect(ladder.scheduledCents).toBe(150_000_00);
   });
 });

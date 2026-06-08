@@ -9,7 +9,7 @@
 //     chevron); the «Доступ» row (owner-only) carries an OWNER badge.
 //
 // Pure presentational. Mirrors MgmtHubView's props 1:1 (isOwner / onRowTap /
-// canPop / onBack) — the SAME six rows + nav targets the poster uses. Row
+// canPop / onBack) — the SAME rows + nav targets the poster uses. Row
 // visibility, owner-gating of «Доступ», and the push targets are owned by
 // MgmtHubMount.handleRowTap; this view only decides icon/copy/order.
 //
@@ -20,9 +20,10 @@
 import { memo } from 'react';
 import {
   ChartBar,
-  Stack,
   GearSix,
   Users,
+  SquaresFour,
+  ClipboardText,
   type Icon as PhosphorIcon,
 } from '@phosphor-icons/react';
 import {
@@ -33,7 +34,12 @@ import {
 } from '../native/NativePrimitives';
 import styles from './NativeMgmtHubView.module.css';
 
-export type MgmtRowId = 'analytics' | 'subscriptions' | 'settings' | 'access';
+export type MgmtRowId =
+  | 'analytics'
+  | 'categories'
+  | 'template'
+  | 'settings'
+  | 'access';
 
 export interface MgmtHubViewProps {
   /** True → render the owner-only «Доступ» row. */
@@ -105,10 +111,16 @@ const ROWS: NativeRowDef[] = [
     Icon: ChartBar,
   },
   {
-    id: 'subscriptions',
-    title: 'Подписки',
-    subtitle: 'Регулярные платежи и напоминания',
-    Icon: Stack,
+    id: 'categories',
+    title: 'Категории',
+    subtitle: 'Создание, иконки, архив',
+    Icon: SquaresFour,
+  },
+  {
+    id: 'template',
+    title: 'Шаблон',
+    subtitle: 'Лимиты и регулярные операции для новых месяцев',
+    Icon: ClipboardText,
   },
   {
     id: 'settings',
