@@ -12,6 +12,7 @@ import {
   sortCategoriesForHome,
   unpostedByCategory,
   plannedUnpostedTotal,
+  plannedTodayRows,
   type CategoryAggregateRow,
 } from '../computeHomeData';
 import type { PlannedV11Read } from '../../../api/v10';
@@ -273,5 +274,86 @@ describe('unpostedByCategory / plannedUnpostedTotal', () => {
   it('empty input → empty map and 0 total', () => {
     expect(unpostedByCategory([]).size).toBe(0);
     expect(plannedUnpostedTotal([])).toBe(0);
+  });
+});
+
+describe('plannedTodayRows', () => {
+  const cats: CategoryV10[] = [
+    mkCategory({ id: 100, name: 'Продукты' }),
+    mkCategory({ id: 200, name: 'Зарплата', kind: 'income' }),
+  ];
+  const TODAY = '2026-06-08';
+
+  it('keeps only unposted rows whose planned_date === today (kind-filtered)', () => {
+    const planned: PlannedV11Read[] = [
+      // ✓ due today, unposted, expense
+      mkPlanned({
+        id: 1,
+        category_id: 100,
+        amount_cents: 3000,
+        planned_date: TODAY,
+      }),
+      // ✗ posted already
+      mkPlanned({
+        id: 2,
+        category_id: 100,
+        amount_cents: 5000,
+        planned_date: TODAY,
+        posted_txn_id: 9,
+      }),
+      // ✗ different (future) date
+      mkPlanned({
+        id: 3,
+        category_id: 100,
+        amount_cents: 7000,
+        planned_date: '2026-06-09',
+      }),
+      // ✗ no date
+      mkPlanned({
+        id: 4,
+        category_id: 100,
+        amount_cents: 8000,
+        planned_date: null,
+      }),
+      // ✗ income kind (filtered out when kind='expense')
+      mkPlanned({
+        id: 5,
+        category_id: 200,
+        amount_cents: 150000,
+        kind: 'income',
+        planned_date: TODAY,
+      }),
+      // ✓ subscription-derived rows DUE today are actionable (NOT excluded here)
+      mkPlanned({
+        id: 6,
+        category_id: 100,
+        amount_cents: -990,
+        planned_date: TODAY,
+        source: 'subscription_auto',
+        subscription_id: 42,
+      }),
+    ];
+
+    const rows = plannedTodayRows(planned, cats, TODAY, 'expense');
+    expect(rows.map((r) => r.id)).toEqual([1, 6]);
+    // category name joined, amount is abs magnitude
+    expect(rows[0]).toMatchObject({
+      categoryName: 'Продукты',
+      amountCents: 3000,
+      subscriptionId: null,
+    });
+    // subscription row carries its subscription_id (drives post routing)
+    expect(rows[1]).toMatchObject({ amountCents: 990, subscriptionId: 42 });
+  });
+
+  it('unknown category → fallback name; empty input → []', () => {
+    const rows = plannedTodayRows(
+      [mkPlanned({ id: 9, category_id: 777, planned_date: TODAY })],
+      cats,
+      TODAY,
+      'expense',
+    );
+    expect(rows[0].categoryName).toBe('Без категории');
+    expect(plannedTodayRows([], cats, TODAY)).toEqual([]);
   });
 });

@@ -12,7 +12,7 @@
 import { memo, useState } from 'react';
 import { Plus, ListChecks, CaretRight } from '@phosphor-icons/react';
 import type { PeriodRead } from '../../api/types';
-import type { CategoryAggregateRow } from './computeHomeData';
+import type { CategoryAggregateRow, PlannedTodayRow } from './computeHomeData';
 import {
   NativeLargeTitle,
   SectionHeader,
@@ -35,6 +35,19 @@ export interface NativeHomeViewProps {
    * the «Расписано» level between Лимит and Факт. Defaults to 0.
    */
   plannedUnpostedCents?: number;
+  /**
+   * v1.1 — unposted EXPENSE planned rows scheduled for today (MSK). Rendered as
+   * the «Запланировано на сегодня» quick-action section; empty → section hidden.
+   */
+  plannedToday?: PlannedTodayRow[];
+  /**
+   * «Отметить» a today-row: post it into a real fact. Mount routes manual rows
+   * to postPlanned and subscription rows to postSubscription, then re-fetches.
+   */
+  onMarkPlannedToday?: (row: {
+    id: number;
+    subscriptionId: number | null;
+  }) => void;
   expenseRows: CategoryAggregateRow[];
   incomeRows: CategoryAggregateRow[];
   onPlanTap: () => void;
@@ -57,6 +70,8 @@ function NativeHomeViewInner(props: NativeHomeViewProps) {
   const {
     walletCents,
     plannedUnpostedCents = 0,
+    plannedToday = [],
+    onMarkPlannedToday,
     expenseRows,
     incomeRows,
     onPlanTap,
@@ -155,6 +170,59 @@ function NativeHomeViewInner(props: NativeHomeViewProps) {
           </div>
         </div>
       </div>
+
+      {/* Запланировано на сегодня — unposted planned rows due today (MSK). The
+          «что мне надо сделать сегодня» list: one tap «Отметить» records the
+          fact. Hidden entirely when nothing is due today (no empty plate). */}
+      {plannedToday.length > 0 && (
+        <>
+          <SectionHeader>На сегодня</SectionHeader>
+          <InsetGroup>
+            {plannedToday.map((row) => {
+              const note = row.description?.trim();
+              return (
+                <div
+                  key={row.id}
+                  className={styles.todayRow}
+                  data-testid={`native-home-today-${row.id}`}
+                >
+                  <CategoryIcon name={row.categoryName} id={row.categoryId} />
+                  <span className={styles.todayMain}>
+                    <span className={styles.todayTitle}>
+                      {note || row.categoryName}
+                    </span>
+                    <span className={styles.todaySubtitle}>
+                      {note
+                        ? row.categoryName
+                        : formatMoneyNative(row.amountCents)}
+                    </span>
+                  </span>
+                  <span className={styles.todayTrailing}>
+                    {note && (
+                      <span className={styles.todayAmount}>
+                        {formatMoneyNative(row.amountCents)}
+                      </span>
+                    )}
+                    <button
+                      type="button"
+                      className={styles.todayMark}
+                      data-testid={`native-home-today-mark-${row.id}`}
+                      onClick={() =>
+                        onMarkPlannedToday?.({
+                          id: row.id,
+                          subscriptionId: row.subscriptionId,
+                        })
+                      }
+                    >
+                      Отметить
+                    </button>
+                  </span>
+                </div>
+              );
+            })}
+          </InsetGroup>
+        </>
+      )}
 
       {/* План месяца — opens the Plan editor (same onPlanTap as the poster). */}
       <button

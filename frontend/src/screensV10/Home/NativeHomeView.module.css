@@ -166,6 +166,77 @@
   margin-top: var(--lgn-s-20);
 }
 
+/* «На сегодня» quick-action rows — mirror the native inset-row metrics but
+   carry an interactive «Отметить» pill (so they are plain <div>s, not the
+   InsetRow <button>, to keep the nested action button valid). */
+.todayRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 11px var(--lgn-s-16);
+  min-height: 44px;
+  position: relative;
+  color: var(--lgn-ink);
+  font-family: var(--lgn-font);
+}
+.todayRow:not(:first-child)::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 58px;
+  right: 0;
+  height: 1px;
+  background: var(--lgn-hairline-soft);
+}
+.todayMain {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.todayTitle {
+  font: var(--lgn-t-body);
+  color: var(--lgn-ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.todaySubtitle {
+  font: var(--lgn-t-footnote);
+  color: var(--lgn-ink-2);
+}
+.todayTrailing {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex: 0 0 auto;
+}
+.todayAmount {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--lgn-ink);
+  white-space: nowrap;
+}
+.todayMark {
+  flex: 0 0 auto;
+  padding: 6px 12px;
+  border: none;
+  border-radius: 999px;
+  background: var(--lgn-accent);
+  color: #fff;
+  font-family: var(--lgn-font);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.todayMark:active {
+  background: var(--lgn-accent-press);
+}
+
 /* Empty state */
 .empty {
   margin: 8px var(--lgn-s-16) 0;

@@ -19,6 +19,8 @@ import {
   listCategoriesV10,
   listActualV10,
   listPlanned,
+  postPlanned,
+  postSubscription,
   type AccountResponse,
   type CategoryV10,
   type ActualV10Read,
@@ -51,6 +53,7 @@ import {
   computeSurplus,
   computeWalletTotal,
   plannedUnpostedTotal,
+  plannedTodayRows,
   sortCategoriesForHome,
 } from './computeHomeData';
 
@@ -63,6 +66,21 @@ import {
 function parseLocalDateLocal(iso: string): Date {
   const [y, m, d] = iso.split('-').map(Number);
   return new Date(y, m - 1, d);
+}
+
+/**
+ * Today as an MSK (`Europe/Moscow`) `YYYY-MM-DD` DATE. Period/business dates are
+ * MSK in this app (CLAUDE.md: «расчёты периодов … Europe/Moscow»), so the
+ * «Запланировано на сегодня» filter must compare against the MSK calendar day
+ * regardless of the device timezone. `en-CA` yields the ISO `YYYY-MM-DD` shape.
+ */
+function todayMskIso(now: Date = new Date()): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Europe/Moscow',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(now);
 }
 
 // ─────────────────── State ───────────────────
@@ -255,6 +273,35 @@ export function HomeMount() {
     [router],
   );
 
+  // «Запланировано на сегодня» → «Отметить»: record the planned row as a real
+  // fact NOW. Manual / template rows post via /planned/{id}/post; subscription-
+  // derived rows must go through /subscriptions/{id}/post (the planned post-route
+  // 400s on them). Both insert an actual_transaction; postPlanned/postSubscription
+  // already invalidate the tx-affected caches, so a reloadToken bump re-fetches
+  // planned/balance/accounts and the ladder/«В запасе» update. We always post on
+  // TODAY — the row is by definition scheduled for today here.
+  const periodIdForPost =
+    state.status === 'ready' ? (state.data.period?.id ?? null) : null;
+  const onMarkPlannedToday = useCallback(
+    async (row: { id: number; subscriptionId: number | null }) => {
+      try {
+        if (row.subscriptionId != null) {
+          await postSubscription(row.subscriptionId);
+        } else if (periodIdForPost != null) {
+          await postPlanned(periodIdForPost, row.id, todayMskIso());
+        } else {
+          return;
+        }
+        setReloadToken((t) => t + 1);
+      } catch {
+        // A 409 (already posted) or transient failure: a reload re-syncs the
+        // list (the row drops out once posted_txn_id is set server-side).
+        setReloadToken((t) => t + 1);
+      }
+    },
+    [periodIdForPost],
+  );
+
   // ─────────── computed view-model (memoised on state.data) ───────────
   const vm = useMemo(() => {
     if (state.status !== 'ready') return null;
@@ -357,6 +404,16 @@ export function HomeMount() {
     // shows this as the «Запланировано» level between Лимит and Факт.
     const plannedUnpostedCents = plannedUnpostedTotal(planned, 'expense');
 
+    // «Запланировано на сегодня» — unposted EXPENSE planned rows scheduled for
+    // the MSK today. Expense-scoped to match the Home ladder framing («что мне
+    // надо потратить сегодня»); income planned rows are not actionable here.
+    const plannedToday = plannedTodayRows(
+      planned,
+      categories,
+      todayMskIso(today),
+      'expense',
+    );
+
     return {
       eyebrow,
       daysLeft,
@@ -366,6 +423,7 @@ export function HomeMount() {
       planTotalCents,
       factTotalExpenseCents,
       plannedUnpostedCents,
+      plannedToday,
       categoryRows,
       incomeRows,
       period,
@@ -417,6 +475,8 @@ export function HomeMount() {
       <NativeHomeView
         walletCents={vm.walletCents}
         plannedUnpostedCents={vm.plannedUnpostedCents}
+        plannedToday={vm.plannedToday}
+        onMarkPlannedToday={onMarkPlannedToday}
         expenseRows={vm.categoryRows}
         incomeRows={vm.incomeRows}
         onPlanTap={onPlanTap}

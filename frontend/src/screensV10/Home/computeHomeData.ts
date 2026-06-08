@@ -417,6 +417,73 @@ export function plannedUnpostedTotal(
   return sum;
 }
 
+// ─────────────────── planned-today («Запланировано на сегодня») ───────────────────
+//
+// The native Home «Запланировано на сегодня» section surfaces planned rows the
+// user intends to record TODAY but hasn't posted yet — a one-tap «to-do» list.
+// A row qualifies when ALL hold:
+//   - `planned_date === today` (today is the MSK wall-clock DATE, computed by
+//     the caller so this stays a pure, deterministic function), AND
+//   - `posted_txn_id == null` (not yet realised into a fact).
+//
+// Unlike the «Расписано» ladder level we do NOT exclude subscription_auto rows
+// here: a subscription due today IS an actionable item the user may want to
+// confirm. The caller (HomeMount) routes the «Отметить» action to the right
+// endpoint by inspecting `subscription_id` (sub rows post via /subscriptions).
+
+export interface PlannedTodayRow {
+  /** Planned-row id (post target + React key). */
+  id: number;
+  /** Owning category id (icon + onTap routing). */
+  categoryId: number;
+  /** Display name resolved from the category list (fallback «Без категории»). */
+  categoryName: string;
+  /** Free-text note, or null. */
+  description: string | null;
+  /** Magnitude in cents (always positive for display). */
+  amountCents: number;
+  /** 'expense' | 'income'. */
+  kind: 'expense' | 'income';
+  /**
+   * Subscription id when this is a subscription-derived row; null for manual /
+   * template rows. Routes the post action (sub → /subscriptions/{id}/post).
+   */
+  subscriptionId: number | null;
+}
+
+/**
+ * Planned rows scheduled for `today` (an MSK `YYYY-MM-DD` DATE) that are not yet
+ * posted, joined to their category name. Pure — the caller supplies `today`.
+ *
+ * @param kind  when provided, keep only rows of that kind (Home shows expenses).
+ */
+export function plannedTodayRows(
+  planned: ReadonlyArray<PlannedV11Read>,
+  categories: ReadonlyArray<CategoryV10>,
+  today: string,
+  kind?: 'expense' | 'income',
+): PlannedTodayRow[] {
+  const nameById = new Map<number, string>();
+  for (const c of categories) nameById.set(c.id, c.name);
+
+  const out: PlannedTodayRow[] = [];
+  for (const p of planned) {
+    if (p.posted_txn_id != null) continue;
+    if (p.planned_date !== today) continue;
+    if (kind && p.kind !== kind) continue;
+    out.push({
+      id: p.id,
+      categoryId: p.category_id,
+      categoryName: nameById.get(p.category_id) ?? 'Без категории',
+      description: p.description,
+      amountCents: Math.abs(p.amount_cents),
+      kind: p.kind,
+      subscriptionId: p.subscription_id ?? null,
+    });
+  }
+  return out;
+}
+
 // ─────────────────── computePlanTotalCents ───────────────────
 
 /**
