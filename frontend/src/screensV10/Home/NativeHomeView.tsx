@@ -110,7 +110,13 @@ function NativeHomeViewInner(props: NativeHomeViewProps) {
         title="Главная"
         trailing={
           <CircleButton
-            onClick={openAddSheet}
+            onClick={() =>
+              openAddSheet(
+                'fact',
+                undefined,
+                seg === 'income' ? 'income' : 'expense',
+              )
+            }
             ariaLabel="Добавить транзакцию"
             testId="native-home-add"
           >

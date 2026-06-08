@@ -6,11 +6,14 @@
 //   3. Compute filtered+grouped view-model via computeTransactions helpers.
 //   4. Render <TransactionsView> wired to:
 //      - onChipChange: local React state setChip
-//      - onRowTap: open edit PosterSheet (stub — Phase 26 retrofit per CONTEXT D-Defer)
+//      - onRowTap: open the shared AddSheet in EDIT mode for the tapped actual
+//                  (REQ 7) via the AddSheetHost — pre-filled amount/category/
+//                  date/description + a «Удалить» action. Submit bumps the
+//                  refetch token (shell) which re-runs this fetch.
 //      - onRowDelete: View-gated delete — swipe-left (touch) or right-click
 //                     context-menu (desktop) is the intent gate (T-25-08-02
 //                     mitigation, Phase 30-05 DEBT-05). Mount just fires
-//                     deleteActual(tx.id) → reload; errors → alert toast.
+//                     deleteActualV10(tx.id) → reload; errors → alert toast.
 //      - onBack: router.pop()
 //   5. Loading / error / empty are sub-views (cobalt-tinted to match the screen).
 //
@@ -28,9 +31,8 @@ import {
 } from '../../api/v10';
 import { getCurrentPeriod } from '../../api/periods';
 import type { PeriodRead } from '../../api/types';
-import { deleteActual } from '../../api/actual';
+import { deleteActualV10 } from '../../api/v10';
 import {
-  PosterSheet,
   StatePlate,
   useRefetchToken,
   usePosterRouter,
@@ -38,7 +40,7 @@ import {
   useSelectedPeriodOptional,
 } from '../common';
 import { NativeToast } from '../native/NativeToast';
-import { NativeButton } from '../native/NativeButton';
+import { useAddSheetHost } from '../native/AddSheetHost';
 import { NativeTransactionsView } from './NativeTransactionsView';
 import {
   applyFilterChip,
@@ -69,8 +71,8 @@ interface DataPayload {
 
 export function TransactionsMount() {
   const router = usePosterRouter();
+  const { openEditSheet } = useAddSheetHost();
   const [chip, setChip] = useState<TxFilterChip>('all');
-  const [editingTx, setEditingTx] = useState<ActualV10Read | null>(null);
   // P2-11: delete error surface (single toast slot, last error wins).
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   // Phase 30-02 (DEBT-02): AddSheet submit bumps this token via V10MainShell
@@ -147,12 +149,18 @@ export function TransactionsMount() {
 
   // ─────────── handlers ───────────
   const handleChipChange = useCallback((c: TxFilterChip) => setChip(c), []);
-  const handleRowTap = useCallback((tx: ActualV10Read) => setEditingTx(tx), []);
+  // REQ 7: tapping a row opens the shared AddSheet in edit mode for that actual
+  // (pre-filled amount/category/date/description + «Удалить»). On submit the
+  // shell bumps the refetch token, which re-runs this fetch.
+  const handleRowTap = useCallback(
+    (tx: ActualV10Read) => openEditSheet(tx),
+    [openEditSheet],
+  );
   const handleRowDelete = useCallback(
     async (tx: ActualV10Read) => {
       // View already gates intent (swipe / context-menu) — fire the DELETE directly.
       try {
-        await deleteActual(tx.id);
+        await deleteActualV10(tx.id);
         reload();
       } catch {
         setToastMsg('Не удалось удалить операцию — попробуйте снова');
@@ -163,7 +171,6 @@ export function TransactionsMount() {
   const handleBack = useCallback(() => {
     if (router.canPop) router.pop();
   }, [router]);
-  const handleEditClose = useCallback(() => setEditingTx(null), []);
 
   // Phase 30-02 (DEBT-02): hidden sentinel surfacing the current refetchToken.
   // Same role as in HomeMount — lets tests assert «registry re-fetched after
@@ -227,14 +234,6 @@ export function TransactionsMount() {
         selectedPeriodId={selectedPeriodId}
         onSelectPeriod={sel?.setSelectedPeriodId}
       />
-      <PosterSheet
-        isOpen={editingTx !== null}
-        onClose={handleEditClose}
-        backgroundColor="var(--lgn-card-solid)"
-        testId="tx-edit-sheet"
-      >
-        <EditPlaceholder tx={editingTx} onClose={handleEditClose} />
-      </PosterSheet>
       <NativeToast
         message={toastMsg ?? ''}
         visible={toastMsg !== null}
@@ -242,54 +241,5 @@ export function TransactionsMount() {
         duration={4000}
       />
     </>
-  );
-}
-
-// ─────────────────── Edit placeholder ───────────────────
-
-interface EditPlaceholderProps {
-  tx: ActualV10Read | null;
-  onClose: () => void;
-}
-
-/**
- * Phase 25-08 stub for the transaction-edit modal. Real poster-styled
- * `TransactionEditor` retrofit lands in Phase 26 per CONTEXT D-Defer
- * (lines: «TransactionEditor poster retrofit — fall back to existing
- * v0.x editor wrapped in PosterSheet for Phase 25; full poster-styled
- * editor in Phase 26 if time permits»).
- */
-function EditPlaceholder({ tx, onClose }: EditPlaceholderProps) {
-  return (
-    <div
-      style={{
-        padding: '24px 20px 32px',
-        color: 'var(--lgn-ink)',
-        fontFamily: 'var(--lgn-font), system-ui, sans-serif',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 12,
-      }}
-    >
-      <div
-        style={{
-          font: 'var(--lgn-t-footnote)',
-          color: 'var(--lgn-ink-2)',
-          letterSpacing: '0.04em',
-          textTransform: 'uppercase',
-        }}
-      >
-        Редактировать операцию
-      </div>
-      <div style={{ font: 'var(--lgn-t-title2)' }}>Скоро —</div>
-      <div style={{ font: 'var(--lgn-t-subhead)', color: 'var(--lgn-ink-2)' }}>
-        Редактор операции в разработке{tx ? ` · #${tx.id}` : ''}.
-      </div>
-      <div style={{ marginTop: 8 }}>
-        <NativeButton onClick={onClose} variant="primary">
-          Закрыть
-        </NativeButton>
-      </div>
-    </div>
   );
 }

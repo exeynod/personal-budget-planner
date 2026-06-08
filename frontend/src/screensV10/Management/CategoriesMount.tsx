@@ -76,6 +76,7 @@ export function CategoriesMount() {
           name: input.name,
           kind: input.kind,
           icon: input.icon,
+          color: input.color,
         });
         await reload();
         setToastTone('success');
@@ -93,7 +94,11 @@ export function CategoriesMount() {
     async (id: number, input: CategoryEditInput) => {
       setBusy(true);
       try {
-        await updateCategoryV10(id, { name: input.name, icon: input.icon });
+        await updateCategoryV10(id, {
+          name: input.name,
+          icon: input.icon,
+          color: input.color,
+        });
         await reload();
         setToastTone('success');
         setToastMsg('✓ Сохранено');

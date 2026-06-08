@@ -41,3 +41,38 @@
     0 0 0 2px var(--lgn-card-bg, #fff),
     0 0 0 4px var(--lgn-accent, #f0801a);
 }
+
+/* 0035 — colour-picker row (independent of icon). */
+
+.colorRow {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 10px;
+  padding: 4px 0;
+}
+
+.swatch {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  box-shadow: 0 0 0 0 transparent;
+  transition: box-shadow 0.12s ease;
+}
+
+.swatch:focus-visible {
+  outline: 2px solid var(--lgn-accent, #f0801a);
+  outline-offset: 2px;
+}
+
+.swatchSelected {
+  box-shadow:
+    0 0 0 2px var(--lgn-card-bg, #fff),
+    0 0 0 4px var(--lgn-accent, #f0801a);
+}

@@ -9,7 +9,7 @@
 //     chevron); the «Доступ» row (owner-only) carries an OWNER badge.
 //
 // Pure presentational. Mirrors MgmtHubView's props 1:1 (isOwner / onRowTap /
-// canPop / onBack) — the SAME six rows + nav targets the poster uses. Row
+// canPop / onBack) — the SAME rows + nav targets the poster uses. Row
 // visibility, owner-gating of «Доступ», and the push targets are owned by
 // MgmtHubMount.handleRowTap; this view only decides icon/copy/order.
 //
@@ -20,7 +20,6 @@
 import { memo } from 'react';
 import {
   ChartBar,
-  Stack,
   GearSix,
   Users,
   SquaresFour,
@@ -37,7 +36,6 @@ import styles from './NativeMgmtHubView.module.css';
 
 export type MgmtRowId =
   | 'analytics'
-  | 'subscriptions'
   | 'categories'
   | 'template'
   | 'settings'
@@ -111,12 +109,6 @@ const ROWS: NativeRowDef[] = [
     title: 'Аналитика',
     subtitle: 'Тренды и прогноз бюджета',
     Icon: ChartBar,
-  },
-  {
-    id: 'subscriptions',
-    title: 'Подписки',
-    subtitle: 'Регулярные платежи и напоминания',
-    Icon: Stack,
   },
   {
     id: 'categories',

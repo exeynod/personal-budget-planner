@@ -15,7 +15,6 @@ import { AccessMount } from './AccessMount';
 import { CategoriesMount } from './CategoriesMount';
 import { TemplateMount } from './TemplateMount';
 import { AnalyticsMount } from '../Analytics';
-import { SubscriptionsMount } from '../Subscriptions';
 
 export function MgmtHubMount() {
   const router = usePosterRouter();
@@ -39,8 +38,6 @@ export function MgmtHubMount() {
   function handleRowTap(id: MgmtRowId) {
     if (id === 'analytics') {
       router.push(<AnalyticsMount />);
-    } else if (id === 'subscriptions') {
-      router.push(<SubscriptionsMount />);
     } else if (id === 'categories') {
       router.push(<CategoriesMount />);
     } else if (id === 'template') {

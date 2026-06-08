@@ -88,6 +88,33 @@
   color: var(--lgn-ink-3);
 }
 
+/* ── Category selector (REQ 4b) — label + chosen value as one coherent control.
+   The «Категория» eyebrow sits above the chosen category name (icon to the
+   left, chevron to the right), instead of the label / value being torn to
+   opposite edges of the row. */
+.catEyebrow {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--lgn-ink-3);
+  line-height: 1.2;
+}
+.catChosen {
+  display: block;
+  font-size: 17px;
+  color: var(--lgn-ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.catChosenPlaceholder {
+  display: block;
+  font-size: 17px;
+  color: var(--lgn-ink-3);
+}
+
 /* ── Inset rows: trailing value text ── */
 .rowValue {
   font-family: var(--lgn-font);
@@ -183,6 +210,32 @@
 .ctaDisabled {
   background: var(--lgn-seg-track);
   color: var(--lgn-ink-3);
+  cursor: default;
+}
+
+/* ── Delete action (edit mode, REQ 7) ── */
+.deleteBtn {
+  appearance: none;
+  border: none;
+  background: none;
+  margin: 8px var(--lgn-s-16) 0;
+  padding: 12px var(--lgn-s-16);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border-radius: var(--lgn-r-button);
+  font-family: var(--lgn-font);
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--lgn-red);
+  cursor: pointer;
+}
+.deleteBtn:active {
+  background: rgba(255, 59, 48, 0.12);
+}
+.deleteBtn:disabled {
+  opacity: 0.5;
   cursor: default;
 }
 

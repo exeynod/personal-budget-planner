@@ -16,7 +16,7 @@
 // Liquid Glass is the only web design now, so there is no theme picker and no
 // Home-color picker (both were Maximal-Poster controls and have been removed).
 
-import { memo, useEffect, useState } from 'react';
+import { memo, useState } from 'react';
 import { Minus, Plus } from '@phosphor-icons/react';
 import {
   NativeNavBar,
@@ -25,7 +25,7 @@ import {
   InsetRow,
 } from '../native/NativePrimitives';
 import { formatMoneyNative } from '../native/money';
-import { getMeV10, updateIncome } from '../../api/me';
+import { useEnterToDismiss } from '../common/useEnterToDismiss';
 import styles from './NativeSettingsView.module.css';
 
 export interface SettingsViewProps {
@@ -149,128 +149,6 @@ function rublesInputToCents(raw: string): number {
   return Math.round(rub * 100);
 }
 
-// cents → editable rubles string (no ₽, no grouping) for the income input.
-function centsToRublesInput(cents: number): string {
-  const abs = Math.max(0, Math.trunc(cents));
-  const rub = Math.floor(abs / 100);
-  const kop = abs % 100;
-  return kop === 0 ? `${rub}` : `${rub},${kop.toString().padStart(2, '0')}`;
-}
-
-// «Месячный доход»: self-contained editor for app_user.income_cents. Reads the
-// current value via GET /me and saves via PATCH /me (updateIncome — gt=0,
-// ≤100M ₽). The «Осталось распределить» card on «План месяца» reads the same
-// income_cents, so setting it here fixes the «strange negative» when it's unset.
-//
-// Self-contained (not threaded through SettingsMount props) so it owns its own
-// load/save lifecycle without widening the presentational SettingsView contract.
-function IncomeSection() {
-  const [input, setInput] = useState('');
-  const [currentCents, setCurrentCents] = useState<number | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [status, setStatus] = useState<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    getMeV10()
-      .then((me) => {
-        if (cancelled) return;
-        const cents = me.income_cents ?? null;
-        setCurrentCents(cents);
-        setInput(cents == null ? '' : centsToRublesInput(cents));
-      })
-      .catch(() => {
-        /* leave empty — the field is still usable to set income */
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  const targetCents = rublesInputToCents(input);
-  // Endpoint requires income_cents > 0; an empty/zero input can't be saved.
-  const canSubmit =
-    input.trim() !== '' && targetCents > 0 && !saving && !loading;
-
-  async function handleSave() {
-    if (!canSubmit) return;
-    setSaving(true);
-    setStatus(null);
-    try {
-      const me = await updateIncome(targetCents);
-      const cents = me.income_cents ?? null;
-      setCurrentCents(cents);
-      setInput(cents == null ? '' : centsToRublesInput(cents));
-      setStatus('✓ Доход сохранён');
-    } catch (e) {
-      setStatus(
-        e instanceof Error ? `Ошибка: ${e.message}` : 'Не удалось сохранить',
-      );
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  return (
-    <>
-      <SectionHeader>Доход</SectionHeader>
-      <InsetGroup>
-        <InsetRow
-          title={<span className={styles.rowTitleWrap}>Текущий доход</span>}
-          trailing={
-            <span className={styles.readonly} data-testid="income-current">
-              {loading
-                ? '…'
-                : currentCents == null
-                  ? 'не указан'
-                  : `${formatMoneyNative(currentCents)} ₽`}
-            </span>
-          }
-          trailingMuted
-        />
-        <InsetRow
-          title={<span className={styles.rowTitleWrap}>Месячный доход</span>}
-          trailing={
-            <span className={styles.reconcileInputWrap}>
-              <input
-                type="text"
-                inputMode="decimal"
-                className={styles.reconcileInput}
-                placeholder="₽"
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') void handleSave();
-                }}
-                aria-label="Месячный доход в рублях"
-                data-testid="income-input"
-              />
-              <button
-                type="button"
-                className={styles.reconcileBtn}
-                disabled={!canSubmit}
-                onClick={() => void handleSave()}
-                data-testid="income-submit"
-              >
-                {saving ? '…' : 'Сохранить'}
-              </button>
-            </span>
-          }
-        />
-      </InsetGroup>
-      {status && (
-        <div className={styles.incomeStatus} data-testid="income-status">
-          {status}
-        </div>
-      )}
-    </>
-  );
-}
-
 // «Привести остаток»: show the computed balance, let the owner enter their real
 // balance, and write a balancing adjustment via onReconcileBalance.
 function ReconcileSection({
@@ -285,6 +163,17 @@ function ReconcileSection({
   const [input, setInput] = useState('');
   const targetCents = rublesInputToCents(input);
   const canSubmit = input.trim() !== '' && !reconciling;
+
+  function handleSubmit() {
+    if (!canSubmit) return;
+    onReconcileBalance(targetCents);
+    setInput('');
+  }
+
+  // Enter commits the reconcile (when valid) then blurs to dismiss the keyboard.
+  const onInputKeyDown = useEnterToDismiss(() => {
+    if (canSubmit) handleSubmit();
+  });
 
   return (
     <>
@@ -316,6 +205,7 @@ function ReconcileSection({
                 placeholder="₽"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
+                onKeyDown={onInputKeyDown}
                 aria-label="Реальный остаток в рублях"
                 data-testid="reconcile-input"
               />
@@ -323,10 +213,7 @@ function ReconcileSection({
                 type="button"
                 className={styles.reconcileBtn}
                 disabled={!canSubmit}
-                onClick={() => {
-                  onReconcileBalance(targetCents);
-                  setInput('');
-                }}
+                onClick={handleSubmit}
                 data-testid="reconcile-submit"
               >
                 {reconciling ? '…' : 'Привести'}
@@ -444,9 +331,6 @@ function NativeSettingsViewInner(props: SettingsViewProps) {
           trailingMuted
         />
       </InsetGroup>
-
-      {/* Доход — «Месячный доход» editor (sets app_user.income_cents) */}
-      <IncomeSection />
 
       {/* Остаток — «Привести остаток» (v1.1) */}
       {props.onReconcileBalance && (

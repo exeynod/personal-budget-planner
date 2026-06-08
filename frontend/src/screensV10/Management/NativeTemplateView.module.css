@@ -1,5 +1,5 @@
-/* v1.1 planning — native Template management view. Scoped (CSS module).
-   Mirrors NativeCategoriesView.module.css conventions. */
+/* Native Template OVERVIEW. Scoped (CSS module).
+   Mirrors the Plan overview rows (Plan/NativePlanView.module.css). */
 
 .root {
   display: flex;
@@ -7,7 +7,7 @@
   padding-bottom: 24px;
 }
 
-/* Loading / error banners (mirrors NativeSettingsView / NativeCategoriesView). */
+/* Loading / error banners. */
 .banner {
   margin: 8px 16px;
   padding: 10px 14px;
@@ -17,17 +17,12 @@
   font-family: var(--lgn-font);
   font-size: 14px;
 }
-
 .bannerError {
   background: rgba(220, 60, 60, 0.12);
   color: #c0392b;
 }
 
-.muted {
-  color: var(--lgn-ink-2, #888);
-}
-
-/* Intro blurb explaining the template auto-applies to new months. */
+/* Intro blurb — the template auto-applies to each NEW month. */
 .intro {
   margin: 4px 16px 8px;
   padding: 12px 14px;
@@ -39,144 +34,87 @@
   line-height: 1.4;
 }
 
-/* Footnote (same role as the Plan view footnote). */
-.footnote {
-  margin: 12px 16px 0;
-  color: var(--lgn-ink-2, #888);
+/* Segment row (Расходы / Доходы). */
+.segmentRow {
+  margin: 8px var(--lgn-s-16, 16px) 4px;
+}
+
+/* ─────────── Category rows (compact read-only, inside InsetGroup) ───────────
+   The whole row is a tappable button → per-category template detail. */
+.catRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px var(--lgn-s-16);
+  border: none;
+  background: none;
   font-family: var(--lgn-font);
-  font-size: 12px;
-  line-height: 1.4;
+  text-align: left;
+  cursor: pointer;
+  position: relative;
 }
-
-/* Trailing value (template limit) on a category row. */
-.limitValue {
-  font-family: var(--lgn-font);
-  font-size: 15px;
-  color: var(--lgn-ink-1, #111);
-  font-variant-numeric: tabular-nums;
+.catRow:not(:first-child)::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: calc(var(--lgn-s-16) + 30px + 12px);
+  right: 0;
+  height: 1px;
+  background: var(--lgn-hairline-soft);
 }
-
-.limitValueEmpty {
-  color: var(--lgn-ink-2, #999);
+.catRow:active {
+  background: rgba(0, 0, 0, 0.04);
 }
-
-/* Recurring line: secondary meta line under the title. */
-.lineMeta {
-  color: var(--lgn-ink-2, #888);
-}
-
-.lineAmount {
-  font-family: var(--lgn-font);
-  font-size: 15px;
-  font-variant-numeric: tabular-nums;
-}
-
-.lineAmountIncome {
-  color: #2e9e5b;
-}
-
-/* Inline editor inside an InsetGroup. */
-.editor {
+.catMain {
+  flex: 1 1 auto;
+  min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  padding: 14px 16px;
+  gap: 2px;
 }
-
-.editorLabel {
-  font-family: var(--lgn-font);
+.catName {
+  font-size: 17px;
+  color: var(--lgn-ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.catSummary {
   font-size: 13px;
-  font-weight: 600;
-  color: var(--lgn-ink-2, #666);
+  color: var(--lgn-ink-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-
-.field {
-  width: 100%;
-  box-sizing: border-box;
-  padding: 10px 12px;
-  border: 1px solid var(--lgn-hairline, rgba(0, 0, 0, 0.12));
-  border-radius: var(--lgn-r-tile, 12px);
-  background: var(--lgn-field-bg, #fff);
-  color: var(--lgn-ink-1, #111);
-  font-family: var(--lgn-font);
-  font-size: 16px;
-}
-
-.field:focus {
-  outline: none;
-  border-color: var(--lgn-accent, #f0801a);
-}
-
-select.field {
-  appearance: none;
-  -webkit-appearance: none;
-}
-
-.fieldRow {
-  display: flex;
-  gap: 10px;
-}
-
-.fieldRow > * {
-  flex: 1 1 0;
-  min-width: 0;
-}
-
-.editorActions {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-}
-
-.editorActionsRight {
+.catChevron {
+  flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  justify-content: center;
+  color: var(--lgn-ink-3, var(--lgn-ink-2));
 }
 
-.primaryBtn,
-.secondaryBtn,
-.dangerBtn {
-  padding: 8px 16px;
-  border: none;
-  border-radius: var(--lgn-r-pill, 999px);
-  font-family: var(--lgn-font);
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.primaryBtn {
-  background: var(--lgn-accent, #f0801a);
-  color: #fff;
-}
-
-.primaryBtn:disabled {
-  opacity: 0.5;
-  cursor: default;
-}
-
-.secondaryBtn {
-  background: var(--lgn-seg-track, #ececec);
-  color: var(--lgn-ink-1, #111);
-}
-
-.dangerBtn {
-  background: rgba(220, 60, 60, 0.12);
-  color: #c0392b;
-}
-
-.dangerBtn:disabled {
-  opacity: 0.5;
-  cursor: default;
-}
-
+/* ─────────── Empty state ─────────── */
 .empty {
-  margin: 0 16px;
-  padding: 14px 16px;
-  color: var(--lgn-ink-2, #888);
+  margin: 8px var(--lgn-s-16) 0;
+  padding: 24px var(--lgn-s-16);
+  text-align: center;
+  color: var(--lgn-ink-2);
+  font-size: 15px;
   font-family: var(--lgn-font);
-  font-size: 14px;
+  background: var(--lgn-card);
+  -webkit-backdrop-filter: var(--lgn-glass-blur);
+  backdrop-filter: var(--lgn-glass-blur);
+  border-radius: var(--lgn-r-card);
+  box-shadow: var(--lgn-shadow-card), var(--lgn-card-edge);
+}
+
+/* ─────────── Footnote ─────────── */
+.footnote {
+  margin: 12px var(--lgn-s-20, 20px) 0;
+  font-family: var(--lgn-font);
+  font-size: 13px;
+  color: var(--lgn-ink-2, #888);
+  line-height: 1.4;
 }

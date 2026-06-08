@@ -31,7 +31,12 @@ import { AiMount } from '../Ai';
 import { TransactionsMount } from '../Transactions';
 import { NativeTabBar, type NativeTabId } from './NativeTabBar';
 import { ShellVariantProvider } from './ShellVariant';
-import { AddSheetHostProvider, type AddSheetMode } from './AddSheetHost';
+import {
+  AddSheetHostProvider,
+  type AddSheetKind,
+  type AddSheetMode,
+} from './AddSheetHost';
+import type { ActualV10Read } from '../../api/v10';
 import { NavLevelProvider } from './NavLevel';
 import styles from './NativeShell.module.css';
 
@@ -115,13 +120,34 @@ export function NativeShell() {
   const [addCategoryId, setAddCategoryId] = useState<number | undefined>(
     undefined,
   );
+  // REQ 4a: income/expense context the sheet opens for (undefined = derive).
+  const [addKind, setAddKind] = useState<AddSheetKind | undefined>(undefined);
+  // REQ 7: the actual being edited (undefined = create flow).
+  const [editActual, setEditActual] = useState<ActualV10Read | undefined>(
+    undefined,
+  );
   const [refetchToken, setRefetchToken] = useState(0);
 
   const closeSheet = () => setAddOpen(false);
 
-  const openAddSheet = (mode: AddSheetMode = 'fact', categoryId?: number) => {
+  const openAddSheet = (
+    mode: AddSheetMode = 'fact',
+    categoryId?: number,
+    kind?: AddSheetKind,
+  ) => {
+    setEditActual(undefined);
     setAddMode(mode);
     setAddCategoryId(categoryId);
+    setAddKind(kind);
+    setAddOpen(true);
+  };
+
+  const openEditSheet = (actual: ActualV10Read) => {
+    // Edit always targets a real fact; category/kind/date seed from the row.
+    setAddMode('fact');
+    setAddCategoryId(undefined);
+    setAddKind(undefined);
+    setEditActual(actual);
     setAddOpen(true);
   };
 
@@ -129,7 +155,10 @@ export function NativeShell() {
     <SelectedPeriodProvider>
       <RefetchTokenProvider value={refetchToken}>
         <ShellVariantProvider value="native">
-          <AddSheetHostProvider openAddSheet={openAddSheet}>
+          <AddSheetHostProvider
+            openAddSheet={openAddSheet}
+            openEditSheet={openEditSheet}
+          >
             <PosterRouterProvider root={<OnboardingMount />}>
               <NativeChrome active={active} onTab={setActive} />
             </PosterRouterProvider>
@@ -148,6 +177,8 @@ export function NativeShell() {
               <NativeAddSheet
                 mode={addMode}
                 initialCategoryId={addCategoryId}
+                kind={addKind}
+                editActual={editActual}
                 onSubmitted={() => {
                   setAddOpen(false);
                   setRefetchToken((t) => t + 1);

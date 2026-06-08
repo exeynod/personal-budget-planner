@@ -25,7 +25,12 @@ import {
 import { unpostedByCategory } from '../Home/computeHomeData';
 import { getCurrentPeriod } from '../../api/periods';
 import { NativeToast } from '../native/NativeToast';
-import { StatePlate, usePosterRouter, useResource } from '../common';
+import {
+  StatePlate,
+  usePosterRouter,
+  useRefetchToken,
+  useResource,
+} from '../common';
 import { useAddSheetHost } from '../native/AddSheetHost';
 import { NativeCategoryDetailView } from './NativeCategoryDetailView';
 
@@ -62,9 +67,13 @@ const NOT_FOUND_MESSAGE = 'Категория не найдена';
 
 export function CategoryDetailMount({ categoryId }: CategoryDetailMountProps) {
   const router = usePosterRouter();
-  const { openAddSheet } = useAddSheetHost();
+  const { openAddSheet, openEditSheet } = useAddSheetHost();
   // P2-11: mutation error surface (single toast slot, last error wins).
   const [toastMsg, setToastMsg] = useState<string | null>(null);
+  // REQ 7: AddSheet submit/edit/delete bumps this token (NativeShell →
+  // RefetchTokenProvider). Including it in the fetch deps reloads this detail's
+  // operations list after an inline edit/delete. Falls back to 0 standalone.
+  const refetchToken = useRefetchToken();
 
   const fetchCategory = useCallback(
     async (isCancelled: () => boolean): Promise<DataPayload> => {
@@ -100,7 +109,7 @@ export function CategoryDetailMount({ categoryId }: CategoryDetailMountProps) {
   // shows 'loading'.
   const { status, data, error, reload } = useResource<DataPayload>(
     fetchCategory,
-    [categoryId],
+    [categoryId, refetchToken],
     { keepPreviousData: true },
   );
 
@@ -111,6 +120,14 @@ export function CategoryDetailMount({ categoryId }: CategoryDetailMountProps) {
       openAddSheet('fact', catId);
     },
     [openAddSheet],
+  );
+
+  // REQ 7: tapping an operation opens the shared sheet in edit mode for it.
+  const handleTransactionTap = useCallback(
+    (tx: ActualV10Read) => {
+      openEditSheet(tx);
+    },
+    [openEditSheet],
   );
 
   const handleBack = useCallback(() => {
@@ -139,6 +156,7 @@ export function CategoryDetailMount({ categoryId }: CategoryDetailMountProps) {
         actuals={data.actuals}
         plannedUnpostedCents={data.plannedUnpostedCents}
         onAddTransaction={handleAddTransaction}
+        onTransactionTap={handleTransactionTap}
         onBack={handleBack}
       />
       <NativeToast

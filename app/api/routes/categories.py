@@ -76,6 +76,7 @@ async def create_category(
         kind=body.kind,
         sort_order=body.sort_order,
         icon=body.icon,
+        color=body.color,
     )
     if settings.ENABLE_AI_CATEGORIZATION:
         # Commit BEFORE registering the background task. FastAPI runs

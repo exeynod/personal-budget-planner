@@ -8,9 +8,19 @@
  */
 import { apiFetch } from '../client';
 import { getCached, invalidate, CACHE_KEYS } from '../cache';
-import type { CategoryV10 } from '../types';
+import type { CategoryV10 as CategoryV10Base } from '../types';
 
-export type { CategoryV10 } from '../types';
+/**
+ * 0035: extend the generated-backed `CategoryV10` with an explicit `color`
+ * key, picked independently of `icon` (iOS-Shortcuts style). Carried as an
+ * intersection here (mirroring how `icon` is layered in
+ * `generated/adapters.ts`) until the OpenAPI contract is regenerated; once
+ * `npm run gen:api` folds `color` into `Schemas['CategoryRead']` this local
+ * widening becomes a no-op. NULL / absent → name/hash colour fallback.
+ */
+export type CategoryV10 = CategoryV10Base & {
+  color?: string | null;
+};
 
 /**
  * GET /api/v1/categories?include_archived=<bool>
@@ -46,6 +56,8 @@ export interface CategoryV10UpdatePayload {
   parent_id?: number | null;
   /** 0034 — explicit icon key (e.g. `'food'`); picked via IconPicker. */
   icon?: string | null;
+  /** 0035 — explicit colour key (e.g. `'orange'`); picked via ColorPicker. */
+  color?: string | null;
 }
 
 /**
@@ -60,6 +72,8 @@ export interface CategoryV10CreatePayload {
   sort_order?: number;
   tag?: 'personal' | 'business' | 'mixed';
   icon?: string | null;
+  /** 0035 — explicit colour key (NULL → name/hash colour fallback). */
+  color?: string | null;
 }
 
 /**

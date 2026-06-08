@@ -22,7 +22,8 @@ import {
   InsetRow,
 } from '../native/NativePrimitives';
 import { CategoryIcon } from '../native/CategoryIcon';
-import { IconPicker } from '../native/IconPicker';
+import { IconPicker, ColorPicker } from '../native/IconPicker';
+import { useEnterToDismiss } from '../common/useEnterToDismiss';
 import type { CategoryV10 } from '../../api/v10';
 import styles from './NativeCategoriesView.module.css';
 
@@ -32,11 +33,13 @@ export interface CategoryCreateInput {
   name: string;
   kind: CategoryKindStr;
   icon: string | null;
+  color: string | null;
 }
 
 export interface CategoryEditInput {
   name?: string;
   icon?: string | null;
+  color?: string | null;
 }
 
 export interface CategoriesViewProps {
@@ -66,7 +69,12 @@ function CreateEditor({
 }) {
   const [name, setName] = useState('');
   const [icon, setIcon] = useState<string | null>(null);
+  const [color, setColor] = useState<string | null>(null);
   const canSubmit = name.trim() !== '' && !busy;
+  const submit = () => {
+    if (name.trim() !== '') onSubmit({ name: name.trim(), kind, icon, color });
+  };
+  const onNameKeyDown = useEnterToDismiss(submit);
 
   return (
     <div className={styles.editor} data-testid="category-create-editor">
@@ -76,6 +84,7 @@ function CreateEditor({
         placeholder="Название категории"
         value={name}
         onChange={(e) => setName(e.target.value)}
+        onKeyDown={onNameKeyDown}
         maxLength={200}
         aria-label="Название новой категории"
         data-testid="category-create-name"
@@ -84,7 +93,13 @@ function CreateEditor({
       <IconPicker
         value={icon}
         onChange={setIcon}
+        color={color}
         testId="category-create-icon-picker"
+      />
+      <ColorPicker
+        value={color}
+        onChange={setColor}
+        testId="category-create-color-picker"
       />
       <div className={styles.editorActions}>
         <button
@@ -99,7 +114,7 @@ function CreateEditor({
           type="button"
           className={styles.primaryBtn}
           disabled={!canSubmit}
-          onClick={() => onSubmit({ name: name.trim(), kind, icon })}
+          onClick={() => onSubmit({ name: name.trim(), kind, icon, color })}
           data-testid="category-create-submit"
         >
           {busy ? '…' : 'Создать'}
@@ -125,7 +140,12 @@ function EditEditor({
 }) {
   const [name, setName] = useState(category.name);
   const [icon, setIcon] = useState<string | null>(category.icon ?? null);
+  const [color, setColor] = useState<string | null>(category.color ?? null);
   const canSubmit = name.trim() !== '' && !busy;
+  const submit = () => {
+    if (name.trim() !== '') onSubmit({ name: name.trim(), icon, color });
+  };
+  const onNameKeyDown = useEnterToDismiss(submit);
 
   return (
     <div className={styles.editor} data-testid="category-edit-editor">
@@ -135,6 +155,7 @@ function EditEditor({
         placeholder="Название категории"
         value={name}
         onChange={(e) => setName(e.target.value)}
+        onKeyDown={onNameKeyDown}
         maxLength={200}
         aria-label="Название категории"
         data-testid="category-edit-name"
@@ -143,7 +164,13 @@ function EditEditor({
       <IconPicker
         value={icon}
         onChange={setIcon}
+        color={color}
         testId="category-edit-icon-picker"
+      />
+      <ColorPicker
+        value={color}
+        onChange={setColor}
+        testId="category-edit-color-picker"
       />
       <div className={styles.editorActions}>
         <button
@@ -168,7 +195,7 @@ function EditEditor({
             type="button"
             className={styles.primaryBtn}
             disabled={!canSubmit}
-            onClick={() => onSubmit({ name: name.trim(), icon })}
+            onClick={() => onSubmit({ name: name.trim(), icon, color })}
             data-testid="category-edit-submit"
           >
             {busy ? '…' : 'Сохранить'}
@@ -254,7 +281,12 @@ function KindSection({
                 key={cat.id}
                 testId={`category-row-${cat.id}`}
                 leading={
-                  <CategoryIcon name={cat.name} id={cat.id} icon={cat.icon} />
+                  <CategoryIcon
+                    name={cat.name}
+                    id={cat.id}
+                    icon={cat.icon}
+                    color={cat.color}
+                  />
                 }
                 title={cat.name}
                 chevron
@@ -372,7 +404,12 @@ function NativeCategoriesViewInner(props: CategoriesViewProps) {
                 key={cat.id}
                 testId={`category-archived-${cat.id}`}
                 leading={
-                  <CategoryIcon name={cat.name} id={cat.id} icon={cat.icon} />
+                  <CategoryIcon
+                    name={cat.name}
+                    id={cat.id}
+                    icon={cat.icon}
+                    color={cat.color}
+                  />
                 }
                 title={<span className={styles.muted}>{cat.name}</span>}
                 trailing={

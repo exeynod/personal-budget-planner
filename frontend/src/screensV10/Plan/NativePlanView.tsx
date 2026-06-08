@@ -1,9 +1,8 @@
 // Liquid Glass v2 — native iOS Plan (План месяца) view.
 //
 // ONE surface (owner mockup refs #21-23): «План месяца» merges per-category
-// limits + recurring obligations + month plan into a single screen. The old
-// dualism («Шаблон бюджета» + «План месяца» + per-category «Детализация»
-// disclosures) is gone — recurring obligations in «Регулярные платежи».
+// limits + month plan into a single screen. The old dualism («Шаблон бюджета»
+// + «План месяца» + per-category «Детализация» disclosures) is gone.
 //
 // The overview rows are COMPACT READ-ONLY summaries (no inline edit, no «+»):
 // tap a row to drill into its per-category planned detail, where the EXPENSE
@@ -14,19 +13,17 @@
 //   - Расходы / Доходы segment
 //   - «Осталось распределить» card: big signed value + status badge
 //     («ок» green / «Превышено» red) + progress-bar «X из Y» (Σ limits из дохода).
-//     When income_cents is unset (null) this card shows a NEUTRAL «укажите доход
-//     в настройках» prompt instead of a meaningless negative «Превышено».
-//   - «Регулярные платежи»: subscriptions + recurring planned, each row =
-//     icon · name · «N июня» · amount · «✓ Оплачено» (posted) / «Отметить» (post)
+//     Income here is the Σ of the period's PLANNED income (план зачислений), not
+//     AppUser.income_cents. When there is no planned income this card shows a
+//     NEUTRAL «добавьте плановые доходы» prompt instead of a negative «Превышено».
 //   - «Категории»: each row = icon · name · summary
 //       expense → «Лимит X / Запланировано Y»
 //       income  → «Запланировано Y» (no limit/plan-target)
 //     · chevron — whole row taps into the per-category planned detail.
 //
-// Editing reuses the SAME handlers PlanMount feeds (onPostRegular/onUnpostRegular
-// post/unpost). Limit edit + plan add live in the per-category detail now.
+// Limit edit + plan add live in the per-category detail now.
 
-import { memo, useEffect, useRef, useState, type ReactNode } from 'react';
+import { memo, useEffect, useRef, useState } from 'react';
 import { CheckCircle, CaretRight, DotsThree } from '@phosphor-icons/react';
 import {
   NativeNavBar,
@@ -40,20 +37,17 @@ import { CategoryIcon } from '../native/CategoryIcon';
 import { formatMoneyNative, formatSignedMoneyNative } from '../native/money';
 import type { CategoryV10 } from '../../api/v10';
 import type { PlanMonthItem } from '../../api/types';
-import type { RegularRow, DistributeProgress } from './computePlan';
-import { formatRegularDate } from './computePlan';
+import type { DistributeProgress } from './computePlan';
 import styles from './NativePlanView.module.css';
 
 // ─────────── Props ───────────
 
 export interface NativePlanViewProps {
   /**
-   * Owner's monthly income in cents, or `null` when never set (income_cents is
-   * nullable on app_user). Kept distinct from a real 0 so the «Осталось
-   * распределить» card can show a neutral prompt instead of «Превышено».
+   * True when there is NO planned income for the period (Σ план зачислений ==
+   * 0) — drives the neutral «добавьте плановые доходы» prompt instead of a
+   * scary negative «Превышено».
    */
-  incomeCents: number | null;
-  /** True when `income_cents` is unset (null) — drives the neutral prompt. */
   incomeUnset?: boolean;
   /** EXPENSE categories (income split out into `incomeCategories`). */
   categories: CategoryV10[];
@@ -67,21 +61,13 @@ export interface NativePlanViewProps {
    * detail calls «Расписано»). Drives the read-only overview summary line.
    */
   scheduledByCat: Map<number, number>;
-  /** Combined recurring obligations (subscriptions + recurring planned). */
-  regulars: RegularRow[];
   surplusCents: number;
   isOverflow: boolean;
   /** «Осталось распределить» progress (Σ expense limits / income). */
   progress: DistributeProgress;
-  /** Period ISO start `YYYY-MM-DD` — drives the «N июня» regular date label. */
-  periodStart?: string | null;
   saveError: string | null;
   focusCategoryId?: number | null;
 
-  /** Mark a regular obligation as paid (post to fact). */
-  onPostRegular: (row: RegularRow) => void;
-  /** Undo a regular obligation's posting. */
-  onUnpostRegular: (row: RegularRow) => void;
   /** Drill into a category's planned-transaction detail (push). */
   onCategoryTap: (categoryId: number) => void;
   onBack: () => void;
@@ -107,15 +93,11 @@ function NativePlanViewInner(props: NativePlanViewProps) {
     incomePlannedCents = 0,
     plans,
     scheduledByCat,
-    regulars,
     surplusCents,
     isOverflow,
     progress,
-    periodStart = null,
     saveError,
     focusCategoryId,
-    onPostRegular,
-    onUnpostRegular,
     onCategoryTap,
     onBack,
     onSaveAsTemplate,
@@ -177,50 +159,6 @@ function NativePlanViewInner(props: NativePlanViewProps) {
           <CaretRight size={16} weight="bold" />
         </span>
       </button>
-    );
-  }
-
-  // ── Regular obligation row (icon · name · date · amount · status). ──
-  function renderRegularRow(r: RegularRow): ReactNode {
-    return (
-      <div
-        key={r.key}
-        className={styles.regularRow}
-        data-testid={`native-plan-regular-${r.key}`}
-      >
-        <CategoryIcon name={r.categoryName} id={r.categoryId} />
-        <span className={styles.regularMain}>
-          <span className={styles.regularName}>{r.name}</span>
-          <span className={styles.regularDate}>
-            {formatRegularDate(r.dayOfMonth, periodStart)}
-          </span>
-        </span>
-        <span className={styles.regularTrailing}>
-          <span className={styles.regularAmount}>
-            {formatMoneyNative(r.amountCents)} ₽
-          </span>
-          {r.posted ? (
-            <button
-              type="button"
-              className={styles.regularPaid}
-              onClick={() => onUnpostRegular(r)}
-              data-testid={`native-plan-regular-cta-${r.key}`}
-            >
-              <CheckCircle size={14} weight="fill" />
-              Оплачено
-            </button>
-          ) : (
-            <button
-              type="button"
-              className={styles.regularMark}
-              onClick={() => onPostRegular(r)}
-              data-testid={`native-plan-regular-cta-${r.key}`}
-            >
-              Отметить
-            </button>
-          )}
-        </span>
-      </div>
     );
   }
 
@@ -337,10 +275,11 @@ function NativePlanViewInner(props: NativePlanViewProps) {
       {seg === 'expenses' ? (
         // ───────── Расходы segment ─────────
         <>
-          {/* «Осталось распределить» card. When income_cents is unset (null),
-              surplus = −Σплан is a meaningless scary negative, so we render a
-              NEUTRAL prompt instead of the value/badge/«Превышено» + progress —
-              pointing the owner to set their income in Настройки. */}
+          {/* «Осталось распределить» card. When there is NO planned income
+              (Σ план зачислений == 0), surplus = −Σплан is a meaningless scary
+              negative, so we render a NEUTRAL prompt instead of the
+              value/badge/«Превышено» + progress — pointing the owner to add
+              planned income operations. */}
           {incomeUnset ? (
             <div
               className={`${styles.surplusCard} ${styles.surplusOk}`}
@@ -355,8 +294,8 @@ function NativePlanViewInner(props: NativePlanViewProps) {
                 className={styles.surplusPrompt}
                 data-testid="native-plan-surplus-unset"
               >
-                Укажите месячный доход в настройках, чтобы видеть, сколько
-                осталось распределить.
+                Добавьте плановые доходы, чтобы видеть, сколько осталось
+                распределить.
               </div>
             </div>
           ) : (
@@ -406,16 +345,6 @@ function NativePlanViewInner(props: NativePlanViewProps) {
                 </span>
               </div>
             </div>
-          )}
-
-          {/* regulars block */}
-          <SectionHeader>Регулярные платежи</SectionHeader>
-          {regulars.length === 0 ? (
-            <div className={styles.empty}>
-              Нет регулярных платежей в этом месяце.
-            </div>
-          ) : (
-            <InsetGroup>{regulars.map(renderRegularRow)}</InsetGroup>
           )}
 
           {/* expense categories — read-only summary; tap a row to drill into its

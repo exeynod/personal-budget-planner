@@ -30,6 +30,14 @@ export {
   type TemplateViewProps,
 } from './NativeTemplateView';
 
+// Template per-category drill-down (pushed from the template overview rows).
+export { TemplateCategoryDetailMount } from './TemplateCategoryDetailMount';
+export type { TemplateCategoryDetailMountProps } from './TemplateCategoryDetailMount';
+export {
+  TemplateCategoryDetailView,
+  type TemplateCategoryDetailViewProps,
+} from './TemplateCategoryDetailView';
+
 export { AccessMount } from './AccessMount';
 export {
   NativeAccessView,
