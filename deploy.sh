@@ -2,7 +2,7 @@
 # VPS-side deploy WRAPPER — kept deliberately minimal.
 #
 # This script is the SSH force-command target in ~/.ssh/authorized_keys
-# (`command="/home/exy/personal-budget-planner/deploy/deploy.sh"` — update the
+# (`command="/home/exy/personal-budget-planner/deploy.sh" — root path; the VPS force-command keeps pointing here)
 # authorized_keys force-command to the deploy/ path when adopting this layout).
 # It changes as
 # rarely as possible — typically never — because any change to it has a
@@ -30,6 +30,6 @@ echo "[deploy-wrapper $(date -u +%FT%TZ)] fetching origin/master"
 git fetch --quiet origin master
 git reset --hard origin/master
 
-echo "[deploy-wrapper $(date -u +%FT%TZ)] handing off to deploy/deploy_inner.sh ($(git rev-parse --short HEAD))"
-chmod +x ./deploy/deploy_inner.sh
-exec ./deploy/deploy_inner.sh
+echo "[deploy-wrapper $(date -u +%FT%TZ)] handing off to deploy_inner.sh ($(git rev-parse --short HEAD))"
+chmod +x ./deploy_inner.sh
+exec ./deploy_inner.sh
