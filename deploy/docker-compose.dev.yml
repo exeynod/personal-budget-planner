@@ -17,6 +17,11 @@
 
 version: "3.9"
 
+# Override the base project name so the dev stack gets its own volume namespace
+# (tg-budget-planner-dev_*) and never shares or clobbers prod/test volumes.
+# Compose takes the last `name:` among the -f files, so base+dev resolves here.
+name: tg-budget-planner-dev
+
 services:
   api:
     environment:

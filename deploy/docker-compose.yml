@@ -23,6 +23,19 @@
 
 version: "3.9"
 
+# Pin the Compose project name in-file so it can NEVER drift with the working
+# directory or the location of the -f files. Compose derives the default
+# project name from the basename of the dir holding the first -f file; moving
+# these compose files into deploy/ silently flipped that default from
+# `personal-budget-planner` to `deploy`, which spun up a FRESH empty
+# postgres_data volume (new superuser password set from POSTGRES_PASSWORD, new
+# budget_app password set by alembic 0007) instead of reusing prod data — it
+# looked like "the DB password changed on deploy". This name matches the
+# existing prod volume (personal-budget-planner_postgres_data), so no data
+# migration is needed. Dev/test overrides set their own distinct names so they
+# never collide with prod on the same host.
+name: personal-budget-planner
+
 networks:
   # All services share a single bridge network so that hostnames resolve to
   # service names (db, api, bot, worker, caddy, frontend).

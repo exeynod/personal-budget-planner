@@ -11,6 +11,11 @@
 #
 # The wrapper at `scripts/run-integration-tests.sh` automates the full lifecycle.
 
+# Distinct project name so the integration stack gets its own volume namespace
+# (tg-budget-planner-test_*) — isolated from dev and prod on the same host.
+# This is the last `name:` among base+dev+test, so the test combo resolves here.
+name: tg-budget-planner-test
+
 services:
   api:
     environment:

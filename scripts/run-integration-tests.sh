@@ -27,6 +27,9 @@ REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$REPO_ROOT"
 
 COMPOSE=(docker compose
+  # Pin project dir to repo root so Compose reads the root .env for ${VAR}
+  # interpolation (defaults to deploy/ otherwise → empty passwords).
+  --project-directory "$REPO_ROOT"
   -f deploy/docker-compose.yml
   -f deploy/docker-compose.dev.yml
   -f deploy/docker-compose.test.yml
@@ -44,7 +47,7 @@ echo ">>> Booting stack (base + dev + test)..."
 
 echo ">>> Waiting for api to be healthy (max 60s)..."
 for i in $(seq 1 60); do
-  status=$(docker inspect tg-budget-planner-api-1 \
+  status=$(docker inspect tg-budget-planner-test-api-1 \
     --format '{{.State.Health.Status}}' 2>/dev/null || echo "missing")
   if [ "$status" = "healthy" ]; then
     echo ">>> api healthy after ${i}s"
