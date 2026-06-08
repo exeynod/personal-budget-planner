@@ -5,8 +5,13 @@
 // components as the poster V10MainShell — and only swaps the presentational
 // chrome + per-screen views (selected via ShellVariant = 'native').
 //
-// Navigation model mirrors iOS:
-//   - 4-tab bottom bar: Главная / Транзакции / AI / Управление
+// Navigation model (owner reference #24/#26): two discrete floating glass
+// objects instead of one edge-to-edge bar —
+//   - a glass PILL with the sections we work in: Главная / Транзакции /
+//     Управление (active = brand orange)
+//   - a SEPARATE round glass AI bubble to the right (the «блок сообщений»)
+//   Routing still has 4 tabs (home/transactions/ai/management); only AI is
+//   visually split out into its own bubble. See NativeTabBar.
 //   - «+» lives in the Home header (top-right circle) → opens AddSheet
 //   - pushed detail screens (CategoryDetail, Plan, Accounts, Settings…) use a
 //     native nav bar with a back chevron (provided by each native view).
@@ -24,7 +29,7 @@ import { NativeAddSheet } from '../AddSheet';
 import { MgmtHubMount } from '../Management';
 import { AiMount } from '../Ai';
 import { TransactionsMount } from '../Transactions';
-import { NativeTabBar, type NativeTabId } from './NativePrimitives';
+import { NativeTabBar, type NativeTabId } from './NativeTabBar';
 import { ShellVariantProvider } from './ShellVariant';
 import { AddSheetHostProvider, type AddSheetMode } from './AddSheetHost';
 import { NavLevelProvider } from './NavLevel';
