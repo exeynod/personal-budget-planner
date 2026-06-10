@@ -4098,7 +4098,7 @@
     },
     "/api/v1/actual/{actual_id}": {
       "delete": {
-        "description": "DELETE /api/v1/actual/{actual_id} — hard delete.\n\nReturns the deleted row so callers can confirm what was removed.\n\nStatus codes:\n    200: deleted (returns deleted row state)\n    404: actual row does not exist",
+        "description": "DELETE /api/v1/actual/{actual_id} — hard delete.\n\nReturns the deleted row so callers can confirm what was removed.\n\nv1.2 balance-fix: всегда идёт через ``delete_actual_v10`` — он\nвосстанавливает баланс счёта (``-signed_delta`` по каждой удаляемой\nстроке) и корректен и для строк без ``account_id`` (legacy/bot rows —\nno-op по балансу). Legacy ``delete_actual`` (без restore) роутом больше\nне используется.\n\nStatus codes:\n    200: deleted (returns deleted row state)\n    404: actual row does not exist",
         "operationId": "delete_actual_api_v1_actual__actual_id__delete",
         "parameters": [
           {
@@ -4188,7 +4188,7 @@
         ]
       },
       "patch": {
-        "description": "PATCH /api/v1/actual/{actual_id} — partial update.\n\nACT-05: if ``tx_date`` is provided in the patch body, the service\nre-resolves ``period_id`` for the new date (D-52 auto-create included).\n\nStatus codes:\n    200: updated\n    400: FutureDateError / InvalidCategoryError / KindMismatchError\n    404: actual row not found / category not found\n    422: Pydantic validation",
+        "description": "PATCH /api/v1/actual/{actual_id} — partial update.\n\nACT-05: if ``tx_date`` is provided in the patch body, the service\nre-resolves ``period_id`` for the new date (D-52 auto-create included).\n\nv1.2 balance-fix: если строка привязана к счёту и патч меняет\n``amount_cents``/``kind``, сервис корректирует баланс счёта на\n``signed_delta(new) − signed_delta(old)``. ``account_id`` через PATCH\nне меняется (нет в ``ActualUpdate``).\n\nStatus codes:\n    200: updated\n    400: FutureDateError / InvalidCategoryError / KindMismatchError\n    404: actual row not found / category not found\n    422: Pydantic validation",
         "operationId": "update_actual_api_v1_actual__actual_id__patch",
         "parameters": [
           {

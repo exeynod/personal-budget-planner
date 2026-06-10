@@ -14,6 +14,7 @@ Threat mitigations (threat_model 06-03):
 Phase 11 (Plan 11-06): handlers used ``get_db_with_tenant_scope`` +
 ``get_current_user_id``; service вызовы передают ``user_id=user_id``.
 """
+
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -113,7 +114,9 @@ async def create_sub(
         )
         if (
             active_period is not None
-            and active_period.period_start <= sub.next_charge_date <= active_period.period_end
+            and active_period.period_start
+            <= sub.next_charge_date
+            <= active_period.period_end
         ):
             await sub_service.add_subscription_to_period(
                 db, sub, active_period.id, user_id=user_id
@@ -157,9 +160,7 @@ async def patch_sub(
             await account_service.get_or_404(
                 db, user_id=user_id, account_id=patch["account_id"]
             )
-        sub = await sub_service.update_subscription(
-            db, sub_id, patch, user_id=user_id
-        )
+        sub = await sub_service.update_subscription(db, sub_id, patch, user_id=user_id)
         await db.commit()
         return SubscriptionReadV10.model_validate(sub)
     except AccountNotFoundError as exc:
@@ -267,6 +268,12 @@ async def post_subscription(
     db: Annotated[AsyncSession, Depends(get_db_with_tenant_scope)],
     user_id: Annotated[int, Depends(get_current_user_id)],
 ) -> SubscriptionPostResponse:
+    # NOTE (recurring-payments fix, ADR-0007): the docstring below is embedded
+    # verbatim in contract/openapi.json (FastAPI operation description) and is
+    # intentionally left byte-identical to avoid contract drift. The CURRENT
+    # behaviour is unified with /recurring/{planned_id}/pay: a materialised
+    # unposted occurrence of the active period is posted first; the direct
+    # post is only a fallback. See app.services.subscriptions.post_subscription.
     """POST /api/v1/subscriptions/{id}/post — manual «провести в факт» (BE-13).
 
     Service contract: see ``app.services.subscriptions.post_subscription``.

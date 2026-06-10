@@ -41,8 +41,8 @@ dev-Bearer на iOS). Изоляция данных — PostgreSQL RLS по `use
 | `home`          | `GET /home`                                                 | единый bootstrap-эндпоинт дашборда (схлопывает N запросов)               |
 | `me`            | `GET/PATCH /me`                                             | профиль владельца: роль, доход, AI-cap/spend                             |
 | `periods`       | `/periods/*`                                                | текущий период, план/факт-листы периода                                  |
-| `plan-month`    | `PATCH /plan-month`                                         | атомарное обновление плана месяца (Σплан ≤ доход)                        |
-| `template`      | `/template/*`                                               | шаблон плана (items + lines)                                            |
+| `plan-month`    | `PATCH /plan-month`                                         | атомарное обновление плана месяца (Σплан ≤ доход) + синк лимитов периода |
+| `template`      | `/template/*`                                               | шаблон плана (items + lines)                                             |
 | `planned`       | `/periods/{id}/planned`, `/planned/{id}`                    | плановые транзакции                                                      |
 | `actual`        | `/actual`, `/periods/{id}/actual`                           | фактические транзакции (Mini App CRUD)                                   |
 | `balance`       | `/balance/*`                                                | корректировка/сверка остатка периода (v1.1)                              |
@@ -69,16 +69,32 @@ deprecated. CRUD как раньше (`POST/PATCH /subscriptions` принима
 `interval_months`, опционально `cycle`; read-shape отдаёт `interval_months`).
 Home-prompt и прогноз кэшфлоу:
 
-| Метод | Путь | Назначение |
-| --- | --- | --- |
-| GET  | `/subscriptions/recurring/due` | материализованные `subscription_auto`-строки текущего периода `planned_date ≤ сегодня`, не проведённые (id, description, amount_cents, category_id, planned_date, …) |
-| POST | `/subscriptions/recurring/{planned_id}/pay` | «Оплачено»: провести строку в факт; body `{tx_date?, amount_cents?}` → `{txn_id, planned_id}` |
-| POST | `/subscriptions/recurring/{planned_id}/skip` | «Пропустить»: удалить непроведённую строку (204) |
-| POST | `/subscriptions/recurring/{planned_id}/postpone` | «Перенести»: body `{new_date}` в пределах периода → обновлённая строка |
-| GET  | `/subscriptions/recurring/cashflow?horizon_days=90` | прогноз: `{starting_balance_cents, horizon_days, monthly_burden_cents, timeline:[{date,name,amount_cents,kind,category_id,subscription_id,balance_after_cents}]}` |
+| Метод | Путь                                                | Назначение                                                                                                                                                           |
+| ----- | --------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GET   | `/subscriptions/recurring/due`                      | материализованные `subscription_auto`-строки текущего периода `planned_date ≤ сегодня`, не проведённые (id, description, amount_cents, category_id, planned_date, …) |
+| POST  | `/subscriptions/recurring/{planned_id}/pay`         | «Оплачено»: провести строку в факт; body `{tx_date?, amount_cents?}` → `{txn_id, planned_id}`                                                                        |
+| POST  | `/subscriptions/recurring/{planned_id}/skip`        | «Пропустить»: удалить непроведённую строку (204)                                                                                                                     |
+| POST  | `/subscriptions/recurring/{planned_id}/postpone`    | «Перенести»: body `{new_date}` в пределах периода → обновлённая строка                                                                                               |
+| GET   | `/subscriptions/recurring/cashflow?horizon_days=90` | прогноз: `{starting_balance_cents, horizon_days, monthly_burden_cents, timeline:[{date,name,amount_cents,kind,category_id,subscription_id,balance_after_cents}]}`    |
 
 Роут `POST /template/save-current` удалён (ADR-0007 — перезапись шаблона текущим
 планом признана ненадёжной; шаблон правится напрямую).
+
+### План месяца и лимиты периода
+
+`PATCH /plan-month` пишет `Category.plan_cents` И зеркалит новые expense-лимиты в
+существующие строки `period_category_plan` текущего активного периода
+(update-only): после rollover'а (`apply_template_to_period` материализует pcp)
+правка лимита сразу видна в `compute_balance` (home/balance), а не только на
+экране Плана. Если pcp-строки для категории нет — она НЕ создаётся:
+`compute_balance` per-category фоллбэчит на `Category.plan_cents`, а создание
+строки в периоде без pcp ломало бы идемпотентность `apply_template_to_period`
+(«есть хоть одна pcp-строка» = шаблон уже применён).
+
+`POST /periods/{id}/planned/post-batch`: проводка каждой строки обёрнута в
+SAVEPOINT — ошибка одной строки (IntegrityError) не откатывает уже проведённые
+строки батча и не сбрасывает RLS-scope; `posted`/`skipped` соответствуют
+фактическому состоянию БД.
 
 ### Месячный гейт планирования (ADR-0008)
 
@@ -89,9 +105,9 @@ Home-prompt и прогноз кэшфлоу:
 `planned_at = NULL` (триггерит гейт на первом входе в новый период). Миграция
 `0037` бэкфилит существующие периоды `now()` — текущий месяц не гейтится на деплое.
 
-| Метод | Путь | Назначение |
-| --- | --- | --- |
-| POST | `/periods/{period_id}/confirm-plan` | снять гейт: `planned_at = now()`, идемпотентно. → `PeriodRead` (200); `404` если период не принадлежит тенанту |
+| Метод | Путь                                | Назначение                                                                                                     |
+| ----- | ----------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| POST  | `/periods/{period_id}/confirm-plan` | снять гейт: `planned_at = now()`, идемпотентно. → `PeriodRead` (200); `404` если период не принадлежит тенанту |
 
 `PeriodRead` отдаёт `planned_at: datetime \| None`. `GET /home` несёт
 `needs_planning: bool = (period is not None and period.planned_at is None)` — shell
@@ -174,6 +190,15 @@ SSH не требуется. В prod api не публикует порт — д
 - **Две роли БД.** alembic под `budget` (SUPERUSER), рантайм под `budget_app`
   (NOSUPERUSER NOBYPASSRLS). Перепутать — либо DDL упадёт, либо RLS отключится.
 - **Деньги — BIGINT копейки** (`*_cents`). Никаких float; рубли только на UI.
+- **Баланс счёта — delta-accounting через `signed_delta` (v1.2).**
+  `actual_transaction.amount_cents` хранится положительным; знак дельты к
+  `account.balance_cents` выводится из `kind` единственной точкой истины
+  `app.services.actual.signed_delta` (`income → +`, `expense`/legacy
+  `roundup`/`deposit` → `−`). POST/PATCH/DELETE `/actual` и бот-транзакции
+  (`/internal/bot/*` → primary-счёт пользователя) обязаны проходить через
+  неё — прямой `apply_balance_delta(amount_cents)` без знака возвращает баг
+  «трата увеличивает счёт» (история исправлена миграцией
+  `0038_recompute_balances`).
 - **Период** — только через `period_for(date, cycle_start_day)`; даты — `DATE`,
   аудит-времена — `TIMESTAMPTZ` UTC, расчёты — `Europe/Moscow`.
 - **`docs_url` отключён** в prod (`DEV_MODE=false`) — attack surface.

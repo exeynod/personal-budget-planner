@@ -16,6 +16,7 @@ Phase 11 (Plan 11-06, MUL-03): все public функции принимают `
 keyword-only и фильтруют ``Subscription.user_id`` / ``PlannedTransaction.user_id``.
 RLS — defense-in-depth backstop.
 """
+
 from __future__ import annotations
 
 from datetime import date, timedelta
@@ -52,9 +53,7 @@ class AlreadyChargedError(Exception):
     def __init__(self, sub_id: int, charge_date: date) -> None:
         self.sub_id = sub_id
         self.charge_date = charge_date
-        super().__init__(
-            f"Subscription {sub_id} already charged on {charge_date}"
-        )
+        super().__init__(f"Subscription {sub_id} already charged on {charge_date}")
 
 
 class CategoryNotFoundOrArchived(Exception):
@@ -93,9 +92,7 @@ def _advance_charge_date(sub: Subscription) -> date:
     )
 
 
-async def list_subscriptions(
-    db: AsyncSession, *, user_id: int
-) -> list[Subscription]:
+async def list_subscriptions(db: AsyncSession, *, user_id: int) -> list[Subscription]:
     """Return user's subscriptions (active + inactive), joined with category, sorted by next_charge_date ASC."""
     result = await db.execute(
         select(Subscription)
@@ -210,9 +207,7 @@ async def update_subscription(
     return sub
 
 
-async def delete_subscription(
-    db: AsyncSession, sub_id: int, *, user_id: int
-) -> None:
+async def delete_subscription(db: AsyncSession, sub_id: int, *, user_id: int) -> None:
     """Hard-delete a subscription by id (CLAUDE.md convention: subscriptions hard delete).
 
     Phase 11: scoped по user_id — cross-tenant id обращения дают LookupError (→ 404).
@@ -339,7 +334,7 @@ async def charge_subscription(
         original_charge_date=original_date,
     )
     try:
-        async with db.begin_nested():   # SAVEPOINT — откат только до точки сохранения
+        async with db.begin_nested():  # SAVEPOINT — откат только до точки сохранения
             db.add(planned)
             await db.flush()
     except IntegrityError:
@@ -379,9 +374,7 @@ class SubscriptionAlreadyPostedError(Exception):
     def __init__(self, sub_id: int, posted_txn_id: int) -> None:
         self.sub_id = sub_id
         self.posted_txn_id = posted_txn_id
-        super().__init__(
-            f"Subscription {sub_id} already posted (txn {posted_txn_id})"
-        )
+        super().__init__(f"Subscription {sub_id} already posted (txn {posted_txn_id})")
 
 
 class SubscriptionNotPostedError(Exception):
@@ -411,17 +404,33 @@ async def post_subscription(
 ) -> ActualTransaction:
     """BE-13 POST /api/v1/subscriptions/:id/post — manual «провести в факт».
 
-    Creates an expense ActualTransaction tied to the subscription's category
-    + account, applies balance delta on the account (delegated to
-    ``create_actual_v10``), and stores ``sub.posted_txn_id = txn.id``.
+    Unified posting path (recurring-payments fix, ADR-0007): occurrence-level
+    ``planned.posted_txn_id`` is the source of truth.
 
-    Idempotency: if ``sub.posted_txn_id`` is already set, raises
-    ``SubscriptionAlreadyPostedError`` (T-22-09-01 → HTTP 409).
+    1. If the current active period has a materialised UNPOSTED occurrence
+       (``planned_transaction(source=subscription_auto)``) for this
+       subscription — that occurrence is posted via the same code path as
+       POST /subscriptions/recurring/{planned_id}/pay
+       (``pay_recurring_occurrence``: FOR UPDATE, ``create_actual_v10``,
+       occurrence ``posted_txn_id``, IntegrityError belt-and-braces). The
+       earliest unposted occurrence is taken when several exist
+       (interval < period length).
+    2. If occurrences exist but are ALL posted →
+       ``SubscriptionAlreadyPostedError`` (409) — same charge cannot be posted
+       twice from any UI path.
+    3. If NO occurrence is materialised — legacy fallback: direct expense
+       ActualTransaction guarded by ``sub.posted_txn_id`` (which close_period
+       resets on rollover, so a new period can be posted again).
+
+    ``sub.posted_txn_id`` stays in the read schema as an informational mirror
+    (updated by both paths); for materialised occurrences it is NOT a guard.
 
     Phase 11 / Phase 22 invariants:
     - Subscription lookup scoped by user_id (cross-tenant → LookupError → 404).
     - sub.is_active must be True (T-22-09-05).
-    - sub.account_id must not be NULL (T-22-09-06 → ValueError surfaced as 422).
+    - Fallback path: sub.account_id must not be NULL (T-22-09-06 → ValueError
+      surfaced as 422). The occurrence path resolves the account like /pay
+      (subscription account, else primary).
 
     Args:
         sub_id: Subscription PK.
@@ -434,9 +443,10 @@ async def post_subscription(
 
     Raises:
         LookupError: subscription not found OR cross-tenant.
-        SubscriptionAlreadyPostedError: posted_txn_id already set (409).
+        SubscriptionAlreadyPostedError: occurrence(s) already posted, or (in
+            the fallback path) posted_txn_id already set (409).
         SubscriptionInactiveError: sub.is_active is False (409).
-        ValueError: sub.account_id is NULL (422).
+        ValueError: fallback path with sub.account_id NULL (422).
     """
     # Local imports to avoid cyclic dependencies (actual imports models, which
     # imports SQLAlchemy enums; periods is a leaf module).
@@ -445,10 +455,11 @@ async def post_subscription(
 
     # P1-2 (BE-F4): SELECT ... FOR UPDATE serialises concurrent posts on the
     # subscription row. The second concurrent transaction blocks here until the
-    # first commits, then reads the now-set posted_txn_id and short-circuits to
+    # first commits, then reads the now-set posted state and short-circuits to
     # SubscriptionAlreadyPostedError → 409. Without the row lock the in-memory
-    # `posted_txn_id is None` check is a check-then-act race → two
-    # ActualTransactions + double balance delta + orphan txn.
+    # posted check is a check-then-act race → two ActualTransactions + double
+    # balance delta + orphan txn. Lock ordering everywhere: subscription row
+    # first, then occurrence rows (pay_recurring_occurrence matches).
     sub = await db.scalar(
         select(Subscription)
         .where(
@@ -462,11 +473,47 @@ async def post_subscription(
         # LookupError → route layer maps to 404. T-22-09-02.
         raise LookupError(f"Subscription {sub_id} not found")
 
-    if sub.posted_txn_id is not None:
-        raise SubscriptionAlreadyPostedError(sub_id, sub.posted_txn_id)
-
     if not sub.is_active:
         raise SubscriptionInactiveError(sub_id)
+
+    # ── Unified path: post the materialised occurrence of the active period ──
+    period = await get_current_active_period(db, user_id=user_id)
+    if period is not None:
+        occurrences = (
+            (
+                await db.execute(
+                    select(PlannedTransaction)
+                    .where(
+                        PlannedTransaction.user_id == user_id,
+                        PlannedTransaction.period_id == period.id,
+                        PlannedTransaction.subscription_id == sub_id,
+                        PlannedTransaction.source == PlanSource.subscription_auto,
+                    )
+                    .order_by(PlannedTransaction.planned_date, PlannedTransaction.id)
+                    .with_for_update()
+                )
+            )
+            .scalars()
+            .all()
+        )
+        unposted = [o for o in occurrences if o.posted_txn_id is None]
+        if unposted:
+            # Single source of truth: same code path as /recurring/{id}/pay.
+            # pay_recurring_occurrence also mirrors txn.id into
+            # sub.posted_txn_id (informational).
+            return await pay_recurring_occurrence(
+                db,
+                unposted[0].id,
+                user_id=user_id,
+                tx_date=_today_in_app_tz(),
+            )
+        if occurrences:
+            # Everything materialised for this period is already posted.
+            raise SubscriptionAlreadyPostedError(sub_id, occurrences[-1].posted_txn_id)
+
+    # ── Legacy fallback: no materialised occurrence — direct post ──
+    if sub.posted_txn_id is not None:
+        raise SubscriptionAlreadyPostedError(sub_id, sub.posted_txn_id)
 
     if sub.account_id is None:
         # T-22-09-06: post requires an account to apply balance delta against.
@@ -490,23 +537,23 @@ async def post_subscription(
         account_id=sub.account_id,
     )
 
-    sub.posted_txn_id = parent.id
+    # SAVEPOINT (begin_nested), NOT db.rollback(): a session-level rollback on
+    # the request-scoped session would discard SET LOCAL app.current_user_id
+    # (RLS tenant scope) and all prior request work. P1-2 belt-and-braces: the
+    # partial unique index uq_subscription_posted_txn_id (migration 0025)
+    # rejects a second posted_txn_id pointing at an already-linked transaction
+    # even if the FOR UPDATE lock were somehow bypassed. Surface as the
+    # idempotency error → HTTP 409.
     try:
-        await db.flush()
+        async with db.begin_nested():
+            sub.posted_txn_id = parent.id
+            await db.flush()
     except IntegrityError as exc:
-        # P1-2 belt-and-braces: the partial unique index
-        # uq_subscription_posted_txn_id (migration 0025) rejects a second
-        # posted_txn_id pointing at an already-linked transaction even if the
-        # FOR UPDATE lock were somehow bypassed (e.g. different connection
-        # ordering). Surface as the idempotency error → HTTP 409.
-        await db.rollback()
         raise SubscriptionAlreadyPostedError(sub_id, parent.id) from exc
     return parent
 
 
-async def unpost_subscription(
-    db: AsyncSession, sub_id: int, *, user_id: int
-) -> None:
+async def unpost_subscription(db: AsyncSession, sub_id: int, *, user_id: int) -> None:
     """BE-13 POST /api/v1/subscriptions/:id/unpost — отменить ручную проводку.
 
     Deletes the linked ``actual_transaction`` (FK ON DELETE CASCADE removes any
@@ -588,7 +635,10 @@ async def _get_occurrence(
         PlannedTransaction.source == PlanSource.subscription_auto,
     )
     if for_update:
-        stmt = stmt.with_for_update()
+        # populate_existing: refresh identity-map state from the row we just
+        # locked, so the posted_txn_id re-check under the lock is not a stale
+        # in-memory read.
+        stmt = stmt.with_for_update().execution_options(populate_existing=True)
     row = await db.scalar(stmt)
     if row is None:
         raise RecurringOccurrenceNotFoundError(planned_id)
@@ -632,10 +682,19 @@ async def pay_recurring_occurrence(
 ) -> ActualTransaction:
     """Pay a recurring occurrence — post it into a real ActualTransaction.
 
-    ADR-0007 «Оплачено». Mirrors ``post_subscription`` but works on the
-    materialised planned row so each occurrence is paid independently. Optional
+    ADR-0007 «Оплачено». THE single posting path for a recurring payment:
+    occurrence-level ``planned.posted_txn_id`` is the source of truth, and
+    ``post_subscription`` delegates here when a materialised occurrence
+    exists, so /post and /pay cannot double-post the same charge. Optional
     ``amount_cents`` overrides the planned amount (positive value; sign applied
     by kind). Account resolved from the parent subscription, else the primary.
+
+    ``sub.posted_txn_id`` is updated as an informational mirror (kept in the
+    read schema for clients); it is reset on rollover by close_period and is
+    no longer a posting guard for materialised occurrences.
+
+    Lock ordering: subscription row FIRST, then the occurrence row — the same
+    order ``post_subscription`` uses, so the two paths cannot deadlock.
 
     Raises:
         RecurringOccurrenceNotFoundError: row missing / cross-tenant / not auto.
@@ -644,20 +703,29 @@ async def pay_recurring_occurrence(
     from app.services.accounts import get_primary_account  # noqa: PLC0415
     from app.services.actual import create_actual_v10  # noqa: PLC0415
 
+    # Unlocked read first — only to resolve the (immutable) subscription_id,
+    # so we can take the subscription lock BEFORE the occurrence lock.
+    row = await _get_occurrence(db, planned_id, user_id=user_id)
+
+    sub: Optional[Subscription] = None
+    if row.subscription_id is not None:
+        sub = await db.scalar(
+            select(Subscription)
+            .where(
+                Subscription.id == row.subscription_id,
+                Subscription.user_id == user_id,
+            )
+            .with_for_update()
+        )
+
+    # Now lock the occurrence and re-check posted state under the lock.
     row = await _get_occurrence(db, planned_id, user_id=user_id, for_update=True)
     if row.posted_txn_id is not None:
         raise RecurringOccurrenceAlreadyPaidError(planned_id, row.posted_txn_id)
 
     account_id: Optional[int] = None
-    if row.subscription_id is not None:
-        sub = await db.scalar(
-            select(Subscription).where(
-                Subscription.id == row.subscription_id,
-                Subscription.user_id == user_id,
-            )
-        )
-        if sub is not None and sub.account_id is not None:
-            account_id = sub.account_id
+    if sub is not None and sub.account_id is not None:
+        account_id = sub.account_id
     if account_id is None:
         primary = await get_primary_account(db, user_id=user_id)
         account_id = primary.id if primary is not None else None
@@ -677,11 +745,18 @@ async def pay_recurring_occurrence(
         source=ActualSource.mini_app,
         account_id=account_id,
     )
-    row.posted_txn_id = parent.id
+    # SAVEPOINT (begin_nested), NOT db.rollback(): a session-level rollback on
+    # the request-scoped session would discard SET LOCAL app.current_user_id
+    # (RLS tenant scope) and all prior work of the request. Same pattern as
+    # add_subscription_to_period above.
     try:
-        await db.flush()
+        async with db.begin_nested():
+            row.posted_txn_id = parent.id
+            if sub is not None:
+                # Informational mirror only (see docstring).
+                sub.posted_txn_id = parent.id
+            await db.flush()
     except IntegrityError as exc:
-        await db.rollback()
         raise RecurringOccurrenceAlreadyPaidError(planned_id, parent.id) from exc
     return parent
 
@@ -741,9 +816,7 @@ async def postpone_recurring_occurrence(
             BudgetPeriod.user_id == user_id,
         )
     )
-    if period is None or not (
-        period.period_start <= new_date <= period.period_end
-    ):
+    if period is None or not (period.period_start <= new_date <= period.period_end):
         raise RecurringPostponeOutOfPeriodError(planned_id, new_date)
     row.planned_date = new_date
     await db.flush()

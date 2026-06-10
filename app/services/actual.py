@@ -4,6 +4,7 @@ Service layer is pure (no FastAPI imports per D-56). Route layer (Plan 04-03)
 maps domain exceptions to HTTP status codes.
 
 Contents:
+- signed_delta — единственная точка истины знака дельты счёта (v1.2 balance-fix).
 - ActualNotFoundError, FutureDateError — new domain exceptions.
 - list_actual_for_period, get_or_404, create_actual, update_actual, delete_actual — CRUD.
 - compute_balance — per-category aggregation + totals (D-46 / D-60).
@@ -90,6 +91,37 @@ class FutureDateError(Exception):
         )
 
 
+# ---------- Account-balance sign convention (v1.2 balance-fix) ----------
+
+
+def signed_delta(kind: ActualKind | CategoryKind | str, amount_cents: int) -> int:
+    """Единственная точка истины знака дельты счёта (v1.2 balance-fix).
+
+    Storage convention: ``actual_transaction.amount_cents`` хранится как
+    ПОЛОЖИТЕЛЬНАЯ величина (API-схема enforce'ит ``gt=0``); знак дельты,
+    применяемой к ``account.balance_cents``, выводится из ``kind``:
+
+      * ``income``             → ``+abs(amount)`` — деньги приходят на счёт;
+      * ``expense``            → ``-abs(amount)`` — деньги уходят со счёта;
+      * ``roundup``/``deposit``→ ``-abs(amount)`` — исторические savings-kinds
+        (savings выпилен в v1.1): деньги уходили со счёта в копилку; старые
+        строки должны восстанавливаться симметрично при DELETE.
+
+    ``abs()`` делает хелпер детерминированным и для legacy-строк, записанных
+    с отрицательным знаком (до v1.2 ``reconcile_balance`` писал expense-
+    корректировки отрицательными) — зеркалит ``func.abs()``-канон из
+    ``compute_balance`` и миграций 0032/0038.
+
+    Использование (create/delete/update обязаны проходить через хелпер):
+      * create: ``apply_balance_delta(delta_cents=signed_delta(kind, amount))``
+      * delete: восстановление = ``-signed_delta(kind, amount)``
+      * update: коррекция = ``signed_delta(new) - signed_delta(old)``
+    """
+    kind_value = kind.value if hasattr(kind, "value") else str(kind)
+    magnitude = abs(int(amount_cents))
+    return magnitude if kind_value == "income" else -magnitude
+
+
 # ---------- Private helpers ----------
 
 
@@ -159,6 +191,15 @@ async def _resolve_period_for_date(
 
     Note: auto-creation may produce "shadow" periods for historical dates without
     planned transactions. Phase 5 worker normalizes these (D-52 trade-off).
+
+    Race recovery (v1.2 balance-fix): INSERT идёт внутри SAVEPOINT
+    (``db.begin_nested()``), как в ``add_subscription_to_period``. При
+    IntegrityError (конкурент успел создать период) откатывается ТОЛЬКО
+    savepoint — внешняя request-scoped транзакция и её ``SET LOCAL
+    app.current_user_id`` (RLS GUC) остаются живы, и повторный SELECT
+    находит чужую строку. Старый паттерн ``await db.rollback()`` сбрасывал
+    SET LOCAL + всю незакоммиченную работу запроса → повторный SELECT под
+    RLS давал 0 строк → insert с period_id=None → 500.
     """
     stmt = (
         select(BudgetPeriod.id)
@@ -186,12 +227,13 @@ async def _resolve_period_for_date(
         status=status,
     )
     try:
-        db.add(period)
-        await db.flush()
+        async with db.begin_nested():
+            db.add(period)
+            await db.flush()
         return period.id
     except IntegrityError:
-        # Concurrent request won the race — re-fetch the existing period.
-        await db.rollback()
+        # Concurrent request won the race — SAVEPOINT rolled back, the outer
+        # transaction (incl. RLS GUC) is intact; re-fetch the existing period.
         existing = await db.scalar(
             select(BudgetPeriod.id).where(
                 BudgetPeriod.user_id == user_id,
@@ -317,9 +359,20 @@ async def update_actual(
     Category/kind consistency is validated if either field changes.
     period_id is recomputed ONLY when tx_date is in the patch AND differs
     from the current value (ACT-05, D-52).
+
+    Balance delta-accounting (v1.2 balance-fix): если у строки есть
+    ``account_id`` и патч меняет ``amount_cents`` и/или ``kind``, к счёту
+    атомарно применяется коррекция ``signed_delta(new) − signed_delta(old)``
+    через ``apply_balance_delta`` — в той же транзакции, что и UPDATE строки.
+    ``ActualUpdate`` НЕ содержит ``account_id`` (PATCH не может перенести
+    транзакцию на другой счёт — перенос потребовал бы minus-со-старого /
+    plus-на-новый и расширения wire-контракта; до тех пор счёт неизменяем).
     """
     row = await get_or_404(db, actual_id, user_id=user_id)
     data = patch.model_dump(exclude_unset=True)
+
+    # v1.2 balance-fix: snapshot the pre-patch signed delta BEFORE mutation.
+    old_signed = signed_delta(row.kind, row.amount_cents)
 
     # Category change validation: ensure new category active + kind compatibility
     # + same tenant (cat_svc.get_or_404 scoped by user_id).
@@ -354,6 +407,20 @@ async def update_actual(
             setattr(row, field, CategoryKind(value))
         else:
             setattr(row, field, value)
+
+    # v1.2 balance-fix: keep the account balance in sync when the patch
+    # changes the signed contribution of this row (amount and/or kind).
+    if row.account_id is not None:
+        new_signed = signed_delta(row.kind, row.amount_cents)
+        if new_signed != old_signed:
+            from app.services.accounts import apply_balance_delta
+
+            await apply_balance_delta(
+                db,
+                account_id=row.account_id,
+                user_id=user_id,
+                delta_cents=new_signed - old_signed,
+            )
 
     await db.flush()
     await db.refresh(row)
@@ -417,16 +484,17 @@ async def compute_balance(db: AsyncSession, period_id: int, *, user_id: int) -> 
           honesty, D-CONTEXT). They contribute no plan (plan_cents only read
           from the active set).
 
-    Sign convention (CR-01, Phase 22 review):
-        v1.0 storage convention is **signed** — expense ``amount_cents`` is
-        stored as a NEGATIVE integer (DATA-MODEL §1.4). Legacy v0.x rows
-        may still hold POSITIVE expense amounts (the conversion was deferred;
-        no data-flip migration ran). To stay correct in the presence of
-        mixed-sign legacy + v1.0 expense rows in the same period, the
-        aggregation uses ``func.abs(amount_cents)`` for both expense and
-        income totals — magnitudes only. ``balance_now_cents`` is then
-        derived as ``starting + abs(income) − abs(expense)`` which is
-        deterministic regardless of how each row was signed.
+    Sign convention (v1.2 balance-fix; supersedes the CR-01 wording):
+        Storage convention is **positive magnitudes** — clients always send
+        ``amount_cents > 0`` (API schema ``gt=0``) for any kind, and the
+        direction is carried by ``kind`` (see ``signed_delta``). A handful
+        of legacy rows (pre-v1.2 ``reconcile_balance`` expense adjustments)
+        may still hold NEGATIVE amounts. To stay correct in the presence of
+        mixed-sign rows in the same period, the aggregation uses
+        ``func.abs(amount_cents)`` for both expense and income totals —
+        magnitudes only. ``balance_now_cents`` is then derived as
+        ``starting + abs(income) − abs(expense)`` which is deterministic
+        regardless of how each row was signed.
         Savings ``deposit`` / ``roundup`` kinds are excluded from the actual
         aggregation entirely via an explicit WHERE filter on
         ``ActualTransaction.kind IN {expense, income}``. This keeps them out
@@ -738,6 +806,9 @@ async def create_actual_v10(
         legacy create_actual rejects them via the kind == cat.kind check.
       * Applies a balance delta to ``account_id`` if supplied (CONTEXT §Area 2
         D-04: trust delta-accounting; service-layer is the single source).
+        v1.2 balance-fix: дельта = ``signed_delta(kind, amount_cents)`` —
+        expense/roundup/deposit уменьшают счёт, income увеличивает. Хранение
+        ``amount_cents`` при этом положительное (знак выводится из kind).
       * After parent insert, calls ``maybe_create_roundup_child`` — which is
         a no-op for any kind != 'expense', any user without an enabled
         SavingsConfig, and any amount that is already aligned to the base.
@@ -792,6 +863,9 @@ async def create_actual_v10(
     await db.refresh(parent)
 
     # Apply balance delta for the parent against its account (if any).
+    # v1.2 balance-fix: знак выводится из kind через signed_delta — раньше
+    # сюда уходил сырой amount_cents (всегда положительный), и трата 500 ₽
+    # УВЕЛИЧИВАЛА счёт на 500 вместо уменьшения.
     if account_id is not None:
         # Local import to avoid circular dep at module import time.
         from app.services.accounts import apply_balance_delta
@@ -800,7 +874,7 @@ async def create_actual_v10(
             db,
             account_id=account_id,
             user_id=user_id,
-            delta_cents=amount_cents,
+            delta_cents=signed_delta(kind, amount_cents),
         )
 
     # v1.1 (AGREED §G1): roundup выпилен. ``create_actual_v10`` всегда
@@ -820,8 +894,10 @@ async def delete_actual_v10(
     Sequence:
       1. Fetch the parent row (or 404 — scoped by user_id).
       2. SELECT children via parent_txn_id (still alive — pre-delete snapshot).
-      3. Aggregate per-account positive deltas to restore the balance
-         (negate each row's signed ``amount_cents``).
+      3. Aggregate per-account restore deltas: ``-signed_delta(kind, amount)``
+         per row (v1.2 balance-fix) — удаление траты возвращает деньги на
+         счёт, удаление дохода снимает их; строки без ``account_id``
+         (legacy/bot до v1.2) баланс не трогают.
       4. ``db.delete(parent)`` — DB-level FK ON DELETE CASCADE removes
          each child row automatically (migration 0014 + 0015).
       5. ``apply_balance_delta`` for each affected account.
@@ -855,13 +931,13 @@ async def delete_actual_v10(
     if parent.account_id is not None:
         affected_accounts[parent.account_id] = affected_accounts.get(
             parent.account_id, 0
-        ) + (-parent.amount_cents)
+        ) + (-signed_delta(parent.kind, parent.amount_cents))
 
     for ch in children:
         if ch.account_id is not None:
             affected_accounts[ch.account_id] = affected_accounts.get(
                 ch.account_id, 0
-            ) + (-ch.amount_cents)
+            ) + (-signed_delta(ch.kind, ch.amount_cents))
 
     await db.delete(parent)  # DB-level CASCADE wipes children.
     await db.flush()
@@ -890,10 +966,15 @@ async def reconcile_balance(
 ) -> Optional[ActualTransaction]:
     """Make the displayed balance equal ``target_balance_cents`` (AGREED §H).
 
-    Creates a single balancing ``actual_transaction`` whose sign = (target −
-    current computed balance) on the system ``code='adjustment'`` category, so
-    ``balance_now_cents`` becomes the entered value. Reversible via
-    ``DELETE /actual/{id}`` (standard delete restores the prior balance).
+    Creates a single balancing ``actual_transaction`` on the system
+    ``code='adjustment'`` category so ``balance_now_cents`` becomes the
+    entered value. Направление = знак (target − current computed balance):
+    положительная разница → ``kind='income'``, отрицательная →
+    ``kind='expense'``; ``amount_cents`` хранится ПОЛОЖИТЕЛЬНЫМ (v1.2
+    balance-fix; до v1.2 expense-корректировки писались отрицательными —
+    такие legacy-строки обрабатываются через ``abs()`` в агрегациях и
+    ``signed_delta``). Reversible via ``DELETE /actual/{id}`` — роут идёт
+    через ``delete_actual_v10``, который восстанавливает баланс счёта.
 
     Returns the created adjustment ``ActualTransaction`` — or ``None`` when the
     balance already matches (delta == 0; no-op).
@@ -927,12 +1008,13 @@ async def reconcile_balance(
     primary = await get_primary_account(db, user_id=user_id)
     account_id = primary.id if primary is not None else None
 
+    # v1.2 balance-fix: amount хранится положительным для обоих направлений;
+    # знак дельты счёта выводится из kind (см. signed_delta).
     if delta > 0:
         kind = "income"
-        amount = abs(delta)
     else:
         kind = "expense"
-        amount = -abs(delta)
+    amount = abs(delta)
 
     parent, _child = await create_actual_v10(
         db,

@@ -33,6 +33,7 @@ Status codes:
 Phase 11 (Plan 11-06): все handlers используют ``get_db_with_tenant_scope`` +
 ``get_current_user_id``; service вызовы передают ``user_id=user_id``.
 """
+
 from typing import Annotated, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -90,7 +91,11 @@ async def list_actual(
     with planned.py behaviour; UI detects onboarding state via /periods/current).
     """
     rows = await actual_svc.list_actual_for_period(
-        db, period_id, user_id=user_id, kind=kind, category_id=category_id,
+        db,
+        period_id,
+        user_id=user_id,
+        kind=kind,
+        category_id=category_id,
     )
     return [ActualRead.model_validate(r) for r in rows]
 
@@ -160,9 +165,7 @@ async def create_actual(
             # ``get_or_404`` raises ``AccountNotFoundError`` → 404 below.
             from app.services.accounts import get_or_404 as _account_or_404
 
-            await _account_or_404(
-                db, user_id=user_id, account_id=body.account_id
-            )
+            await _account_or_404(db, user_id=user_id, account_id=body.account_id)
 
             # Plan 25-01 v10 dispatch — service applies balance delta +
             # roundup hook in the same DB transaction. Returns
@@ -265,6 +268,11 @@ async def update_actual(
     ACT-05: if ``tx_date`` is provided in the patch body, the service
     re-resolves ``period_id`` for the new date (D-52 auto-create included).
 
+    v1.2 balance-fix: если строка привязана к счёту и патч меняет
+    ``amount_cents``/``kind``, сервис корректирует баланс счёта на
+    ``signed_delta(new) − signed_delta(old)``. ``account_id`` через PATCH
+    не меняется (нет в ``ActualUpdate``).
+
     Status codes:
         200: updated
         400: FutureDateError / InvalidCategoryError / KindMismatchError
@@ -309,12 +317,18 @@ async def delete_actual(
 
     Returns the deleted row so callers can confirm what was removed.
 
+    v1.2 balance-fix: всегда идёт через ``delete_actual_v10`` — он
+    восстанавливает баланс счёта (``-signed_delta`` по каждой удаляемой
+    строке) и корректен и для строк без ``account_id`` (legacy/bot rows —
+    no-op по балансу). Legacy ``delete_actual`` (без restore) роутом больше
+    не используется.
+
     Status codes:
         200: deleted (returns deleted row state)
         404: actual row does not exist
     """
     try:
-        row = await actual_svc.delete_actual(db, actual_id, user_id=user_id)
+        row = await actual_svc.delete_actual_v10(db, actual_id, user_id=user_id)
     except ActualNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)

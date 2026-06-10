@@ -5,7 +5,10 @@ Covers:
     idempotency, planned_date clamp, no subscription duplication.
   - post_planned / unpost_planned: sign by kind, posted_txn_id bridge, balance
     move + restore, idempotency 409, cross-tenant 404, subscription_auto 400.
-  - post_planned_batch: per-line date vs shared date, skip already-posted.
+  - post_planned_batch: per-line date vs shared date, skip already-posted,
+    SAVEPOINT recovery (failed line keeps prior posts + RLS scope).
+  - update_plan_month_atomic: sync of the active period's period_category_plan
+    limits (update-only; no pcp row created where none existed).
   - compute_balance: per-period limit (+ plan_cents fallback), planned_unposted
     aggregate (excl subscription_auto + posted), adjustment-category exclusion.
   - reconcile_balance: balance_now == target, delta=0 no-op, reversible.
@@ -280,7 +283,7 @@ async def test_apply_template_idempotent(db_session, ctx):
 # ---------------------------------------------------------------------------
 
 
-async def _make_planned(db_session, ctx, *, kind, amount, cat_id=None):
+async def _make_planned(db_session, ctx, *, kind, amount, cat_id=None, description="x"):
     from app.api.schemas.planned import PlannedCreate
     from app.db.session import set_tenant_scope
     from app.services.planned import create_manual_planned
@@ -292,7 +295,7 @@ async def _make_planned(db_session, ctx, *, kind, amount, cat_id=None):
         PlannedCreate(
             kind=kind,
             amount_cents=amount,
-            description="x",
+            description=description,
             category_id=cat_id or ctx["cat_id"],
             planned_date=None,
         ),
@@ -501,6 +504,72 @@ async def test_post_planned_batch_per_line_date(db_session, ctx):
     _ = PlannedTransaction
 
 
+@pytest.mark.asyncio
+async def test_post_planned_batch_failed_line_keeps_others(
+    db_session, ctx, monkeypatch
+):
+    """SAVEPOINT recovery: an IntegrityError on one line must not roll back
+    rows already posted in the batch, must not drop the RLS scope for the
+    following lines, and the posted/skipped response must match the DB."""
+    from sqlalchemy import select
+    from sqlalchemy.exc import IntegrityError
+
+    import app.services.actual as actual_svc
+    from app.db.models import ActualTransaction, PlannedTransaction
+    from app.db.session import set_tenant_scope
+    from app.services.planned import post_planned_batch
+
+    p1 = await _make_planned(db_session, ctx, kind="expense", amount=100)
+    p2 = await _make_planned(
+        db_session, ctx, kind="expense", amount=200, description="boom"
+    )
+    p3 = await _make_planned(db_session, ctx, kind="expense", amount=300)
+
+    real_create = actual_svc.create_actual_v10
+
+    async def failing_create(db, **kw):
+        if kw.get("description") == "boom":
+            raise IntegrityError("INSERT", {}, Exception("duplicate key"))
+        return await real_create(db, **kw)
+
+    monkeypatch.setattr(actual_svc, "create_actual_v10", failing_create)
+
+    await set_tenant_scope(db_session, ctx["user_id"])
+    res = await post_planned_batch(
+        db_session, [p1, p2, p3], user_id=ctx["user_id"], tx_date=date.today()
+    )
+    await db_session.commit()
+
+    assert res["skipped"] == [p2]
+    assert len(res["posted"]) == 2
+
+    # DB matches the response: p1/p3 bridged to the returned txn ids, p2 clean.
+    db_session.expire_all()
+    rows = {
+        r.id: r
+        for r in (
+            await db_session.execute(
+                select(PlannedTransaction).where(
+                    PlannedTransaction.id.in_([p1, p2, p3])
+                )
+            )
+        ).scalars()
+    }
+    assert rows[p1].posted_txn_id in res["posted"]
+    assert rows[p3].posted_txn_id in res["posted"]
+    assert rows[p2].posted_txn_id is None
+    txn_count = len(
+        (
+            await db_session.execute(
+                select(ActualTransaction.id).where(
+                    ActualTransaction.id.in_(res["posted"])
+                )
+            )
+        ).all()
+    )
+    assert txn_count == 2  # every returned txn id really exists
+
+
 # ---------------------------------------------------------------------------
 # compute_balance
 # ---------------------------------------------------------------------------
@@ -552,6 +621,84 @@ async def test_compute_balance_plan_cents_fallback(db_session, ctx):
     bal = await compute_balance(db_session, ctx["period_id"], user_id=ctx["user_id"])
     row = next(r for r in bal["by_category"] if r["category_id"] == ctx["cat_id"])
     assert row["planned_cents"] == 777  # no pcp → fallback to plan_cents
+
+
+# ---------------------------------------------------------------------------
+# update_plan_month_atomic → period_category_plan sync (limits single-source)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_plan_month_patch_updates_active_period_limit(db_session, ctx):
+    """PATCH /plan-month after a rollover (pcp rows materialised) must update
+    the active period's pcp row so compute_balance sees the NEW limit."""
+    from sqlalchemy import select
+
+    from app.db.models import PeriodCategoryPlan
+    from app.db.session import set_tenant_scope
+    from app.services.actual import compute_balance
+    from app.services.plan_month import update_plan_month_atomic
+
+    # Simulate apply_template_to_period: pcp row with the old limit.
+    await set_tenant_scope(db_session, ctx["user_id"])
+    db_session.add(
+        PeriodCategoryPlan(
+            user_id=ctx["user_id"],
+            period_id=ctx["period_id"],
+            category_id=ctx["cat_id"],
+            limit_cents=999,
+        )
+    )
+    await db_session.commit()
+
+    await set_tenant_scope(db_session, ctx["user_id"])
+    await update_plan_month_atomic(
+        db_session, user_id=ctx["user_id"], plans=[(ctx["cat_id"], 555)]
+    )
+    await db_session.commit()
+
+    await set_tenant_scope(db_session, ctx["user_id"])
+    bal = await compute_balance(db_session, ctx["period_id"], user_id=ctx["user_id"])
+    row = next(r for r in bal["by_category"] if r["category_id"] == ctx["cat_id"])
+    assert row["planned_cents"] == 555  # pcp updated, not the stale 999
+
+    pcp = await db_session.scalar(
+        select(PeriodCategoryPlan).where(
+            PeriodCategoryPlan.period_id == ctx["period_id"],
+            PeriodCategoryPlan.category_id == ctx["cat_id"],
+        )
+    )
+    assert pcp.limit_cents == 555
+
+
+@pytest.mark.asyncio
+async def test_plan_month_patch_without_pcp_keeps_fallback(db_session, ctx):
+    """No pcp rows for the period → PATCH must NOT create one (preserves
+    apply_template idempotency); compute_balance falls back to plan_cents."""
+    from sqlalchemy import func, select
+
+    from app.db.models import PeriodCategoryPlan
+    from app.db.session import set_tenant_scope
+    from app.services.actual import compute_balance
+    from app.services.plan_month import update_plan_month_atomic
+
+    await set_tenant_scope(db_session, ctx["user_id"])
+    await update_plan_month_atomic(
+        db_session, user_id=ctx["user_id"], plans=[(ctx["cat_id"], 444)]
+    )
+    await db_session.commit()
+
+    pcp_count = await db_session.scalar(
+        select(func.count())
+        .select_from(PeriodCategoryPlan)
+        .where(PeriodCategoryPlan.period_id == ctx["period_id"])
+    )
+    assert int(pcp_count or 0) == 0  # update-only: no row materialised
+
+    await set_tenant_scope(db_session, ctx["user_id"])
+    bal = await compute_balance(db_session, ctx["period_id"], user_id=ctx["user_id"])
+    row = next(r for r in bal["by_category"] if r["category_id"] == ctx["cat_id"])
+    assert row["planned_cents"] == 444  # per-category fallback serves the new value
 
 
 @pytest.mark.asyncio

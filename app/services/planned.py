@@ -500,6 +500,12 @@ async def post_planned(
     post-race; idempotent (already-posted → 409). Sign by kind (expense
     negative, income positive). Account auto-resolved to the user's primary.
 
+    The actual-insert + bridge-flush run inside a SAVEPOINT
+    (``db.begin_nested``, образец — ``add_subscription_to_period``): an
+    ``IntegrityError`` rolls back ONLY this post, keeping the outer
+    request transaction alive — including ``SET LOCAL app.current_user_id``
+    (RLS scope) and any rows already posted earlier in the same batch.
+
     Returns the created ``ActualTransaction``.
 
     Raises:
@@ -537,24 +543,29 @@ async def post_planned(
     else:
         amount = -abs(row.amount_cents)
 
-    parent, _child = await create_actual_v10(
-        db,
-        user_id=user_id,
-        kind=kind_value,
-        amount_cents=amount,
-        description=row.description or "План",
-        category_id=row.category_id,
-        tx_date=tx_date,
-        source=ActualSource.mini_app,
-        account_id=account_id,
-    )
-    row.posted_txn_id = parent.id
     try:
-        await db.flush()
+        async with db.begin_nested():
+            parent, _child = await create_actual_v10(
+                db,
+                user_id=user_id,
+                kind=kind_value,
+                amount_cents=amount,
+                description=row.description or "План",
+                category_id=row.category_id,
+                tx_date=tx_date,
+                source=ActualSource.mini_app,
+                account_id=account_id,
+            )
+            row.posted_txn_id = parent.id
+            await db.flush()
     except IntegrityError as exc:
-        # Belt-and-braces: partial unique uq_planned_posted_txn_id.
-        await db.rollback()
-        raise PlannedAlreadyPostedError(planned_id, parent.id) from exc
+        # Belt-and-braces: partial unique uq_planned_posted_txn_id. The
+        # SAVEPOINT rollback discards only the actual + bridge from THIS call;
+        # a full ``db.rollback()`` here would kill the transaction-scoped RLS
+        # GUC and already-posted batch rows (false ``skipped`` / phantom
+        # ``posted`` ids in ``post_planned_batch``).
+        await db.refresh(row)  # re-load DB truth after the savepoint rollback
+        raise PlannedAlreadyPostedError(planned_id, row.posted_txn_id or 0) from exc
     return parent
 
 
@@ -592,6 +603,11 @@ async def post_planned_batch(
 
     Already-posted / subscription_auto / missing rows are collected in
     ``skipped`` rather than aborting the batch.
+
+    Recovery contract: ``post_planned`` confines its IntegrityError handling
+    to a SAVEPOINT, so a failing line never rolls back rows already posted in
+    this batch and never drops the tenant RLS scope — the returned
+    ``posted``/``skipped`` lists match the actual DB state after commit.
 
     Returns ``{"posted": [txn_id...], "skipped": [planned_id...]}``.
     """

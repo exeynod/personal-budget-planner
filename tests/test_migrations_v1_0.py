@@ -221,6 +221,8 @@ async def test_alembic_upgrade_from_0011_to_0015_succeeds(db_session):
         "0036_recurring_interval",
         # ADR-0008 monthly planning gate
         "0037_period_planned_at",
+        # v1.2 balance-fix (signed delta-accounting repair)
+        "0038_recompute_balances",
     }
     assert heads & v10_revs, (
         f"DB is not at a v1.0 alembic head; current revisions: {heads}"

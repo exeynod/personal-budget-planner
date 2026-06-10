@@ -9,8 +9,11 @@ Three public functions:
 - format_today_for_bot: wraps actuals_for_today with nested category names (bot /today).
 
 Cross-imports:
-- actual.create_actual, actual.compute_balance, actual.actuals_for_today,
-  actual.find_categories_by_query.
+- actual.create_actual_v10 (v1.2 balance-fix: бот-транзакции садятся на
+  primary-счёт и двигают его баланс), actual.compute_balance,
+  actual.actuals_for_today, actual.find_categories_by_query.
+- accounts.get_primary_account (резолв primary-счёта; нет primary →
+  account_id=None, как раньше).
 - categories.get_or_404 (explicit category_id path).
 - periods.get_current_active_period (for format_balance_for_bot).
 
@@ -19,7 +22,7 @@ D-46 disambiguation flow:
     category_query        → find_categories_by_query → candidates
     0 candidates  → {status: not_found}
     >1 candidates → {status: ambiguous, candidates: [...]}
-    1 candidate   → create_actual → compute category balance → {status: created}
+    1 candidate   → create_actual_v10 (primary account) → compute category balance → {status: created}
 
 Phase 11 (Plan 11-06): bot endpoints используют X-Internal-Token, не Telegram
 initData. ``get_db_with_tenant_scope`` (route-level) недоступен — service сам
@@ -29,6 +32,7 @@ initData. ``get_db_with_tenant_scope`` (route-level) недоступен — se
 UserNotFoundForBot raises if AppUser row не найдена для данного tg_user_id —
 route → 404 (для bot client это маркер "юзер не зарегистрирован, нужен /start").
 """
+
 from datetime import date
 from typing import Optional
 
@@ -46,6 +50,7 @@ from app.db.models import (
 )
 from app.db.session import set_tenant_scope
 from app.services import actual as actual_svc
+from app.services.accounts import get_primary_account
 from app.services import categories as cat_svc
 from app.services import periods as periods_svc
 from app.services.planned import InvalidCategoryError, PeriodNotFoundError
@@ -65,9 +70,7 @@ class UserNotFoundForBot(Exception):
         super().__init__(f"AppUser not found for tg_user_id={tg_user_id}")
 
 
-async def _resolve_user_id_and_set_scope(
-    db: AsyncSession, tg_user_id: int
-) -> int:
+async def _resolve_user_id_and_set_scope(db: AsyncSession, tg_user_id: int) -> int:
     """Резолвит user_id (PK) из tg_user_id и устанавливает tenant scope.
 
     Bot-pathway equivalent of FastAPI ``get_db_with_tenant_scope`` dep:
@@ -110,9 +113,7 @@ async def _category_balance(
         PlannedTransaction.category_id == category_id,
         PlannedTransaction.kind == CategoryKind(kind),
     )
-    actual_q = select(
-        func.coalesce(func.sum(ActualTransaction.amount_cents), 0)
-    ).where(
+    actual_q = select(func.coalesce(func.sum(ActualTransaction.amount_cents), 0)).where(
         ActualTransaction.user_id == user_id,
         ActualTransaction.period_id == period_id,
         ActualTransaction.category_id == category_id,
@@ -195,8 +196,7 @@ async def process_bot_actual(
         return {
             "status": "ambiguous",
             "candidates": [
-                {"id": c.id, "name": c.name, "kind": c.kind.value}
-                for c in candidates
+                {"id": c.id, "name": c.name, "kind": c.kind.value} for c in candidates
             ],
         }
 
@@ -204,7 +204,15 @@ async def process_bot_actual(
     cat = candidates[0]
     resolved_tx_date = tx_date or _today_in_app_tz()
 
-    actual_row = await actual_svc.create_actual(
+    # v1.2 balance-fix: бот-транзакции идут через create_actual_v10 и
+    # привязываются к primary-счёту пользователя, чтобы трата/доход из бота
+    # двигали баланс счёта так же, как из Mini App (раньше legacy
+    # create_actual создавал строку без account_id — счёт не менялся).
+    # Нет primary-счёта → поведение как раньше: account_id=None, баланс
+    # счёта не трогаем.
+    primary = await get_primary_account(db, user_id=user_id)
+
+    actual_row, _child = await actual_svc.create_actual_v10(
         db,
         user_id=user_id,
         kind=kind,
@@ -213,6 +221,7 @@ async def process_bot_actual(
         category_id=cat.id,
         tx_date=resolved_tx_date,
         source=ActualSource.bot,
+        account_id=primary.id if primary is not None else None,
     )
 
     # Step 4: compute category-specific balance for the reply message.
@@ -309,12 +318,8 @@ async def format_today_for_bot(db: AsyncSession, *, tg_user_id: int) -> dict:
             }
         )
 
-    total_expense = sum(
-        r.amount_cents for r in rows if r.kind == CategoryKind.expense
-    )
-    total_income = sum(
-        r.amount_cents for r in rows if r.kind == CategoryKind.income
-    )
+    total_expense = sum(r.amount_cents for r in rows if r.kind == CategoryKind.expense)
+    total_income = sum(r.amount_cents for r in rows if r.kind == CategoryKind.income)
 
     return {
         "actuals": actuals_out,

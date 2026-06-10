@@ -26,7 +26,7 @@ Idempotency: повторный запуск в тот же день — no-op (
 from datetime import datetime, timezone
 
 import structlog
-from sqlalchemy import delete, select, text
+from sqlalchemy import delete, select, text, update
 
 from sqlalchemy.orm import selectinload
 
@@ -210,6 +210,21 @@ async def _close_period_for_user(session, *, user_id: int) -> None:
     expired.status = PeriodStatus.closed
     expired.ending_balance_cents = ending_balance
     expired.closed_at = datetime.now(timezone.utc)
+
+    # Step 5b (recurring-payments fix): новый период — флаг «проведена в этом
+    # периоде» сбрасывается. ``subscription.posted_txn_id`` — informational
+    # mirror of the occurrence-level ``planned.posted_txn_id`` (единый путь
+    # проводки); без сброса legacy-fallback в ``post_subscription`` отдавал бы
+    # вечный 409 после первой проводки. Сам actual_transaction не трогаем —
+    # FK ON DELETE SET NULL здесь ни при чём, это просто снятие ссылки.
+    await session.execute(
+        update(Subscription)
+        .where(
+            Subscription.user_id == user_id,
+            Subscription.posted_txn_id.is_not(None),
+        )
+        .values(posted_txn_id=None)
+    )
 
     # Step 6 (v1.1): apply the plan template to the new period — copies
     # plan_template_item → period_category_plan and plan_template_line →

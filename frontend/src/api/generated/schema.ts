@@ -118,6 +118,12 @@ export interface paths {
          *
          *     Returns the deleted row so callers can confirm what was removed.
          *
+         *     v1.2 balance-fix: всегда идёт через ``delete_actual_v10`` — он
+         *     восстанавливает баланс счёта (``-signed_delta`` по каждой удаляемой
+         *     строке) и корректен и для строк без ``account_id`` (legacy/bot rows —
+         *     no-op по балансу). Legacy ``delete_actual`` (без restore) роутом больше
+         *     не используется.
+         *
          *     Status codes:
          *         200: deleted (returns deleted row state)
          *         404: actual row does not exist
@@ -131,6 +137,11 @@ export interface paths {
          *
          *     ACT-05: if ``tx_date`` is provided in the patch body, the service
          *     re-resolves ``period_id`` for the new date (D-52 auto-create included).
+         *
+         *     v1.2 balance-fix: если строка привязана к счёту и патч меняет
+         *     ``amount_cents``/``kind``, сервис корректирует баланс счёта на
+         *     ``signed_delta(new) − signed_delta(old)``. ``account_id`` через PATCH
+         *     не меняется (нет в ``ActualUpdate``).
          *
          *     Status codes:
          *         200: updated

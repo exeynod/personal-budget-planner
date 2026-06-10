@@ -14,17 +14,22 @@ Atomicity guarantees (T-26-01-04):
 3. Loop over requested IDs; if ANY is missing from the bulk-fetch result,
    raise ``CategoryNotInTenantError`` immediately — no mutations applied.
 4. Apply ``plan_cents`` to each ORM row in-memory; flush + refresh.
+5. Mirror the new expense limits into ``period_category_plan`` rows of the
+   CURRENT ACTIVE period (update-only) so ``compute_balance`` sees the new
+   limit immediately after a rollover materialised pcp rows.
 
 The route layer wraps the service call in a transaction (``db.commit()`` on
-success, automatic rollback on exception) so steps 1-4 either all persist
+success, automatic rollback on exception) so steps 1-5 either all persist
 or none do.
 """
+
 from __future__ import annotations
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models import AppUser, Category, CategoryKind
+from app.db.models import AppUser, Category, CategoryKind, PeriodCategoryPlan
+from app.services.periods import get_current_active_period
 
 
 class PlanOverflowError(Exception):
@@ -39,9 +44,7 @@ class PlanOverflowError(Exception):
     def __init__(self, income_cents: int, sum_plan_cents: int) -> None:
         self.income_cents = income_cents
         self.sum_plan_cents = sum_plan_cents
-        super().__init__(
-            f"Σplan ({sum_plan_cents}) exceeds income ({income_cents})"
-        )
+        super().__init__(f"Σplan ({sum_plan_cents}) exceeds income ({income_cents})")
 
 
 class IncomeLimitForbiddenError(Exception):
@@ -83,6 +86,11 @@ async def update_plan_month_atomic(
     plans: list[tuple[int, int]],
 ) -> list[Category]:
     """Apply ``plan_cents`` to each ``(category_id, plan_cents)`` tuple.
+
+    Side effect (limits single-source fix): expense limits are also mirrored
+    into existing ``period_category_plan`` rows of the user's CURRENT ACTIVE
+    period (update-only, no row creation — see step 6 below), so
+    ``compute_balance`` reflects the new limit immediately after a rollover.
 
     Args:
         db: AsyncSession (already tenant-scoped via SET LOCAL by the route).
@@ -139,9 +147,7 @@ async def update_plan_month_atomic(
     #    income IS NULL — legacy user предан onboarding-edit redirect by
     #    frontend, не блокируется). Income categories carry no plan so they
     #    are excluded from the sum entirely.
-    income = await db.scalar(
-        select(AppUser.income_cents).where(AppUser.id == user_id)
-    )
+    income = await db.scalar(select(AppUser.income_cents).where(AppUser.id == user_id))
     sum_plan = sum(p[1] for p in expense_plans)
     if income is not None and sum_plan > income:
         raise PlanOverflowError(income, sum_plan)
@@ -150,6 +156,47 @@ async def update_plan_month_atomic(
     #    the new values.
     for cid, pcents in expense_plans:
         cats_by_id[cid].plan_cents = pcents
+
+    # 6. Single source of limits: mirror the new expense limits into
+    #    ``period_category_plan`` (pcp) rows of the CURRENT ACTIVE period.
+    #
+    #    Why: ``compute_balance`` resolves a category limit as
+    #    ``pcp_map.get(cat_id, Category.plan_cents or 0)`` — the fallback to
+    #    ``Category.plan_cents`` is PER CATEGORY. After a rollover,
+    #    ``apply_template_to_period`` materialises pcp rows, so editing
+    #    ``Category.plan_cents`` alone would stay invisible to the home/balance
+    #    deltas until the period ends.
+    #
+    #    UPDATE-only semantics (deliberate):
+    #      * pcp row exists → update ``limit_cents`` to the new value;
+    #      * pcp row missing → do NOT create one. The per-category fallback
+    #        already serves the fresh ``Category.plan_cents``, and inserting a
+    #        row into a period that has no pcp rows yet would flip
+    #        ``apply_template_to_period``'s idempotency check («any pcp row
+    #        exists for the period») into a false no-op.
+    if expense_plans:
+        period = await get_current_active_period(db, user_id=user_id)
+        if period is not None:
+            pcp_rows = (
+                (
+                    await db.execute(
+                        select(PeriodCategoryPlan).where(
+                            PeriodCategoryPlan.user_id == user_id,
+                            PeriodCategoryPlan.period_id == period.id,
+                            PeriodCategoryPlan.category_id.in_(
+                                [cid for cid, _ in expense_plans]
+                            ),
+                        )
+                    )
+                )
+                .scalars()
+                .all()
+            )
+            pcp_by_cat = {r.category_id: r for r in pcp_rows}
+            for cid, pcents in expense_plans:
+                pcp = pcp_by_cat.get(cid)
+                if pcp is not None:
+                    pcp.limit_cents = pcents
 
     await db.flush()
     # Stable order: insertion order from the request body — frontend can

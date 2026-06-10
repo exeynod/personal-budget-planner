@@ -345,7 +345,8 @@ async def test_post_actual_with_account_id_triggers_v10_path(
     assert body["parent_txn_id"] is None  # parent has no parent
 
     # v1.1: roundup removed — balance delta is just the parent amount.
-    expected_balance = seed["initial_balance_cents"] + amount
+    # v1.2 balance-fix: expense DECREASES the account (signed_delta from kind).
+    expected_balance = seed["initial_balance_cents"] - amount
 
     accounts = (await client.get("/api/v1/accounts", headers=auth_headers)).json()
     acct = next(a for a in accounts if a["id"] == seed["account_id"])

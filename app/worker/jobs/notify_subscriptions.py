@@ -1,10 +1,22 @@
-"""notify_subscriptions worker job — SUB-03 (D-78, D-79).
+"""notify_subscriptions worker job — SUB-03 (D-78, D-79) / ADR-0007.
 
 Runs daily at 09:00 Europe/Moscow via APScheduler (main_worker.py).
 
+ADR-0007: напоминания считаются по **материализованным** occurrence-строкам
+``planned_transaction(source=subscription_auto)``, а не по курсору
+``subscription.next_charge_date``. Курсор сдвигается на следующий период уже
+в момент материализации (rollover в close_period), поэтому матчинг по курсору
+никогда не срабатывал — push'и не уходили. Предикат due:
+``planned_date - notify_days_before == today`` для непроведённых
+(``posted_txn_id IS NULL``) строк активных подписок. ``notify_days_before=0``
+→ напоминание в день списания. Дедупликация — как и раньше — арифметическая:
+предикат совпадает ровно в один календарный день на occurrence, джоба идёт
+раз в день → максимум один push на occurrence (после «Перенести» дата меняется
+и напоминание может прийти повторно для новой даты — это желаемое поведение).
+
 Phase 11 (Plan 11-06): per-tenant iteration. Outer session получает список
 active users с tg_chat_id IS NOT NULL (без чата некуда push'ить); для каждого
-ставится tenant scope, выбираются due subscriptions, и push отправляются с
+ставится tenant scope, выбираются due occurrences, и push отправляются с
 user.tg_chat_id. Bot session — глобальная (один Bot инстанс на всех юзеров;
 chat_id per user).
 
@@ -13,7 +25,8 @@ Behaviour:
     2. Outer session: SELECT users WHERE role IN ('owner','member') AND
        tg_chat_id IS NOT NULL — список (id, tg_chat_id).
     3. Per-user inside the same outer transaction: для каждого юзера ставим
-       set_tenant_scope, fetch due subscriptions, отправляем push'и.
+       set_tenant_scope, fetch due occurrences (join subscription), отправляем
+       push'и.
     4. Bot HTTP session открывается lazily (если есть кому слать) и закрывается
        в finally.
 
@@ -31,7 +44,13 @@ from aiogram import Bot
 from sqlalchemy import select, text
 
 from app.core.settings import settings
-from app.db.models import AppUser, Subscription, UserRole
+from app.db.models import (
+    AppUser,
+    PlannedTransaction,
+    PlanSource,
+    Subscription,
+    UserRole,
+)
 from app.db.session import AsyncSessionLocal, set_tenant_scope
 from app.services.periods import _today_in_app_tz
 
@@ -55,11 +74,15 @@ def _format_amount_rub(cents: int) -> str:
 
 
 async def notify_subscriptions_job() -> None:
-    """SUB-03: send push notifications for subscriptions due in notify_days_before days.
+    """SUB-03 / ADR-0007: push reminders for materialised recurring occurrences.
+
+    Source of truth — unposted ``planned_transaction(source=subscription_auto)``
+    rows: a reminder is due when ``planned_date - notify_days_before == today``
+    (per-subscription ``notify_days_before``; 0 → reminder on the charge day).
 
     Phase 11: per-tenant iteration. Advisory lock — global (one per job).
-    Idempotent: повторные запуски в тот же день — no-op (notify_days_before
-    matches только конкретные subscriptions).
+    Idempotent: повторные запуски в тот же день — no-op (предикат по дате
+    совпадает максимум один день на occurrence).
     """
     bot: Bot | None = None
     today: date = _today_in_app_tz()
@@ -106,31 +129,38 @@ async def notify_subscriptions_job() -> None:
                     try:
                         await set_tenant_scope(db, user.id)
 
-                        # F6: push the due-date predicate into SQL. The Python
-                        # filter was ``(next_charge_date - today).days ==
-                        # notify_days_before`` — equivalently
+                        # ADR-0007: the due predicate runs against the
+                        # MATERIALISED occurrences (planned_transaction with
+                        # source=subscription_auto), not the subscription
+                        # cursor — the cursor is advanced to the NEXT period
+                        # at materialisation time (close_period rollover), so
                         # ``next_charge_date - notify_days_before == today``
-                        # (per-row notify_days_before, integer days). Expressed
-                        # SQL-side as a date arithmetic comparison so we only
-                        # fetch the rows actually due today instead of loading
-                        # every active subscription and filtering in Python.
+                        # would never match. Per-row notify_days_before comes
+                        # from the joined subscription (0 → due on the charge
+                        # day itself); posted occurrences are excluded.
                         due = (
-                            (
-                                await db.execute(
-                                    select(Subscription).where(
-                                        Subscription.user_id == user.id,
-                                        Subscription.is_active == True,  # noqa: E712
-                                        (
-                                            Subscription.next_charge_date
-                                            - Subscription.notify_days_before
-                                        )
-                                        == today,
+                            await db.execute(
+                                select(PlannedTransaction, Subscription)
+                                .join(
+                                    Subscription,
+                                    PlannedTransaction.subscription_id
+                                    == Subscription.id,
+                                )
+                                .where(
+                                    PlannedTransaction.user_id == user.id,
+                                    PlannedTransaction.source
+                                    == PlanSource.subscription_auto,
+                                    PlannedTransaction.posted_txn_id.is_(None),
+                                    PlannedTransaction.planned_date.is_not(None),
+                                    Subscription.is_active == True,  # noqa: E712
+                                    (
+                                        PlannedTransaction.planned_date
+                                        - Subscription.notify_days_before
                                     )
+                                    == today,
                                 )
                             )
-                            .scalars()
-                            .all()
-                        )
+                        ).all()
 
                         if not due:
                             logger.info(
@@ -144,12 +174,17 @@ async def notify_subscriptions_job() -> None:
                         if bot is None:
                             bot = Bot(token=settings.BOT_TOKEN)
 
-                        for sub in due:
+                        for planned, sub in due:
+                            when = (
+                                "сегодня"
+                                if sub.notify_days_before == 0
+                                else f"через {sub.notify_days_before} дн."
+                            )
                             text_msg = (
                                 f"\U0001f514 Подписка «{sub.name}»\n"
-                                f"   Спишется {_format_amount_rub(sub.amount_cents)} ₽ "
-                                f"через {sub.notify_days_before} дн. "
-                                f"({sub.next_charge_date.strftime('%d.%m')})"
+                                f"   Спишется {_format_amount_rub(planned.amount_cents)} ₽ "
+                                f"{when} "
+                                f"({planned.planned_date.strftime('%d.%m')})"
                             )
                             try:
                                 await bot.send_message(
@@ -160,6 +195,7 @@ async def notify_subscriptions_job() -> None:
                                     extra={
                                         "user_id": user.id,
                                         "sub_id": sub.id,
+                                        "planned_id": planned.id,
                                         "chat_id": user.tg_chat_id,
                                     },
                                 )
@@ -170,6 +206,7 @@ async def notify_subscriptions_job() -> None:
                                     extra={
                                         "user_id": user.id,
                                         "sub_id": sub.id,
+                                        "planned_id": planned.id,
                                     },
                                 )
                     except Exception:
