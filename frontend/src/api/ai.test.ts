@@ -5,12 +5,6 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-vi.mock('@telegram-apps/sdk-react', () => ({
-  retrieveLaunchParams: () => ({}),
-  retrieveRawLaunchParams: () => '',
-  openTelegramLink: () => undefined,
-}));
-
 import { streamChat, PRO_TIER_ERROR_MARKER } from './ai';
 import type { AiStreamEvent } from './types';
 

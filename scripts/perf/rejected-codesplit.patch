@@ -1,0 +1,389 @@
+diff --git a/frontend/src/screensV10/Home/HomeMount.tsx b/frontend/src/screensV10/Home/HomeMount.tsx
+index 10a7ffe..a97bfa8 100644
+--- a/frontend/src/screensV10/Home/HomeMount.tsx
++++ b/frontend/src/screensV10/Home/HomeMount.tsx
+@@ -13,7 +13,7 @@
+ // The mount layer is intentionally thin — all sort/filter/aggregate logic
+ // lives in pure functions in computeHomeData.ts (unit-tested separately).
+ 
+-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
++import { lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+ import {
+   listAccounts,
+   listCategoriesV10,
+@@ -43,10 +43,16 @@ import {
+   useSelectedPeriodOptional,
+   StatePlate,
+ } from '../common';
+-// Phase 26-02: real CategoryDetail replaces the prior WIP placeholder.
+-import { CategoryDetailMount } from '../CategoryDetail';
+-// Phase 26-04: real Plan editor replaces the prior WIP PlanViewPlaceholder.
+-import { PlanMount } from '../Plan';
++// Phase 26-02 / 26-04: CategoryDetail + Plan editors are pushed (not part of the
++// first Home paint), so they are lazy-loaded into their own chunks. They render
++// inside the NativeRouterView Suspense boundary (NativeShell), so no local
++// Suspense is needed at the push sites below.
++const CategoryDetailMount = lazy(() =>
++  import('../CategoryDetail').then((m) => ({ default: m.CategoryDetailMount })),
++);
++const PlanMount = lazy(() =>
++  import('../Plan').then((m) => ({ default: m.PlanMount })),
++);
+ import { NativeHomeView } from './NativeHomeView';
+ import {
+   computeCategoryAggregates,
+diff --git a/frontend/src/screensV10/Management/MgmtHubMount.tsx b/frontend/src/screensV10/Management/MgmtHubMount.tsx
+index 0cb92bb..a58331b 100644
+--- a/frontend/src/screensV10/Management/MgmtHubMount.tsx
++++ b/frontend/src/screensV10/Management/MgmtHubMount.tsx
+@@ -6,17 +6,33 @@
+ //     Default to false on error (fail-closed for «ДОСТУП» visibility).
+ //   - Row tap → router.push(<Mount />) for the corresponding section.
+ //
+-import { useEffect, useState } from 'react';
++import { lazy, useEffect, useState } from 'react';
+ import { getMeV10 } from '../../api/me';
+ import { usePosterRouter } from '../common';
+ import { usePlanningLaunchOptional } from '../native/PlanningLaunch';
+ import { NativeMgmtHubView, type MgmtRowId } from './NativeMgmtHubView';
+-import { SettingsMount } from './SettingsMount';
+-import { AccessMount } from './AccessMount';
+-import { CategoriesMount } from './CategoriesMount';
+-import { TemplateMount } from './TemplateMount';
+-import { AnalyticsMount } from '../Analytics';
+-import { RecurringCashflowMount } from '../Recurring';
++
++// Hub detail screens are pushed (not rendered until a row tap), so each is split
++// into its own lazy chunk. They are pushed into the main NativeRouterView, whose
++// Suspense boundary (NativeShell) covers their chunk load — no local Suspense here.
++const SettingsMount = lazy(() =>
++  import('./SettingsMount').then((m) => ({ default: m.SettingsMount })),
++);
++const AccessMount = lazy(() =>
++  import('./AccessMount').then((m) => ({ default: m.AccessMount })),
++);
++const CategoriesMount = lazy(() =>
++  import('./CategoriesMount').then((m) => ({ default: m.CategoriesMount })),
++);
++const TemplateMount = lazy(() =>
++  import('./TemplateMount').then((m) => ({ default: m.TemplateMount })),
++);
++const AnalyticsMount = lazy(() =>
++  import('../Analytics').then((m) => ({ default: m.AnalyticsMount })),
++);
++const RecurringCashflowMount = lazy(() =>
++  import('../Recurring').then((m) => ({ default: m.RecurringCashflowMount })),
++);
+ 
+ export function MgmtHubMount() {
+   const router = usePosterRouter();
+diff --git a/frontend/src/screensV10/Management/TemplateMount.tsx b/frontend/src/screensV10/Management/TemplateMount.tsx
+index 863809b..f30fe3e 100644
+--- a/frontend/src/screensV10/Management/TemplateMount.tsx
++++ b/frontend/src/screensV10/Management/TemplateMount.tsx
+@@ -11,7 +11,7 @@
+ //   - getTemplateItems()   → per-category template limits  (summary)
+ //   - getTemplateLines()   → recurring template lines       (Σ summary)
+ 
+-import { useCallback, useEffect, useRef, useState } from 'react';
++import { lazy, useCallback, useEffect, useRef, useState } from 'react';
+ import { listCategoriesV10, type CategoryV10 } from '../../api/v10';
+ import {
+   getTemplateItems,
+@@ -20,8 +20,18 @@ import {
+   type TemplateLineRead,
+ } from '../../api/template';
+ import { usePosterRouter } from '../common';
+-import { NativeTemplateView, type TemplateViewProps } from './NativeTemplateView';
+-import { TemplateCategoryDetailMount } from './TemplateCategoryDetailMount';
++import {
++  NativeTemplateView,
++  type TemplateViewProps,
++} from './NativeTemplateView';
++
++// Per-category drill-down is pushed into the same router this screen lives in
++// (always behind a Suspense boundary), so it is lazy-loaded into its own chunk.
++const TemplateCategoryDetailMount = lazy(() =>
++  import('./TemplateCategoryDetailMount').then((m) => ({
++    default: m.TemplateCategoryDetailMount,
++  })),
++);
+ 
+ export function TemplateMount() {
+   const router = usePosterRouter();
+diff --git a/frontend/src/screensV10/Plan/PlanMount.tsx b/frontend/src/screensV10/Plan/PlanMount.tsx
+index 8f968cd..5e1dca4 100644
+--- a/frontend/src/screensV10/Plan/PlanMount.tsx
++++ b/frontend/src/screensV10/Plan/PlanMount.tsx
+@@ -19,7 +19,7 @@
+ // ADR-0007: the «сохранить план как шаблон» overwrite action was removed (the
+ // backend save-current route is gone); the template is edited only directly.
+ 
+-import { useCallback, useEffect, useMemo, useState } from 'react';
++import { lazy, useCallback, useEffect, useMemo, useState } from 'react';
+ import {
+   StatePlate,
+   usePosterRouter,
+@@ -33,10 +33,22 @@ import {
+   type PlannedV11Read,
+ } from '../../api/v10';
+ import { getCurrentPeriod } from '../../api/periods';
+-import { TemplateMount } from '../Management/TemplateMount';
+ import type { PlanMonthItem } from '../../api/types';
+ import { NativePlanView } from './NativePlanView';
+-import { PlanCategoryDetailMount } from './PlanCategoryDetailMount';
++
++// Drill-down + template screens are pushed into the same router PlanMount lives
++// in (the main NativeRouterView, or the PlanningGate's own router — both provide
++// a Suspense boundary), so they are lazy-loaded into separate chunks here.
++const TemplateMount = lazy(() =>
++  import('../Management/TemplateMount').then((m) => ({
++    default: m.TemplateMount,
++  })),
++);
++const PlanCategoryDetailMount = lazy(() =>
++  import('./PlanCategoryDetailMount').then((m) => ({
++    default: m.PlanCategoryDetailMount,
++  })),
++);
+ import {
+   computeDistributeProgress,
+   computeIsOverflow,
+diff --git a/frontend/src/screensV10/Planning/PlanningGate.tsx b/frontend/src/screensV10/Planning/PlanningGate.tsx
+index 5c7281f..0b9d573 100644
+--- a/frontend/src/screensV10/Planning/PlanningGate.tsx
++++ b/frontend/src/screensV10/Planning/PlanningGate.tsx
+@@ -22,7 +22,14 @@
+ //   - 'manual' : closeable (the period may already be planned); «Готово» is
+ //                still confirm-plan (idempotent).
+ 
+-import { useCallback, useEffect, useMemo, useState } from 'react';
++import {
++  lazy,
++  Suspense,
++  useCallback,
++  useEffect,
++  useMemo,
++  useState,
++} from 'react';
+ import { X, CaretRight } from '@phosphor-icons/react';
+ import {
+   PosterRouterProvider,
+@@ -31,14 +38,20 @@ import {
+   useRefetchToken,
+   useSelectedPeriodOptional,
+ } from '../common';
+-import {
+-  SectionHeader,
+-  InsetGroup,
+-} from '../native/NativePrimitives';
++import { SectionHeader, InsetGroup } from '../native/NativePrimitives';
+ import { formatMoneyRubNative } from '../native/money';
+ import { RecurringDuePrompt } from '../Recurring/RecurringDuePrompt';
+-import { PlanMount } from '../Plan';
+-import { TemplateMount } from '../Management/TemplateMount';
++
++// The gate pushes the plan / template editors into its OWN router (below); they
++// are lazy-loaded into separate chunks and covered by the gate's Suspense.
++const PlanMount = lazy(() =>
++  import('../Plan').then((m) => ({ default: m.PlanMount })),
++);
++const TemplateMount = lazy(() =>
++  import('../Management/TemplateMount').then((m) => ({
++    default: m.TemplateMount,
++  })),
++);
+ import {
+   listCategoriesV10,
+   listPlanned,
+@@ -273,7 +286,10 @@ function PlanningGateBody({
+           </div>
+ 
+           {status === 'error' && (
+-            <div className={styles.errorBanner} data-testid="planning-gate-error">
++            <div
++              className={styles.errorBanner}
++              data-testid="planning-gate-error"
++            >
+               Не удалось загрузить данные. Можно всё равно нажать «Готово».
+             </div>
+           )}
+@@ -327,7 +343,8 @@ function PlanningGateBody({
+           </InsetGroup>
+           {planData.incomePlannedCents === 0 && (
+             <div className={styles.summaryHint}>
+-              Добавьте плановые доходы, чтобы видеть, сколько можно распределить.
++              Добавьте плановые доходы, чтобы видеть, сколько можно
++              распределить.
+             </div>
+           )}
+ 
+@@ -400,5 +417,13 @@ export function PlanningGate(props: PlanningGateProps) {
+ function PlanningGateRouterView() {
+   const { stack } = usePosterRouter();
+   const top = stack[stack.length - 1];
+-  return <div key={top.id}>{top.node}</div>;
++  // The gate body (root) is eager; pushed editors (PlanMount/TemplateMount) are
++  // lazy, so cover the stack top with a Suspense boundary.
++  return (
++    <div key={top.id}>
++      <Suspense fallback={<StatePlate variant="loading" />}>
++        {top.node}
++      </Suspense>
++    </div>
++  );
+ }
+diff --git a/frontend/src/screensV10/native/NativeShell.tsx b/frontend/src/screensV10/native/NativeShell.tsx
+index e7c3e1b..23df4fb 100644
+--- a/frontend/src/screensV10/native/NativeShell.tsx
++++ b/frontend/src/screensV10/native/NativeShell.tsx
+@@ -16,20 +16,17 @@
+ //   - pushed detail screens (CategoryDetail, Plan, Accounts, Settings…) use a
+ //     native nav bar with a back chevron (provided by each native view).
+ 
+-import { useCallback, useEffect, useState } from 'react';
++import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
+ import {
+   PosterRouterProvider,
+   PosterSheet,
+   RefetchTokenProvider,
+   SelectedPeriodProvider,
++  StatePlate,
+   usePosterRouter,
+ } from '../common';
+ import { OnboardingMount } from '../Onboarding/OnboardingMount';
+-import { NativeAddSheet } from '../AddSheet';
+-import { MgmtHubMount } from '../Management';
+-import { AiMount } from '../Ai';
+-import { TransactionsMount } from '../Transactions';
+-import { PlanningGate, type PlanningGateMode } from '../Planning';
++import type { PlanningGateMode } from '../Planning';
+ import { NativeTabBar, type NativeTabId } from './NativeTabBar';
+ import { ShellVariantProvider } from './ShellVariant';
+ import {
+@@ -43,6 +40,35 @@ import { getHome, isHomeBootstrap } from '../../api/home';
+ import { NavLevelProvider } from './NavLevel';
+ import styles from './NativeShell.module.css';
+ 
++// ─────────────────── Lazy screens (route-level code-splitting) ───────────────────
++//
++// Only HomeMount (rendered eagerly inside OnboardingMount, the router root) stays
++// in the critical chunk. Every other screen is split into its own lazy chunk and
++// loaded on first navigation, behind the <ScreenSkeleton/> Suspense fallback below.
++// Barrel exports are named, so each lazy() maps the named export to `default`.
++const TransactionsMount = lazy(() =>
++  import('../Transactions').then((m) => ({ default: m.TransactionsMount })),
++);
++const AiMount = lazy(() =>
++  import('../Ai').then((m) => ({ default: m.AiMount })),
++);
++const MgmtHubMount = lazy(() =>
++  import('../Management').then((m) => ({ default: m.MgmtHubMount })),
++);
++const PlanningGate = lazy(() =>
++  import('../Planning').then((m) => ({ default: m.PlanningGate })),
++);
++const NativeAddSheet = lazy(() =>
++  import('../AddSheet').then((m) => ({ default: m.NativeAddSheet })),
++);
++
++// Shared Suspense fallback for pushed/lazy screens — reuses the existing native
++// loading plate (same visual the Mounts show while fetching their own data, so a
++// chunk-load delay is indistinguishable from a data-load delay).
++function ScreenSkeleton() {
++  return <StatePlate variant="loading" testId="screen-skeleton" />;
++}
++
+ // ─────────────────── Router view (native push animation) ───────────────────
+ 
+ function NativeRouterView() {
+@@ -52,7 +78,9 @@ function NativeRouterView() {
+     direction === 'forward' ? styles.slideFwd : styles.slideBack;
+   return (
+     <div key={top.id} className={`${styles.viewWrap} ${animClass}`}>
+-      {top.node}
++      {/* One Suspense boundary covers every lazy screen pushed into this
++          router-view (tabs + Home-pushed detail screens + the Onboarding root). */}
++      <Suspense fallback={<ScreenSkeleton />}>{top.node}</Suspense>
+     </div>
+   );
+ }
+@@ -215,11 +243,13 @@ export function NativeShell() {
+               openEditSheet={openEditSheet}
+             >
+               {gated ? (
+-                <PlanningGate
+-                  mode={'gate' satisfies PlanningGateMode}
+-                  period={gatePeriod}
+-                  onDone={liftGate}
+-                />
++                <Suspense fallback={<ScreenSkeleton />}>
++                  <PlanningGate
++                    mode={'gate' satisfies PlanningGateMode}
++                    period={gatePeriod}
++                    onDone={liftGate}
++                  />
++                </Suspense>
+               ) : (
+                 <>
+                   <PosterRouterProvider root={<OnboardingMount />}>
+@@ -237,32 +267,39 @@ export function NativeShell() {
+                     onClose={closeSheet}
+                     backgroundColor="#F2F2F7"
+                   >
+-                    <NativeAddSheet
+-                      mode={addMode}
+-                      initialCategoryId={addCategoryId}
+-                      kind={addKind}
+-                      editActual={editActual}
+-                      onSubmitted={() => {
+-                        setAddOpen(false);
+-                        setRefetchToken((t) => t + 1);
+-                      }}
+-                      onClose={closeSheet}
+-                    />
++                    {/* AddSheet is its own lazy chunk, fetched on first «+».
++                        fallback=null: the overlay backdrop is already up, so the
++                        brief chunk fetch shows nothing rather than a placeholder. */}
++                    <Suspense fallback={null}>
++                      <NativeAddSheet
++                        mode={addMode}
++                        initialCategoryId={addCategoryId}
++                        kind={addKind}
++                        editActual={editActual}
++                        onSubmitted={() => {
++                          setAddOpen(false);
++                          setRefetchToken((t) => t + 1);
++                        }}
++                        onClose={closeSheet}
++                      />
++                    </Suspense>
+                   </PosterSheet>
+ 
+                   {/* Manual launch (Management hub «Спланировать») — the SAME
+                       gate in closeable mode, overlaid on the normal shell. */}
+                   {manualOpen && (
+                     <div className={styles.manualGateOverlay}>
+-                      <PlanningGate
+-                        mode={'manual' satisfies PlanningGateMode}
+-                        period={gatePeriod}
+-                        onDone={() => {
+-                          closeManualPlanning();
+-                          setRefetchToken((t) => t + 1);
+-                        }}
+-                        onClose={closeManualPlanning}
+-                      />
++                      <Suspense fallback={<ScreenSkeleton />}>
++                        <PlanningGate
++                          mode={'manual' satisfies PlanningGateMode}
++                          period={gatePeriod}
++                          onDone={() => {
++                            closeManualPlanning();
++                            setRefetchToken((t) => t + 1);
++                          }}
++                          onClose={closeManualPlanning}
++                        />
++                      </Suspense>
+                     </div>
+                   )}
+                 </>

@@ -1,17 +1,10 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { init } from '@telegram-apps/sdk-react';
 import { setupSafeArea, expandWebApp } from './utils/safeArea';
 
-// Initialise Telegram SDK (best-effort — tolerate missing/altered API surface
-// or running outside Telegram during browser dev).
-try {
-  init();
-} catch {
-  // SDK init throws if not running inside Telegram (e.g. plain browser dev).
-  // Frontend gracefully falls back to window.Telegram.WebApp via api/client.ts
-  // (or, in DEV_MODE, the backend ignores the header content entirely).
-}
+// No Telegram SDK init: initData is read natively from window.Telegram.WebApp /
+// the launch URL hash in api/client.ts (getInitDataRaw), so the heavy
+// @telegram-apps/sdk-react (+valibot ≈179KB) was dropped from the boot path.
 
 // Tell Telegram WebApp we're ready (if running inside Telegram).
 if (typeof window !== 'undefined' && window.Telegram?.WebApp?.ready) {
