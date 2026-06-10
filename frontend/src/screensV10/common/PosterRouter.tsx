@@ -16,6 +16,7 @@
 import {
   createContext,
   useContext,
+  useEffect,
   useMemo,
   useReducer,
   type ReactNode,
@@ -89,6 +90,43 @@ export interface PosterRouterAPI {
 
 const RouterCtx = createContext<PosterRouterAPI | null>(null);
 
+/**
+ * Telegram WebApp `BackButton` handle, or `null` outside Telegram (browser /
+ * jsdom / tests) — every caller no-ops gracefully there (mirrors the optional
+ * access in `api/client.ts` / `utils/safeArea.ts`).
+ */
+function tgBackButton(): {
+  show: () => void;
+  hide: () => void;
+  onClick: (cb: () => void) => void;
+  offClick: (cb: () => void) => void;
+} | null {
+  if (typeof window === 'undefined') return null;
+  return window.Telegram?.WebApp?.BackButton ?? null;
+}
+
+/**
+ * Sync the Telegram `BackButton` to the router stack: visible whenever a pop is
+ * possible, its tap pops one level. Re-registers the handler whenever `pop` or
+ * `canPop` changes and tears the registration + visibility down on unmount, so
+ * the hardware/native back chevron drives the SAME navigation as the in-view
+ * chevrons. No-op outside Telegram.
+ */
+function useTelegramBackButton(canPop: boolean, pop: () => void): void {
+  useEffect(() => {
+    const bb = tgBackButton();
+    if (!bb) return;
+    const onClick = () => pop();
+    bb.onClick(onClick);
+    if (canPop) bb.show();
+    else bb.hide();
+    return () => {
+      bb.offClick(onClick);
+      bb.hide();
+    };
+  }, [canPop, pop]);
+}
+
 export interface PosterRouterProviderProps {
   /** Bottom-of-stack root node (HomeView in V10MainShell). */
   root: ReactNode;
@@ -100,7 +138,10 @@ export interface PosterRouterProviderProps {
   children?: ReactNode;
 }
 
-export function PosterRouterProvider({ root, children }: PosterRouterProviderProps) {
+export function PosterRouterProvider({
+  root,
+  children,
+}: PosterRouterProviderProps) {
   const [state, dispatch] = useReducer(reducer, undefined, () => ({
     stack: [{ id: 0, node: root } satisfies PosterStackEntry],
     direction: 'forward' as const,
@@ -116,8 +157,11 @@ export function PosterRouterProvider({ root, children }: PosterRouterProviderPro
       popToRoot: () => dispatch({ type: 'POP_TO_ROOT' }),
       canPop: state.stack.length > 1,
     }),
-    [state]
+    [state],
   );
+
+  // Drive the Telegram BackButton from the stack (no-op outside Telegram).
+  useTelegramBackButton(api.canPop, api.pop);
 
   return (
     <RouterCtx.Provider value={api}>
@@ -134,7 +178,9 @@ export function PosterRouterProvider({ root, children }: PosterRouterProviderPro
 export function usePosterRouter(): PosterRouterAPI {
   const ctx = useContext(RouterCtx);
   if (ctx === null) {
-    throw new Error('usePosterRouter must be used inside <PosterRouterProvider>');
+    throw new Error(
+      'usePosterRouter must be used inside <PosterRouterProvider>',
+    );
   }
   return ctx;
 }

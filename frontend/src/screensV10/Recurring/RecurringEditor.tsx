@@ -21,6 +21,7 @@ import {
 import { NativeDatePicker } from '../native/NativeDatePicker';
 import { parseRublesToKopecks } from '../../utils/format';
 import { sanitizeMoneyInput } from '../../utils/parseMoney';
+import { centsToRublesInput } from '../native/money';
 import { useEnterToDismiss } from '../common/useEnterToDismiss';
 import type { CategoryV10, AccountResponse } from '../../api/v10';
 import type {
@@ -51,14 +52,6 @@ export interface RecurringEditorProps {
   onUpdate: (id: number, payload: RecurringUpdatePayload) => void;
   onDelete: (id: number) => void;
   onCancel: () => void;
-}
-
-function centsToRublesInput(cents: number): string {
-  const abs = Math.max(0, Math.trunc(cents));
-  if (abs === 0) return '';
-  const rub = Math.floor(abs / 100);
-  const kop = abs % 100;
-  return kop === 0 ? `${rub}` : `${rub},${kop.toString().padStart(2, '0')}`;
 }
 
 function clampInt(raw: string, min: number, max: number): number | null {
@@ -116,7 +109,12 @@ export function RecurringEditor({
     !busy;
 
   function submit() {
-    if (!canSubmit || amountCents == null || interval == null || nextDate == null)
+    if (
+      !canSubmit ||
+      amountCents == null ||
+      interval == null ||
+      nextDate == null
+    )
       return;
     if (isEdit && existing) {
       const payload: RecurringUpdatePayload = {
@@ -186,7 +184,9 @@ export function RecurringEditor({
                 className={styles.fieldInput}
                 placeholder="0"
                 value={amountRaw}
-                onChange={(e) => setAmountRaw(sanitizeMoneyInput(e.target.value))}
+                onChange={(e) =>
+                  setAmountRaw(sanitizeMoneyInput(e.target.value))
+                }
                 onKeyDown={submitOnEnter}
                 {...amountFocusScroll}
                 aria-label="Сумма платежа"
@@ -207,7 +207,9 @@ export function RecurringEditor({
                 placeholder="1"
                 value={intervalRaw}
                 onChange={(e) =>
-                  setIntervalRaw(e.target.value.replace(/[^0-9]/g, '').slice(0, 3))
+                  setIntervalRaw(
+                    e.target.value.replace(/[^0-9]/g, '').slice(0, 3),
+                  )
                 }
                 onKeyDown={submitOnEnter}
                 {...intervalFocusScroll}
@@ -254,7 +256,9 @@ export function RecurringEditor({
                 className={styles.fieldInput}
                 value={accountId ?? ''}
                 onChange={(e) =>
-                  setAccountId(e.target.value === '' ? null : Number(e.target.value))
+                  setAccountId(
+                    e.target.value === '' ? null : Number(e.target.value),
+                  )
                 }
                 aria-label="Счёт списания"
                 data-testid="recurring-account"

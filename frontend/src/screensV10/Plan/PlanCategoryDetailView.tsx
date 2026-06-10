@@ -31,7 +31,12 @@ import {
   useScrollIntoViewOnFocus,
 } from '../native/NativePrimitives';
 import { CategoryIcon } from '../native/CategoryIcon';
-import { formatMoneyNative, formatSignedMoneyNative } from '../native/money';
+import {
+  formatMoneyNative,
+  formatSignedMoneyNative,
+  centsToRublesInput,
+} from '../native/money';
+import { parseRublesToKopecksOr0 } from '../../utils/parseMoney';
 import { formatDay } from '../common/format';
 import {
   computeLadder,
@@ -66,26 +71,6 @@ export interface PlanCategoryDetailViewProps {
 function parseLocalDate(iso: string): Date {
   const [y, m, d] = iso.split('-').map(Number);
   return new Date(y, m - 1, d);
-}
-
-// ─────────── Inline rubles → cents parsing (mirrors the old overview input) ───────────
-function rublesInputToCents(raw: string): number {
-  const cleaned = raw
-    .replace(/[\s  ]/g, '')
-    .replace(',', '.')
-    .replace(/[^0-9.]/g, '');
-  if (cleaned === '' || cleaned === '.') return 0;
-  const rub = Number.parseFloat(cleaned);
-  if (!Number.isFinite(rub) || rub < 0) return 0;
-  return Math.round(rub * 100);
-}
-
-/** Cents → editable rubles string for the input value (no ₽, no grouping). */
-function centsToRublesInput(cents: number): string {
-  const abs = Math.max(0, Math.trunc(cents));
-  const rub = Math.floor(abs / 100);
-  const kop = abs % 100;
-  return kop === 0 ? `${rub}` : `${rub},${kop.toString().padStart(2, '0')}`;
 }
 
 // ─────────────────── Component ───────────────────
@@ -199,18 +184,23 @@ function PlanCategoryDetailViewInner(props: PlanCategoryDetailViewProps) {
                 type="text"
                 inputMode="decimal"
                 className={styles.limitInput}
-                defaultValue={centsToRublesInput(planCents)}
+                defaultValue={centsToRublesInput(planCents, {
+                  emptyOnZero: false,
+                })}
                 key={planCents}
                 onFocus={limitFocusScroll.onFocus}
                 onBlur={(e) => {
                   limitFocusScroll.onBlur();
-                  onLimitCommit(category.id, rublesInputToCents(e.target.value));
+                  onLimitCommit(
+                    category.id,
+                    parseRublesToKopecksOr0(e.target.value),
+                  );
                 }}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
                     onLimitCommit(
                       category.id,
-                      rublesInputToCents(e.currentTarget.value),
+                      parseRublesToKopecksOr0(e.currentTarget.value),
                     );
                     e.currentTarget.blur();
                   }

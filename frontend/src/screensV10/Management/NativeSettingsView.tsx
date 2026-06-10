@@ -26,6 +26,7 @@ import {
   useScrollIntoViewOnFocus,
 } from '../native/NativePrimitives';
 import { formatMoneyNative } from '../native/money';
+import { parseRublesToKopecksOr0 } from '../../utils/parseMoney';
 import { useEnterToDismiss } from '../common/useEnterToDismiss';
 import styles from './NativeSettingsView.module.css';
 
@@ -138,18 +139,6 @@ function Toggle({
   );
 }
 
-// rubles → cents (same semantics as NativePlanView / NativeTemplateView).
-function rublesInputToCents(raw: string): number {
-  const cleaned = raw
-    .replace(/[\s  ]/g, '')
-    .replace(',', '.')
-    .replace(/[^0-9.]/g, '');
-  if (cleaned === '' || cleaned === '.') return 0;
-  const rub = Number.parseFloat(cleaned);
-  if (!Number.isFinite(rub) || rub < 0) return 0;
-  return Math.round(rub * 100);
-}
-
 // «Привести остаток»: show the computed balance, let the owner enter their real
 // balance, and write a balancing adjustment via onReconcileBalance.
 function ReconcileSection({
@@ -162,7 +151,7 @@ function ReconcileSection({
   onReconcileBalance: (targetCents: number) => void;
 }) {
   const [input, setInput] = useState('');
-  const targetCents = rublesInputToCents(input);
+  const targetCents = parseRublesToKopecksOr0(input);
   const canSubmit = input.trim() !== '' && !reconciling;
 
   function handleSubmit() {

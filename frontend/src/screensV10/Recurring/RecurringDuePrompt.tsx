@@ -18,7 +18,7 @@ import {
 import { PosterSheet } from '../common';
 import { NativeDatePicker } from '../native/NativeDatePicker';
 import { CategoryIcon } from '../native/CategoryIcon';
-import { formatMoneyNative } from '../native/money';
+import { formatMoneyNative, centsToRublesInput } from '../native/money';
 import { parseRublesToKopecks } from '../../utils/format';
 import { sanitizeMoneyInput } from '../../utils/parseMoney';
 import type { CategoryV10, RecurringDueRow } from '../../api/v10';
@@ -38,14 +38,6 @@ export interface RecurringDuePromptProps {
   onSkip: (plannedId: number) => void;
   /** Postpone an occurrence to `newDate` (within the current period). */
   onPostpone: (plannedId: number, newDate: string) => void;
-}
-
-function centsToRublesInput(cents: number): string {
-  const abs = Math.max(0, Math.trunc(cents));
-  if (abs === 0) return '';
-  const rub = Math.floor(abs / 100);
-  const kop = abs % 100;
-  return kop === 0 ? `${rub}` : `${rub},${kop.toString().padStart(2, '0')}`;
 }
 
 export function RecurringDuePrompt({
@@ -73,7 +65,9 @@ export function RecurringDuePrompt({
   // «Сегодня» = planned_date === today; «Просрочено» = planned_date < today.
   // Rows without a date fall into «Сегодня» (defensive — backend filters to
   // due-today-or-overdue, so a null date is treated as actionable now).
-  const overdue = due.filter((r) => r.planned_date != null && r.planned_date < today);
+  const overdue = due.filter(
+    (r) => r.planned_date != null && r.planned_date < today,
+  );
   const todayRows = due.filter(
     (r) => r.planned_date == null || r.planned_date >= today,
   );
@@ -118,7 +112,11 @@ export function RecurringDuePrompt({
             Actions move to their OWN row below so the iPhone-width 3-column flex
             can no longer crush the name/amount (bug fix A). */}
         <div className={styles.rowTop}>
-          <CategoryIcon name={cat?.name ?? name} id={row.category_id} icon={cat?.icon} />
+          <CategoryIcon
+            name={cat?.name ?? name}
+            id={row.category_id}
+            icon={cat?.icon}
+          />
           <span className={styles.main}>
             <span className={styles.title}>{name}</span>
             <span className={styles.amount}>
@@ -167,7 +165,10 @@ export function RecurringDuePrompt({
 
       {overdue.length > 0 && (
         <>
-          <div className={styles.groupLabel} data-testid="recurring-due-overdue">
+          <div
+            className={styles.groupLabel}
+            data-testid="recurring-due-overdue"
+          >
             Просрочено
           </div>
           <InsetGroup>{overdue.map(renderRow)}</InsetGroup>
@@ -203,7 +204,9 @@ export function RecurringDuePrompt({
               inputMode="decimal"
               className={styles.fieldInput}
               value={payAmountRaw}
-              onChange={(e) => setPayAmountRaw(sanitizeMoneyInput(e.target.value))}
+              onChange={(e) =>
+                setPayAmountRaw(sanitizeMoneyInput(e.target.value))
+              }
               {...payAmountFocusScroll}
               aria-label="Сумма платежа"
               data-testid="recurring-pay-amount"

@@ -45,6 +45,48 @@ export function formatSignedMoneyNative(cents: number): string {
 }
 
 /** Convenience: amount + « ₽» suffix. */
+/** Options for {@link centsToRublesInput}. */
+export interface CentsToRublesInputOptions {
+  /**
+   * What an amount of `0` cents renders as in the editable field:
+   *   - `true`  (default) → `''` (empty input — used by Template/Recurring
+   *     editors where an empty field reads as «not set / will gate on save»).
+   *   - `false` → `'0'` (a literal zero — used by the Plan limit input, which
+   *     shows the persisted limit even when it is zero rather than blanking).
+   *
+   * Preserves the historical behaviour drift between the four call sites that
+   * previously each carried their own copy of this helper.
+   */
+  emptyOnZero?: boolean;
+}
+
+/**
+ * Convert integer cents into an EDITABLE rubles string for a text input —
+ * comma decimal, NO grouping, NO «₽» (unlike `formatMoneyNative`, which is for
+ * DISPLAY: grouped thousands + typographic minus).
+ *
+ * Negatives are clamped to `0` (money inputs never hold a sign). Kopecks show
+ * only when non-zero, zero-padded to two digits.
+ *
+ *  - centsToRublesInput(50_000_00)              → "50000"
+ *  - centsToRublesInput(1_155_54)               → "1155,54"
+ *  - centsToRublesInput(0)                      → "" (emptyOnZero default)
+ *  - centsToRublesInput(0, {emptyOnZero:false}) → "0"
+ *
+ * The inverse (rubles input → cents) is `parseRublesToKopecksOr0` in
+ * `utils/parseMoney.ts`.
+ */
+export function centsToRublesInput(
+  cents: number,
+  { emptyOnZero = true }: CentsToRublesInputOptions = {},
+): string {
+  const abs = Math.max(0, Math.trunc(cents));
+  if (abs === 0) return emptyOnZero ? '' : '0';
+  const rub = Math.floor(abs / 100);
+  const kop = abs % 100;
+  return kop === 0 ? `${rub}` : `${rub},${kop.toString().padStart(2, '0')}`;
+}
+
 export function formatMoneyRubNative(cents: number): string {
   return `${formatMoneyNative(cents)} ₽`;
 }

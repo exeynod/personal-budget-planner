@@ -29,9 +29,16 @@ import {
 } from '../native/NativePrimitives';
 import { PosterSheet } from '../common';
 import { CategoryIcon } from '../native/CategoryIcon';
-import { formatMoneyNative, formatSignedMoneyNative } from '../native/money';
+import {
+  formatMoneyNative,
+  formatSignedMoneyNative,
+  centsToRublesInput,
+} from '../native/money';
 import { parseRublesToKopecks } from '../../utils/format';
-import { sanitizeMoneyInput } from '../../utils/parseMoney';
+import {
+  sanitizeMoneyInput,
+  parseRublesToKopecksOr0,
+} from '../../utils/parseMoney';
 import { useEnterToDismiss } from '../common/useEnterToDismiss';
 import { RecurringEditor } from '../Recurring/RecurringEditor';
 import { scheduleLabel } from '../Recurring/recurringFormat';
@@ -93,23 +100,9 @@ export interface TemplateCategoryDetailViewProps {
   onBack: () => void;
 }
 
-// ─────────── Inline rubles ↔ cents helpers (mirror the plan detail) ───────────
-
-/** Cents → editable rubles string for an input (comma decimal, no grouping). */
-function centsToRublesInput(cents: number): string {
-  const abs = Math.max(0, Math.trunc(cents));
-  if (abs === 0) return '';
-  const rub = Math.floor(abs / 100);
-  const kop = abs % 100;
-  return kop === 0 ? `${rub}` : `${rub},${kop.toString().padStart(2, '0')}`;
-}
-
-/** Rubles input → cents (0 on empty/invalid; clamps negatives to 0). */
-function rublesInputToCents(raw: string): number {
-  const trimmed = raw.trim();
-  if (trimmed === '') return 0;
-  return parseRublesToKopecks(trimmed) ?? 0;
-}
+// Money I/O for the inline editors uses the shared helpers: `centsToRublesInput`
+// (native/money.ts) for the editable field value and `parseRublesToKopecksOr0`
+// (utils/parseMoney.ts) for the rubles→cents commit.
 
 // ─────────── Inline line editor (create + edit share this) ───────────
 //
@@ -322,7 +315,7 @@ function LimitEditor({
   }, [limitCents]);
 
   function commit() {
-    const next = rublesInputToCents(raw);
+    const next = parseRublesToKopecksOr0(raw);
     if (next !== limitCents) onCommit(category.id, next);
   }
 
@@ -356,7 +349,9 @@ function LimitEditor({
 
 // ─────────────────── Component ───────────────────
 
-function TemplateCategoryDetailViewInner(props: TemplateCategoryDetailViewProps) {
+function TemplateCategoryDetailViewInner(
+  props: TemplateCategoryDetailViewProps,
+) {
   const {
     category,
     limitCents,
@@ -610,7 +605,10 @@ function TemplateCategoryDetailViewInner(props: TemplateCategoryDetailViewProps)
       )}
 
       {recurring.length === 0 && !creatingRecurring ? (
-        <div className={styles.empty} data-testid="template-cat-recurring-empty">
+        <div
+          className={styles.empty}
+          data-testid="template-cat-recurring-empty"
+        >
           Регулярных платежей пока нет
         </div>
       ) : (
@@ -738,8 +736,8 @@ function TemplateCategoryDetailViewInner(props: TemplateCategoryDetailViewProps)
       )}
 
       <div className={styles.footnote}>
-        Эти операции добавляются в план каждого нового месяца на указанное число.
-        Текущий месяц не затрагивается.
+        Эти операции добавляются в план каждого нового месяца на указанное
+        число. Текущий месяц не затрагивается.
       </div>
     </div>
   );
