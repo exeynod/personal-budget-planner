@@ -20,7 +20,9 @@ Security:
 from contextlib import asynccontextmanager
 
 import structlog
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, status
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 from sqlalchemy import select
 
 from app.api.router import internal_router, public_router
@@ -144,6 +146,99 @@ app = FastAPI(
     docs_url="/api/docs" if settings.DEV_MODE else None,
     redoc_url=None,
 )
+
+
+# ---------------------------------------------------------------------------
+# Global exception handlers (Этап 3 WI-A)
+#
+# Goal: no unhandled exception ever leaks a traceback to the client. All three
+# handlers below produce a clean JSON body and log server-side. They sit
+# BELOW FastAPI's own ``HTTPException`` handling, so the 103 explicit
+# ``raise HTTPException`` call-sites keep their status codes / detail shapes
+# untouched (Starlette dispatches HTTPException to its dedicated handler,
+# which we do NOT override).
+# ---------------------------------------------------------------------------
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(
+    request: Request, exc: RequestValidationError
+) -> JSONResponse:
+    """422 for request-body / query / path validation failures.
+
+    Preserves FastAPI's default body shape ``{"detail": [<errors>]}`` — the
+    frontend (``frontend/src/api``) and the test-suite both read
+    ``resp.json()["detail"]`` and rely on this exact form (see e.g.
+    ``tests/api/test_plan_month_route.py``, ``tests/test_actual_crud.py``).
+    We only add a structured log line; the response is byte-compatible with
+    the framework default. ``jsonable_encoder`` mirrors FastAPI's own
+    serialization so ``ValueError`` payloads inside ``ctx`` stay JSON-safe.
+    """
+    from fastapi.encoders import jsonable_encoder
+
+    logger.info(
+        "api.validation_error",
+        path=request.url.path,
+        method=request.method,
+        error_count=len(exc.errors()),
+    )
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        content={"detail": jsonable_encoder(exc.errors())},
+    )
+
+
+@app.exception_handler(ValueError)
+async def value_error_handler(request: Request, exc: ValueError) -> JSONResponse:
+    """Domain ``ValueError`` → 422 instead of a 500.
+
+    Many service helpers raise plain ``ValueError`` for invalid domain input
+    (e.g. ``CategoryKind(<bad>)`` in ``app/services/actual.py`` /
+    ``categories.py``, the manual validators in
+    ``app/services/onboarding_v10.py``). Routes that already catch their own
+    ``ValueError`` (e.g. ``onboarding_v10.py`` → 422) are unaffected: this
+    net only fires for the ones that escape. ``HTTPException`` is a subclass
+    of ``Exception`` but NOT of ``ValueError``, so it never lands here and
+    keeps its own status code.
+
+    422 (not 500) is the right class: an escaped ``ValueError`` means the
+    request carried semantically invalid data the validators missed. The
+    message is surfaced (these are developer/domain messages, never secrets);
+    we log at warning with the traceback for observability.
+    """
+    logger.warning(
+        "api.value_error",
+        path=request.url.path,
+        method=request.method,
+        error=str(exc),
+        exc_info=True,
+    )
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        content={"detail": str(exc)},
+    )
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    """Last-resort 500 with a clean body — never leak a traceback.
+
+    Catches anything not handled by FastAPI's ``HTTPException`` handler, the
+    ``RequestValidationError`` handler, or the ``ValueError`` handler above.
+    The traceback goes to the structured log (``logging.exception`` semantics
+    via ``exc_info=True``); the client gets a fixed, non-revealing body.
+    """
+    logger.error(
+        "api.unhandled_exception",
+        path=request.url.path,
+        method=request.method,
+        exc_type=type(exc).__name__,
+        exc_info=True,
+    )
+    return JSONResponse(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        content={"detail": "Internal server error"},
+    )
 
 
 @app.get("/healthz", tags=["health"])

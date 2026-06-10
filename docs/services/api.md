@@ -31,6 +31,35 @@ dev-Bearer на iOS). Изоляция данных — PostgreSQL RLS по `use
   (роль `budget_app`, NOSUPERUSER NOBYPASSRLS — RLS реально работает в рантайме).
 - `docs_url=/api/docs` только при `DEV_MODE=true`, иначе отключён.
 
+## Глобальная обработка ошибок
+
+`main_api.py` регистрирует три глобальных `@app.exception_handler` (сетка
+безопасности под ~24 голыми `raise` в сервисах; HTTPException их НЕ касается —
+её обрабатывает сам FastAPI, поэтому 103 явных `raise HTTPException` сохраняют
+свои коды/`detail`):
+
+| Исключение               | Код | Тело ответа                                                                                                   | Лог-событие                                   |
+| ------------------------ | --- | ------------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
+| `RequestValidationError` | 422 | `{"detail": [<errors>]}` (форма FastAPI по умолчанию — фронт/тесты читают `resp.json()["detail"]` как список) | `api.validation_error` (info)                 |
+| `ValueError` (доменный)  | 422 | `{"detail": "<message>"}`                                                                                     | `api.value_error` (warning + traceback)       |
+| любой прочий `Exception` | 500 | `{"detail": "Internal server error"}` (traceback наружу НЕ утекает)                                           | `api.unhandled_exception` (error + traceback) |
+
+- **Форма 422 не переопределяется по сути** — хендлер отдаёт ту же структуру
+  (`detail` = список error-dict'ов с `loc/msg/type`), что и дефолт FastAPI, лишь
+  добавляя структурный лог. Контракт фронта/тестов сохранён.
+- **Доменный `ValueError` → 422 (не 500).** Покрывает escape'нувшие
+  `CategoryKind(<bad>)` (`app/services/actual.py`, `categories.py`) и ручные
+  валидаторы (`app/services/onboarding_v10.py`). Роуты, которые уже ловят
+  `ValueError` локально (напр. `onboarding_v10.py` → 422), работают как прежде —
+  глобальная сетка ловит только то, что просочилось мимо. `HTTPException` —
+  подкласс `Exception`, но НЕ `ValueError`, поэтому в эту ветку не попадает.
+  Побочно закрывает handoff-баг «PATCH /actual kind=roundup/deposit → 500»: на
+  практике первым срабатывает `KindMismatchError` (→ 400), а если бы он не
+  сработал — `ValueError`-сетка даёт 422 вместо 500 (тест
+  `tests/test_exception_handlers.py`).
+- Все три хендлера логируют структурно (`structlog`) с `exc_info=True` для
+  трейсбека (`logging.exception`-семантика).
+
 ## Публичный интерфейс
 
 Полный контракт — `contract/openapi.json` (источник истины для фронта и iOS DTO).
