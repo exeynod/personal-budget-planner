@@ -31,10 +31,7 @@ import {
   useRefetchToken,
   useSelectedPeriodOptional,
 } from '../common';
-import {
-  SectionHeader,
-  InsetGroup,
-} from '../native/NativePrimitives';
+import { SectionHeader, InsetGroup } from '../native/NativePrimitives';
 import { formatMoneyRubNative } from '../native/money';
 import { RecurringDuePrompt } from '../Recurring/RecurringDuePrompt';
 import { PlanMount } from '../Plan';
@@ -273,7 +270,10 @@ function PlanningGateBody({
           </div>
 
           {status === 'error' && (
-            <div className={styles.errorBanner} data-testid="planning-gate-error">
+            <div
+              className={styles.errorBanner}
+              data-testid="planning-gate-error"
+            >
               Не удалось загрузить данные. Можно всё равно нажать «Готово».
             </div>
           )}
@@ -327,7 +327,8 @@ function PlanningGateBody({
           </InsetGroup>
           {planData.incomePlannedCents === 0 && (
             <div className={styles.summaryHint}>
-              Добавьте плановые доходы, чтобы видеть, сколько можно распределить.
+              Добавьте плановые доходы, чтобы видеть, сколько можно
+              распределить.
             </div>
           )}
 
@@ -400,5 +401,16 @@ export function PlanningGate(props: PlanningGateProps) {
 function PlanningGateRouterView() {
   const { stack } = usePosterRouter();
   const top = stack[stack.length - 1];
-  return <div key={top.id}>{top.node}</div>;
+  // Scroll container for PUSHED screens (PlanMount / TemplateMount). The gate
+  // landing (PlanningGateBody) owns its own `.scroll`, but the pushed editors
+  // do not — and the gate hosts its OWN router, OUTSIDE the shell's scrollable
+  // `.content`. Without this wrapper a tall plan editor overflowed with NO
+  // scroll container and was unreachable below the fold (could not scroll).
+  // A viewport-tall overflow-y:auto box fixes pushed screens and is a no-op for
+  // the landing (its `.root` is the same height → no double scroll).
+  return (
+    <div key={top.id} className={styles.routerView}>
+      {top.node}
+    </div>
+  );
 }

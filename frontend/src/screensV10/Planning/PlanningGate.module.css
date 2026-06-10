@@ -13,6 +13,18 @@
   --link-ink: var(--lgn-accent);
 }
 
+/* Scroll container for screens PUSHED into the gate's own router (PlanMount /
+   TemplateMount). The gate hosts its router OUTSIDE the shell's scrollable
+   `.content`, so pushed editors need their own scroll box or tall content is
+   unreachable below the fold. Viewport-tall; the landing (`.root`, same height)
+   fits exactly so this never double-scrolls it. */
+.routerView {
+  height: var(--tg-viewport-stable, 100dvh);
+  overflow-y: auto;
+  overflow-x: clip;
+  -webkit-overflow-scrolling: touch;
+}
+
 /* Scrollable body — leaves room for the pinned «Готово» footer. The
    overflow-y:auto here gives focused inputs room to scroll into view above the
    on-screen keyboard (Part 3). */
@@ -164,11 +176,7 @@
   right: 0;
   bottom: 0;
   padding: 10px var(--lgn-gutter) calc(12px + env(safe-area-inset-bottom, 0px));
-  background: linear-gradient(
-    180deg,
-    rgba(0, 0, 0, 0) 0%,
-    var(--lgn-bg) 38%
-  );
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0) 0%, var(--lgn-bg) 38%);
 }
 .doneBtn {
   width: 100%;
