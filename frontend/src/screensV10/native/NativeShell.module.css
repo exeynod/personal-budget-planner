@@ -111,16 +111,18 @@
   position: fixed;
   inset: 0;
   z-index: 60;
-  /* Opaque backstop + own stacking/compositing layer. The inner PlanningGate
-     `.root` is sized to `var(--tg-viewport-stable)`; on real iOS WKWebView that
-     stable height can fall short of the actual overlay box, leaving a strip of
-     the (otherwise background-less) overlay transparent — through which the
-     shell behind (e.g. the Управление tab) bleeds. Desktop Chromium/WebKit
-     never reproduce it (exact heights), so this only manifests in Telegram iOS.
-     A solid background on the fixed overlay itself + overflow clip + isolation
-     guarantee it fully occludes the shell regardless of the child's height. */
+  /* Opaque backstop. The inner PlanningGate `.root` is sized to
+     `var(--tg-viewport-stable)`; on real iOS WKWebView that stable height can
+     fall short of the actual overlay box, leaving a strip of the (otherwise
+     background-less) overlay transparent — through which the shell behind
+     (e.g. the Управление tab) bleeds. Desktop Chromium/WebKit never reproduce
+     it (exact heights), so it only manifests in Telegram iOS. A solid
+     full-viewport (`inset:0`) background on the fixed overlay fully occludes
+     the shell regardless of the child's height.
+     NB: do NOT add `overflow:hidden` here — on iOS a `position:fixed` ancestor
+     with `overflow:hidden` kills the inner `-webkit-overflow-scrolling:touch`
+     momentum scroll of PlanningGate `.scroll`, breaking scrolling entirely. */
   background-color: var(--lgn-bg);
   background-image: var(--lgn-bg-image);
-  overflow: hidden;
   isolation: isolate;
 }
