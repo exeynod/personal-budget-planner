@@ -119,10 +119,12 @@
      it (exact heights), so it only manifests in Telegram iOS. A solid
      full-viewport (`inset:0`) background on the fixed overlay fully occludes
      the shell regardless of the child's height.
-     NB: do NOT add `overflow:hidden` here — on iOS a `position:fixed` ancestor
-     with `overflow:hidden` kills the inner `-webkit-overflow-scrolling:touch`
-     momentum scroll of PlanningGate `.scroll`, breaking scrolling entirely. */
+     NB: keep this to BACKGROUND ONLY. On iOS WKWebView a `position:fixed`
+     ancestor that either clips (`overflow:hidden`) OR forms a new stacking
+     context (`isolation:isolate`, `transform`, `will-change`) kills the inner
+     `-webkit-overflow-scrolling:touch` momentum scroll of PlanningGate
+     `.scroll` — the gate becomes unscrollable. The opaque inset:0 background
+     alone fixes the bleed without touching scroll. */
   background-color: var(--lgn-bg);
   background-image: var(--lgn-bg-image);
-  isolation: isolate;
 }
