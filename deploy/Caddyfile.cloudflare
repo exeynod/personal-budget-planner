@@ -54,11 +54,16 @@
 		root * /srv/dist
 		# Hashed assets are immutable — safe to cache for a year.
 		header /assets/* Cache-Control "public, max-age=31536000, immutable"
-		# index.html (and SPA fallback) MUST revalidate every load — otherwise
-		# the browser/TG WebView keeps a stale shell that points at deleted
-		# bundles after a redeploy.
-		header / Cache-Control "no-cache"
-		header /index.html Cache-Control "no-cache"
+		# index.html (and SPA fallback) MUST NOT be cached — Telegram's iOS
+		# WKWebView ignored plain `no-cache` and kept serving a stale shell
+		# across redeploys + reloads (users stuck on an old bundle). `no-store`
+		# forbids storing the response at all, so every Mini-App open refetches
+		# the current index.html → the right hashed assets. (Hashed /assets/*
+		# stay immutable-cached; only the entry document is no-store.)
+		header / Cache-Control "no-store, no-cache, must-revalidate, max-age=0"
+		header /index.html Cache-Control "no-store, no-cache, must-revalidate, max-age=0"
+		header / Pragma "no-cache"
+		header /index.html Pragma "no-cache"
 		try_files {path} /index.html
 		file_server
 	}

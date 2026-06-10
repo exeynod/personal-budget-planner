@@ -123,6 +123,16 @@ log "rolling restart"
 log "refreshing SPA assets in frontend_dist volume"
 "${COMPOSE[@]}" run --rm --no-deps frontend
 
+# Caddy serves its config from a bind-mounted Caddyfile — `compose up` does NOT
+# recreate caddy when only the file's CONTENTS change, so cache-header / routing
+# edits would silently never apply. Reload caddy's config in-place (graceful, no
+# downtime); fall back to a force-recreate. Best-effort — never fails the deploy.
+log "reloading caddy config"
+"${COMPOSE[@]}" exec -T caddy caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile 2>/dev/null \
+  && log "  caddy config reloaded" \
+  || { "${COMPOSE[@]}" up -d --force-recreate --no-deps caddy 2>/dev/null \
+       && log "  caddy force-recreated" || log "  caddy reload skipped (non-fatal)"; }
+
 log "waiting for api health (max 90s)"
 for i in $(seq 1 45); do
     state=$(docker inspect personal-budget-planner-api-1 --format '{{.State.Health.Status}}' 2>/dev/null || echo missing)
