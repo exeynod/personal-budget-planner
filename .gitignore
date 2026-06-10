@@ -88,4 +88,8 @@ frontend/tests/ui-audit-screenshots/
 .claude/settings.local.json
 .claude/scheduled_tasks.lock
 .xcodebuildmcp/
+
+# Pre-migration DB backups produced by deploy_inner.sh on the VPS (financial
+# data — VPS-local only, never committed). Survive `git reset --hard`.
+backups/
 handoff.md

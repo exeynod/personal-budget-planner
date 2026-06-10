@@ -71,6 +71,38 @@ fi
 SHA=$(git rev-parse --short HEAD)
 log "now at $SHA: $(git log -1 --format=%s)"
 
+# ── Pre-migration DB backup (safety net for destructive migrations) ──
+# Dump the prod DB to a timestamped, gzipped file on the VPS BEFORE
+# `up -d api` (whose entrypoint.sh runs `alembic upgrade head`). A bad or
+# destructive migration can then be restored from the dump. Dumps live ONLY
+# on the VPS (financial data — never shipped to CI/GitHub artifacts) and
+# survive `git reset --hard` (untracked). Retention: last 10.
+#
+# HARD GATE: if the backup can't be produced, abort BEFORE migrating — we do
+# not run migrations without a fresh restore point. A missing db container
+# (genuine first-ever deploy, no data yet) is the only skip path.
+BACKUP_DIR="$REPO/backups"
+DB_CID=$("${COMPOSE[@]}" ps -q db 2>/dev/null || true)
+if [ -n "$DB_CID" ] && [ "$(docker inspect "$DB_CID" --format '{{.State.Running}}' 2>/dev/null || echo false)" = "true" ]; then
+    mkdir -p "$BACKUP_DIR"
+    BACKUP_FILE="$BACKUP_DIR/budget_db_$(date -u +%FT%H%M%SZ)_pre_${SHA}.sql.gz"
+    log "pre-migration backup → backups/$(basename "$BACKUP_FILE")"
+    if "${COMPOSE[@]}" exec -T db pg_dump -U budget -d budget_db | gzip > "$BACKUP_FILE"; then
+        if [ -s "$BACKUP_FILE" ]; then
+            log "  backup ok ($(du -h "$BACKUP_FILE" | cut -f1))"
+            ls -1t "$BACKUP_DIR"/budget_db_*.sql.gz 2>/dev/null | tail -n +11 | xargs -r rm --
+        else
+            rm -f "$BACKUP_FILE"
+            die "DB backup is empty — aborting before migrations (safety)"
+        fi
+    else
+        rm -f "$BACKUP_FILE"
+        die "pg_dump failed — aborting before migrations (no restore point)"
+    fi
+else
+    log "db container not running (first-ever deploy?) — skipping pre-migration backup"
+fi
+
 log "building images (api, bot, worker, frontend)"
 "${COMPOSE[@]}" build api bot worker frontend
 

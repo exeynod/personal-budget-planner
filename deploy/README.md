@@ -6,21 +6,21 @@ and VPS-deploy artefacts live here; application source stays in the repo root
 
 ## What's here
 
-| File                            | Purpose                                                                                        |
-| ------------------------------- | ---------------------------------------------------------------------------------------------- |
-| `docker-compose.yml`            | Production base stack (db, api, bot, worker, caddy, frontend init-container).                  |
-| `docker-compose.dev.yml`        | Dev overrides (DEV_MODE=true, api published on :8000, console logs).                           |
-| `docker-compose.test.yml`       | Integration-test override (bind-mounts `tests/`, fake OpenAI key).                             |
-| `docker-compose.cloudflare.yml` | Cloudflare Tunnel production override (HTTP-only Caddy + `cloudflared`).                       |
-| `Dockerfile`                    | Single image for api/bot/worker (selected via `SERVICE` build-arg). Build context = repo root. |
-| `Dockerfile.frontend`           | Builds the SPA and exports `dist/` into the `frontend_dist` volume. Build context = repo root. |
-| `Caddyfile`                     | Production TLS reverse proxy + SPA static (Let's Encrypt).                                     |
-| `Caddyfile.dev`                 | HTTP-only Caddy for local dev (no public DNS / cert).                                          |
-| `Caddyfile.cloudflare`          | HTTP-only Caddy behind Cloudflare Tunnel.                                                      |
-| `entrypoint.sh`                 | api container entrypoint: `alembic upgrade head` (admin role) → uvicorn.                       |
-| `deploy.sh`                     | VPS-side SSH force-command wrapper: `git reset --hard origin/master` → `deploy_inner.sh`.      |
-| `deploy_inner.sh`               | Actual deploy logic: build images, `up -d`, refresh SPA, health-wait, smoke tests.             |
-| `cloudflared-config.yml`        | cloudflared ingress (routes the tunnel to `caddy:80`).                                         |
+| File                            | Purpose                                                                                                                                                                                  |
+| ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `docker-compose.yml`            | Production base stack (db, api, bot, worker, caddy, frontend init-container).                                                                                                            |
+| `docker-compose.dev.yml`        | Dev overrides (DEV_MODE=true, api published on :8000, console logs).                                                                                                                     |
+| `docker-compose.test.yml`       | Integration-test override (bind-mounts `tests/`, fake OpenAI key).                                                                                                                       |
+| `docker-compose.cloudflare.yml` | Cloudflare Tunnel production override (HTTP-only Caddy + `cloudflared`).                                                                                                                 |
+| `Dockerfile`                    | Single image for api/bot/worker (selected via `SERVICE` build-arg). Build context = repo root.                                                                                           |
+| `Dockerfile.frontend`           | Builds the SPA and exports `dist/` into the `frontend_dist` volume. Build context = repo root.                                                                                           |
+| `Caddyfile`                     | Production TLS reverse proxy + SPA static (Let's Encrypt).                                                                                                                               |
+| `Caddyfile.dev`                 | HTTP-only Caddy for local dev (no public DNS / cert).                                                                                                                                    |
+| `Caddyfile.cloudflare`          | HTTP-only Caddy behind Cloudflare Tunnel.                                                                                                                                                |
+| `entrypoint.sh`                 | api container entrypoint: `alembic upgrade head` (admin role) → uvicorn.                                                                                                                 |
+| `deploy.sh`                     | VPS-side SSH force-command wrapper: `git reset --hard origin/master` → `deploy_inner.sh`.                                                                                                |
+| `deploy_inner.sh`               | Actual deploy logic: **pre-migration DB backup** (`pg_dump` → `backups/*.sql.gz`, hard-gate), build images, `up -d` (entrypoint runs migrations), refresh SPA, health-wait, smoke tests. |
+| `cloudflared-config.yml`        | cloudflared ingress (routes the tunnel to `caddy:80`).                                                                                                                                   |
 
 ## Path conventions
 
