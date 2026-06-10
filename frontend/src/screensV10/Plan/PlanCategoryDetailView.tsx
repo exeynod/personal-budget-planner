@@ -63,6 +63,19 @@ export interface PlanCategoryDetailViewProps {
    * Income categories have no limit and never receive this prop.
    */
   onLimitCommit?: (catId: number, cents: number) => void;
+  /**
+   * Surfaced when the last limit commit was rejected (e.g. Σ лимитов превышает
+   * доход → 400 plan_overflow). Rendered under the «Лимит» input so the owner
+   * understands why the limit reverted instead of an unexplained «Без плана».
+   */
+  limitError?: string | null;
+  /**
+   * Edit/delete a MANUAL, unposted planned row (tap a row). Opens the shared
+   * AddSheet in plan-edit mode. Recurring (↻) rows never call this — they route
+   * to the read-only «managed in template» note. Posted rows are already facts
+   * and stay static. When omitted, rows are non-tappable (back-compat).
+   */
+  onEditPlanned?: (plannedId: number) => void;
   /** Pop the router stack (back chevron). */
   onBack: () => void;
 }
@@ -82,6 +95,8 @@ function PlanCategoryDetailViewInner(props: PlanCategoryDetailViewProps) {
     today = new Date(),
     onAddPlanned,
     onLimitCommit,
+    limitError,
+    onEditPlanned,
     onBack,
   } = props;
 
@@ -212,6 +227,19 @@ function PlanCategoryDetailViewInner(props: PlanCategoryDetailViewProps) {
             </span>
           </div>
         )}
+
+        {/* Limit-commit error (e.g. Σ лимитов превышает доход) — surfaced so the
+            owner sees WHY the limit reverted instead of an unexplained «Без
+            плана» on Home. */}
+        {!isIncome && limitError && (
+          <div
+            className={styles.limitError}
+            role="alert"
+            data-testid="native-plan-cat-limit-error"
+          >
+            {limitError}
+          </div>
+        )}
       </div>
 
       {/* ─────────── CTA row ─────────── */}
@@ -288,12 +316,16 @@ function PlanCategoryDetailViewInner(props: PlanCategoryDetailViewProps) {
                         {amountStr}
                       </span>
                     }
-                    // Recurring rows are read-only here: tapping shows a note,
-                    // not an edit sheet. Manual rows stay static (no onClick).
+                    // Recurring (↻) rows are read-only here: tapping shows a
+                    // note (managed in the template). Manual, UNPOSTED rows open
+                    // the edit/delete sheet. Posted rows are already facts and
+                    // stay static.
                     onClick={
                       r.isRecurring
                         ? () => setRecurringNoteOpen(true)
-                        : undefined
+                        : !r.posted && onEditPlanned
+                          ? () => onEditPlanned(r.id)
+                          : undefined
                     }
                   />
                 );

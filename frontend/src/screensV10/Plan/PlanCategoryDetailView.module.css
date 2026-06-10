@@ -152,6 +152,12 @@
   font-weight: 600;
   color: var(--lgn-ink-2);
 }
+.limitError {
+  margin-top: 10px;
+  font-size: 13px;
+  line-height: 1.35;
+  color: var(--lgn-red);
+}
 
 /* ─────────── CTA row ─────────── */
 .ctaRow {

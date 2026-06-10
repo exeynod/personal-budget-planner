@@ -9,7 +9,7 @@
 // tests, poster shell) don't crash.
 
 import { createContext, useContext, type ReactNode } from 'react';
-import type { ActualV10Read } from '../../api/v10';
+import type { ActualV10Read, PlannedV11Read } from '../../api/v10';
 
 /** Which surface the sheet writes to: a real fact (default) or a planned row. */
 export type AddSheetMode = 'fact' | 'plan';
@@ -44,16 +44,26 @@ interface AddSheetHostAPI {
    * offers a «Удалить» action. Same host pattern as `openAddSheet`.
    */
   openEditSheet: (actual: ActualV10Read) => void;
+  /**
+   * Bug fix (plan edit/delete) — open the shared sheet in EDIT mode for an
+   * existing manual PLANNED row. On submit the sheet PATCHes via `patchPlanned`
+   * and offers a «Удалить» action (`deletePlanned`). Default is a no-op so views
+   * reading the host outside a provider that wires it (e.g. the non-gated shell,
+   * which has no plan-edit entry point) don't crash.
+   */
+  openEditPlanned: (planned: PlannedV11Read) => void;
 }
 
 const AddSheetHostCtx = createContext<AddSheetHostAPI>({
   openAddSheet: () => {},
   openEditSheet: () => {},
+  openEditPlanned: () => {},
 });
 
 export function AddSheetHostProvider({
   openAddSheet,
   openEditSheet,
+  openEditPlanned,
   children,
 }: {
   openAddSheet: (
@@ -62,10 +72,13 @@ export function AddSheetHostProvider({
     kind?: AddSheetKind,
   ) => void;
   openEditSheet: (actual: ActualV10Read) => void;
+  openEditPlanned: (planned: PlannedV11Read) => void;
   children: ReactNode;
 }) {
   return (
-    <AddSheetHostCtx.Provider value={{ openAddSheet, openEditSheet }}>
+    <AddSheetHostCtx.Provider
+      value={{ openAddSheet, openEditSheet, openEditPlanned }}
+    >
       {children}
     </AddSheetHostCtx.Provider>
   );

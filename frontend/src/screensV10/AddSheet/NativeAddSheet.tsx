@@ -29,7 +29,7 @@ import { useSheetEscape } from '../common/PosterSheet';
 import { useEnterToDismiss } from '../common/useEnterToDismiss';
 import { useAddSheetController } from './useAddSheetController';
 import type { AddSheetKind } from '../native/AddSheetHost';
-import type { ActualV10Read } from '../../api/v10';
+import type { ActualV10Read, PlannedV11Read } from '../../api/v10';
 import styles from './NativeAddSheet.module.css';
 
 export interface NativeAddSheetProps {
@@ -56,6 +56,12 @@ export interface NativeAddSheetProps {
    * submit PATCHes (instead of create) and a «Удалить» action is shown.
    */
   editActual?: ActualV10Read;
+  /**
+   * Bug fix (plan edit/delete) — when set, the sheet opens in EDIT mode for an
+   * existing manual PLANNED row: submit PATCHes via `patchPlanned` and «Удалить»
+   * removes it via `deletePlanned`. Forces plan-mode chrome («В план»).
+   */
+  editPlanned?: PlannedV11Read;
   /** Called with the newly-created/updated/deleted tx id after a successful op. */
   onSubmitted: (txId: number) => void;
   /** Called when the user dismisses the sheet (clean form or confirmed cancel). */
@@ -120,6 +126,7 @@ export function NativeAddSheet({
   initialCategoryId,
   kind,
   editActual,
+  editPlanned,
   onSubmitted,
   onClose,
 }: NativeAddSheetProps) {
@@ -128,10 +135,13 @@ export function NativeAddSheet({
     initialCategoryId,
     kind,
     editActual,
+    editPlanned,
     onSubmitted,
     onClose,
   });
-  const isPlan = mode === 'plan';
+  // Use the controller's EFFECTIVE mode so editing a planned row (which forces
+  // plan mode even when the caller passed mode='fact') gets plan chrome.
+  const isPlan = c.mode === 'plan';
   const isEdit = c.isEdit;
   // REQ5: dismiss the soft keyboard on Enter for the text inputs we own.
   const onDescKeyDown = useEnterToDismiss();
@@ -200,11 +210,7 @@ export function NativeAddSheet({
           Отмена
         </button>
         <span className={styles.title}>
-          {isEdit
-            ? 'Редактировать'
-            : isPlan
-              ? 'В план'
-              : 'Новая транзакция'}
+          {isEdit ? 'Редактировать' : isPlan ? 'В план' : 'Новая транзакция'}
         </span>
         {/* Right slot kept balanced; primary submit lives in the «Добавить»
             CTA below (matches the poster's single CTA — no duplicate action). */}

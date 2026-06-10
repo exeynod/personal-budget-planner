@@ -26,6 +26,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { X, CaretRight } from '@phosphor-icons/react';
 import {
   PosterRouterProvider,
+  PosterSheet,
+  RefetchTokenProvider,
   StatePlate,
   usePosterRouter,
   useRefetchToken,
@@ -33,6 +35,12 @@ import {
 } from '../common';
 import { SectionHeader, InsetGroup } from '../native/NativePrimitives';
 import { formatMoneyRubNative } from '../native/money';
+import {
+  AddSheetHostProvider,
+  type AddSheetMode,
+  type AddSheetKind,
+} from '../native/AddSheetHost';
+import { NativeAddSheet } from '../AddSheet';
 import { RecurringDuePrompt } from '../Recurring/RecurringDuePrompt';
 import { PlanMount } from '../Plan';
 import { TemplateMount } from '../Management/TemplateMount';
@@ -385,12 +393,84 @@ function PlanningGateBody({
  * pushed editors (PlanMount, TemplateMount) render INSIDE the interstitial and
  * pop back to the gate. NativeShell renders <PlanningGate> instead of
  * <NativeChrome>; the gate therefore replaces the whole tab shell.
+ *
+ * Bug fix (add/edit/delete planned while gated): the shell's AddSheet is NOT
+ * mounted in the gated branch, so inside the gate «Добавить в план» opened
+ * nothing and there was no way to edit/delete a planned row. The gate therefore
+ * hosts its OWN AddSheet (add/edit/delete planned) + a gate-local refetch token
+ * the sheet bumps on submit so the pushed PlanMount / PlanCategoryDetailMount
+ * reload and reflect the change.
  */
 export function PlanningGate(props: PlanningGateProps) {
+  const [isAddOpen, setAddOpen] = useState(false);
+  const [addMode, setAddMode] = useState<AddSheetMode>('plan');
+  const [addCategoryId, setAddCategoryId] = useState<number | undefined>(
+    undefined,
+  );
+  const [addKind, setAddKind] = useState<AddSheetKind | undefined>(undefined);
+  const [editPlanned, setEditPlanned] = useState<PlannedV11Read | undefined>(
+    undefined,
+  );
+  const [gateRefetch, setGateRefetch] = useState(0);
+
+  const closeSheet = useCallback(() => setAddOpen(false), []);
+
+  const openAddSheet = useCallback(
+    (mode: AddSheetMode = 'plan', categoryId?: number, kind?: AddSheetKind) => {
+      setEditPlanned(undefined);
+      setAddMode(mode);
+      setAddCategoryId(categoryId);
+      setAddKind(kind);
+      setAddOpen(true);
+    },
+    [],
+  );
+
+  const openEditPlanned = useCallback((planned: PlannedV11Read) => {
+    setAddMode('plan');
+    setAddCategoryId(undefined);
+    setAddKind(undefined);
+    setEditPlanned(planned);
+    setAddOpen(true);
+  }, []);
+
+  // The gate never edits a fact (no fact surface inside the interstitial) —
+  // openEditSheet is a no-op here.
+  const noopEditSheet = useCallback(() => {}, []);
+
   return (
-    <PosterRouterProvider root={<PlanningGateBody {...props} />}>
-      <PlanningGateRouterView />
-    </PosterRouterProvider>
+    <RefetchTokenProvider value={gateRefetch}>
+      <AddSheetHostProvider
+        openAddSheet={openAddSheet}
+        openEditSheet={noopEditSheet}
+        openEditPlanned={openEditPlanned}
+      >
+        <PosterRouterProvider root={<PlanningGateBody {...props} />}>
+          <PlanningGateRouterView />
+        </PosterRouterProvider>
+
+        {/* Gate-local AddSheet — add/edit/delete planned rows WITHOUT leaving
+            the interstitial. onSubmitted bumps the gate refetch token so the
+            pushed plan editors reload. */}
+        <PosterSheet
+          isOpen={isAddOpen}
+          onClose={closeSheet}
+          backgroundColor="#F2F2F7"
+        >
+          <NativeAddSheet
+            mode={addMode}
+            initialCategoryId={addCategoryId}
+            kind={addKind}
+            editPlanned={editPlanned}
+            onSubmitted={() => {
+              setAddOpen(false);
+              setGateRefetch((t) => t + 1);
+            }}
+            onClose={closeSheet}
+          />
+        </PosterSheet>
+      </AddSheetHostProvider>
+    </RefetchTokenProvider>
   );
 }
 

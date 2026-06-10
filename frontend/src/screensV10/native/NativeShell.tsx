@@ -129,6 +129,11 @@ export function NativeShell() {
   const [editActual, setEditActual] = useState<ActualV10Read | undefined>(
     undefined,
   );
+  // Bug fix (plan edit/delete): the planned row being edited (undefined = not a
+  // plan-edit flow).
+  const [editPlanned, setEditPlanned] = useState<
+    import('../../api/v10').PlannedV11Read | undefined
+  >(undefined);
   const [refetchToken, setRefetchToken] = useState(0);
 
   // ADR-0008 — monthly planning gate. We read `needs_planning` from the same
@@ -184,6 +189,7 @@ export function NativeShell() {
     kind?: AddSheetKind,
   ) => {
     setEditActual(undefined);
+    setEditPlanned(undefined);
     setAddMode(mode);
     setAddCategoryId(categoryId);
     setAddKind(kind);
@@ -195,7 +201,19 @@ export function NativeShell() {
     setAddMode('fact');
     setAddCategoryId(undefined);
     setAddKind(undefined);
+    setEditPlanned(undefined);
     setEditActual(actual);
+    setAddOpen(true);
+  };
+
+  const openEditPlanned = (planned: import('../../api/v10').PlannedV11Read) => {
+    // Plan-edit: the controller forces plan mode off `editPlanned`; seed comes
+    // from the row.
+    setAddMode('plan');
+    setAddCategoryId(undefined);
+    setAddKind(undefined);
+    setEditActual(undefined);
+    setEditPlanned(planned);
     setAddOpen(true);
   };
 
@@ -213,6 +231,7 @@ export function NativeShell() {
             <AddSheetHostProvider
               openAddSheet={openAddSheet}
               openEditSheet={openEditSheet}
+              openEditPlanned={openEditPlanned}
             >
               {gated ? (
                 <PlanningGate
@@ -242,6 +261,7 @@ export function NativeShell() {
                       initialCategoryId={addCategoryId}
                       kind={addKind}
                       editActual={editActual}
+                      editPlanned={editPlanned}
                       onSubmitted={() => {
                         setAddOpen(false);
                         setRefetchToken((t) => t + 1);

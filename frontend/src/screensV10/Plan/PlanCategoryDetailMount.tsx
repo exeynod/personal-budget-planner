@@ -11,7 +11,7 @@
 //   4. A successful AddSheet create bumps the refetch token → reload so the new
 //      planned row + ladder appear immediately.
 
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import {
   listCategoriesV10,
   listPlanned,
@@ -19,6 +19,7 @@ import {
   type CategoryV10,
   type PlannedV11Read,
 } from '../../api/v10';
+import { ApiError } from '../../api/client';
 import { getCurrentPeriod } from '../../api/periods';
 import {
   StatePlate,
@@ -27,9 +28,30 @@ import {
   useRefetchToken,
   useSelectedPeriodOptional,
 } from '../common';
+import { formatMoneyNative } from '../native/money';
 import { useAddSheetHost } from '../native/AddSheetHost';
 import { plansFromCategories } from './computePlan';
 import { PlanCategoryDetailView } from './PlanCategoryDetailView';
+
+/**
+ * Bug fix (planning «Без плана»): PATCH /plan-month rejects with 400
+ * `plan_overflow` when Σ expense limits exceeds the user's configured income.
+ * The limit is then NOT saved, so the category silently reverts to «Без плана».
+ * Parse the structured detail so the detail view can SURFACE the reason instead
+ * of swallowing it — otherwise the owner sees no plan and no explanation.
+ */
+function parsePlanOverflow(err: unknown): string | null {
+  if (!(err instanceof ApiError) || err.status !== 400) return null;
+  try {
+    const detail = JSON.parse(err.body)?.detail;
+    if (detail?.error !== 'plan_overflow') return null;
+    const income = formatMoneyNative(detail.income_cents ?? 0);
+    const sum = formatMoneyNative(detail.sum_plan_cents ?? 0);
+    return `Сумма лимитов (${sum} ₽) превышает доход (${income} ₽). Уменьшите лимит или увеличьте доход.`;
+  } catch {
+    return null;
+  }
+}
 
 // ─────────────────── Props ───────────────────
 
@@ -63,7 +85,7 @@ export function PlanCategoryDetailMount({
   const sel = useSelectedPeriodOptional();
   // A successful AddSheet (plan mode) create bumps this → reload the detail.
   const refetchToken = useRefetchToken();
-  const { openAddSheet } = useAddSheetHost();
+  const { openAddSheet, openEditPlanned } = useAddSheetHost();
 
   // Resolve the period whose plan we're viewing: the shell's selected period
   // when available (newest-first), else the active period (mirrors PlanMount).
@@ -106,11 +128,27 @@ export function PlanCategoryDetailMount({
     { keepPreviousData: true },
   );
 
+  // Surfaced when a limit commit is rejected (e.g. 400 plan_overflow) so the
+  // owner sees WHY the limit reverted instead of an unexplained «Без плана».
+  const [limitError, setLimitError] = useState<string | null>(null);
+
   const handleAddPlanned = useCallback(
     (catId: number) => {
       openAddSheet('plan', catId);
     },
     [openAddSheet],
+  );
+
+  // Edit/delete a manual planned row — opens the shared AddSheet in plan-edit
+  // mode (PATCH /planned + «Удалить»). Recurring rows never reach here (the view
+  // routes them to a read-only note instead). The view passes the row id; we
+  // resolve the raw PlannedV11Read the controller needs to seed the sheet.
+  const handleEditPlanned = useCallback(
+    (plannedId: number) => {
+      const row = (data?.planned ?? []).find((p) => p.id === plannedId);
+      if (row) openEditPlanned(row);
+    },
+    [data, openEditPlanned],
   );
 
   // Inline EXPENSE limit commit (blur / Enter in the detail summary card). We
@@ -133,6 +171,15 @@ export function PlanCategoryDetailMount({
       );
       try {
         await patchPlanMonth(payload);
+        setLimitError(null);
+      } catch (err) {
+        // Surface a structured overflow («Σ лимитов превышает доход») so the
+        // owner understands why the limit did not stick. Other errors fall back
+        // to a generic message. Either way the reload below reverts the input.
+        setLimitError(
+          parsePlanOverflow(err) ??
+            'Не удалось сохранить лимит. Попробуйте ещё раз.',
+        );
       } finally {
         // Reload either way: on success to show the saved value, on failure to
         // revert the input to the persisted limit.
@@ -171,6 +218,8 @@ export function PlanCategoryDetailMount({
       onLimitCommit={
         data.category.kind === 'income' ? undefined : handleLimitCommit
       }
+      limitError={limitError}
+      onEditPlanned={handleEditPlanned}
       onBack={handleBack}
     />
   );

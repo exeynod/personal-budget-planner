@@ -26,9 +26,12 @@ import {
   updateActualV10,
   deleteActualV10,
   createPlanned,
+  patchPlanned,
+  deletePlanned,
   type AccountResponse,
   type ActualV10Read,
   type CategoryV10,
+  type PlannedV11Read,
 } from '../../api/v10';
 import type { AddSheetKind, AddSheetMode } from '../native/AddSheetHost';
 import { useSelectedPeriodOptional } from '../common';
@@ -76,6 +79,13 @@ export interface UseAddSheetControllerArgs {
    * description seed from this row.
    */
   editActual?: ActualV10Read;
+  /**
+   * Bug fix (plan edit/delete) — when set, the sheet opens in EDIT mode for an
+   * existing PLANNED row (mode is forced to `'plan'`): submit PATCHes via
+   * `patchPlanned` and `onDelete` removes the row via `deletePlanned`. Manual
+   * planned rows only (recurring rows are managed in the template).
+   */
+  editPlanned?: PlannedV11Read;
   /** Called with the newly-created/updated tx/planned id after a successful POST/PATCH. */
   onSubmitted: (txId: number) => void;
   /** Called when the user dismisses the sheet (clean form or confirmed cancel). */
@@ -147,7 +157,8 @@ function centsToAmountString(cents: number): string {
   const kop = cents % 100;
   if (kop === 0) return String(rub);
   // Two-digit kopecks, trim a single trailing zero («50» → «5», «05» stays).
-  const kopStr = kop % 10 === 0 ? String(kop / 10) : String(kop).padStart(2, '0');
+  const kopStr =
+    kop % 10 === 0 ? String(kop / 10) : String(kop).padStart(2, '0');
   return `${rub}.${kopStr}`;
 }
 
@@ -156,24 +167,37 @@ export function useAddSheetController({
   initialCategoryId,
   kind: forcedKind,
   editActual,
+  editPlanned,
   onSubmitted,
   onClose,
 }: UseAddSheetControllerArgs): AddSheetController {
-  const isPlan = mode === 'plan';
-  const isEdit = editActual != null;
+  // Editing a planned row forces plan mode (PATCH /planned, no account leg).
+  const isPlan = mode === 'plan' || editPlanned != null;
+  const isEdit = editActual != null || editPlanned != null;
   // Category to seed the picker with: explicit deep-link wins, else the edited
-  // row's category.
-  const seedCategoryId = initialCategoryId ?? editActual?.category_id ?? null;
+  // row's category (fact OR planned).
+  const seedCategoryId =
+    initialCategoryId ??
+    editActual?.category_id ??
+    editPlanned?.category_id ??
+    null;
   // ── State (mirrors poster AddSheet) ───────────────────────────────
-  const [amountString, setAmountString] = useState(() =>
-    editActual ? centsToAmountString(editActual.amount_cents) : '',
+  const [amountString, setAmountString] = useState(() => {
+    if (editActual) return centsToAmountString(editActual.amount_cents);
+    if (editPlanned)
+      return centsToAmountString(Math.abs(editPlanned.amount_cents));
+    return '';
+  });
+  const [description, setDescription] = useState(
+    editActual?.description ?? editPlanned?.description ?? '',
   );
-  const [description, setDescription] = useState(editActual?.description ?? '');
   const [dateChip, setDateChip] = useState<AddSheetDateChip>(
-    editActual ? 'custom' : 'today',
+    editActual || (editPlanned && editPlanned.planned_date)
+      ? 'custom'
+      : 'today',
   );
   const [customDate, setCustomDate] = useState<string>(
-    editActual?.tx_date ?? '',
+    editActual?.tx_date ?? editPlanned?.planned_date ?? '',
   );
   const [categoryId, setCategoryId] = useState<number | null>(seedCategoryId);
 
@@ -271,8 +295,13 @@ export function useAddSheetController({
     return cat ? cat.kind : null;
   }, [categories, categoryId]);
 
+  const editRowKind = editActual?.kind ?? editPlanned?.kind ?? null;
   const editKind: AddSheetKind | null =
-    editActual != null ? (editActual.kind === 'income' ? 'income' : 'expense') : null;
+    editRowKind != null
+      ? editRowKind === 'income'
+        ? 'income'
+        : 'expense'
+      : null;
 
   const effectiveKind: AddSheetKind =
     forcedKind ?? selectedCategoryKind ?? editKind ?? 'expense';
@@ -286,8 +315,7 @@ export function useAddSheetController({
     () =>
       categories.filter(
         (c) =>
-          c.code !== 'savings' &&
-          (forcedKind == null || c.kind === forcedKind),
+          c.code !== 'savings' && (forcedKind == null || c.kind === forcedKind),
       ),
     [categories, forcedKind],
   );
@@ -335,6 +363,27 @@ export function useAddSheetController({
         return;
       }
       const cat = categories.find((c) => c.id === categoryId);
+      // ── Plan EDIT: PATCH the existing planned row instead of POSTing a new
+      //    one (manual rows only — recurring rows never reach here). ──
+      if (editPlanned != null) {
+        try {
+          const res = await patchPlanned(editPlanned.id, {
+            category_id: categoryId,
+            kind: cat?.kind ?? editPlanned.kind,
+            amount_cents: amountCents,
+            description: description.trim() === '' ? null : description.trim(),
+            planned_date: tx_date || null,
+          });
+          onSubmitted(res.id);
+        } catch (err) {
+          setSubmitError(
+            err instanceof Error ? err.message : 'Не удалось сохранить',
+          );
+        } finally {
+          setSubmitting(false);
+        }
+        return;
+      }
       try {
         const res = await createPlanned(targetPeriodId, {
           category_id: categoryId,
@@ -427,17 +476,22 @@ export function useAddSheetController({
   };
 
   // ── Delete (edit mode only) ───────────────────────────────────────
+  // Deletes the edited fact (deleteActualV10) OR the edited planned row
+  // (deletePlanned), depending on which edit context the sheet opened in.
   const onDelete = async () => {
-    if (!isEdit || editActual == null || submitting) return;
+    if (!isEdit || submitting) return;
     setSubmitting(true);
     setSubmitError(null);
     try {
-      await deleteActualV10(editActual.id);
-      onSubmitted(editActual.id);
+      if (editPlanned != null) {
+        await deletePlanned(editPlanned.id);
+        onSubmitted(editPlanned.id);
+      } else if (editActual != null) {
+        await deleteActualV10(editActual.id);
+        onSubmitted(editActual.id);
+      }
     } catch (err) {
-      setSubmitError(
-        err instanceof Error ? err.message : 'Не удалось удалить',
-      );
+      setSubmitError(err instanceof Error ? err.message : 'Не удалось удалить');
     } finally {
       setSubmitting(false);
     }
@@ -451,7 +505,8 @@ export function useAddSheetController({
   };
 
   return {
-    mode,
+    // editPlanned forces plan mode even when the caller passed mode='fact'.
+    mode: isPlan ? 'plan' : mode,
     isEdit,
     kind: effectiveKind,
     amountString,
