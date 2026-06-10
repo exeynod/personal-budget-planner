@@ -7,6 +7,16 @@
     <title>TG Budget</title>
     <!-- Liquid Glass uses the system font stack (--lgn-font: -apple-system / SF
          Pro), so no web-font preload is needed. -->
+    <!-- Telegram WebApp runtime: provides window.Telegram.WebApp (viewport,
+         safe-area, theme, expand(), ready(), BackButton, initData) BEFORE the
+         app module runs. Required by utils/safeArea.ts (binds --tg-viewport-
+         stable / --tg-safe-* CSS vars), api/client.ts (initData), and the
+         PosterRouter BackButton wiring. Loaded sync in <head> so the object
+         exists when main.tsx executes. (We dropped @telegram-apps/sdk-react +
+         valibot ~179KB for boot weight; this 1-script native runtime restores
+         the WebApp environment the SDK's init() used to set up — without the
+         viewport bind the WebView never expands and screens overlap.) -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
   </head>
   <body>
     <div id="root"></div>
