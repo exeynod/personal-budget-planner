@@ -22,23 +22,6 @@ os.environ.setdefault("OWNER_TG_ID", "123456789")
 os.environ.setdefault("INTERNAL_TOKEN", "test_internal_secret_token")
 os.environ.setdefault("DEV_MODE", "false")
 
-# Phase 12 D-11-07-02: production runtime connects as `budget_app`
-# (NOSUPERUSER NOBYPASSRLS) so RLS enforces. Test fixtures seed and
-# teardown data outside of any per-tenant scope, which needs admin
-# privileges (TRUNCATE, RLS bypass during seeds). Promote ADMIN_DATABASE_URL
-# into DATABASE_URL — tests then run as `budget` (SUPERUSER) just like
-# Phase 11. Dedicated RLS coverage uses the `_rls_test_role` fixture
-# which switches role explicitly via SET LOCAL ROLE.
-if os.environ.get("ADMIN_DATABASE_URL"):
-    # Preserve the original runtime URL for tests that explicitly verify
-    # the budget_app role (e.g. tests/test_postgres_role_runtime.py).
-    if os.environ.get("DATABASE_URL"):
-        os.environ.setdefault("RUNTIME_DATABASE_URL", os.environ["DATABASE_URL"])
-    os.environ["DATABASE_URL"] = os.environ["ADMIN_DATABASE_URL"]
-    os.environ["DATABASE_URL_SYNC"] = os.environ["ADMIN_DATABASE_URL"].replace(
-        "+asyncpg", ""
-    )
-
 os.environ.setdefault(
     "DATABASE_URL",
     "postgresql+asyncpg://budget:budget@localhost:5432/budget_test",
@@ -48,6 +31,57 @@ os.environ.setdefault(
     "postgresql://budget:budget@localhost:5432/budget_test",
 )
 os.environ.setdefault("PUBLIC_DOMAIN", "localhost")
+
+# ---------------------------------------------------------------------------
+# Этап 2 (WI-2): dual-engine — runtime under budget_app, seed/teardown under admin
+# ---------------------------------------------------------------------------
+# BACKGROUND. Production runtime connects as `budget_app` (NOSUPERUSER
+# NOBYPASSRLS) so PostgreSQL RLS enforces. Pre-Этап-2 conftest promoted
+# ADMIN_DATABASE_URL → DATABASE_URL, so the WHOLE test run (including the app's
+# own ``app.db.session.async_engine``) ran as the SUPERUSER `budget` — RLS was
+# silently bypassed everywhere and the production role was never exercised.
+#
+# WI-2 splits the two roles WITHOUT rewriting the ~40 seed fixtures that build
+# their own engine from ``os.environ["DATABASE_URL"]`` (those legitimately need
+# admin: TRUNCATE / SET LOCAL row_security = off / cross-tenant seeds). We use a
+# deterministic TIME-SPLIT on the shared ``DATABASE_URL`` env var:
+#
+#   1. While DATABASE_URL still points at the RUNTIME role (budget_app, as set
+#      by docker-compose), import ``app.core.settings`` + ``app.db.session`` so
+#      the module-level ``async_engine`` binds to budget_app ONCE and is cached.
+#      Any code path that uses the real engine (``get_db`` / bot auth / a test
+#      that does NOT override get_db) now runs under budget_app → RLS enforces,
+#      matching production.
+#   2. AFTER that binding, promote ADMIN_DATABASE_URL → DATABASE_URL so every
+#      seed/teardown fixture that reads the env var at *runtime* (db_session,
+#      two_tenants, single_user, and the per-file standalone engines) gets the
+#      admin role exactly as before — zero fixture changes, minimal blast radius.
+#
+# RUNTIME_DATABASE_URL keeps the budget_app URL for the few tests that verify
+# the production role explicitly (tests/test_postgres_role_runtime.py). Dedicated
+# RLS-enforcement coverage additionally uses ``SET LOCAL ROLE`` (the
+# ``_rls_test_role`` fixture) / RUNTIME_DATABASE_URL.
+if os.environ.get("ADMIN_DATABASE_URL"):
+    # Preserve the runtime (budget_app) URL for role-specific tests.
+    os.environ.setdefault("RUNTIME_DATABASE_URL", os.environ["DATABASE_URL"])
+
+    # Step 1 — bind the app's async_engine to the RUNTIME role (budget_app)
+    # BEFORE we flip the env var. Force the imports so the module-level engine is
+    # created now and cached; later DATABASE_URL changes cannot rebind it.
+    try:
+        import app.core.settings  # noqa: F401 — caches settings.DATABASE_URL
+        import app.db.session  # noqa: F401 — builds async_engine on budget_app
+    except Exception:
+        # If the app package can't import yet (e.g. collection-only runs without
+        # a DB), fall back to the legacy behaviour — promotion below still gives
+        # seeds admin; the runtime-role split is simply not exercised.
+        pass
+
+    # Step 2 — promote admin into DATABASE_URL for the seed/teardown fixtures.
+    os.environ["DATABASE_URL"] = os.environ["ADMIN_DATABASE_URL"]
+    os.environ["DATABASE_URL_SYNC"] = os.environ["ADMIN_DATABASE_URL"].replace(
+        "+asyncpg", ""
+    )
 # Phase 10.1: validate_production_settings now requires a non-placeholder
 # OPENAI_API_KEY whenever AI is enabled (independent of DEV_MODE). Tests
 # don't make real OpenAI calls — those are mocked or skipped — so a fake

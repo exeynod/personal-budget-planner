@@ -13,6 +13,7 @@ Covers Plan 16-06 must-haves:
   set them atomically through UPDATE-WHERE.
 - Existing single-flow onboarding still works (sequential repeat path).
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -45,40 +46,47 @@ async def _hard_cleanup(tg_user_id: int) -> None:
 
     Since complete_onboarding creates a BudgetPeriod (FK RESTRICT on app_user),
     we must clean domain rows in FK-depth order BEFORE deleting app_user. We
-    bypass RLS via SET LOCAL row_security=off — tests run as superuser
-    `budget` per conftest.py, so this is permitted. Two-phase: lookup PK,
-    then cascade-delete each table.
+    bypass RLS via SET LOCAL row_security=off — Этап 2 (WI-2): the runtime
+    ``AsyncSessionLocal`` is now bound to budget_app (NOSUPERUSER), which CANNOT
+    disable row_security, so this teardown uses a dedicated ADMIN engine.
+    Two-phase: lookup PK, then cascade-delete each table.
     """
-    async with AsyncSessionLocal() as session:
-        await session.execute(text("SET LOCAL row_security = off"))
-        result = await session.execute(
-            text("SELECT id FROM app_user WHERE tg_user_id = :tg"),
-            {"tg": tg_user_id},
-        )
-        ids = [row[0] for row in result.all()]
-        if ids:
-            # 68-05 (class E): plan_template_item dropped (alembic 0013); v1.0
-            # account/goal/savings_config added — clean them up too.
-            for tbl in (
-                "ai_message",
-                "ai_conversation",
-                "category_embedding",
-                "actual_transaction",
-                "planned_transaction",
-                "subscription",
-                "account",
-                "budget_period",
-                "category",
-            ):
+    from tests.helpers.seed import admin_engine_and_sessionmaker
+
+    engine, AdminSession = admin_engine_and_sessionmaker()
+    try:
+        async with AdminSession() as session:
+            await session.execute(text("SET LOCAL row_security = off"))
+            result = await session.execute(
+                text("SELECT id FROM app_user WHERE tg_user_id = :tg"),
+                {"tg": tg_user_id},
+            )
+            ids = [row[0] for row in result.all()]
+            if ids:
+                # 68-05 (class E): plan_template_item dropped (alembic 0013); v1.0
+                # account/goal/savings_config added — clean them up too.
+                for tbl in (
+                    "ai_message",
+                    "ai_conversation",
+                    "category_embedding",
+                    "actual_transaction",
+                    "planned_transaction",
+                    "subscription",
+                    "account",
+                    "budget_period",
+                    "category",
+                ):
+                    await session.execute(
+                        text(f"DELETE FROM {tbl} WHERE user_id = ANY(:uids)"),
+                        {"uids": ids},
+                    )
                 await session.execute(
-                    text(f"DELETE FROM {tbl} WHERE user_id = ANY(:uids)"),
+                    text("DELETE FROM app_user WHERE id = ANY(:uids)"),
                     {"uids": ids},
                 )
-            await session.execute(
-                text("DELETE FROM app_user WHERE id = ANY(:uids)"),
-                {"uids": ids},
-            )
-        await session.commit()
+            await session.commit()
+    finally:
+        await engine.dispose()
 
 
 @pytest_asyncio.fixture
@@ -181,9 +189,11 @@ async def test_concurrent_complete_onboarding_yields_one_success_one_already(
 
     # Verify final DB state: exactly one onboarded_at set, cycle_start_day=1.
     async with AsyncSessionLocal() as verify_session:
-        row = (await verify_session.execute(
-            select(AppUser).where(AppUser.tg_user_id == tg_user_id)
-        )).scalar_one()
+        row = (
+            await verify_session.execute(
+                select(AppUser).where(AppUser.tg_user_id == tg_user_id)
+            )
+        ).scalar_one()
         assert row.onboarded_at is not None
         assert row.cycle_start_day == 1
 
@@ -222,7 +232,9 @@ async def test_repeat_complete_after_success_raises_already(
 
     # cycle_start_day must remain 1 (winner value), not 15 (loser).
     async with AsyncSessionLocal() as verify_session:
-        row = (await verify_session.execute(
-            select(AppUser).where(AppUser.tg_user_id == tg_user_id)
-        )).scalar_one()
+        row = (
+            await verify_session.execute(
+                select(AppUser).where(AppUser.tg_user_id == tg_user_id)
+            )
+        ).scalar_one()
         assert row.cycle_start_day == 1, "Loser must NOT overwrite cycle_start_day"

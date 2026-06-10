@@ -504,3 +504,29 @@ async def truncate_db_phase13() -> None:
     Plan 13-02 creates the ai_usage_log table — that is by design (RED phase).
     """
     await truncate_db(tables=_PHASE13_TRUNCATE_TABLES)
+
+
+def admin_engine_and_sessionmaker():
+    """Build an admin-role (ADMIN_DATABASE_URL) engine + sessionmaker for tests.
+
+    Этап 2 (WI-2): the runtime ``app.db.session.AsyncSessionLocal`` is bound to
+    ``budget_app`` (NOSUPERUSER NOBYPASSRLS) so RLS enforces on the production
+    path. Seed/teardown/verify operations that need privileges (``SET LOCAL
+    row_security = off``, cross-tenant reads, RLS-bypass DELETEs) must therefore
+    NOT use the runtime factory — they use this admin factory instead.
+
+    Returns ``(engine, sessionmaker)``. The caller owns ``await engine.dispose()``.
+    Falls back to ``DATABASE_URL`` when ``ADMIN_DATABASE_URL`` is unset.
+    """
+    import os
+
+    from sqlalchemy.ext.asyncio import (
+        AsyncSession,
+        async_sessionmaker,
+        create_async_engine,
+    )
+
+    admin_url = os.environ.get("ADMIN_DATABASE_URL") or os.environ["DATABASE_URL"]
+    engine = create_async_engine(admin_url, echo=False, pool_pre_ping=True)
+    maker = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+    return engine, maker

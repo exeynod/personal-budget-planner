@@ -9,6 +9,7 @@ Covered behaviours:
 - a freshly-rolled period (close_period_job) yields planned_at NULL
 - GET /home needs_planning True when planned_at NULL / False otherwise
 """
+
 import os
 from datetime import date, datetime, timezone
 
@@ -126,13 +127,19 @@ async def test_migration_0037_backfill_sets_now_for_existing_row(db_session):
         pytest.skip("OWNER user not present — dev_seed did not run")
 
     try:
+        # Status is 'closed' here on purpose: the OWNER already has an active
+        # period from dev_seed, and the partial unique index
+        # uq_budget_period_one_active (alembic 0039, Этап 2 WI-1) forbids a
+        # second active period per user. planned_at nullability is independent of
+        # status, so a closed row exercises the same schema contract without
+        # tripping the invariant.
         inserted = (
             await db_session.execute(
                 text(
                     "INSERT INTO budget_period "
                     "(period_start, period_end, starting_balance_cents, status, "
                     " user_id) "
-                    "VALUES (:ps, :pe, 0, 'active', :uid) RETURNING planned_at"
+                    "VALUES (:ps, :pe, 0, 'closed', :uid) RETURNING planned_at"
                 ),
                 {
                     "ps": date(2099, 1, 5),
@@ -233,9 +240,7 @@ async def test_confirm_plan_idempotent(db_setup, active_period, auth_headers):
 async def test_confirm_plan_404_for_foreign_period(db_setup, auth_headers):
     """A period id that doesn't belong to the tenant → 404."""
     client, _, _ = db_setup
-    resp = await client.post(
-        "/api/v1/periods/99999/confirm-plan", headers=auth_headers
-    )
+    resp = await client.post("/api/v1/periods/99999/confirm-plan", headers=auth_headers)
     assert resp.status_code == 404
 
 
@@ -247,9 +252,7 @@ async def test_rolled_period_has_planned_at_null(db_setup, owner_tg_id, monkeypa
     """A period created by close_period_job leaves planned_at NULL (triggers gate)."""
     _, SessionLocal, owner_user_id = db_setup
     fake_today = date(2026, 5, 5)
-    monkeypatch.setattr(
-        "app.services.periods._today_in_app_tz", lambda: fake_today
-    )
+    monkeypatch.setattr("app.services.periods._today_in_app_tz", lambda: fake_today)
     monkeypatch.setattr(
         "app.worker.jobs.close_period._today_in_app_tz",
         lambda: fake_today,

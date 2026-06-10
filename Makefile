@@ -5,7 +5,8 @@
         lint fmt fmt-check \
         check-no-manual-ddl check-no-manual-ddl-selftest \
         ci-local verify-all hooks \
-        perf-report hidden-unicode-grep migration-roundtrip contract contract-check
+        perf-report hidden-unicode-grep migration-roundtrip contract contract-check \
+        migrations-check migrations-check-selftest
 
 # Default goal: print the catalog. `make` with no target → `make help`.
 .DEFAULT_GOAL := help
@@ -269,4 +270,24 @@ hidden-unicode-grep:
 # Требует поднятого docker-compose стека (api + db).
 migration-roundtrip:
 	@scripts/alembic-roundtrip.sh
+
+# ============================================================
+# Этап 2 (WI-4) — autogen-drift inspector (models ↔ migration head)
+# ============================================================
+# INFORMATIONAL, не блокирующий гейт. Этот codebase несёт намеренные
+# model↔schema расхождения (composite FK на DB-level, raw-SQL таблица
+# analytics_event, часть perf-индексов вне ORM), которые `alembic check`
+# всегда репортит как drift — поэтому НЕ в verify-all/ci-local. Использовать
+# при написании миграции, чтобы увидеть, что твои новые объекты согласованы
+# с моделями. Подробности — docs/RUNBOOK.md "Миграции: autogen-drift".
+# Скрипт scripts/ не запечён в api-образ — пайпим его через stdin (как `contract`).
+migrations-check:
+	@$(DC) exec -T api sh -s < scripts/check-migrations-autogen.sh
+
+# Negative-control selftest: доказывает, что детектор drift реально краснеет.
+# Пайпит python-харнес в api-контейнер: он подсаживает фантомную таблицу в
+# Base.metadata (которой нет в БД) и проверяет, что autogenerate её замечает.
+# Скрипт scripts/ не запечён в образ → пайпим через stdin.
+migrations-check-selftest:
+	@$(DC) exec -T -w / -e PYTHONPATH=/app api /app/.venv/bin/python - < scripts/check-migrations-autogen-selftest.py
 

@@ -88,3 +88,4 @@ frontend/tests/ui-audit-screenshots/
 .claude/settings.local.json
 .claude/scheduled_tasks.lock
 .xcodebuildmcp/
+handoff.md

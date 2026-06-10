@@ -6,19 +6,15 @@ Phase 22 plan 22.16 (final plan of Wave 4) — migration-safety gate.
 This suite verifies, against a Postgres database that has already been brought
 to ``alembic head`` by ``scripts/run-integration-tests.sh``, that:
 
-  1. The forward chain 0011 → head landed every expected v1.0 schema artefact
-     (tables, columns, enums, composite UNIQUE/FK, partial indexes,
-     RLS policies, GRANTs).
-  2. The data-backfill from 0013 (Category.code / .ord / .rollover / .paused
-     / .plan_cents and the drop of ``plan_template_item``) is observable at
-     runtime — the legacy columns are gone and the new ones are NOT NULL +
-     populated for the seeded OWNER row (when present).
-  3. Per-migration round-trip safety (``upgrade -> downgrade -> upgrade`` for
-     each of 0012/0013/0014/0015) — destructive against the live DB and
-     therefore opt-in via ``MIGRATION_ROUNDTRIP=1``. Skipped by default so
-     the introspection-only sections remain CI-safe.
-  4. RLS-policy presence on the new v1.0 tables (account, goal,
-     savings_config) and their FORCE ROW LEVEL SECURITY flags.
+  1. The DB ``alembic_version`` matches the migration scripts' head — read from
+     ``ScriptDirectory.get_heads()`` (Этап 2 WI-3), not a hand-maintained
+     allowlist.
+  2. The forward chain 0011 → head landed every expected v1.0 schema artefact
+     (tables, columns, enums, composite UNIQUE/FK, partial indexes).
+  3. The data-backfill from 0013 (Category.code / .ord / .plan_cents and the
+     drop/revival of ``plan_template_item``) is observable at runtime — the
+     legacy columns are gone and the new ones are NOT NULL + populated for the
+     seeded OWNER row (when present).
 
 How to run
 ----------
@@ -26,32 +22,22 @@ The standard integration runner already brings the DB to head and passes::
 
     ./scripts/run-integration-tests.sh tests/test_migrations_v1_0.py -v
 
-Round-trip section is opt-in (the test DB will be temporarily rewound and
-re-upgraded; existing rows survive but the explicit data-loss notes in
-0013/0014 downgrade docstrings still apply)::
-
-    MIGRATION_ROUNDTRIP=1 ./scripts/run-integration-tests.sh \\
-        tests/test_migrations_v1_0.py -v -k round_trip
-
 Backfill seeded-data assertions are best-effort: they assert *only when* an
 owner row already exists in ``app_user``. If the DB is empty (fresh test
 container with no dev_seed) the assertion self-skips — same pattern as
 ``tests/test_migration_backfill.py`` from Phase 11.
 
-Two-session architecture
-------------------------
-``conftest.py`` promotes ``ADMIN_DATABASE_URL`` to ``DATABASE_URL`` so the
-default ``db_session`` runs under the SUPERUSER role. That is what we want
-for catalog probes (``information_schema``, ``pg_catalog``, ``pg_policy``)
-and for ``alembic command.upgrade/downgrade`` calls in the round-trip
-section — both require admin. RLS enforcement is covered by the dedicated
-``tests/test_multitenancy_v1_0_columns.py`` (BE-16 acceptance gate); this
-file checks only *presence* of policies/grants/columns.
+Session role
+------------
+``conftest.py`` runs the seed/teardown ``db_session`` under the admin role
+(``ADMIN_DATABASE_URL``) so catalog probes (``information_schema``,
+``pg_catalog``) and the ``SET LOCAL row_security = off`` reads here work. RLS
+enforcement is covered by the dedicated ``tests/test_multitenancy_v1_0_columns.py``
+(BE-16 acceptance gate); this file checks only *presence* of columns/indexes.
 """
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
 import pytest
@@ -67,27 +53,6 @@ pytestmark = pytest.mark.asyncio
 
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-
-
-def _alembic_config():
-    """Build an alembic Config pointing at the repo's alembic.ini.
-
-    Used only by the opt-in round-trip section. Heavy import (alembic) is
-    deferred so the introspection-only tests don't pay for it on collection.
-    """
-    from alembic.config import Config
-
-    cfg = Config(str(REPO_ROOT / "alembic.ini"))
-    cfg.set_main_option("script_location", str(REPO_ROOT / "alembic"))
-    # env.py reads ADMIN_DATABASE_URL / DATABASE_URL on its own — we only
-    # need to make sure script_location is correct when the test process
-    # runs from ``/app`` inside the api container vs. from the host.
-    return cfg
-
-
-def _roundtrip_enabled() -> bool:
-    """Round-trip is destructive (downgrade rewinds a live DB). Opt-in only."""
-    return os.environ.get("MIGRATION_ROUNDTRIP", "").lower() in {"1", "true", "yes"}
 
 
 async def _alembic_heads(session) -> set[str]:
@@ -174,58 +139,54 @@ async def _enum_values(session, type_name: str) -> list[str]:
 # ---------------------------------------------------------------------------
 
 
-async def test_alembic_upgrade_from_0011_to_0015_succeeds(db_session):
-    """The integration DB must already be at head — ``alembic_version`` is
-    populated and contains a v1.0 head (``0015_v10_rls_finalize`` or later).
+def _script_heads() -> set[str]:
+    """Real alembic head(s) read from the migration scripts on disk.
+
+    Replaces the former hardcoded ``v10_revs`` allowlist (Этап 2 WI-3): that set
+    had to be hand-extended for EVERY new migration, so it silently rotted. The
+    canonical head is whatever ``ScriptDirectory`` reports — single source of
+    truth, no maintenance.
+
+    Inside the api container cwd is ``/app`` and the migration env at
+    ``/app/alembic`` shadows the installed ``alembic`` library; promote the venv
+    site-packages ahead of it so ``alembic.config`` / ``alembic.script`` resolve
+    to the library, not the migration directory.
+    """
+    import sys
+    import sysconfig
+
+    _site = sysconfig.get_paths().get("purelib")
+    if _site:
+        if _site in sys.path:
+            sys.path.remove(_site)
+        sys.path.insert(0, _site)
+
+    from alembic.config import Config
+    from alembic.script import ScriptDirectory
+
+    cfg = Config(str(REPO_ROOT / "alembic.ini"))
+    cfg.set_main_option("script_location", str(REPO_ROOT / "alembic"))
+    return set(ScriptDirectory.from_config(cfg).get_heads())
+
+
+async def test_alembic_db_is_at_script_head(db_session):
+    """The integration DB must be at the migration scripts' head revision.
 
     The actual upgrade ran during stack boot (api waits for ``alembic upgrade
-    head`` before becoming healthy). We assert idempotence here: the
-    alembic_version row is present and is a known v1.0 revision.
+    head`` before becoming healthy). We assert the live ``alembic_version``
+    matches ``ScriptDirectory.get_heads()`` — reading the real head from disk
+    instead of a brittle hand-maintained allowlist (Этап 2 WI-3).
     """
-    heads = await _alembic_heads(db_session)
-    assert heads, "alembic_version table is empty — alembic upgrade did not run"
-    # Phase 22 v1.0 chain: 0012 → 0016. Any v1.0-or-later rev is acceptable as
-    # head — version pin is the responsibility of the migration plans.
-    # 68-05 (class F): the chain has advanced well past 0016 (the real head is
-    # now 0026_ai_usage_cost_cents). Accept the full post-0011 v1.0+ rev set so
-    # this guard does not break every time a new migration lands; the intent is
-    # "DB is at a v1.0-or-later head", not a brittle exact-pin.
-    v10_revs = {
-        "0012_v10_user_account",
-        "0013_v10_category_ext",
-        "0014_v10_actual_goal_savings",
-        "0015_v10_rls_finalize",
-        "0016_v10_actual_account_id",
-        "0017_savings_config_base",
-        "0018_goal_due_optional",
-        "0019_subscription_account",
-        "0020_pdn_compliance",
-        "0021_payment_billing",
-        "0022_app_user_trial",
-        "0023_business_personal_tag",
-        "0024_analytics_event",
-        "0025_subscription_posted_txn_unique",
-        "0026_ai_usage_cost_cents",
-        "0027_perf_composite_indexes",
-        # v1.1 planning rework
-        "0028_planning_rework_add",
-        "0029_planned_posted_txn",
-        "0030_adjustment_category",
-        "0031_remove_savings_etc",
-        "0031_remove_savings_paused_rollover",
-        "0032_backfill_accounts",
-        "0033_drop_income_limits",
-        "0034_category_icon",
-        "0035_category_color",
-        # ADR-0007 recurring payments
-        "0036_recurring_interval",
-        # ADR-0008 monthly planning gate
-        "0037_period_planned_at",
-        # v1.2 balance-fix (signed delta-accounting repair)
-        "0038_recompute_balances",
-    }
-    assert heads & v10_revs, (
-        f"DB is not at a v1.0 alembic head; current revisions: {heads}"
+    db_heads = await _alembic_heads(db_session)
+    assert db_heads, "alembic_version table is empty — alembic upgrade did not run"
+
+    script_heads = _script_heads()
+    assert script_heads, "ScriptDirectory reported no heads — alembic tree broken"
+    # Exactly the scripts' head(s) must be applied. This both proves the DB is
+    # current AND catches a forgotten `alembic upgrade head` on the test stack.
+    assert db_heads == script_heads, (
+        f"DB alembic_version {db_heads} != migration script head {script_heads}; "
+        "the test DB is not at head (run `alembic upgrade head`)."
     )
 
 
@@ -427,31 +388,12 @@ async def test_account_partial_unique_primary_index_exists(db_session):
     )
 
 
-# ---------------------------------------------------------------------------
-# Section D: per-migration round-trip (4 tests, opt-in via MIGRATION_ROUNDTRIP)
-# ---------------------------------------------------------------------------
-#
-# Round-trip is destructive: it rewinds the live integration DB by one
-# revision and re-applies it. Even though each migration's downgrade is
-# symmetric for *schema*, the docstrings of 0014 and 0013 explicitly note
-# that some data is lost on downgrade (plan_template_item rows;
-# rollover_processed_at timestamps; actual_transaction rows with
-# kind ∈ {roundup, deposit} fail the rename cast). Because of that we
-# only run the round-trip when the operator explicitly opts in by setting
-# MIGRATION_ROUNDTRIP=1 — typical use is a dedicated CI matrix job that
-# resets the DB between migrations.
-#
-# Without the flag, each test self-skips with a clear message — the rest
-# of the suite (introspection-only) still runs, providing the BE-04/BE-05
-# /BE-06/BE-11/BE-12/BE-14/BE-16 acceptance signal.
-
-
-# NOTE (prune): the opt-in per-migration round-trip section (round_trip_0012
-# /0013/0014/0015) was removed. It was MIGRATION_ROUNDTRIP-gated (skipped in the
-# standard runner) and targeted the historical 0012-0015 chain whose downgrades
-# carry stale goal/savings/plan_template_item data-loss notes. The forward-state
-# schema, enum, composite-FK and backfill assertions below remain the
-# migration-safety gate.
+# Section D (per-migration round-trip) was removed: it was MIGRATION_ROUNDTRIP-
+# gated (always skipped in the standard runner) and targeted the historical
+# 0012-0015 chain. Migration round-trip safety now lives in
+# ``scripts/alembic-roundtrip.sh`` / ``make migration-roundtrip`` (upgrade head
+# → downgrade -1 → upgrade head against the live stack). The forward-state
+# schema/enum/FK/backfill assertions below remain this file's gate.
 
 
 # ---------------------------------------------------------------------------
@@ -470,35 +412,33 @@ async def test_account_partial_unique_primary_index_exists(db_session):
 # row-level assertions self-skip — the schema-shape assertions still run.
 
 
-async def test_existing_user_gets_income_cents_null(db_session):
-    """BE-01 + 0012 backfill: app_user has nullable income_cents column.
+async def test_app_user_income_cents_column_is_nullable_bigint(db_session):
+    """BE-01 + 0012: app_user.income_cents is a NULLable BIGINT column.
 
-    Backfill rule (CONTEXT §Area 1): existing OWNER row → income_cents = NULL
-    (UI redirects to onboarding-edit). We verify: column is BIGINT NULLable,
-    AND if any rows exist they default to NULL until onboarding-complete.
+    SHAPE-ONLY (Этап 2 WI-3, honest naming): this asserts the column *shape*,
+    not a data-row invariant. ``income_cents = NULL`` is only the backfill
+    *initial* state (existing OWNER row → NULL, UI redirects to onboarding-edit);
+    once the operator completes onboarding the value is non-NULL, so there is no
+    standing data-row invariant to assert. The runtime backfill behaviour is
+    covered by the onboarding service tests.
     """
     cols = await _table_columns(db_session, "app_user")
     assert "income_cents" in cols, "app_user missing income_cents column"
-    # Verify NULLable.
     res = await db_session.execute(
         text(
-            "SELECT is_nullable FROM information_schema.columns "
+            "SELECT data_type, is_nullable FROM information_schema.columns "
             "WHERE table_schema='public' AND table_name='app_user' "
             "AND column_name='income_cents'"
         )
     )
-    is_nullable = res.scalar()
+    data_type, is_nullable = res.one()
     assert is_nullable == "YES", (
         f"app_user.income_cents must be NULLable (backfill = NULL); "
         f"got is_nullable={is_nullable!r}"
     )
-
-    # Best-effort: if there is at least one user, none of them should have a
-    # non-NULL income_cents *unless* the test DB has been onboarded already.
-    # We don't assert ALL == NULL (that would break against a DB where the
-    # operator went through onboarding-complete in plan 22.11). Instead we
-    # only check that the column shape is correct above.
-    # (No data-row assertion — backfill = NULL is initial state, not invariant.)
+    assert data_type == "bigint", (
+        f"app_user.income_cents must be BIGINT (деньги — копейки); got {data_type!r}"
+    )
 
 
 async def test_existing_categories_get_code_and_ord_backfilled(db_session):

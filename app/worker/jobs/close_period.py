@@ -196,6 +196,19 @@ async def _close_period_for_user(session, *, user_id: int) -> None:
     # purpose — a NULL planned_at is what flips home.needs_planning to True and
     # triggers the monthly planning gate on the user's first entry into the new
     # period. It is set later by POST /periods/{id}/confirm-plan.
+    # Step 5: close the expired period FIRST, and flush that transition before
+    # inserting the new active period. Order matters: the partial unique index
+    # ``uq_budget_period_one_active`` (alembic 0039, Этап 2 WI-1) forbids two
+    # active periods for one user. Inserting the new active row while ``expired``
+    # is still active would momentarily create two active periods and trip the
+    # index. Marking ``expired`` closed + flushing first keeps the invariant
+    # satisfied at every flush boundary. (Both writes still commit atomically in
+    # the same transaction.)
+    expired.status = PeriodStatus.closed
+    expired.ending_balance_cents = ending_balance
+    expired.closed_at = datetime.now(timezone.utc)
+    await session.flush()  # persist expired→closed before the new active row
+
     new_period = BudgetPeriod(
         user_id=user_id,
         period_start=p_start,
@@ -205,11 +218,6 @@ async def _close_period_for_user(session, *, user_id: int) -> None:
     )
     session.add(new_period)
     await session.flush()  # populate new_period.id
-
-    # Step 5: close expired period.
-    expired.status = PeriodStatus.closed
-    expired.ending_balance_cents = ending_balance
-    expired.closed_at = datetime.now(timezone.utc)
 
     # Step 5b (recurring-payments fix): новый период — флаг «проведена в этом
     # периоде» сбрасывается. ``subscription.posted_txn_id`` — informational

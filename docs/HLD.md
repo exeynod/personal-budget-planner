@@ -129,13 +129,16 @@ SubCycle       = Literal["monthly", "yearly"]
 
 ### 2.3 Индексы
 
-| Таблица               | Индекс                          | Зачем                              |
-| --------------------- | ------------------------------- | ---------------------------------- |
-| `actual_transaction`  | `(period_id, kind)`             | агрегация для дашборда             |
-| `actual_transaction`  | `(category_id, tx_date)`        | фильтрация по категории            |
-| `planned_transaction` | `(period_id, kind)`             | агрегация для дашборда             |
-| `subscription`        | `(is_active, next_charge_date)` | поиск ближайших списаний шедулером |
-| `budget_period`       | `period_start UNIQUE`           | один период на дату начала         |
+| Таблица               | Индекс                                                                           | Зачем                                           |
+| --------------------- | -------------------------------------------------------------------------------- | ----------------------------------------------- |
+| `actual_transaction`  | `(period_id, kind)`                                                              | агрегация для дашборда                          |
+| `actual_transaction`  | `(category_id, tx_date)`                                                         | фильтрация по категории                         |
+| `planned_transaction` | `(period_id, kind)`                                                              | агрегация для дашборда                          |
+| `subscription`        | `(is_active, next_charge_date)`                                                  | поиск ближайших списаний шедулером              |
+| `budget_period`       | `period_start UNIQUE`                                                            | один период на дату начала                      |
+| `budget_period`       | `uq_budget_period_one_active` (partial UNIQUE `(user_id) WHERE status='active'`) | ≤1 active-период на юзера (alembic 0039)        |
+| `budget_period`       | CHECK `ck_budget_period_end_after_start` (`period_end >= period_start`)          | целостность диапазона периода (alembic 0039)    |
+| `app_user`            | CHECK `ck_app_user_cycle_start_day` (`cycle_start_day BETWEEN 1 AND 28`)         | совпадает с API-контрактом 1..28 (alembic 0039) |
 
 ## 3. Расчёт периода (детали)
 
@@ -144,11 +147,11 @@ def period_for(date: date, cycle_start_day: int) -> tuple[date, date]:
     """
     cycle_start_day=5, date=2026-02-15 → (2026-02-05, 2026-03-04)
     cycle_start_day=5, date=2026-02-03 → (2026-01-05, 2026-02-04)
-    cycle_start_day=31 на февраль → используем последний день месяца.
+    cycle_start_day=28, date=2026-02-10 → (2026-01-28, 2026-02-27)
     """
 ```
 
-Edge-case: если `cycle_start_day > 28` и в каком-то месяце такого числа нет (29 фев и т. п.) — берём `min(cycle_start_day, last_day_of_month)`. Это документируется в Settings: «Если в месяце меньше дней, период начнётся в последний день».
+`cycle_start_day` ограничен диапазоном **1..28** — и API-контрактом (Pydantic `ge=1, le=28` в onboarding/settings), и DB-констрейнтом `ck_app_user_cycle_start_day` (alembic 0039). Верхняя граница 28 гарантирует, что такой день есть в каждом месяце (включая февраль), поэтому отдельная обработка «короткого месяца» (`min(day, last_day_of_month)`) не требуется. `period.py:period_for` дополнительно defensively проверяет `>= 1`.
 
 ## 4. API (REST, JSON)
 

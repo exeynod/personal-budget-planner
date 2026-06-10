@@ -210,6 +210,15 @@ class AppUser(Base):
         TIMESTAMP(timezone=True), nullable=True
     )
 
+    __table_args__ = (
+        # Этап 2 (WI-1, alembic 0039): cycle_start_day ∈ [1, 28] — period_for
+        # требует, чтобы день старта цикла существовал во всех месяцах.
+        CheckConstraint(
+            "cycle_start_day BETWEEN 1 AND 28",
+            name="ck_app_user_cycle_start_day",
+        ),
+    )
+
 
 class PdnAuditLog(Base):
     """Phase 33 CMP-33-01: ПДн audit log.
@@ -497,6 +506,19 @@ class BudgetPeriod(Base):
             "id",
             unique=True,
             postgresql_where=text("rollover_processed_at IS NOT NULL"),
+        ),
+        # Этап 2 (WI-1, alembic 0039): не более одного active-периода на юзера.
+        # Дублирует partial UNIQUE из миграции для autogen-alignment (alembic check).
+        Index(
+            "uq_budget_period_one_active",
+            "user_id",
+            unique=True,
+            postgresql_where=text("status = 'active'"),
+        ),
+        # Этап 2 (WI-1, alembic 0039): period_end не раньше period_start.
+        CheckConstraint(
+            "period_end >= period_start",
+            name="ck_budget_period_end_after_start",
         ),
     )
 

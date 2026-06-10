@@ -4,6 +4,7 @@ Pattern source: https://alembic.sqlalchemy.org/en/latest/cookbook.html
 IMPORTANT: Standard alembic env.py is synchronous — must use the async
 variant with asyncpg.
 """
+
 import asyncio
 import os
 from logging.config import fileConfig
@@ -34,9 +35,14 @@ target_metadata = Base.metadata
 
 
 def do_run_migrations(connection):
+    # target_metadata must be the real Base.metadata so `alembic check`
+    # (Этап 2 WI-2 / WI-4 autogen-drift gate) can compare the live schema
+    # against the ORM models. It is unused by plain upgrade/downgrade
+    # (run_migrations only replays the version scripts), so wiring it here is
+    # safe for normal migration runs.
     context.configure(
         connection=connection,
-        target_metadata=None,
+        target_metadata=target_metadata,
     )
     with context.begin_transaction():
         context.run_migrations()
