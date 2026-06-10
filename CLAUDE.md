@@ -36,7 +36,7 @@ VPS + docker-compose (5 сервисов) + Caddy/Let's Encrypt.
 app/                 общий Python-codebase (3 точки входа ниже шарят его)
   api/               FastAPI REST + валидация TG initData
   bot/               aiogram — команды + push
-  worker/jobs/       APScheduler-джобы (notify/charge/close_period/purge)
+  worker/jobs/       APScheduler-джобы (notify/close_period/purge)
   services/          доменная логика (план/факт, категории, подписки, онбординг)
   core/              config, security (HMAC initData), RLS set_tenant_scope
   db/                models.py · base · session
@@ -53,13 +53,13 @@ docs/                HLD · RUNBOOK · DEPLOY · adr · services/
 
 ## Сервисы (docker-compose)
 
-| Сервис   | Точка входа      | Назначение                                              | Доки                                               |
-| -------- | ---------------- | ------------------------------------------------------- | -------------------------------------------------- |
-| `caddy`  | —                | TLS + reverse proxy + отдача SPA-статики                | `deploy/Caddyfile*`, `docs/DEPLOY.md`              |
-| `api`    | `main_api.py`    | FastAPI REST + валидация TG initData                    | [docs/services/api.md](docs/services/api.md)       |
-| `bot`    | `main_bot.py`    | aiogram — команды + push-отправка                       | [docs/services/bot.md](docs/services/bot.md)       |
-| `worker` | `main_worker.py` | APScheduler (notify 09:00 / charge 00:05 / close 00:01) | [docs/services/worker.md](docs/services/worker.md) |
-| `db`     | —                | PostgreSQL 16 + pgvector, RLS                           | `docs/HLD.md` §2 (ERD)                             |
+| Сервис   | Точка входа      | Назначение                                             | Доки                                               |
+| -------- | ---------------- | ------------------------------------------------------ | -------------------------------------------------- |
+| `caddy`  | —                | TLS + reverse proxy + отдача SPA-статики               | `deploy/Caddyfile*`, `docs/DEPLOY.md`              |
+| `api`    | `main_api.py`    | FastAPI REST + валидация TG initData                   | [docs/services/api.md](docs/services/api.md)       |
+| `bot`    | `main_bot.py`    | aiogram — команды + push-отправка                      | [docs/services/bot.md](docs/services/bot.md)       |
+| `worker` | `main_worker.py` | APScheduler (notify 09:00 / close 00:01 / purge 02:00) | [docs/services/worker.md](docs/services/worker.md) |
+| `db`     | —                | PostgreSQL 16 + pgvector, RLS                          | `docs/HLD.md` §2 (ERD)                             |
 
 `api`/`bot`/`worker` — один codebase `app/`, разные entrypoints. 7 таблиц: `app_user`,
 `category`, `budget_period`, `plan_template_item`, `planned_transaction`,
