@@ -121,10 +121,13 @@
 
 ```python
 CategoryKind   = Literal["expense", "income"]
+ActualKind     = Literal["expense", "income", "roundup", "deposit"]  # actual_transaction.kind + planned/template (Phase 22 BE-06)
+AccountKind    = Literal["card", "cash", "savings"]
 PeriodStatus   = Literal["active", "closed"]
 PlanSource     = Literal["template", "manual", "subscription_auto"]
 ActualSource   = Literal["mini_app", "bot"]
 SubCycle       = Literal["monthly", "yearly"]
+UserRole       = Literal["owner", "member", "revoked"]
 ```
 
 ### 2.3 Индексы
@@ -166,31 +169,36 @@ def period_for(date: date, cycle_start_day: int) -> tuple[date, date]:
 
 ### 4.2 Categories
 
-| Method  | Path                                 | Описание                                         |
-| ------- | ------------------------------------ | ------------------------------------------------ |
-| `GET`   | `/categories?include_archived=false` | Список                                           |
-| `POST`  | `/categories`                        | Body: `{name, kind, sort_order?}`                |
-| `PATCH` | `/categories/{id}`                   | Body: любое из `{name, sort_order, is_archived}` |
+| Method   | Path                                 | Описание                                                       |
+| -------- | ------------------------------------ | -------------------------------------------------------------- |
+| `GET`    | `/categories?include_archived=false` | Список                                                         |
+| `POST`   | `/categories`                        | Body: `{name, kind, sort_order?}`                              |
+| `PATCH`  | `/categories/{id}`                   | Body: любое из `{name, sort_order, is_archived}`               |
+| `DELETE` | `/categories/{id}`                   | Soft-archive (`is_archived=true`); строки сохраняются (CAT-02) |
 
 ### 4.3 Plan Template
 
-| Method   | Path                                              | Описание                                                         |
-| -------- | ------------------------------------------------- | ---------------------------------------------------------------- |
-| `GET`    | `/plan-template/items`                            | Все строки шаблона                                               |
-| `POST`   | `/plan-template/items`                            | Body: `{category_id, amount_cents, description, day_of_period?}` |
-| `PATCH`  | `/plan-template/items/{id}`                       | Любое поле                                                       |
-| `DELETE` | `/plan-template/items/{id}`                       | —                                                                |
-| `POST`   | `/plan-template/snapshot-from-period/{period_id}` | Перезаписать шаблон тек. планом периода                          |
+| Method   | Path                            | Описание                                                         |
+| -------- | ------------------------------- | ---------------------------------------------------------------- |
+| `GET`    | `/template/items`               | Свод лимитов шаблона по категориям                               |
+| `PUT`    | `/template/items/{category_id}` | Upsert лимита категории в шаблоне. Body: `{limit_cents}`         |
+| `GET`    | `/template/lines?category_id=`  | Строки шаблона (детализация)                                     |
+| `POST`   | `/template/lines`               | Body: `{category_id, title, amount_cents, kind, day_of_period?}` |
+| `PATCH`  | `/template/lines/{line_id}`     | Любое поле строки                                                |
+| `DELETE` | `/template/lines/{line_id}`     | —                                                                |
 
 ### 4.4 Budget Periods
 
-| Method | Path                           | Описание                                                                    |
-| ------ | ------------------------------ | --------------------------------------------------------------------------- |
-| `GET`  | `/periods`                     | Список (year DESC), пагинация `?limit=12&before=YYYY-MM-DD`                 |
-| `GET`  | `/periods/current`             | Активный период; если нет — создаст по `cycle_start_day` и развернёт шаблон |
-| `GET`  | `/periods/{id}/summary`        | Сводка как Summary в xlsx (см. §4.7)                                        |
-| `POST` | `/periods/{id}/close`          | Зафиксировать `ending_balance`, status=closed                               |
-| `POST` | `/periods/{id}/apply-template` | Idempotent: применяет шаблон к пустому периоду                              |
+| Method  | Path                           | Описание                                                                        |
+| ------- | ------------------------------ | ------------------------------------------------------------------------------- |
+| `GET`   | `/periods`                     | Список всех периодов (newest first), без пагинации; active + closed             |
+| `GET`   | `/periods/current`             | Активный период; `404` если нет (lazy-create делает worker `close_period`)      |
+| `GET`   | `/periods/{id}/balance`        | Баланс/сводка по любому периоду (DSH-05/06), та же форма, что `/actual/balance` |
+| `GET`   | `/periods/{id}/actual`         | Факт-транзакции периода (см. §4.6)                                              |
+| `GET`   | `/periods/{id}/plan`           | План месяца (свод по категориям + строки)                                       |
+| `PATCH` | `/periods/{id}/plan`           | Правка плана месяца                                                             |
+| `POST`  | `/periods/{id}/apply-template` | Idempotent: применяет шаблон к пустому периоду                                  |
+| `POST`  | `/periods/{id}/confirm-plan`   | Снять гейт планирования (`planned_at = now()`, ADR-0008)                        |
 
 ### 4.5 Planned Transactions
 
@@ -281,12 +289,12 @@ data-миграцией `0038_recompute_balances`.
 
 Авторизация — внутренний `X-Internal-Token` (общий секрет в env, не доступен снаружи).
 
-| Method | Path                         | Описание                                                                                                                                                                                                                                        |
-| ------ | ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `POST` | `/internal/bot/transactions` | Body: `{tg_user_id, kind, amount_cents, category_query, description}`. Бот получает результат для ответа в чат. v1.2: транзакция привязывается к primary-счёту пользователя и двигает его баланс (нет primary → `account_id=NULL`, как раньше). |
-| `POST` | `/internal/bot/balance`      | Возвращает данные для команды `/balance`.                                                                                                                                                                                                       |
-| `POST` | `/internal/bot/today`        | Транзакции за сегодня.                                                                                                                                                                                                                          |
-| `POST` | `/internal/bot/chat-bound`   | Сохраняет `tg_chat_id` после `/start`.                                                                                                                                                                                                          |
+| Method | Path                           | Описание                                                                                                                                                                                                                                        |
+| ------ | ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `POST` | `/internal/bot/actual`         | Body: `{tg_user_id, kind, amount_cents, category_query, description}`. Бот получает результат для ответа в чат. v1.2: транзакция привязывается к primary-счёту пользователя и двигает его баланс (нет primary → `account_id=NULL`, как раньше). |
+| `POST` | `/internal/bot/balance`        | Возвращает данные для команды `/balance`.                                                                                                                                                                                                       |
+| `POST` | `/internal/bot/today`          | Транзакции за сегодня.                                                                                                                                                                                                                          |
+| `POST` | `/internal/telegram/chat-bind` | Сохраняет `tg_chat_id` после `/start`.                                                                                                                                                                                                          |
 
 ## 5. TG-бот (команды и сценарии)
 
